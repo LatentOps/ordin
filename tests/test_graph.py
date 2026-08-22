@@ -14,21 +14,38 @@ def _effect_names(command: str) -> set[str]:
     }
 
 
+def _produced_effect_ids(graph, source: str, effect_type: str) -> set[str]:
+    targets = {
+        edge.target
+        for edge in graph.outgoing(source, "produces")
+    }
+    return {
+        target
+        for target in targets
+        if graph.nodes[target].type == "effect"
+        and graph.nodes[target].label == effect_type
+    }
+
+
 def test_builds_typed_nodes_and_edges_from_command_cards():
     graph = build_effect_graph()
 
     assert "command:rm" in graph.nodes
     assert graph.nodes["command:rm"].type == "command"
-    assert "effect:filesystem.delete" in graph.nodes
     assert "flag:rm:command:-r" in graph.nodes
     assert "subcommand:git:reset" in graph.nodes
     assert "privilege:container_runtime_access" in graph.nodes
 
-    assert any(
-        edge.source == "command:rm"
-        and edge.relation == "produces"
-        and edge.target == "effect:filesystem.delete"
-        for edge in graph.edges
+    rm_delete_effects = _produced_effect_ids(
+        graph,
+        "command:rm",
+        "filesystem.delete",
+    )
+    assert rm_delete_effects
+    assert all(
+        graph.nodes[node_id].metadata["effect_type"]
+        == "filesystem.delete"
+        for node_id in rm_delete_effects
     )
     assert any(
         edge.source == "command:rm"
@@ -42,6 +59,38 @@ def test_builds_typed_nodes_and_edges_from_command_cards():
         and edge.target == "privilege:container_runtime_access"
         for edge in graph.edges
     )
+
+
+def test_effect_resources_keep_producer_provenance():
+    graph = build_effect_graph()
+    rm_delete_effects = _produced_effect_ids(
+        graph,
+        "command:rm",
+        "filesystem.delete",
+    )
+    assert rm_delete_effects
+
+    rm_resources = {
+        edge.target
+        for effect_id in rm_delete_effects
+        for edge in graph.outgoing(effect_id, "affects")
+    }
+    assert "resource:filesystem.target" in rm_resources
+    assert "resource:repository.working_tree" not in rm_resources
+
+    git_clean_effects = _produced_effect_ids(
+        graph,
+        "subcommand:git:clean",
+        "filesystem.delete",
+    )
+    assert git_clean_effects
+    git_clean_resources = {
+        edge.target
+        for effect_id in git_clean_effects
+        for edge in graph.outgoing(effect_id, "affects")
+    }
+    assert "resource:repository.working_tree" in git_clean_resources
+    assert "resource:filesystem.target" not in git_clean_resources
 
 
 def test_graph_export_has_stable_schema_version():
