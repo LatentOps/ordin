@@ -229,6 +229,25 @@ def command_substitutions(command: str) -> list[str]:
             index += 1
             continue
 
+        if char == "`":
+            cursor = index + 1
+            inner_escaped = False
+            while cursor < len(command):
+                inner = command[cursor]
+                if inner_escaped:
+                    inner_escaped = False
+                elif inner == "\\":
+                    inner_escaped = True
+                elif inner == "`":
+                    script = command[index + 1:cursor].strip()
+                    if script:
+                        scripts.append(script)
+                    index = cursor
+                    break
+                cursor += 1
+            index += 1
+            continue
+
         if char == "$" and index + 1 < len(command) and command[index + 1] == "(":
             start = index + 2
             cursor = start
