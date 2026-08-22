@@ -5,7 +5,7 @@ from pathlib import PurePosixPath
 from typing import Sequence
 
 
-SEGMENT_OPERATORS = {"&&", "||", ";", "|", "&"}
+SEGMENT_OPERATORS = {"&&", "||", ";", "|", "|&", "&"}
 SHELL_EXECUTABLES = {"bash", "dash", "ksh", "sh", "zsh"}
 SUDO_OPTIONS_WITH_VALUE = {"-C", "-D", "-g", "-h", "-p", "-R", "-T", "-u"}
 
