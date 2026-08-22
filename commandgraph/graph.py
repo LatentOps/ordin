@@ -188,8 +188,12 @@ def _effect_specs(raw: Any) -> list[EffectSpec]:
     return specs
 
 
-def _effect_node_id(effect: str) -> str:
-    return f"effect:{effect}"
+def _effect_node_id(
+    source_id: str,
+    index: int,
+    effect: str,
+) -> str:
+    return f"effect:{source_id}:{index}:{effect}"
 
 
 def _resource_node_id(resource: str) -> str:
@@ -202,17 +206,24 @@ def _add_effect_edges(
     raw_effects: Any,
     catalog: dict[str, dict[str, Any]],
 ) -> None:
-    for spec in _effect_specs(raw_effects):
+    for index, spec in enumerate(_effect_specs(raw_effects)):
         definition = catalog.get(spec.effect, {})
-        effect_id = _effect_node_id(spec.effect)
+        effect_id = _effect_node_id(
+            source_id,
+            index,
+            spec.effect,
+        )
         graph.add_node(
             effect_id,
             "effect",
             spec.effect,
             {
-                key: value
-                for key, value in definition.items()
-                if key in {"risk", "category", "description"}
+                "effect_type": spec.effect,
+                **{
+                    key: value
+                    for key, value in definition.items()
+                    if key in {"risk", "category", "description"}
+                },
             },
         )
         graph.add_edge(source_id, "produces", effect_id)
