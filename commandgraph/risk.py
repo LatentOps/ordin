@@ -9,7 +9,9 @@ from .data import find_command, load_risk_rules
 from .shell import (
     SHELL_EXECUTABLES,
     command_name_candidates,
+    command_substitutions,
     executable_name_from_tokens,
+    grouped_subshells_from_tokens,
     segment_text,
     shell_script_from_tokens,
     split_shell_segments,
@@ -151,16 +153,24 @@ def _review_segment(tokens: list[str], rules: list[dict], depth: int) -> RiskRev
             "Write to a non-system path first and inspect the result before replacing sensitive files."
         )
 
+    nested_scripts = grouped_subshells_from_tokens(tokens)
     wrapped_script = shell_script_from_tokens(tokens)
-    if wrapped_script is not None and depth < 3:
-        nested = _check_command(wrapped_script, rules=rules, depth=depth + 1)
+    if wrapped_script is not None:
+        nested_scripts.append(wrapped_script)
+
+    for nested_script in nested_scripts:
+        if depth >= 3:
+            break
+        nested = _check_command(nested_script, rules=rules, depth=depth + 1)
         risk = max_risk(risk, nested.risk)
         _append_unique(reasons, nested.reasons)
         _append_unique(matched_rules, nested.matched_rules or [])
         _append_unique(risk_categories, nested.risk_categories or [])
         if nested.safer_next_step:
             safer_next_steps.append(nested.safer_next_step)
-    else:
+
+    pure_group = bool(nested_scripts) and tokens[0] == "(" and tokens[-1] == ")"
+    if wrapped_script is None and not pure_group:
         executable = executable_name_from_tokens(tokens)
         if executable:
             command = find_command(executable)
@@ -294,6 +304,9 @@ def _check_command(command: str, rules: list[dict], depth: int) -> RiskReview:
 
     reviews = [_review_segment(segment, rules=rules, depth=depth) for segment in segments]
     reviews.extend(_pipe_findings(segments, operators))
+    if depth < 3:
+        for nested_script in command_substitutions(normalized):
+            reviews.append(_check_command(nested_script, rules=rules, depth=depth + 1))
     return _merge_reviews(reviews)
 
 
