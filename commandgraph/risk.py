@@ -110,7 +110,7 @@ def _rule_applies(rule: dict, tokens: list[str]) -> bool:
 
 def _sensitive_redirection_target(tokens: list[str]) -> str | None:
     for index, token in enumerate(tokens[:-1]):
-        if token not in {">", ">>", ">|"}:
+        if token not in {">", ">>", ">|", "&>", "&>>", "<>"}:
             continue
         target = tokens[index + 1]
         normalized = target.rstrip("/")
@@ -214,7 +214,7 @@ def _review_segment(tokens: list[str], rules: list[dict], depth: int) -> RiskRev
 def _pipe_findings(segments: list[list[str]], operators: list[str]) -> list[RiskReview]:
     findings: list[RiskReview] = []
     for index, operator in enumerate(operators):
-        if operator != "|" or index + 1 >= len(segments):
+        if operator not in {"|", "|&"} or index + 1 >= len(segments):
             continue
         source = executable_name_from_tokens(segments[index])
         sink = executable_name_from_tokens(segments[index + 1])
