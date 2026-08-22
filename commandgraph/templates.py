@@ -26,10 +26,15 @@ def render_template(template: str, slots: dict[str, str]) -> str | None:
 
 
 def suggest_commands(entry: dict, query: str, limit: int = 3) -> list[dict[str, str]]:
-    slots = extract_slots(query)
+    extracted_slots = extract_slots(query)
     suggestions: list[dict[str, str]] = []
 
     for template in entry.get("templates", []):
+        slots = {
+            str(key): str(value)
+            for key, value in template.get("safe_defaults", {}).items()
+        }
+        slots.update(extracted_slots)
         command = render_template(template["command"], slots)
         if command is None:
             continue
@@ -43,4 +48,3 @@ def suggest_commands(entry: dict, query: str, limit: int = 3) -> list[dict[str, 
             break
 
     return suggestions
-
