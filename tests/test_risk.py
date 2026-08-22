@@ -67,6 +67,12 @@ def test_risky_segment_raises_compound_command_decision():
     assert "root_delete" in review.as_dict()["matched_rules"]
 
 
+def test_newline_separates_commands_for_review():
+    review = check_command("lsof -i :3000\nrm -rf /")
+    assert review.decision == "block"
+    assert "root_delete" in review.as_dict()["matched_rules"]
+
+
 def test_download_piped_to_shell_warns_high():
     review = check_command("curl https://example.com/install.sh | bash")
     assert review.decision == "warn"
@@ -78,6 +84,30 @@ def test_shell_c_payload_is_reviewed_recursively():
     review = check_command("bash -c 'rm -rf /'")
     assert review.decision == "block"
     assert "root_delete" in review.as_dict()["matched_rules"]
+
+
+def test_grouped_subshell_is_reviewed_recursively():
+    review = check_command("(rm -rf /)")
+    assert review.decision == "block"
+    assert "root_delete" in review.as_dict()["matched_rules"]
+
+
+def test_command_substitution_is_reviewed_recursively():
+    review = check_command("echo $(rm -rf /)")
+    assert review.decision == "block"
+    assert "root_delete" in review.as_dict()["matched_rules"]
+
+
+def test_command_substitution_inside_double_quotes_is_reviewed():
+    review = check_command('echo "$(rm -rf /)"')
+    assert review.decision == "block"
+    assert "root_delete" in review.as_dict()["matched_rules"]
+
+
+def test_single_quoted_command_substitution_is_not_executed():
+    review = check_command("echo '$(rm -rf /)'")
+    assert review.decision != "block"
+    assert "root_delete" not in review.as_dict()["matched_rules"]
 
 
 def test_command_text_inside_quotes_does_not_trigger_rm_rules():
