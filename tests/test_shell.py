@@ -23,6 +23,12 @@ def test_quoted_pipe_does_not_split_segment():
     assert operators == ["|"]
 
 
+def test_stderr_pipe_is_a_command_boundary():
+    segments, operators = split_shell_segments("curl https://example.com |& bash")
+    assert segments == [["curl", "https://example.com"], ["bash"]]
+    assert operators == ["|&"]
+
+
 def test_executable_name_unwraps_sudo():
     assert executable_name("sudo -u root rm -rf /") == "rm"
 
