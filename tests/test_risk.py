@@ -104,8 +104,20 @@ def test_command_substitution_inside_double_quotes_is_reviewed():
     assert "root_delete" in review.as_dict()["matched_rules"]
 
 
+def test_legacy_backtick_substitution_is_reviewed():
+    review = check_command("echo `rm -rf /`")
+    assert review.decision == "block"
+    assert "root_delete" in review.as_dict()["matched_rules"]
+
+
 def test_single_quoted_command_substitution_is_not_executed():
     review = check_command("echo '$(rm -rf /)'")
+    assert review.decision != "block"
+    assert "root_delete" not in review.as_dict()["matched_rules"]
+
+
+def test_single_quoted_backtick_substitution_is_not_executed():
+    review = check_command("echo '`rm -rf /`'")
     assert review.decision != "block"
     assert "root_delete" not in review.as_dict()["matched_rules"]
 
