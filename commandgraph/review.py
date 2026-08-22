@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import re
 
 from . import REVIEW_SCHEMA_VERSION
 from .risk import check_command
 from .search import SearchResult, search
+from .shell import executable_name
 
 
 @dataclass(frozen=True)
@@ -31,13 +31,6 @@ class CommandReview:
             "related_commands": self.related_commands,
             "intent_alignment": self.intent_alignment,
         }
-
-
-def executable_name(command: str) -> str | None:
-    tokens = re.findall(r"[A-Za-z0-9_.+-]+", command)
-    while tokens and tokens[0] in {"sudo", "env", "command"}:
-        tokens.pop(0)
-    return tokens[0] if tokens else None
 
 
 def warn_for_intent_mismatch(
@@ -96,7 +89,7 @@ def review_command(command: str, intent: str | None = None) -> CommandReview:
 
     if intent_alignment == "mismatch":
         reasons.extend(alignment_reasons)
-        if decision == "allow":
+        if decision in {"allow", "ask"}:
             decision = "warn"
             review_risk = "medium"
 

@@ -121,6 +121,10 @@ Local command search using:
 - lightweight scoring;
 - command popularity and availability signals later.
 
+Template suggestions do not invent missing path or depth targets. A template
+that has a genuinely safe default may opt into it explicitly with
+`safe_defaults`; otherwise missing slots leave that suggestion incomplete.
+
 ### Level 2: CommandGraph
 
 Structured mappings:
@@ -136,6 +140,19 @@ Review shell commands before execution:
 ```text
 intent + command + context -> allow / warn / block / ask
 ```
+
+Decision semantics are conservative:
+
+- `allow`: the command is represented in the local graph and has a known low-risk baseline with no higher-risk finding;
+- `warn`: CommandGraph found a known medium/high-risk behavior that should be reviewed before execution;
+- `ask`: the command is unclassified, incomplete, or cannot be parsed confidently enough to treat as safe;
+- `block`: CommandGraph found a known critical condition.
+
+Unknown is not treated as safe. Compound shell input is segmented at common
+operators such as `&&`, `||`, `;`, and pipes, and risk from any dangerous
+segment propagates to the overall review. Shell payloads passed through common
+`sh -c`/`bash -c` forms are reviewed recursively, and sensitive output
+redirection is surfaced explicitly.
 
 ### Later Learning
 

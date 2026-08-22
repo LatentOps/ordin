@@ -29,6 +29,11 @@ New or changed command cards must include:
 - at least one safe example when possible
 - templates only when slot extraction can fill them predictably
 
+Template targets must not be invented implicitly. If a template has a benign
+default that is safe to apply without additional user intent, declare it
+explicitly with `safe_defaults`. Do not use `safe_defaults` to choose mutation
+targets such as files, directories, branches, processes, or remote resources.
+
 Command-card pull requests should also include:
 
 - one search test for a natural-language query
@@ -50,7 +55,9 @@ Changes to risk rules must include:
 
 False-safe behavior is the highest-priority bug class. If a command can cause
 data loss, expose secrets, broaden permissions, terminate processes, install
-untrusted code, or mutate infrastructure, prefer warning over silence.
+untrusted code, or mutate infrastructure, prefer warning over silence. If the
+command is not classified well enough to establish safety, prefer `ask` over
+silently treating it as low risk.
 
 ## Man-Page Indexing
 

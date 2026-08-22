@@ -66,9 +66,4 @@ def extract_slots(text: str) -> dict[str, str]:
     if branch_match:
         slots["branch"] = branch_match.group(1)
 
-    if "path" not in slots:
-        slots["path"] = "."
-    if "depth" not in slots:
-        slots["depth"] = "1"
-
     return slots

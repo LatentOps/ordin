@@ -14,3 +14,10 @@ def test_review_warns_when_command_mismatches_intent():
     assert review.decision == "warn"
     assert review.risk == "medium"
     assert review.intent_alignment == "mismatch"
+
+
+def test_review_asks_for_unclassified_command_without_intent():
+    review = review_command("definitely-not-a-command --flag")
+    assert review.decision == "ask"
+    assert review.risk == "unknown"
+    assert review.intent_alignment == "not_provided"
