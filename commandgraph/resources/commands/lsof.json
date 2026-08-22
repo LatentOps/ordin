@@ -3,24 +3,10 @@
   "command": "lsof",
   "summary": "List open files, sockets, and the processes using them.",
   "aliases": ["list open files", "port process", "socket"],
-  "intents": [
-    "find what is using a port",
-    "show process listening on port",
-    "inspect open files",
-    "debug address already in use"
-  ],
+  "intents": ["find what is using a port", "show process listening on port", "inspect open files", "debug address already in use"],
   "default_risk": "low",
   "risk_tags": ["inspection", "process_metadata"],
-  "examples": [
-    {
-      "command": "lsof -i :3000",
-      "explanation": "Show processes using port 3000."
-    }
-  ],
-  "templates": [
-    {
-      "command": "lsof -i :{port}",
-      "description": "Show processes using a port."
-    }
-  ]
+  "effects": [{"effect": "filesystem.metadata_read", "resource": "process.open_files"}],
+  "examples": [{"command": "lsof -i :3000", "explanation": "Show processes using port 3000."}],
+  "templates": [{"command": "lsof -i :{port}", "description": "Show processes using a port."}]
 }
