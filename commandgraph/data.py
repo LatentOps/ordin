@@ -29,6 +29,12 @@ def load_risk_rules() -> list[dict[str, Any]]:
     return payload["rules"]
 
 
+def load_effect_catalog() -> dict[str, dict[str, Any]]:
+    payload = load_json(DATA_DIR / "effects.json")
+    effects = payload.get("effects", {})
+    return effects if isinstance(effects, dict) else {}
+
+
 def load_man_index(path: Path | None = None) -> list[dict[str, Any]]:
     index_path = path
     if index_path is None:
@@ -74,6 +80,7 @@ def find_command(command_name: str) -> dict[str, Any] | None:
 def data_health() -> dict[str, Any]:
     commands = load_commands(include_man_index=False)
     risk_rules = load_risk_rules()
+    effect_catalog = load_effect_catalog()
     command_names = [command.get("command") for command in commands]
     missing_schema = [
         command.get("command", "<unknown>")
@@ -87,10 +94,35 @@ def data_health() -> dict[str, Any]:
             if command_names.count(command) > 1
         }
     )
+
+    from .graph import build_effect_graph, validate_effect_graph_data
+
+    graph_errors = validate_effect_graph_data(
+        commands=commands,
+        catalog=effect_catalog,
+    )
+    graph_node_count = 0
+    graph_edge_count = 0
+    if not graph_errors:
+        graph = build_effect_graph(
+            commands=commands,
+            catalog=effect_catalog,
+        )
+        graph_node_count = len(graph.nodes)
+        graph_edge_count = len(graph.edges)
+
     return {
         "command_count": len(commands),
         "risk_rule_count": len(risk_rules),
+        "effect_count": len(effect_catalog),
+        "graph_node_count": graph_node_count,
+        "graph_edge_count": graph_edge_count,
+        "graph_errors": graph_errors,
         "missing_schema": missing_schema,
         "duplicate_commands": duplicate_commands,
-        "ok": not missing_schema and not duplicate_commands,
+        "ok": (
+            not missing_schema
+            and not duplicate_commands
+            and not graph_errors
+        ),
     }
