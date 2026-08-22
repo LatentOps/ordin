@@ -216,12 +216,16 @@ def command_substitutions(command: str) -> list[str]:
                 quote = None
             index += 1
             continue
-        if char == "'":
+        if quote == '"' and char == '"':
+            quote = None
+            index += 1
+            continue
+        if quote is None and char == "'":
             quote = "'"
             index += 1
             continue
-        if char == '"':
-            quote = None if quote == '"' else '"'
+        if quote is None and char == '"':
+            quote = '"'
             index += 1
             continue
 
