@@ -6,6 +6,7 @@ from typing import Iterable
 
 from . import RISK_SCHEMA_VERSION
 from .data import find_command, load_risk_rules
+from .graph import effects_for_tokens
 from .shell import (
     SHELL_EXECUTABLES,
     command_name_candidates,
@@ -114,16 +115,52 @@ def _sensitive_redirection_target(tokens: list[str]) -> str | None:
             continue
         target = tokens[index + 1]
         normalized = target.rstrip("/")
-        if target in {"/etc", "/boot", "/usr", "/bin", "/sbin", "/root", "~/.ssh"}:
+        if target in {
+            "/etc",
+            "/boot",
+            "/usr",
+            "/bin",
+            "/sbin",
+            "/root",
+            "~/.ssh",
+        }:
             return target
-        if any(target.startswith(prefix) for prefix in SENSITIVE_REDIRECT_PREFIXES):
+        if any(
+            target.startswith(prefix)
+            for prefix in SENSITIVE_REDIRECT_PREFIXES
+        ):
             return target
         if normalized.endswith("/.ssh"):
             return target
     return None
 
 
-def _review_segment(tokens: list[str], rules: list[dict], depth: int) -> RiskReview:
+def _apply_semantic_effects(
+    tokens: list[str],
+    risk: str,
+    reasons: list[str],
+    safer_next_steps: list[str],
+    risk_categories: list[str],
+) -> tuple[str, bool]:
+    evidence = effects_for_tokens(tokens)
+    for item in evidence:
+        risk = max_risk(risk, item.risk)
+        _append_unique(risk_categories, [item.category])
+        reason = f"{item.reason} ({item.source})"
+        _append_unique(reasons, [reason])
+        if item.safer_next_step:
+            _append_unique(
+                safer_next_steps,
+                [item.safer_next_step],
+            )
+    return risk, bool(evidence)
+
+
+def _review_segment(
+    tokens: list[str],
+    rules: list[dict],
+    depth: int,
+) -> RiskReview:
     text = segment_text(tokens)
     risk = "unknown"
     reasons: list[str] = []
@@ -136,21 +173,55 @@ def _review_segment(tokens: list[str], rules: list[dict], depth: int) -> RiskRev
             continue
         if re.search(rule["pattern"], text, flags=re.IGNORECASE):
             risk = max_risk(risk, rule["risk"])
-            reasons.append(rule["reason"])
-            matched_rules.append(rule["id"])
+            _append_unique(reasons, [rule["reason"]])
+            _append_unique(matched_rules, [rule["id"]])
             if rule.get("category"):
-                risk_categories.append(rule["category"])
+                _append_unique(
+                    risk_categories,
+                    [rule["category"]],
+                )
             if rule.get("safer_next_step"):
-                safer_next_steps.append(rule["safer_next_step"])
+                _append_unique(
+                    safer_next_steps,
+                    [rule["safer_next_step"]],
+                )
+
+    risk, has_semantic_effects = _apply_semantic_effects(
+        tokens,
+        risk,
+        reasons,
+        safer_next_steps,
+        risk_categories,
+    )
 
     redirect_target = _sensitive_redirection_target(tokens)
     if redirect_target:
         risk = max_risk(risk, "high")
-        reasons.append(f'writes shell redirection to sensitive path "{redirect_target}"')
-        matched_rules.append("sensitive_redirection")
-        risk_categories.append("sensitive_file_write")
-        safer_next_steps.append(
-            "Write to a non-system path first and inspect the result before replacing sensitive files."
+        _append_unique(
+            reasons,
+            [
+                (
+                    "writes shell redirection to sensitive path "
+                    f'"{redirect_target}"'
+                )
+            ],
+        )
+        _append_unique(
+            matched_rules,
+            ["sensitive_redirection"],
+        )
+        _append_unique(
+            risk_categories,
+            ["sensitive_file_write"],
+        )
+        _append_unique(
+            safer_next_steps,
+            [
+                (
+                    "Write to a non-system path first and inspect the "
+                    "result before replacing sensitive files."
+                )
+            ],
         )
 
     nested_scripts = grouped_subshells_from_tokens(tokens)
@@ -161,42 +232,97 @@ def _review_segment(tokens: list[str], rules: list[dict], depth: int) -> RiskRev
     for nested_script in nested_scripts:
         if depth >= 3:
             break
-        nested = _check_command(nested_script, rules=rules, depth=depth + 1)
+        nested = _check_command(
+            nested_script,
+            rules=rules,
+            depth=depth + 1,
+        )
         risk = max_risk(risk, nested.risk)
         _append_unique(reasons, nested.reasons)
-        _append_unique(matched_rules, nested.matched_rules or [])
-        _append_unique(risk_categories, nested.risk_categories or [])
+        _append_unique(
+            matched_rules,
+            nested.matched_rules or [],
+        )
+        _append_unique(
+            risk_categories,
+            nested.risk_categories or [],
+        )
         if nested.safer_next_step:
-            safer_next_steps.append(nested.safer_next_step)
+            _append_unique(
+                safer_next_steps,
+                [nested.safer_next_step],
+            )
 
-    pure_group = bool(nested_scripts) and tokens[0] == "(" and tokens[-1] == ")"
+    pure_group = (
+        bool(nested_scripts)
+        and tokens[0] == "("
+        and tokens[-1] == ")"
+    )
     if wrapped_script is None and not pure_group:
         executable = executable_name_from_tokens(tokens)
         if executable:
             command = find_command(executable)
             if command is None:
-                reasons.append(f'command "{executable}" is not classified by the command graph')
-                risk_categories.append("unclassified_command")
-                safer_next_steps.append(
-                    "Review the command semantics before execution or add a command card for it."
+                _append_unique(
+                    reasons,
+                    [
+                        (
+                            f'command "{executable}" is not classified '
+                            "by the command graph"
+                        )
+                    ],
                 )
-            else:
-                default_risk = command.get("default_risk", "unknown")
+                _append_unique(
+                    risk_categories,
+                    ["unclassified_command"],
+                )
+                _append_unique(
+                    safer_next_steps,
+                    [
+                        (
+                            "Review the command semantics before execution "
+                            "or add a command card for it."
+                        )
+                    ],
+                )
+            elif not has_semantic_effects:
+                default_risk = command.get(
+                    "default_risk",
+                    "unknown",
+                )
                 if default_risk not in RISK_ORDER:
                     default_risk = "unknown"
                 risk = max_risk(risk, default_risk)
                 if not matched_rules:
                     if default_risk == "unknown":
-                        reasons.append(
-                            f'command "{executable}" has no established default risk classification'
+                        _append_unique(
+                            reasons,
+                            [
+                                (
+                                    f'command "{executable}" has no '
+                                    "established default risk classification"
+                                )
+                            ],
                         )
                     else:
-                        reasons.append(
-                            f'command graph default risk for "{executable}" is {default_risk}'
+                        _append_unique(
+                            reasons,
+                            [
+                                (
+                                    "command graph default risk for "
+                                    f'"{executable}" is {default_risk}'
+                                )
+                            ],
                         )
         else:
-            reasons.append("could not identify the command executable")
-            risk_categories.append("unclassified_command")
+            _append_unique(
+                reasons,
+                ["could not identify the command executable"],
+            )
+            _append_unique(
+                risk_categories,
+                ["unclassified_command"],
+            )
 
     if not reasons:
         reasons.append("command safety could not be classified")
@@ -205,34 +331,60 @@ def _review_segment(tokens: list[str], rules: list[dict], depth: int) -> RiskRev
         decision=decision_for_risk(risk),
         risk=risk,
         reasons=reasons,
-        safer_next_step=safer_next_steps[0] if safer_next_steps else None,
+        safer_next_step=(
+            safer_next_steps[0]
+            if safer_next_steps
+            else None
+        ),
         matched_rules=matched_rules,
         risk_categories=sorted(set(risk_categories)),
     )
 
 
-def _pipe_findings(segments: list[list[str]], operators: list[str]) -> list[RiskReview]:
+def _pipe_findings(
+    segments: list[list[str]],
+    operators: list[str],
+) -> list[RiskReview]:
     findings: list[RiskReview] = []
     for index, operator in enumerate(operators):
-        if operator not in {"|", "|&"} or index + 1 >= len(segments):
+        if (
+            operator not in {"|", "|&"}
+            or index + 1 >= len(segments)
+        ):
             continue
-        source = executable_name_from_tokens(segments[index])
-        sink = executable_name_from_tokens(segments[index + 1])
-        if source in {"curl", "wget"} and sink in SHELL_EXECUTABLES:
+        source = executable_name_from_tokens(
+            segments[index]
+        )
+        sink = executable_name_from_tokens(
+            segments[index + 1]
+        )
+        if (
+            source in {"curl", "wget"}
+            and sink in SHELL_EXECUTABLES
+        ):
             findings.append(
                 RiskReview(
                     decision="warn",
                     risk="high",
-                    reasons=["downloads and executes remote code"],
-                    safer_next_step="Download the script, inspect it, then run only if trusted.",
+                    reasons=[
+                        "downloads and executes remote code"
+                    ],
+                    safer_next_step=(
+                        "Download the script, inspect it, then run "
+                        "only if trusted."
+                    ),
                     matched_rules=["curl_shell"],
-                    risk_categories=["remote_code_execution"],
+                    risk_categories=[
+                        "remote_code_execution"
+                    ],
                 )
             )
     return findings
 
 
-def _merge_reviews(reviews: list[RiskReview]) -> RiskReview:
+def _merge_reviews(
+    reviews: list[RiskReview],
+) -> RiskReview:
     decision = "allow"
     known_risk = "low"
     has_unknown = False
@@ -242,21 +394,48 @@ def _merge_reviews(reviews: list[RiskReview]) -> RiskReview:
     safer_next_step: str | None = None
 
     for review in reviews:
-        if DECISION_ORDER[review.decision] > DECISION_ORDER[decision]:
+        if (
+            DECISION_ORDER[review.decision]
+            > DECISION_ORDER[decision]
+        ):
             decision = review.decision
         if review.risk == "unknown":
             has_unknown = True
         else:
-            known_risk = max_risk(known_risk, review.risk)
+            known_risk = max_risk(
+                known_risk,
+                review.risk,
+            )
         _append_unique(reasons, review.reasons)
-        _append_unique(matched_rules, review.matched_rules or [])
-        _append_unique(risk_categories, review.risk_categories or [])
-        if safer_next_step is None and review.safer_next_step:
+        _append_unique(
+            matched_rules,
+            review.matched_rules or [],
+        )
+        _append_unique(
+            risk_categories,
+            review.risk_categories or [],
+        )
+        if (
+            safer_next_step is None
+            and review.safer_next_step
+        ):
             safer_next_step = review.safer_next_step
 
-    risk = "unknown" if decision == "ask" and has_unknown and known_risk == "low" else known_risk
+    risk = (
+        "unknown"
+        if (
+            decision == "ask"
+            and has_unknown
+            and known_risk == "low"
+        )
+        else known_risk
+    )
     if decision == "block":
-        risk = "critical" if known_risk == "critical" else known_risk
+        risk = (
+            "critical"
+            if known_risk == "critical"
+            else known_risk
+        )
 
     return RiskReview(
         decision=decision,
@@ -268,26 +447,43 @@ def _merge_reviews(reviews: list[RiskReview]) -> RiskReview:
     )
 
 
-def _check_command(command: str, rules: list[dict], depth: int) -> RiskReview:
+def _check_command(
+    command: str,
+    rules: list[dict],
+    depth: int,
+) -> RiskReview:
     normalized = command.strip()
     if not normalized:
         return RiskReview(
             decision="block",
             risk="critical",
-            reasons=["empty command cannot be reviewed safely"],
-            safer_next_step="Provide the command text before review.",
+            reasons=[
+                "empty command cannot be reviewed safely"
+            ],
+            safer_next_step=(
+                "Provide the command text before review."
+            ),
             matched_rules=["empty_command"],
             risk_categories=["invalid_input"],
         )
 
     try:
-        segments, operators = split_shell_segments(normalized)
+        segments, operators = split_shell_segments(
+            normalized
+        )
     except ValueError as exc:
         return RiskReview(
             decision="ask",
             risk="unknown",
-            reasons=[f"shell command could not be parsed safely: {exc}"],
-            safer_next_step="Fix the shell quoting before review.",
+            reasons=[
+                (
+                    "shell command could not be parsed safely: "
+                    f"{exc}"
+                )
+            ],
+            safer_next_step=(
+                "Fix the shell quoting before review."
+            ),
             matched_rules=["shell_parse_error"],
             risk_categories=["invalid_input"],
         )
@@ -296,19 +492,47 @@ def _check_command(command: str, rules: list[dict], depth: int) -> RiskReview:
         return RiskReview(
             decision="ask",
             risk="unknown",
-            reasons=["no executable command segment could be identified"],
-            safer_next_step="Provide a complete shell command before review.",
+            reasons=[
+                (
+                    "no executable command segment could be "
+                    "identified"
+                )
+            ],
+            safer_next_step=(
+                "Provide a complete shell command before review."
+            ),
             matched_rules=["missing_executable"],
             risk_categories=["invalid_input"],
         )
 
-    reviews = [_review_segment(segment, rules=rules, depth=depth) for segment in segments]
-    reviews.extend(_pipe_findings(segments, operators))
+    reviews = [
+        _review_segment(
+            segment,
+            rules=rules,
+            depth=depth,
+        )
+        for segment in segments
+    ]
+    reviews.extend(
+        _pipe_findings(segments, operators)
+    )
     if depth < 3:
-        for nested_script in command_substitutions(normalized):
-            reviews.append(_check_command(nested_script, rules=rules, depth=depth + 1))
+        for nested_script in command_substitutions(
+            normalized
+        ):
+            reviews.append(
+                _check_command(
+                    nested_script,
+                    rules=rules,
+                    depth=depth + 1,
+                )
+            )
     return _merge_reviews(reviews)
 
 
 def check_command(command: str) -> RiskReview:
-    return _check_command(command, rules=load_risk_rules(), depth=0)
+    return _check_command(
+        command,
+        rules=load_risk_rules(),
+        depth=0,
+    )

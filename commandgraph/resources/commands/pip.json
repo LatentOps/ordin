@@ -6,6 +6,13 @@
   "intents": ["install python package", "install package with pip", "show python packages"],
   "default_risk": "medium",
   "risk_tags": ["package_install", "network_access"],
+  "subcommands": {
+    "install": {"effects": [{"effect": "package.install", "resource": "python.environment"}]},
+    "uninstall": {"effects": [{"effect": "package.remove", "resource": "python.environment"}]},
+    "list": {"effects": [{"effect": "package.read", "resource": "python.environment"}]},
+    "show": {"effects": [{"effect": "package.read", "resource": "python.environment"}]},
+    "freeze": {"effects": [{"effect": "package.read", "resource": "python.environment"}]}
+  },
   "examples": [{"command": "python -m pip install requests", "explanation": "Install a Python package."}],
   "templates": [{"command": "python -m pip install {package}", "description": "Install a Python package."}]
 }

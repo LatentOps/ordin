@@ -3,32 +3,23 @@
   "command": "chmod",
   "summary": "Change file mode bits and permissions.",
   "aliases": ["change mode", "permissions", "executable"],
-  "intents": [
-    "make file executable",
-    "make script runnable",
-    "change file permissions",
-    "remove write permission"
-  ],
+  "intents": ["make file executable", "make script runnable", "change file permissions", "remove write permission"],
   "default_risk": "medium",
   "risk_tags": ["permission_change", "recursive_permission_change"],
-  "examples": [
-    {
-      "command": "chmod +x script.sh",
-      "explanation": "Make script.sh executable."
-    },
-    {
-      "command": "chmod 600 id_rsa",
-      "explanation": "Restrict a private key to the current user."
+  "effects": [{"effect": "filesystem.permission_change", "resource": "filesystem.target"}],
+  "flags": {
+    "-R": {
+      "aliases": ["--recursive"],
+      "effects": [{"effect": "filesystem.recursive_permission_change", "resource": "filesystem.target"}]
     }
+  },
+  "requires_privileges": ["target_owner_or_privileged"],
+  "examples": [
+    {"command": "chmod +x script.sh", "explanation": "Make script.sh executable."},
+    {"command": "chmod 600 id_rsa", "explanation": "Restrict a private key to the current user."}
   ],
   "templates": [
-    {
-      "command": "chmod +x {path}",
-      "description": "Make a file executable."
-    },
-    {
-      "command": "chmod 600 {path}",
-      "description": "Restrict a sensitive file to the current user."
-    }
+    {"command": "chmod +x {path}", "description": "Make a file executable."},
+    {"command": "chmod 600 {path}", "description": "Restrict a sensitive file to the current user."}
   ]
 }

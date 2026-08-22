@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .data import data_health, find_command
+from .graph import build_effect_graph
 from .indexer import DEFAULT_INDEX_PATH, build_index, build_index_from_lines
 from .review import review_command
 from .risk import check_command
@@ -54,6 +55,11 @@ def print_explain(command_name: str, as_json: bool = False) -> int:
     print(command["command"])
     print(f"  summary: {command['summary']}")
     print(f"  default_risk: {command.get('default_risk', 'unknown')}")
+    if command.get("effects"):
+        print("  effects:")
+        for effect in command["effects"]:
+            effect_name = effect.get("effect") if isinstance(effect, dict) else effect
+            print(f"  - {effect_name}")
     if command.get("intents"):
         print("  intents:")
         for intent in command["intents"]:
@@ -63,6 +69,25 @@ def print_explain(command_name: str, as_json: bool = False) -> int:
         for example in command["examples"]:
             print(f"  - {example['command']}")
             print(f"    {example['explanation']}")
+    return 0
+
+
+def print_graph(as_json: bool = False) -> int:
+    graph = build_effect_graph()
+    payload = graph.as_dict()
+    if as_json:
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    node_types: dict[str, int] = {}
+    for node in graph.nodes.values():
+        node_types[node.type] = node_types.get(node.type, 0) + 1
+
+    print(f"schema_version: {payload['schema_version']}")
+    print(f"nodes: {len(graph.nodes)}")
+    print(f"edges: {len(graph.edges)}")
+    for node_type in sorted(node_types):
+        print(f"{node_type}_nodes: {node_types[node_type]}")
     return 0
 
 
@@ -81,6 +106,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     explain_parser = subparsers.add_parser("explain", help="Show a command card.")
     explain_parser.add_argument("command")
     explain_parser.add_argument("--json", action="store_true")
+
+    graph_parser = subparsers.add_parser(
+        "graph",
+        help="Inspect the typed command/effect graph.",
+    )
+    graph_parser.add_argument("--json", action="store_true")
 
     check_parser = subparsers.add_parser("check", help="Review a command for risk.")
     check_parser.add_argument("command")
@@ -115,6 +146,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command_name == "explain":
         return print_explain(args.command, as_json=args.json)
+
+    if args.command_name == "graph":
+        return print_graph(as_json=args.json)
 
     if args.command_name == "check":
         review = check_command(args.command)
@@ -151,6 +185,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(f"commands: {health['command_count']}")
             print(f"risk_rules: {health['risk_rule_count']}")
+            print(f"effects: {health['effect_count']}")
+            print(f"graph_nodes: {health['graph_node_count']}")
+            print(f"graph_edges: {health['graph_edge_count']}")
+            print(f"graph_errors: {len(health['graph_errors'])}")
+            for error in health["graph_errors"]:
+                print(f"- graph: {error}")
             print(f"missing_schema: {len(health['missing_schema'])}")
             print(f"duplicate_commands: {len(health['duplicate_commands'])}")
             print(f"ok: {str(health['ok']).lower()}")

@@ -20,5 +20,4 @@ cmdgraph = "commandgraph.cli:main"
 packages = ["commandgraph"]
 
 [tool.setuptools.package-data]
-commandgraph = ["resources/**/*.json"]
-
+commandgraph = ["resources/*.json", "resources/**/*.json"]
