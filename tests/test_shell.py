@@ -35,5 +35,9 @@ def test_command_substitution_is_extracted_inside_double_quotes():
     assert command_substitutions('echo "$(rm -rf /)"') == ["rm -rf /"]
 
 
+def test_single_quote_inside_double_quotes_does_not_disable_substitution():
+    assert command_substitutions('echo "it\'s $(rm -rf /)"') == ["rm -rf /"]
+
+
 def test_command_substitution_is_ignored_inside_single_quotes():
     assert command_substitutions("echo '$(rm -rf /)'") == []
