@@ -64,8 +64,28 @@ def test_package_install_exposes_cli_entrypoints_and_graph_data(tmp_path):
         )
         health = json.loads(doctor.stdout)
         assert health["effect_count"] >= 20
+        assert health["schema_count"] >= 8
+        assert health["schema_errors"] == []
+        assert health["risk_rule_errors"] == []
+        assert health["template_errors"] == []
         assert health["graph_node_count"] > health["command_count"]
         assert health["graph_errors"] == []
         assert health["ok"] is True
 
+    schema_check = subprocess.run(
+        [
+            str(python),
+            "-c",
+            (
+                "from commandgraph.schema import validate_schema_files; "
+                "errors = validate_schema_files(); "
+                "assert not errors, errors"
+            ),
+        ],
+        check=True,
+        cwd=venv_path,
+        text=True,
+        capture_output=True,
+    )
+    assert schema_check.returncode == 0
     assert outputs[0] == outputs[1]
