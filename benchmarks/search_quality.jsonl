@@ -1,0 +1,28 @@
+{"id":"permissions-runnable","query":"make file runnable","expected":["chmod"],"requirement":"top1","top_k":3,"tags":["permissions","paraphrase"]}
+{"id":"permissions-change","query":"change file permissions","expected":["chmod"],"requirement":"top1","top_k":3,"tags":["permissions","exact-intent"]}
+{"id":"ownership-change","query":"change file owner","expected":["chown"],"requirement":"top1","top_k":3,"tags":["permissions","exact-intent"]}
+{"id":"port-conflict","query":"what is using port 3000","expected":["lsof","ss","fuser"],"requirement":"top_k","top_k":3,"tags":["network","diagnostics","slots"]}
+{"id":"open-files","query":"inspect open files","expected":["lsof"],"requirement":"top_k","top_k":3,"tags":["diagnostics","files"]}
+{"id":"disk-biggest-folders","query":"show biggest folders","expected":["du"],"requirement":"top1","top_k":3,"tags":["disk","paraphrase"]}
+{"id":"disk-free-space","query":"show free disk space","expected":["df"],"requirement":"top_k","top_k":3,"tags":["disk","paraphrase"]}
+{"id":"find-python-files","query":"find files named \"*.py\" in ./src","expected":["find"],"requirement":"top1","top_k":3,"tags":["files","slots","patterns"]}
+{"id":"find-file-name","query":"search for a file by name","expected":["find"],"requirement":"top_k","top_k":3,"tags":["files","paraphrase"]}
+{"id":"grep-text","query":"search text inside files","expected":["grep"],"requirement":"top_k","top_k":3,"tags":["files","text"]}
+{"id":"cat-contents","query":"show file contents","expected":["cat"],"requirement":"top_k","top_k":3,"tags":["files","read-only"]}
+{"id":"head-lines","query":"show first lines of a file","expected":["head"],"requirement":"top_k","top_k":3,"tags":["files","read-only"]}
+{"id":"tail-lines","query":"show last lines of a log","expected":["tail"],"requirement":"top_k","top_k":3,"tags":["files","read-only"]}
+{"id":"copy-file","query":"copy a file to another path","expected":["cp"],"requirement":"top_k","top_k":3,"tags":["files","mutation"]}
+{"id":"move-file","query":"move or rename a file","expected":["mv"],"requirement":"top_k","top_k":3,"tags":["files","mutation"]}
+{"id":"remove-directory","query":"remove a directory","expected":["rm"],"requirement":"top_k","top_k":3,"tags":["files","mutation"]}
+{"id":"dns-lookup","query":"lookup dns for domain example.com","expected":["dig"],"requirement":"top1","top_k":3,"tags":["network","dns","slots"]}
+{"id":"download-url","query":"download a url","expected":["curl","wget"],"requirement":"top_k","top_k":3,"tags":["network","transfer"]}
+{"id":"http-endpoint","query":"check an http endpoint","expected":["curl"],"requirement":"top_k","top_k":3,"tags":["network","http"]}
+{"id":"process-list","query":"list running processes","expected":["ps"],"requirement":"top_k","top_k":3,"tags":["process","read-only"]}
+{"id":"process-stop","query":"stop a process","expected":["kill"],"requirement":"top_k","top_k":3,"tags":["process","mutation"]}
+{"id":"python-package","query":"install python package requests","expected":["pip"],"requirement":"top_k","top_k":3,"tags":["packages","python"]}
+{"id":"javascript-package","query":"install npm package lodash","expected":["npm"],"requirement":"top_k","top_k":3,"tags":["packages","javascript"]}
+{"id":"system-package","query":"install system package curl on ubuntu","expected":["apt","apt-get"],"requirement":"top_k","top_k":5,"tags":["packages","linux"]}
+{"id":"git-changed-files","query":"see changed files in a repository","expected":["git"],"requirement":"top_k","top_k":3,"tags":["git","pack"]}
+{"id":"git-history","query":"inspect repository history","expected":["git"],"requirement":"top_k","top_k":3,"tags":["git","pack"]}
+{"id":"docker-containers","query":"list running containers","expected":["docker"],"requirement":"top_k","top_k":3,"tags":["docker","pack"]}
+{"id":"docker-images","query":"show docker images","expected":["docker"],"requirement":"top1","top_k":3,"tags":["docker","pack"]}
