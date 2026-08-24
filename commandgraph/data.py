@@ -79,8 +79,10 @@ def find_command(command_name: str) -> dict[str, Any] | None:
 
 def data_health() -> dict[str, Any]:
     commands = load_commands(include_man_index=False)
-    risk_rules = load_risk_rules()
-    effect_catalog = load_effect_catalog()
+    risk_payload = load_json(DATA_DIR / "risk_rules.json")
+    effect_payload = load_json(DATA_DIR / "effects.json")
+    risk_rules = risk_payload.get("rules", [])
+    effect_catalog = effect_payload.get("effects", {})
     command_names = [command.get("command") for command in commands]
     missing_schema = [
         command.get("command", "<unknown>")
@@ -96,6 +98,29 @@ def data_health() -> dict[str, Any]:
     )
 
     from .graph import build_effect_graph, validate_effect_graph_data
+    from .schema import (
+        SCHEMA_FILES,
+        resource_parity_errors,
+        validate_command_card_schemas,
+        validate_named_schema,
+        validate_risk_rule_semantics,
+        validate_schema_files,
+        validate_template_semantics,
+    )
+
+    schema_errors = validate_schema_files()
+    schema_errors.extend(validate_command_card_schemas(commands))
+    schema_errors.extend(
+        f"risk rules: {error}"
+        for error in validate_named_schema("risk_rules", risk_payload)
+    )
+    schema_errors.extend(
+        f"effect catalog: {error}"
+        for error in validate_named_schema("effect_catalog", effect_payload)
+    )
+    risk_rule_errors = validate_risk_rule_semantics(risk_payload)
+    template_errors = validate_template_semantics(commands)
+    parity_errors = resource_parity_errors()
 
     graph_errors = validate_effect_graph_data(
         commands=commands,
@@ -110,19 +135,37 @@ def data_health() -> dict[str, Any]:
         )
         graph_node_count = len(graph.nodes)
         graph_edge_count = len(graph.edges)
+        schema_errors.extend(
+            f"effect graph: {error}"
+            for error in validate_named_schema("effect_graph", graph.as_dict())
+        )
+
+    schema_errors = sorted(set(schema_errors))
+    risk_rule_errors = sorted(set(risk_rule_errors))
+    template_errors = sorted(set(template_errors))
+    parity_errors = sorted(set(parity_errors))
 
     return {
         "command_count": len(commands),
-        "risk_rule_count": len(risk_rules),
-        "effect_count": len(effect_catalog),
+        "risk_rule_count": len(risk_rules) if isinstance(risk_rules, list) else 0,
+        "effect_count": len(effect_catalog) if isinstance(effect_catalog, dict) else 0,
+        "schema_count": len(SCHEMA_FILES),
         "graph_node_count": graph_node_count,
         "graph_edge_count": graph_edge_count,
+        "schema_errors": schema_errors,
+        "risk_rule_errors": risk_rule_errors,
+        "template_errors": template_errors,
+        "resource_parity_errors": parity_errors,
         "graph_errors": graph_errors,
         "missing_schema": missing_schema,
         "duplicate_commands": duplicate_commands,
         "ok": (
             not missing_schema
             and not duplicate_commands
+            and not schema_errors
+            and not risk_rule_errors
+            and not template_errors
+            and not parity_errors
             and not graph_errors
         ),
     }
