@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/commandgraph/review-result.v1.schema.json",
+  "title": "CommandGraph Command Review v1",
+  "type": "object",
+  "required": ["schema_version", "intent", "command", "decision", "risk", "reasons", "safer_next_step", "related_commands", "intent_alignment", "context"],
+  "properties": {
+    "schema_version": {"const": "commandgraph.review.v1"},
+    "intent": {"type": ["string", "null"]},
+    "command": {"type": "string"},
+    "decision": {"enum": ["allow", "warn", "ask", "block"]},
+    "risk": {"enum": ["unknown", "low", "medium", "high", "critical"]},
+    "reasons": {"type": "array", "items": {"type": "string"}},
+    "safer_next_step": {"type": ["string", "null"]},
+    "related_commands": {"type": "array", "items": {"type": "string"}},
+    "intent_alignment": {"enum": ["not_provided", "unknown", "matched", "mismatch"]},
+    "context": {"type": ["object", "null"]}
+  },
+  "additionalProperties": false
+}

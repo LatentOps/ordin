@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/commandgraph/effect-catalog.v1.schema.json",
+  "title": "CommandGraph Effect Catalog v1",
+  "type": "object",
+  "required": ["schema_version", "effects"],
+  "properties": {
+    "schema_version": {"const": "commandgraph.effect_catalog.v1"},
+    "effects": {"type": "object", "additionalProperties": {"type": "object", "required": ["risk", "category", "description", "reason"], "properties": {"risk": {"enum": ["low", "medium", "high", "critical"]}, "category": {"type": "string"}, "description": {"type": "string"}, "reason": {"type": "string"}, "safer_next_step": {"type": "string"}}, "additionalProperties": false}}
+  },
+  "additionalProperties": false
+}

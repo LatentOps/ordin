@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/commandgraph/effect-graph.v1.schema.json",
+  "title": "CommandGraph Effect Graph v1",
+  "type": "object",
+  "required": ["schema_version", "nodes", "edges"],
+  "properties": {
+    "schema_version": {"const": "commandgraph.effect_graph.v1"},
+    "nodes": {"type": "array", "items": {"type": "object", "required": ["id", "type", "label", "metadata"], "properties": {"id": {"type": "string"}, "type": {"enum": ["command", "intent", "flag", "subcommand", "effect", "resource", "privilege"]}, "label": {"type": "string"}, "metadata": {"type": "object"}}, "additionalProperties": false}},
+    "edges": {"type": "array", "items": {"type": "object", "required": ["source", "relation", "target", "metadata"], "properties": {"source": {"type": "string"}, "relation": {"enum": ["satisfies", "contains", "produces", "affects", "safer_alternative", "requires"]}, "target": {"type": "string"}, "metadata": {"type": "object"}}, "additionalProperties": false}}
+  },
+  "additionalProperties": false
+}

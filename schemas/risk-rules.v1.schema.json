@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/commandgraph/risk-rules.v1.schema.json",
+  "title": "CommandGraph Risk Rules v1",
+  "type": "object",
+  "required": ["schema_version", "rules"],
+  "properties": {
+    "schema_version": {"const": "commandgraph.risk_rules.v1"},
+    "rules": {"type": "array", "items": {"type": "object", "required": ["id", "pattern", "risk", "category", "reason", "safer_next_step"], "properties": {"id": {"type": "string", "minLength": 1}, "pattern": {"type": "string", "minLength": 1}, "risk": {"enum": ["low", "medium", "high", "critical"]}, "category": {"type": "string", "minLength": 1}, "reason": {"type": "string", "minLength": 1}, "safer_next_step": {"type": "string", "minLength": 1}}, "additionalProperties": false}}
+  },
+  "additionalProperties": false
+}
