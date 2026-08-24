@@ -228,6 +228,15 @@ def _review_segment(tokens: list[str], rules: list[dict], depth: int) -> RiskRev
                         "command card for it."
                     ],
                 )
+            elif analyzer_matched and not has_semantic_effects:
+                _append_unique(
+                    reasons,
+                    [
+                        f'analyzer recognized "{executable}" but did not classify '
+                        "this invocation"
+                    ],
+                )
+                _append_unique(risk_categories, ["unclassified_command"])
             elif command is not None and not has_semantic_effects:
                 default_risk = command.get("default_risk", "unknown")
                 if default_risk not in RISK_ORDER:
@@ -250,15 +259,6 @@ def _review_segment(tokens: list[str], rules: list[dict], depth: int) -> RiskRev
                                 f"{default_risk}"
                             ],
                         )
-            elif command is None and analyzer_matched and not has_semantic_effects:
-                _append_unique(
-                    reasons,
-                    [
-                        f'analyzer recognized "{executable}" but did not classify '
-                        "this invocation"
-                    ],
-                )
-                _append_unique(risk_categories, ["unclassified_command"])
         else:
             _append_unique(reasons, ["could not identify the command executable"])
             _append_unique(risk_categories, ["unclassified_command"])
