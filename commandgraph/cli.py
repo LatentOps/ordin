@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
+from .context import ExecutionContext
 from .data import data_health, find_command
 from .graph import build_effect_graph
 from .indexer import DEFAULT_INDEX_PATH, build_index, build_index_from_lines
@@ -91,6 +92,67 @@ def print_graph(as_json: bool = False) -> int:
     return 0
 
 
+def _add_context_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--cwd")
+    parser.add_argument("--shell")
+    parser.add_argument("--euid", type=int)
+    parser.add_argument("--repo-root")
+    parser.add_argument("--agent")
+    parser.add_argument(
+        "--context-json",
+        help="JSON object containing execution context fields.",
+    )
+    interactive_group = parser.add_mutually_exclusive_group()
+    interactive_group.add_argument(
+        "--interactive",
+        dest="context_interactive",
+        action="store_true",
+    )
+    interactive_group.add_argument(
+        "--non-interactive",
+        dest="context_interactive",
+        action="store_false",
+    )
+    parser.set_defaults(context_interactive=None)
+
+
+def _context_from_args(args: argparse.Namespace) -> ExecutionContext | None:
+    payload: dict = {}
+    raw_context = getattr(args, "context_json", None)
+    if raw_context:
+        try:
+            parsed = json.loads(raw_context)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"invalid --context-json: {exc.msg}") from exc
+        if not isinstance(parsed, dict):
+            raise ValueError("--context-json must decode to a JSON object")
+        payload.update(parsed)
+
+    overrides = {
+        "cwd": getattr(args, "cwd", None),
+        "shell": getattr(args, "shell", None),
+        "euid": getattr(args, "euid", None),
+        "repo_root": getattr(args, "repo_root", None),
+        "agent": getattr(args, "agent", None),
+        "interactive": getattr(args, "context_interactive", None),
+    }
+    for key, value in overrides.items():
+        if value is not None:
+            payload[key] = value
+
+    if not payload:
+        return None
+    return ExecutionContext.from_dict(payload)
+
+
+def _context_error(exc: ValueError, as_json: bool) -> int:
+    if as_json:
+        print(json.dumps({"error": "invalid_context", "message": str(exc)}, indent=2))
+    else:
+        print(f"invalid context: {exc}")
+    return 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="commandgraph",
@@ -116,6 +178,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     check_parser = subparsers.add_parser("check", help="Review a command for risk.")
     check_parser.add_argument("command")
     check_parser.add_argument("--json", action="store_true")
+    _add_context_arguments(check_parser)
 
     review_parser = subparsers.add_parser(
         "review",
@@ -124,6 +187,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     review_parser.add_argument("--intent")
     review_parser.add_argument("--command", required=True)
     review_parser.add_argument("--json", action="store_true")
+    _add_context_arguments(review_parser)
 
     doctor_parser = subparsers.add_parser("doctor", help="Check local CommandGraph data.")
     doctor_parser.add_argument("--json", action="store_true")
@@ -151,7 +215,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         return print_graph(as_json=args.json)
 
     if args.command_name == "check":
-        review = check_command(args.command)
+        try:
+            context = _context_from_args(args)
+        except ValueError as exc:
+            return _context_error(exc, as_json=args.json)
+        review = check_command(args.command, context=context)
         if args.json:
             print(json.dumps(review.as_dict(), indent=2))
         else:
@@ -164,7 +232,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command_name == "review":
-        review = review_command(args.command, intent=args.intent)
+        try:
+            context = _context_from_args(args)
+        except ValueError as exc:
+            return _context_error(exc, as_json=args.json)
+        review = review_command(
+            args.command,
+            intent=args.intent,
+            context=context,
+        )
         if args.json:
             print(json.dumps(review.as_dict(), indent=2))
         else:
