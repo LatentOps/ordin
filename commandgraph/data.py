@@ -5,7 +5,16 @@ import os
 from pathlib import Path
 from typing import Any
 
+from . import EFFECT_CATALOG_SCHEMA_VERSION, RISK_RULES_SCHEMA_VERSION
 from .indexer import DEFAULT_INDEX_PATH
+from .packs import (
+    discover_packs,
+    enabled_packs,
+    load_pack_commands,
+    load_pack_effect_catalog,
+    load_pack_risk_rules,
+    pack_file_errors,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,15 +33,44 @@ def load_synonyms() -> dict[str, list[str]]:
     return load_json(DATA_DIR / "synonyms.json")
 
 
-def load_risk_rules() -> list[dict[str, Any]]:
+def _load_core_commands() -> list[dict[str, Any]]:
+    commands_dir = DATA_DIR / "commands"
+    return [load_json(path) for path in sorted(commands_dir.glob("*.json"))]
+
+
+def _load_core_risk_rules() -> list[dict[str, Any]]:
     payload = load_json(DATA_DIR / "risk_rules.json")
-    return payload["rules"]
+    rules = payload.get("rules", []) if isinstance(payload, dict) else []
+    return [rule for rule in rules if isinstance(rule, dict)]
+
+
+def _load_core_effect_catalog() -> dict[str, dict[str, Any]]:
+    payload = load_json(DATA_DIR / "effects.json")
+    effects = payload.get("effects", {}) if isinstance(payload, dict) else {}
+    return {
+        name: definition
+        for name, definition in effects.items()
+        if isinstance(name, str) and isinstance(definition, dict)
+    } if isinstance(effects, dict) else {}
+
+
+def load_risk_rules() -> list[dict[str, Any]]:
+    rules = list(_load_core_risk_rules())
+    for pack in enabled_packs():
+        rules.extend(load_pack_risk_rules(pack))
+    return rules
 
 
 def load_effect_catalog() -> dict[str, dict[str, Any]]:
-    payload = load_json(DATA_DIR / "effects.json")
-    effects = payload.get("effects", {})
-    return effects if isinstance(effects, dict) else {}
+    effects = dict(_load_core_effect_catalog())
+    for pack in enabled_packs():
+        for name, definition in load_pack_effect_catalog(pack).items():
+            if name in effects and effects[name] != definition:
+                raise ValueError(
+                    f"enabled command pack {pack.name!r} redefines effect {name!r}"
+                )
+            effects[name] = definition
+    return effects
 
 
 def load_man_index(path: Path | None = None) -> list[dict[str, Any]]:
@@ -56,10 +94,9 @@ def load_man_index(path: Path | None = None) -> list[dict[str, Any]]:
 
 
 def load_commands(include_man_index: bool = True) -> list[dict[str, Any]]:
-    commands_dir = DATA_DIR / "commands"
-    commands = []
-    for path in sorted(commands_dir.glob("*.json")):
-        commands.append(load_json(path))
+    commands = list(_load_core_commands())
+    for pack in enabled_packs():
+        commands.extend(load_pack_commands(pack))
     if include_man_index:
         known = {command.get("command") for command in commands}
         for entry in load_man_index():
@@ -78,15 +115,50 @@ def find_command(command_name: str) -> dict[str, Any] | None:
 
 
 def data_health() -> dict[str, Any]:
+    packs = discover_packs()
+    active_packs = enabled_packs()
+    pack_errors = pack_file_errors(packs)
+
+    core_commands = _load_core_commands()
+    all_pack_commands = [
+        command
+        for pack in packs
+        for command in load_pack_commands(pack)
+    ]
+    validation_commands = [*core_commands, *all_pack_commands]
     commands = load_commands(include_man_index=False)
-    risk_payload = load_json(DATA_DIR / "risk_rules.json")
-    effect_payload = load_json(DATA_DIR / "effects.json")
-    risk_rules = risk_payload.get("rules", [])
-    effect_catalog = effect_payload.get("effects", {})
-    command_names = [command.get("command") for command in commands]
+
+    core_rules = _load_core_risk_rules()
+    all_pack_rules = [
+        rule
+        for pack in packs
+        for rule in load_pack_risk_rules(pack)
+    ]
+    validation_rules = [*core_rules, *all_pack_rules]
+    risk_rules = load_risk_rules()
+    risk_payload = {
+        "schema_version": RISK_RULES_SCHEMA_VERSION,
+        "rules": validation_rules,
+    }
+
+    effect_catalog = load_effect_catalog()
+    validation_effect_catalog = dict(_load_core_effect_catalog())
+    for pack in packs:
+        for name, definition in load_pack_effect_catalog(pack).items():
+            if name in validation_effect_catalog and validation_effect_catalog[name] != definition:
+                pack_errors.append(
+                    f"pack {pack.name!r} redefines effect {name!r}"
+                )
+            validation_effect_catalog[name] = definition
+    effect_payload = {
+        "schema_version": EFFECT_CATALOG_SCHEMA_VERSION,
+        "effects": validation_effect_catalog,
+    }
+
+    command_names = [command.get("command") for command in validation_commands]
     missing_schema = [
         command.get("command", "<unknown>")
-        for command in commands
+        for command in validation_commands
         if not command.get("schema_version")
     ]
     duplicate_commands = sorted(
@@ -97,6 +169,7 @@ def data_health() -> dict[str, Any]:
         }
     )
 
+    from .analyzers import analyzer_pack_bindings
     from .graph import build_effect_graph, validate_effect_graph_data
     from .schema import (
         SCHEMA_FILES,
@@ -109,7 +182,7 @@ def data_health() -> dict[str, Any]:
     )
 
     schema_errors = validate_schema_files()
-    schema_errors.extend(validate_command_card_schemas(commands))
+    schema_errors.extend(validate_command_card_schemas(validation_commands))
     schema_errors.extend(
         f"risk rules: {error}"
         for error in validate_named_schema("risk_rules", risk_payload)
@@ -118,8 +191,27 @@ def data_health() -> dict[str, Any]:
         f"effect catalog: {error}"
         for error in validate_named_schema("effect_catalog", effect_payload)
     )
+    for pack in packs:
+        schema_errors.extend(
+            f"pack {pack.name}: {error}"
+            for error in validate_named_schema("command_pack", pack.manifest)
+        )
+
+    bindings = analyzer_pack_bindings()
+    for pack in packs:
+        for analyzer in pack.analyzers:
+            if analyzer not in bindings:
+                pack_errors.append(
+                    f"pack {pack.name!r} references unknown analyzer {analyzer!r}"
+                )
+            elif bindings[analyzer] != pack.name:
+                pack_errors.append(
+                    f"pack {pack.name!r} analyzer {analyzer!r} is bound to "
+                    f"{bindings[analyzer]!r}"
+                )
+
     risk_rule_errors = validate_risk_rule_semantics(risk_payload)
-    template_errors = validate_template_semantics(commands)
+    template_errors = validate_template_semantics(validation_commands)
     parity_errors = resource_parity_errors()
 
     graph_errors = validate_effect_graph_data(
@@ -140,16 +232,29 @@ def data_health() -> dict[str, Any]:
             for error in validate_named_schema("effect_graph", graph.as_dict())
         )
 
+    from .packs import pack_list_payload
+    schema_errors.extend(
+        f"pack list: {error}"
+        for error in validate_named_schema("pack_list", pack_list_payload())
+    )
+
     schema_errors = sorted(set(schema_errors))
     risk_rule_errors = sorted(set(risk_rule_errors))
     template_errors = sorted(set(template_errors))
     parity_errors = sorted(set(parity_errors))
+    pack_errors = sorted(set(pack_errors))
 
     return {
         "command_count": len(commands),
-        "risk_rule_count": len(risk_rules) if isinstance(risk_rules, list) else 0,
-        "effect_count": len(effect_catalog) if isinstance(effect_catalog, dict) else 0,
+        "known_command_count": len(validation_commands),
+        "risk_rule_count": len(risk_rules),
+        "known_risk_rule_count": len(validation_rules),
+        "effect_count": len(effect_catalog),
         "schema_count": len(SCHEMA_FILES),
+        "pack_count": len(packs),
+        "loaded_pack_count": len(active_packs),
+        "loaded_packs": [pack.name for pack in active_packs],
+        "pack_errors": pack_errors,
         "graph_node_count": graph_node_count,
         "graph_edge_count": graph_edge_count,
         "schema_errors": schema_errors,
@@ -166,6 +271,7 @@ def data_health() -> dict[str, Any]:
             and not risk_rule_errors
             and not template_errors
             and not parity_errors
+            and not pack_errors
             and not graph_errors
         ),
     }
