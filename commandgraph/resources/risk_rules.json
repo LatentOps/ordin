@@ -1,132 +1,21 @@
 {
+  "schema_version": "commandgraph.risk_rules.v1",
   "rules": [
-    {
-      "id": "recursive_delete",
-      "pattern": "\\brm\\s+.*(-r|-R|--recursive)",
-      "risk": "high",
-      "category": "recursive_delete",
-      "reason": "recursively deletes files or directories",
-      "safer_next_step": "Inspect the target path first with ls or find before deleting."
-    },
-    {
-      "id": "force_delete",
-      "pattern": "\\brm\\s+.*(-f|--force)",
-      "risk": "medium",
-      "category": "force_delete",
-      "reason": "forces deletion without prompting",
-      "safer_next_step": "Run a non-destructive listing first and avoid --force unless necessary."
-    },
-    {
-      "id": "root_delete",
-      "pattern": "\\brm\\s+.*\\s/($|\\s)",
-      "risk": "critical",
-      "category": "root_filesystem_mutation",
-      "reason": "targets the filesystem root",
-      "safer_next_step": "Do not run this command."
-    },
-    {
-      "id": "root_glob_delete",
-      "pattern": "\\brm\\s+.*\\s/\\*",
-      "risk": "critical",
-      "category": "root_filesystem_mutation",
-      "reason": "targets files directly under the filesystem root",
-      "safer_next_step": "Do not run this command."
-    },
-    {
-      "id": "chmod_recursive",
-      "pattern": "\\bchmod\\s+.*(-R|--recursive)",
-      "risk": "high",
-      "category": "recursive_permission_change",
-      "reason": "recursively changes permissions",
-      "safer_next_step": "Restrict permissions to the minimum file or directory needed."
-    },
-    {
-      "id": "chmod_777",
-      "pattern": "\\bchmod\\s+.*777",
-      "risk": "high",
-      "category": "broad_permission_change",
-      "reason": "grants broad read/write/execute permissions",
-      "safer_next_step": "Use the least-permissive mode that satisfies the task."
-    },
-    {
-      "id": "process_kill",
-      "pattern": "\\b(kill|pkill|killall)\\b",
-      "risk": "medium",
-      "category": "process_termination",
-      "reason": "can stop a running process",
-      "safer_next_step": "Confirm the PID and process name before stopping it."
-    },
-    {
-      "id": "force_push",
-      "pattern": "\\bgit\\s+push\\b.*(--force|-f)",
-      "risk": "high",
-      "category": "history_rewrite",
-      "reason": "force-push can rewrite shared branch history",
-      "safer_next_step": "Use --force-with-lease only after confirming the branch and remote."
-    },
-    {
-      "id": "curl_shell",
-      "pattern": "\\b(curl|wget)\\b.*\\|\\s*(sh|bash)",
-      "risk": "high",
-      "category": "remote_code_execution",
-      "reason": "downloads and executes remote code",
-      "safer_next_step": "Download the script, inspect it, then run only if trusted."
-    },
-    {
-      "id": "sudo",
-      "pattern": "\\bsudo\\b",
-      "risk": "medium",
-      "category": "elevated_privileges",
-      "reason": "runs with elevated privileges",
-      "safer_next_step": "Confirm the command needs elevated privileges."
-    },
-    {
-      "id": "chown_recursive",
-      "pattern": "\\bchown\\s+.*(-R|--recursive)",
-      "risk": "high",
-      "category": "recursive_ownership_change",
-      "reason": "recursively changes file ownership",
-      "safer_next_step": "Restrict ownership changes to the smallest required path."
-    },
-    {
-      "id": "package_install",
-      "pattern": "\\b(npm\\s+install|pip\\s+install|python\\s+-m\\s+pip\\s+install)\\b",
-      "risk": "medium",
-      "category": "package_install",
-      "reason": "installs package code from a registry or local source",
-      "safer_next_step": "Confirm the package name, source, and lockfile impact before installing."
-    },
-    {
-      "id": "docker_prune",
-      "pattern": "\\bdocker\\s+.*\\bprune\\b",
-      "risk": "high",
-      "category": "container_cleanup",
-      "reason": "can remove Docker images, containers, networks, or volumes",
-      "safer_next_step": "List affected Docker resources before pruning."
-    },
-    {
-      "id": "docker_rm_force",
-      "pattern": "\\bdocker\\s+rm\\b.*(-f|--force)",
-      "risk": "high",
-      "category": "container_delete",
-      "reason": "force-removes containers",
-      "safer_next_step": "Inspect the container name and status before removal."
-    },
-    {
-      "id": "read_private_key",
-      "pattern": "\\b(cat|less|more|tail|head)\\b.*(id_rsa|id_ed25519|\\.ssh)",
-      "risk": "high",
-      "category": "secret_exposure",
-      "reason": "can expose private SSH key material",
-      "safer_next_step": "Avoid printing private keys; inspect file permissions instead."
-    },
-    {
-      "id": "read_env_file",
-      "pattern": "\\b(cat|less|more|tail|head)\\b.*(^|[\\s\\\\/])\\.env(\\b|$)",
-      "risk": "medium",
-      "category": "secret_exposure",
-      "reason": "can expose environment secrets",
-      "safer_next_step": "Inspect only the variable names or use a secret scanner."
-    }
+    {"id":"recursive_delete","pattern":"\\brm\\s+.*(-r|-R|--recursive)","risk":"high","category":"recursive_delete","reason":"recursively deletes files or directories","safer_next_step":"Inspect the target path first with ls or find before deleting."},
+    {"id":"force_delete","pattern":"\\brm\\s+.*(-f|--force)","risk":"medium","category":"force_delete","reason":"forces deletion without prompting","safer_next_step":"Run a non-destructive listing first and avoid --force unless necessary."},
+    {"id":"root_delete","pattern":"\\brm\\s+.*\\s/($|\\s)","risk":"critical","category":"root_filesystem_mutation","reason":"targets the filesystem root","safer_next_step":"Do not run this command."},
+    {"id":"root_glob_delete","pattern":"\\brm\\s+.*\\s/\\*","risk":"critical","category":"root_filesystem_mutation","reason":"targets files directly under the filesystem root","safer_next_step":"Do not run this command."},
+    {"id":"chmod_recursive","pattern":"\\bchmod\\s+.*(-R|--recursive)","risk":"high","category":"recursive_permission_change","reason":"recursively changes permissions","safer_next_step":"Restrict permissions to the minimum file or directory needed."},
+    {"id":"chmod_777","pattern":"\\bchmod\\s+.*777","risk":"high","category":"broad_permission_change","reason":"grants broad read/write/execute permissions","safer_next_step":"Use the least-permissive mode that satisfies the task."},
+    {"id":"process_kill","pattern":"\\b(kill|pkill|killall)\\b","risk":"medium","category":"process_termination","reason":"can stop a running process","safer_next_step":"Confirm the PID and process name before stopping it."},
+    {"id":"force_push","pattern":"\\bgit\\s+push\\b.*(--force|-f)","risk":"high","category":"history_rewrite","reason":"force-push can rewrite shared branch history","safer_next_step":"Use --force-with-lease only after confirming the branch and remote."},
+    {"id":"curl_shell","pattern":"\\b(curl|wget)\\b.*\\|\\s*(sh|bash)","risk":"high","category":"remote_code_execution","reason":"downloads and executes remote code","safer_next_step":"Download the script, inspect it, then run only if trusted."},
+    {"id":"sudo","pattern":"\\bsudo\\b","risk":"medium","category":"elevated_privileges","reason":"runs with elevated privileges","safer_next_step":"Confirm the command needs elevated privileges."},
+    {"id":"chown_recursive","pattern":"\\bchown\\s+.*(-R|--recursive)","risk":"high","category":"recursive_ownership_change","reason":"recursively changes file ownership","safer_next_step":"Restrict ownership changes to the smallest required path."},
+    {"id":"package_install","pattern":"\\b(npm\\s+install|pip\\s+install|python\\s+-m\\s+pip\\s+install)\\b","risk":"medium","category":"package_install","reason":"installs package code from a registry or local source","safer_next_step":"Confirm the package name, source, and lockfile impact before installing."},
+    {"id":"docker_prune","pattern":"\\bdocker\\s+.*\\bprune\\b","risk":"high","category":"container_cleanup","reason":"can remove Docker images, containers, networks, or volumes","safer_next_step":"List affected Docker resources before pruning."},
+    {"id":"docker_rm_force","pattern":"\\bdocker\\s+rm\\b.*(-f|--force)","risk":"high","category":"container_delete","reason":"force-removes containers","safer_next_step":"Inspect the container name and status before removal."},
+    {"id":"read_private_key","pattern":"\\b(cat|less|more|tail|head)\\b.*(id_rsa|id_ed25519|\\.ssh)","risk":"high","category":"secret_exposure","reason":"can expose private SSH key material","safer_next_step":"Avoid printing private keys; inspect file permissions instead."},
+    {"id":"read_env_file","pattern":"\\b(cat|less|more|tail|head)\\b.*(^|[\\s\\\\/])\\.env(\\b|$)","risk":"medium","category":"secret_exposure","reason":"can expose environment secrets","safer_next_step":"Inspect only the variable names or use a secret scanner."}
   ]
 }
