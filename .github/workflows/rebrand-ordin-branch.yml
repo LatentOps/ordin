@@ -36,6 +36,8 @@ jobs:
           for path in root.rglob('*'):
               if not path.is_file() or '.git' in path.parts:
                   continue
+              if path.parts[:2] == ('.github', 'workflows'):
+                  continue
               if path.suffix.lower() not in text_suffixes and path.name not in {'NOTICE'}:
                   continue
               text = path.read_text(encoding='utf-8')
@@ -45,8 +47,7 @@ jobs:
               if updated != text:
                   path.write_text(updated, encoding='utf-8')
 
-          # The old project exposed two console aliases. After the full rename we
-          # intentionally expose one canonical CLI: `ordin`.
+          # The old project exposed two console aliases. Ordin has one canonical CLI.
           pyproject = Path('pyproject.toml')
           lines = pyproject.read_text(encoding='utf-8').splitlines()
           output = []
@@ -66,5 +67,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
+          git reset .github/workflows
           git commit -m "Rebrand CommandGraph namespace to Ordin"
           git push origin HEAD:rebrand-ordin
