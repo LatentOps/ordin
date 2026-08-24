@@ -1,9 +1,9 @@
 # JSON Schema Contracts
 
-CommandGraph publishes machine-readable JSON Schema contracts for its stable
+Ordin publishes machine-readable JSON Schema contracts for its stable
 JSON surfaces. The checked-in schemas use JSON Schema Draft 2020-12 and are
 available under `schemas/`; installed packages carry the same files under
-`commandgraph/resources/schemas/`.
+`ordin/resources/schemas/`.
 
 ## Published contracts
 
@@ -25,15 +25,15 @@ Backward-compatible additions should be optional or otherwise preserve existing
 consumers. Removing fields, changing field types, changing required semantics,
 or reinterpreting an existing field requires a new schema version.
 
-Command cards remain `commandgraph.command_card.v1`; the typed effect metadata
+Command cards remain `ordin.command_card.v1`; the typed effect metadata
 added to cards is additive. Review requests use
-`commandgraph.review_request.v1`. Pack manifests use
-`commandgraph.command_pack.v1`, while `commandgraph packs --json` returns
-`commandgraph.pack_list.v1`.
+`ordin.review_request.v1`. Pack manifests use
+`ordin.command_pack.v1`, while `ordin packs --json` returns
+`ordin.pack_list.v1`.
 
 ## Doctor validation
 
-`commandgraph doctor` validates repository/package metadata in layers:
+`ordin doctor` validates repository/package metadata in layers:
 
 1. schema files are present and declare Draft 2020-12;
 2. command cards, risk rules, effect catalogs, and pack manifests satisfy their schemas;

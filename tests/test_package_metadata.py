@@ -1,7 +1,7 @@
 from importlib.metadata import version
 
-import commandgraph
+import ordin
 
 
 def test_runtime_version_matches_distribution_metadata():
-    assert commandgraph.__version__ == version("commandgraph")
+    assert ordin.__version__ == version("ordin")

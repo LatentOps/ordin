@@ -1,12 +1,12 @@
-import commandgraph.search as search_module
-from commandgraph.availability import EnvironmentInfo
-from commandgraph.schema import validate_named_schema
-from commandgraph.search import search
+import ordin.search as search_module
+from ordin.availability import EnvironmentInfo
+from ordin.schema import validate_named_schema
+from ordin.search import search
 
 
 def _command(name: str, *, platforms=None):
     entry = {
-        "schema_version": "commandgraph.command_card.v1",
+        "schema_version": "ordin.command_card.v1",
         "command": name,
         "summary": "Inspect demo state.",
         "aliases": ["demo inspect"],

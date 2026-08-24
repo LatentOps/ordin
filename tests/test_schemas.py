@@ -1,9 +1,9 @@
-from commandgraph.context import ExecutionContext, ReviewRequest
-from commandgraph.data import DATA_DIR, data_health, load_json
-from commandgraph.graph import build_effect_graph
-from commandgraph.review import review_command
-from commandgraph.risk import check_command
-from commandgraph.schema import (
+from ordin.context import ExecutionContext, ReviewRequest
+from ordin.data import DATA_DIR, data_health, load_json
+from ordin.graph import build_effect_graph
+from ordin.review import review_command
+from ordin.risk import check_command
+from ordin.schema import (
     SCHEMA_FILES,
     resource_parity_errors,
     validate_instance,
@@ -12,7 +12,7 @@ from commandgraph.schema import (
     validate_schema_files,
     validate_template_semantics,
 )
-from commandgraph.search import search
+from ordin.search import search
 
 
 def test_checked_in_schema_files_are_well_formed():
@@ -52,7 +52,7 @@ def test_bundled_risk_rules_and_effect_catalog_satisfy_schemas():
 
 def test_validator_reports_missing_required_property():
     errors = validate_instance(
-        {"schema_version": "commandgraph.command_card.v1"},
+        {"schema_version": "ordin.command_card.v1"},
         {
             "type": "object",
             "required": ["schema_version", "command"],

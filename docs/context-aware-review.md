@@ -1,17 +1,17 @@
 # Context-Aware Command Review
 
-CommandGraph can accept explicit execution context when command safety depends
+Ordin can accept explicit execution context when command safety depends
 on where or how a command would run. Context is caller-supplied and local; the
 core library does not inspect the process working directory, UID, shell, or
 agent identity implicitly.
 
 ## Versioned request
 
-The machine-readable request contract is `commandgraph.review_request.v1`:
+The machine-readable request contract is `ordin.review_request.v1`:
 
 ```json
 {
-  "schema_version": "commandgraph.review_request.v1",
+  "schema_version": "ordin.review_request.v1",
   "command": "rm -rf .",
   "intent": "clean generated files",
   "context": {
@@ -25,7 +25,7 @@ The machine-readable request contract is `commandgraph.review_request.v1`:
 }
 ```
 
-All context fields are optional. Missing fields remain unknown; CommandGraph
+All context fields are optional. Missing fields remain unknown; Ordin
 does not substitute ambient process state.
 
 ## Supported context
@@ -59,9 +59,9 @@ existing exact risk rules.
 Both `check` and `review` accept context fields:
 
 ```bash
-commandgraph check "rm -rf ." --cwd / --euid 0 --json
+ordin check "rm -rf ." --cwd / --euid 0 --json
 
-commandgraph review \
+ordin review \
   --command "chmod 600 secret.txt" \
   --intent "restrict file permissions" \
   --cwd /tmp \

@@ -1,4 +1,4 @@
-from commandgraph.shell import (
+from ordin.shell import (
     command_substitutions,
     executable_name,
     split_shell_segments,

@@ -2,9 +2,9 @@ import json
 import tempfile
 from pathlib import Path
 
-from commandgraph.indexer import build_index_from_lines, parse_apropos_line, parse_apropos_lines
-from commandgraph.data import load_man_index
-from commandgraph.search import search
+from ordin.indexer import build_index_from_lines, parse_apropos_line, parse_apropos_lines
+from ordin.data import load_man_index
+from ordin.search import search
 
 
 def test_parse_apropos_line_creates_command_cards():
@@ -12,7 +12,7 @@ def test_parse_apropos_line_creates_command_cards():
 
     assert entries == [
         {
-            "schema_version": "commandgraph.command_card.v1",
+            "schema_version": "ordin.command_card.v1",
             "command": "rsync",
             "summary": "a fast, versatile file copying tool",
             "aliases": [],
@@ -47,7 +47,7 @@ def test_build_index_and_search_merge(monkeypatch):
             ["rsync (1) - remote file copy and synchronization tool"],
             path=index_path,
         )
-        monkeypatch.setenv("COMMANDGRAPH_INDEX", str(index_path))
+        monkeypatch.setenv("ORDIN_INDEX", str(index_path))
 
         results = search("remote synchronization copy", limit=3)
 
@@ -56,7 +56,7 @@ def test_build_index_and_search_merge(monkeypatch):
 
 
 def test_cli_index_from_input(capsys):
-    from commandgraph.cli import main
+    from ordin.cli import main
 
     with tempfile.TemporaryDirectory(dir=Path.cwd()) as temp_dir:
         input_path = Path(temp_dir) / "apropos.txt"

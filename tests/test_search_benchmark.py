@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from commandgraph.benchmark import (
+from ordin.benchmark import (
     SearchFixture,
     evaluate_search_quality,
     load_search_fixtures,
 )
-from commandgraph.search import SearchResult
+from ordin.search import SearchResult
 
 
 ROOT = Path(__file__).resolve().parents[1]

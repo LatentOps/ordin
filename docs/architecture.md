@@ -1,6 +1,6 @@
-# CommandGraph Architecture
+# Ordin Architecture
 
-CommandGraph is intentionally local-first and dependency-light. The safety
+Ordin is intentionally local-first and dependency-light. The safety
 layer is split into shell structure, typed command semantics, policy evidence,
 and review output rather than treating a command as a single regex string.
 
@@ -88,9 +88,9 @@ generation.
 
 ## Project Scope
 
-CommandGraph can discover and review terminal commands locally.
+Ordin can discover and review terminal commands locally.
 
-CommandGraph does not provide:
+Ordin does not provide:
 
 - account management;
 - team analytics;

@@ -1,4 +1,4 @@
-from commandgraph.availability import (
+from ordin.availability import (
     EnvironmentInfo,
     command_availability,
     environment_from_os_release,

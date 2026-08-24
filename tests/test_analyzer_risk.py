@@ -1,4 +1,4 @@
-from commandgraph.risk import check_command
+from ordin.risk import check_command
 
 
 def test_git_global_option_read_is_allowed():

@@ -1,13 +1,13 @@
 # Optional Local Semantic Reranking
 
-CommandGraph keeps deterministic BM25 retrieval as the default. Semantic reranking is an explicit opt-in layer applied only to a bounded BM25 candidate set.
+Ordin keeps deterministic BM25 retrieval as the default. Semantic reranking is an explicit opt-in layer applied only to a bounded BM25 candidate set.
 
 ## Default Behavior
 
 A normal search does not import an ML framework, load a model, or change the deterministic ranker:
 
 ```python
-from commandgraph.search import search
+from ordin.search import search
 
 results = search("make file runnable")
 ```
@@ -19,14 +19,14 @@ Every result reports `semantic_reranked: false` and `semantic_score: null`.
 Install the optional dependency only when needed:
 
 ```bash
-pip install 'commandgraph[semantic]'
+pip install 'ordin[semantic]'
 ```
 
-Then point CommandGraph at an **existing local model directory**:
+Then point Ordin at an **existing local model directory**:
 
 ```python
-from commandgraph.search import search
-from commandgraph.semantic import SentenceTransformerReranker
+from ordin.search import search
+from ordin.semantic import SentenceTransformerReranker
 
 reranker = SentenceTransformerReranker.from_local_path("/models/all-MiniLM-L6-v2")
 results = search(
@@ -35,11 +35,11 @@ results = search(
 )
 ```
 
-The loader requires the supplied filesystem path to exist and requests local-only model loading. CommandGraph does not translate a model name into a remote Hub download.
+The loader requires the supplied filesystem path to exist and requests local-only model loading. Ordin does not translate a model name into a remote Hub download.
 
 ## Reranking Boundary
 
-Semantic mode does not search the whole command catalog independently. CommandGraph first runs normal BM25 retrieval and selects a bounded candidate pool:
+Semantic mode does not search the whole command catalog independently. Ordin first runs normal BM25 retrieval and selects a bounded candidate pool:
 
 ```text
 intent
@@ -75,13 +75,13 @@ class MyReranker:
         return [0.0 for _ in documents]
 ```
 
-The backend must return exactly one numeric score per candidate document. CommandGraph validates the count and clamps the values before applying them.
+The backend must return exactly one numeric score per candidate document. Ordin validates the count and clamps the values before applying them.
 
 This interface allows local research models without coupling the core package to one embedding framework.
 
 ## Benchmarking Quality and Cost
 
-`commandgraph.benchmark.compare_search_quality()` evaluates a baseline and candidate ranker on the same fixture list and reports:
+`ordin.benchmark.compare_search_quality()` evaluates a baseline and candidate ranker on the same fixture list and reports:
 
 - Top-1 accuracy delta;
 - Recall@K delta;

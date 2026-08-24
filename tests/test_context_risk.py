@@ -1,6 +1,6 @@
-from commandgraph.context import ExecutionContext
-from commandgraph.review import review_command
-from commandgraph.risk import check_command
+from ordin.context import ExecutionContext
+from ordin.review import review_command
+from ordin.risk import check_command
 
 
 def test_relative_recursive_delete_at_root_blocks_with_context():

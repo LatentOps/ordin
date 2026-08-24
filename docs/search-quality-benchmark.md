@@ -1,6 +1,6 @@
 # Search Quality Benchmark
 
-CommandGraph keeps a deterministic search-quality fixture corpus in
+Ordin keeps a deterministic search-quality fixture corpus in
 `benchmarks/search_quality.jsonl`. The benchmark exists to make retrieval
 changes measurable and to prevent silent regressions in the intent-to-command
 experience.
@@ -15,7 +15,7 @@ Each fixture contains:
 - the evaluation cutoff;
 - tags for category-level diagnostics.
 
-The evaluator in `commandgraph.benchmark` reports:
+The evaluator in `ordin.benchmark` reports:
 
 - Top-1 accuracy;
 - recall at each fixture's cutoff;

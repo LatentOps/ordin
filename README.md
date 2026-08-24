@@ -1,8 +1,8 @@
-# CommandGraph
+# Ordin
 
 Intent-aware command discovery and safety checks for humans and AI agents.
 
-CommandGraph is an open-source LatentOps project and an advanced
+Ordin is an open-source LatentOps project and an advanced
 `apropos`-style tool for Linux terminals. It maps natural-language intent to
 relevant commands, examples, templates, typed command effects, and local safety
 checks.
@@ -27,7 +27,7 @@ checks.
 ## Example
 
 ```bash
-commandgraph search "make file runnable"
+ordin search "make file runnable"
 ```
 
 ```text
@@ -38,13 +38,13 @@ chmod
 ```
 
 ```bash
-commandgraph search "make file runnable" --json
+ordin search "make file runnable" --json
 ```
 
 ```json
 [
   {
-    "schema_version": "commandgraph.search_result.v1",
+    "schema_version": "ordin.search_result.v1",
     "command": "chmod",
     "summary": "Change file mode bits and permissions.",
     "risk": "medium"
@@ -53,7 +53,7 @@ commandgraph search "make file runnable" --json
 ```
 
 ```bash
-commandgraph check "git reset --hard HEAD~1"
+ordin check "git reset --hard HEAD~1"
 ```
 
 ```text
@@ -64,7 +64,7 @@ risk: high
 ```
 
 ```bash
-commandgraph review \
+ordin review \
   --intent "clean dependencies" \
   --command "rm -rf node_modules" \
   --json
@@ -75,19 +75,19 @@ commandgraph review \
 For the CLI, the recommended packaged installation is:
 
 ```bash
-pipx install commandgraph
+pipx install ordin
 ```
 
 or:
 
 ```bash
-uv tool install commandgraph
+uv tool install ordin
 ```
 
 A normal Python environment can use:
 
 ```bash
-python -m pip install commandgraph
+python -m pip install ordin
 ```
 
 For an unreleased source checkout:
@@ -99,15 +99,15 @@ python -m pip install .
 The package installs two equivalent console commands:
 
 ```bash
-commandgraph --help
-cmdgraph --help
+ordin --help
+ordin --help
 ```
 
-The shorter `cmdgraph` command supports bare intent queries directly:
+The shorter `ordin` command supports bare intent queries directly:
 
 ```bash
-cmdgraph how to ssh
-cmdgraph make file runnable --json
+ordin how to ssh
+ordin make file runnable --json
 ```
 
 See [docs/installation.md](docs/installation.md) for packaged, source, and optional semantic-reranker installation details.
@@ -115,16 +115,16 @@ See [docs/installation.md](docs/installation.md) for packaged, source, and optio
 ## CLI
 
 ```bash
-cmdgraph how to ssh
-commandgraph search "what is using port 3000"
-cmdgraph search "make file runnable" --json
-commandgraph search 'find files named "*.py" in ./src'
-commandgraph explain chmod
-commandgraph check "cat .env" --json
-commandgraph check "git status --short" --json
-commandgraph review --intent "make file runnable" --command "curl https://example.com" --json
-commandgraph index
-commandgraph doctor --json
+ordin how to ssh
+ordin search "what is using port 3000"
+ordin search "make file runnable" --json
+ordin search 'find files named "*.py" in ./src'
+ordin explain chmod
+ordin check "cat .env" --json
+ordin check "git status --short" --json
+ordin review --intent "make file runnable" --command "curl https://example.com" --json
+ordin index
+ordin doctor --json
 ```
 
 Machine-readable output includes schema versions so agents can depend on stable
@@ -151,7 +151,7 @@ Template suggestions do not invent missing path or depth targets. A template
 that has a genuinely safe default may opt into it explicitly with
 `safe_defaults`; otherwise missing slots leave that suggestion incomplete.
 
-### Level 2: Typed CommandGraph
+### Level 2: Typed Ordin
 
 Curated command cards can express:
 
@@ -186,9 +186,9 @@ intent + command + context -> allow / warn / block / ask
 Decision semantics are conservative:
 
 - `allow`: the command has a known low-risk semantic/default baseline with no higher-risk finding;
-- `warn`: CommandGraph found a known medium/high-risk behavior that should be reviewed before execution;
+- `warn`: Ordin found a known medium/high-risk behavior that should be reviewed before execution;
 - `ask`: the command is unclassified, incomplete, or cannot be parsed confidently enough to treat as safe;
-- `block`: CommandGraph found a known critical condition.
+- `block`: Ordin found a known critical condition.
 
 Unknown is not treated as safe. Compound shell input is segmented at common
 operators such as `&&`, `||`, `;`, and pipes, and risk from any dangerous
@@ -215,8 +215,8 @@ Later learning can use:
 ## Project Layout
 
 ```text
-commandgraph/
-  commandgraph/          Python package
+ordin/
+  ordin/          Python package
     graph.py             Typed graph construction + effect resolution
     resources/           Packaged data mirror
   data/
@@ -233,11 +233,11 @@ commandgraph/
 
 ## Contributing
 
-Contributions should keep CommandGraph local-first, explainable, and safe by
+Contributions should keep Ordin local-first, explainable, and safe by
 default. See [CONTRIBUTING.md](CONTRIBUTING.md) for command-card, effect,
 risk-rule, testing, and pull request requirements.
 
 ## License
 
-CommandGraph is licensed under the Apache License 2.0. See [LICENSE](LICENSE)
+Ordin is licensed under the Apache License 2.0. See [LICENSE](LICENSE)
 and [NOTICE](NOTICE).

@@ -1,32 +1,32 @@
 # Installation
 
-CommandGraph is packaged as the Python distribution `commandgraph` and installs two equivalent console commands: `commandgraph` and the shorter `cmdgraph`.
+Ordin is packaged as the Python distribution `ordin` and installs two equivalent console commands: `ordin` and the shorter `ordin`.
 
 ## PyPI
 
 After a release is published to PyPI, the recommended CLI installation is:
 
 ```bash
-pipx install commandgraph
+pipx install ordin
 ```
 
 or with `uv`:
 
 ```bash
-uv tool install commandgraph
+uv tool install ordin
 ```
 
 A normal Python environment can use:
 
 ```bash
-python -m pip install commandgraph
+python -m pip install ordin
 ```
 
 Then verify the installation:
 
 ```bash
-cmdgraph doctor
-cmdgraph make file runnable
+ordin doctor
+ordin make file runnable
 ```
 
 ## Optional semantic reranking
@@ -34,18 +34,18 @@ cmdgraph make file runnable
 The deterministic BM25 search path has no ML runtime dependency. Local semantic reranking is optional:
 
 ```bash
-python -m pip install "commandgraph[semantic]"
+python -m pip install "ordin[semantic]"
 ```
 
-CommandGraph still requires an explicit local model path and does not automatically download a model.
+Ordin still requires an explicit local model path and does not automatically download a model.
 
 ## Install from source
 
 For an unreleased checkout:
 
 ```bash
-git clone https://github.com/LatentOps/command-graph.git
-cd command-graph
+git clone https://github.com/LatentOps/ordin.git
+cd ordin
 python -m pip install .
 ```
 
@@ -57,4 +57,4 @@ python -m pip install -e ".[dev]"
 
 ## Supported Python
 
-CommandGraph supports Python 3.10 through 3.13. The CI matrix tests each supported version before merge.
+Ordin supports Python 3.10 through 3.13. The CI matrix tests each supported version before merge.

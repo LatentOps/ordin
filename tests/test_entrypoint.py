@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from commandgraph.entrypoint import main, normalize_argv
+from ordin.entrypoint import main, normalize_argv
 
 
 def test_normalize_bare_intent_to_search():
@@ -72,4 +72,4 @@ def test_top_level_help_mentions_default_mode(capsys):
     output = capsys.readouterr().out
     assert exc_info.value.code == 0
     assert "Default mode: type an intent directly" in output
-    assert "cmdgraph how to ssh" in output
+    assert "ordin how to ssh" in output

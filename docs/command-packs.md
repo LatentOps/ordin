@@ -1,6 +1,6 @@
 # Command packs
 
-CommandGraph can load domain-specific command knowledge as versioned local
+Ordin can load domain-specific command knowledge as versioned local
 packs. Packs keep command cards, dedicated risk rules, and analyzer bindings
 outside the core command directory while reusing the shared typed effect
 vocabulary and review policy.
@@ -8,7 +8,7 @@ vocabulary and review policy.
 ## Layout
 
 A built-in pack lives under `data/packs/<name>/` in a source checkout and is
-mirrored under `commandgraph/resources/packs/<name>/` in installed packages:
+mirrored under `ordin/resources/packs/<name>/` in installed packages:
 
 ```text
 data/packs/git/
@@ -18,11 +18,11 @@ data/packs/git/
   risk_rules.json
 ```
 
-A manifest uses `commandgraph.command_pack.v1`:
+A manifest uses `ordin.command_pack.v1`:
 
 ```json
 {
-  "schema_version": "commandgraph.command_pack.v1",
+  "schema_version": "ordin.command_pack.v1",
   "name": "git",
   "version": "1.0.0",
   "description": "Git source-control commands and safety metadata.",
@@ -45,38 +45,38 @@ Paths are pack-relative and may not escape the pack directory.
 
 ## Loading
 
-When `COMMANDGRAPH_PACKS` is unset, every pack with
+When `ORDIN_PACKS` is unset, every pack with
 `enabled_by_default: true` is loaded.
 
 Use an exact comma-separated list to select packs:
 
 ```bash
-COMMANDGRAPH_PACKS=git commandgraph packs
+ORDIN_PACKS=git ordin packs
 ```
 
 Disable all packs:
 
 ```bash
-COMMANDGRAPH_PACKS='' commandgraph packs
+ORDIN_PACKS='' ordin packs
 ```
 
 Load every discovered pack, including future packs that may default to off:
 
 ```bash
-COMMANDGRAPH_PACKS='*' commandgraph packs
+ORDIN_PACKS='*' ordin packs
 ```
 
-Unknown configured names are reported by `commandgraph doctor` instead of
+Unknown configured names are reported by `ordin doctor` instead of
 being silently treated as installed packs.
 
 Inspect the active state:
 
 ```bash
-commandgraph packs
-commandgraph packs --json
+ordin packs
+ordin packs --json
 ```
 
-The JSON output uses `commandgraph.pack_list.v1`.
+The JSON output uses `ordin.pack_list.v1`.
 
 ## Runtime isolation
 
@@ -92,7 +92,7 @@ pack-specific policy remains active.
 
 ## Validation
 
-`commandgraph doctor` validates all discovered built-in packs, including packs
+`ordin doctor` validates all discovered built-in packs, including packs
 that are not currently enabled:
 
 - manifest schema and version;

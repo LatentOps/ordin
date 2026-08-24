@@ -1,11 +1,11 @@
-from commandgraph.risk import check_command
+from ordin.risk import check_command
 
 
 def test_chmod_777_warns_high():
     review = check_command("chmod -R 777 .")
     assert review.decision == "warn"
     assert review.risk == "high"
-    assert review.as_dict()["schema_version"] == "commandgraph.risk_review.v1"
+    assert review.as_dict()["schema_version"] == "ordin.risk_review.v1"
     assert "chmod_recursive" in review.as_dict()["matched_rules"]
 
 

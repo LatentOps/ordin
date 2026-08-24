@@ -1,11 +1,11 @@
 # Enforcement and stdin review
 
-CommandGraph reports review decisions by default without changing its historic
+Ordin reports review decisions by default without changing its historic
 process exit behavior. Enforcement is opt-in so existing scripts are not broken.
 
 ## Exit codes
 
-When enforcement is active, CommandGraph uses stable decision exit codes:
+When enforcement is active, Ordin uses stable decision exit codes:
 
 | Decision | Exit code |
 | --- | ---: |
@@ -21,8 +21,8 @@ its non-zero decision code. `--fail-on` implies enforcement and can relax the
 threshold:
 
 ```bash
-commandgraph check "chmod 600 file.txt" --enforce
-commandgraph check "chmod 600 file.txt" --fail-on block
+ordin check "chmod 600 file.txt" --enforce
+ordin check "chmod 600 file.txt" --fail-on block
 ```
 
 The second form exits 0 for warn/ask and 30 only for block. `--fail-on ask`
@@ -30,14 +30,14 @@ allows warnings but fails on ask or block.
 
 ## Versioned stdin requests
 
-`review --stdin` reads exactly one `commandgraph.review_request.v1` JSON object
+`review --stdin` reads exactly one `ordin.review_request.v1` JSON object
 from standard input. It validates the request against the checked-in schema
 before review.
 
 ```bash
-cat <<'JSON' | commandgraph review --stdin --json --enforce
+cat <<'JSON' | ordin review --stdin --json --enforce
 {
-  "schema_version": "commandgraph.review_request.v1",
+  "schema_version": "ordin.review_request.v1",
   "command": "rm -rf .",
   "intent": "clean generated files",
   "context": {
@@ -65,7 +65,7 @@ reason not to execute automatically:
 agent proposes command
        |
        v
-commandgraph review --stdin --json --enforce
+ordin review --stdin --json --enforce
        |
        +-- 0  -> execute
        +-- 10 -> warning policy / approval

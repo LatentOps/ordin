@@ -1,5 +1,5 @@
-from commandgraph.analyzers import analyze_tokens, supported_analyzers
-from commandgraph.shell import shell_tokens
+from ordin.analyzers import analyze_tokens, supported_analyzers
+from ordin.shell import shell_tokens
 
 
 def analyze(command: str):

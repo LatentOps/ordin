@@ -22,7 +22,7 @@ def _venv_script(venv_path: Path, script_name: str) -> Path:
 def test_package_install_exposes_cli_entrypoints_and_graph_data(tmp_path):
     venv_path = tmp_path / "venv"
     # Python 3.12+ venvs may omit setuptools; expose the runner build backend
-    # while still installing CommandGraph and its console scripts into this venv.
+    # while still installing Ordin and its console scripts into this venv.
     venv.EnvBuilder(with_pip=True, system_site_packages=True).create(venv_path)
     python = _venv_python(venv_path)
 
@@ -43,7 +43,7 @@ def test_package_install_exposes_cli_entrypoints_and_graph_data(tmp_path):
     )
 
     outputs = []
-    for script_name in ("commandgraph", "cmdgraph"):
+    for script_name in ("ordin", "ordin"):
         script = _venv_script(venv_path, script_name)
         result = subprocess.run(
             [str(script), "--help"],
@@ -77,7 +77,7 @@ def test_package_install_exposes_cli_entrypoints_and_graph_data(tmp_path):
             str(python),
             "-c",
             (
-                "from commandgraph.schema import validate_schema_files; "
+                "from ordin.schema import validate_schema_files; "
                 "errors = validate_schema_files(); "
                 "assert not errors, errors"
             ),

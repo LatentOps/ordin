@@ -2,8 +2,8 @@ import io
 import json
 import sys
 
-from commandgraph.cli import main
-from commandgraph.enforcement import enforcement_exit_code
+from ordin.cli import main
+from ordin.enforcement import enforcement_exit_code
 
 
 def test_enforcement_exit_code_contract():
@@ -40,7 +40,7 @@ def test_fail_on_threshold_can_allow_lower_decisions(capsys):
 
 def test_stdin_review_request_is_validated_and_enforced(monkeypatch, capsys):
     request = {
-        "schema_version": "commandgraph.review_request.v1",
+        "schema_version": "ordin.review_request.v1",
         "command": "rm -rf .",
         "intent": "clean generated files",
         "context": {
@@ -83,7 +83,7 @@ def test_invalid_stdin_json_is_structured_error(monkeypatch, capsys):
 
 def test_stdin_rejects_mixed_request_context(monkeypatch, capsys):
     request = {
-        "schema_version": "commandgraph.review_request.v1",
+        "schema_version": "ordin.review_request.v1",
         "command": "git status",
         "intent": None,
         "context": None,

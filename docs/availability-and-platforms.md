@@ -1,12 +1,12 @@
 # Command Availability and Platform Awareness
 
-CommandGraph can use local command availability and Linux distribution metadata as small, explainable search-ranking signals.
+Ordin can use local command availability and Linux distribution metadata as small, explainable search-ranking signals.
 
 The feature remains local-first. It does not contact a package registry, operating-system service, or remote telemetry endpoint.
 
 ## Availability
 
-For each search candidate, CommandGraph checks whether the executable can be resolved on the current `PATH` using the local equivalent of `which`.
+For each search candidate, Ordin checks whether the executable can be resolved on the current `PATH` using the local equivalent of `which`.
 
 Search-result JSON exposes:
 
@@ -14,11 +14,11 @@ Search-result JSON exposes:
 - `executable_path`: the resolved path when available;
 - `availability_reason`: a short explanation of availability/platform evidence.
 
-Availability is deliberately a bounded ranking signal rather than a filter. A command that is not installed can still be returned when it best matches the requested intent, so CommandGraph can continue to serve discovery and installation workflows.
+Availability is deliberately a bounded ranking signal rather than a filter. A command that is not installed can still be returned when it best matches the requested intent, so Ordin can continue to serve discovery and installation workflows.
 
 ## Linux Distribution Detection
 
-On Linux, CommandGraph reads `/etc/os-release` locally and uses the standard fields:
+On Linux, Ordin reads `/etc/os-release` locally and uses the standard fields:
 
 - `ID`
 - `ID_LIKE`
@@ -42,7 +42,7 @@ Command cards may add an optional `platforms` object:
 }
 ```
 
-The fields are additive to `commandgraph.command_card.v1`:
+The fields are additive to `ordin.command_card.v1`:
 
 - `os` lists supported normalized operating-system names;
 - `distro_ids` lists explicit Linux distribution IDs;

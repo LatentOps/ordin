@@ -1,10 +1,10 @@
 import time
 
-from commandgraph.benchmark import (
+from ordin.benchmark import (
     SearchFixture,
     compare_search_quality,
 )
-from commandgraph.search import SearchResult
+from ordin.search import SearchResult
 
 
 def _result(command: str, score: float) -> SearchResult:
