@@ -14,7 +14,10 @@
     "safer_next_step": {"type": ["string", "null"]},
     "related_commands": {"type": "array", "items": {"type": "string"}},
     "intent_alignment": {"enum": ["not_provided", "unknown", "matched", "mismatch"]},
-    "context": {"type": ["object", "null"]}
+    "context": {"type": ["object", "null"]},
+    "trace": {"type": ["object", "null"]},
+    "trace_length": {"type": "integer", "minimum": 0},
+    "trajectory_categories": {"type": "array", "items": {"type": "string"}}
   },
   "additionalProperties": false
 }
