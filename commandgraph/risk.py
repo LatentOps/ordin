@@ -6,8 +6,9 @@ from typing import Iterable
 
 from . import RISK_SCHEMA_VERSION
 from .analyzers import analyze_tokens
+from .context import ExecutionContext
 from .data import find_command, load_risk_rules
-from .graph import effects_for_tokens
+from .graph import EffectEvidence, effects_for_tokens
 from .shell import (
     SHELL_EXECUTABLES,
     command_name_candidates,
@@ -60,6 +61,35 @@ SENSITIVE_REDIRECT_PREFIXES = (
     "/usr/",
     "~/.ssh/",
 )
+PATH_MUTATING_EFFECTS = {
+    "filesystem.write",
+    "filesystem.delete",
+    "filesystem.recursive_delete",
+    "filesystem.permission_change",
+    "filesystem.recursive_permission_change",
+    "filesystem.ownership_change",
+    "filesystem.recursive_ownership_change",
+}
+ROOT_CRITICAL_EFFECTS = {
+    "filesystem.delete",
+    "filesystem.recursive_delete",
+    "system.device_write",
+}
+PRIVILEGE_SENSITIVE_EFFECTS = PATH_MUTATING_EFFECTS | {
+    "package.install",
+    "package.remove",
+    "git.local_write",
+    "git.remote_write",
+    "git.history_rewrite",
+    "container.create",
+    "container.delete",
+    "container.prune",
+    "process.signal",
+    "code.execute",
+    "code.remote_execute",
+    "system.configuration_write",
+    "system.device_write",
+}
 
 
 @dataclass(frozen=True)
@@ -125,21 +155,87 @@ def _sensitive_redirection_target(tokens: list[str]) -> str | None:
     return None
 
 
-def _semantic_evidence(tokens: list[str]):
-    analysis = analyze_tokens(tokens)
+def _semantic_evidence(
+    tokens: list[str],
+    context: ExecutionContext | None,
+) -> tuple[list[EffectEvidence], object | None]:
+    analysis = analyze_tokens(tokens, context=context)
     if analysis is not None and analysis.evidence:
         return list(analysis.evidence), analysis
     return effects_for_tokens(tokens), analysis
 
 
+def _path_from_resource(
+    resource: str | None,
+    context: ExecutionContext | None,
+) -> str | None:
+    if not resource or not resource.startswith("path:"):
+        return None
+    value = resource[len("path:"):]
+    if value.startswith("/"):
+        return value
+    return context.resolve_path(value) if context else None
+
+
+def _apply_context_policy(
+    item: EffectEvidence,
+    context: ExecutionContext | None,
+    risk: str,
+    reasons: list[str],
+    risk_categories: list[str],
+) -> str:
+    if context is None:
+        return risk
+
+    resolved_path = _path_from_resource(item.resource, context)
+    if resolved_path == "/" and item.effect in ROOT_CRITICAL_EFFECTS:
+        risk = max_risk(risk, "critical")
+        _append_unique(
+            reasons,
+            [f"{item.effect} resolves to the filesystem root in supplied context"],
+        )
+        _append_unique(risk_categories, ["root_filesystem_mutation"])
+    elif resolved_path == "/" and item.effect in PATH_MUTATING_EFFECTS:
+        risk = max_risk(risk, "high")
+        _append_unique(
+            reasons,
+            [f"{item.effect} targets the filesystem root in supplied context"],
+        )
+        _append_unique(risk_categories, ["root_filesystem_mutation"])
+
+    if resolved_path and item.effect in PATH_MUTATING_EFFECTS:
+        within_repo = context.path_within_repo(resolved_path)
+        if within_repo is False:
+            risk = max_risk(risk, "high")
+            _append_unique(
+                reasons,
+                [
+                    f'mutation target "{resolved_path}" is outside supplied repo root '
+                    f'"{context.repo_root}"'
+                ],
+            )
+            _append_unique(risk_categories, ["outside_repo_mutation"])
+
+    if context.is_elevated is True and item.effect in PRIVILEGE_SENSITIVE_EFFECTS:
+        risk = max_risk(risk, "high")
+        _append_unique(
+            reasons,
+            [f"{item.effect} would execute with effective UID 0"],
+        )
+        _append_unique(risk_categories, ["elevated_context"])
+
+    return risk
+
+
 def _apply_semantic_effects(
     tokens: list[str],
+    context: ExecutionContext | None,
     risk: str,
     reasons: list[str],
     safer_next_steps: list[str],
     risk_categories: list[str],
 ) -> tuple[str, bool, bool]:
-    semantic_evidence, analysis = _semantic_evidence(tokens)
+    semantic_evidence, analysis = _semantic_evidence(tokens, context)
     for item in semantic_evidence:
         risk = max_risk(risk, item.risk)
         _append_unique(risk_categories, [item.category])
@@ -150,10 +246,22 @@ def _apply_semantic_effects(
         _append_unique(reasons, [detail])
         if item.safer_next_step:
             _append_unique(safer_next_steps, [item.safer_next_step])
+        risk = _apply_context_policy(
+            item,
+            context,
+            risk,
+            reasons,
+            risk_categories,
+        )
     return risk, bool(semantic_evidence), analysis is not None
 
 
-def _review_segment(tokens: list[str], rules: list[dict], depth: int) -> RiskReview:
+def _review_segment(
+    tokens: list[str],
+    rules: list[dict],
+    depth: int,
+    context: ExecutionContext | None,
+) -> RiskReview:
     text = segment_text(tokens)
     risk = "unknown"
     reasons: list[str] = []
@@ -174,7 +282,12 @@ def _review_segment(tokens: list[str], rules: list[dict], depth: int) -> RiskRev
                 _append_unique(safer_next_steps, [rule["safer_next_step"]])
 
     risk, has_semantic_effects, analyzer_matched = _apply_semantic_effects(
-        tokens, risk, reasons, safer_next_steps, risk_categories
+        tokens,
+        context,
+        risk,
+        reasons,
+        safer_next_steps,
+        risk_categories,
     )
 
     redirect_target = _sensitive_redirection_target(tokens)
@@ -202,7 +315,12 @@ def _review_segment(tokens: list[str], rules: list[dict], depth: int) -> RiskRev
     for nested_script in nested_scripts:
         if depth >= 3:
             break
-        nested = _check_command(nested_script, rules=rules, depth=depth + 1)
+        nested = _check_command(
+            nested_script,
+            rules=rules,
+            depth=depth + 1,
+            context=context,
+        )
         risk = max_risk(risk, nested.risk)
         _append_unique(reasons, nested.reasons)
         _append_unique(matched_rules, nested.matched_rules or [])
@@ -342,7 +460,12 @@ def _merge_reviews(reviews: list[RiskReview]) -> RiskReview:
     )
 
 
-def _check_command(command: str, rules: list[dict], depth: int) -> RiskReview:
+def _check_command(
+    command: str,
+    rules: list[dict],
+    depth: int,
+    context: ExecutionContext | None,
+) -> RiskReview:
     normalized = command.strip()
     if not normalized:
         return RiskReview(
@@ -377,7 +500,12 @@ def _check_command(command: str, rules: list[dict], depth: int) -> RiskReview:
         )
 
     reviews = [
-        _review_segment(segment, rules=rules, depth=depth)
+        _review_segment(
+            segment,
+            rules=rules,
+            depth=depth,
+            context=context,
+        )
         for segment in segments
     ]
     reviews.extend(_pipe_findings(segments, operators))
@@ -388,14 +516,19 @@ def _check_command(command: str, rules: list[dict], depth: int) -> RiskReview:
                     nested_script,
                     rules=rules,
                     depth=depth + 1,
+                    context=context,
                 )
             )
     return _merge_reviews(reviews)
 
 
-def check_command(command: str) -> RiskReview:
+def check_command(
+    command: str,
+    context: ExecutionContext | None = None,
+) -> RiskReview:
     return _check_command(
         command,
         rules=load_risk_rules(),
         depth=0,
+        context=context,
     )

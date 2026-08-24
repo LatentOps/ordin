@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from . import REVIEW_SCHEMA_VERSION
+from .context import ExecutionContext
 from .risk import check_command
 from .search import SearchResult, search
 from .shell import executable_name
@@ -18,6 +19,7 @@ class CommandReview:
     safer_next_step: str | None
     related_commands: list[str]
     intent_alignment: str
+    context: ExecutionContext | None = None
 
     def as_dict(self) -> dict:
         return {
@@ -30,6 +32,7 @@ class CommandReview:
             "safer_next_step": self.safer_next_step,
             "related_commands": self.related_commands,
             "intent_alignment": self.intent_alignment,
+            "context": self.context.as_dict() if self.context else None,
         }
 
 
@@ -51,7 +54,6 @@ def warn_for_intent_mismatch(
             [f'no command graph match found for intent "{intent}"'],
         )
 
-    related_commands = [item.command for item in related]
     top_score = related[0].score
     executable_result = next(
         (item for item in related if item.command == executable),
@@ -74,8 +76,12 @@ def warn_for_intent_mismatch(
     )
 
 
-def review_command(command: str, intent: str | None = None) -> CommandReview:
-    risk = check_command(command)
+def review_command(
+    command: str,
+    intent: str | None = None,
+    context: ExecutionContext | None = None,
+) -> CommandReview:
+    risk = check_command(command, context=context)
     related = search(intent or command, limit=3)
     related_commands = [item.command for item in related]
     intent_alignment, alignment_reasons = warn_for_intent_mismatch(
@@ -102,4 +108,5 @@ def review_command(command: str, intent: str | None = None) -> CommandReview:
         safer_next_step=risk.safer_next_step,
         related_commands=related_commands,
         intent_alignment=intent_alignment,
+        context=context,
     )
