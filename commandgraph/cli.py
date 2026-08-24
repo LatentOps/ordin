@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Sequence
 
-from .context import ExecutionContext
+from .context import ExecutionContext, ReviewRequest
 from .data import data_health, find_command
+from .enforcement import enforcement_exit_code
 from .graph import build_effect_graph
 from .indexer import DEFAULT_INDEX_PATH, build_index, build_index_from_lines
 from .review import review_command
 from .risk import check_command
+from .schema import validate_named_schema
 from .search import search
 
 
@@ -116,6 +119,19 @@ def _add_context_arguments(parser: argparse.ArgumentParser) -> None:
     parser.set_defaults(context_interactive=None)
 
 
+def _add_enforcement_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--enforce",
+        action="store_true",
+        help="Return a non-zero exit code for decisions at or above the threshold.",
+    )
+    parser.add_argument(
+        "--fail-on",
+        choices=["warn", "ask", "block"],
+        help="Enforcement threshold; supplying this option implies enforcement.",
+    )
+
+
 def _context_from_args(args: argparse.Namespace) -> ExecutionContext | None:
     payload: dict = {}
     raw_context = getattr(args, "context_json", None)
@@ -145,12 +161,59 @@ def _context_from_args(args: argparse.Namespace) -> ExecutionContext | None:
     return ExecutionContext.from_dict(payload)
 
 
+def _context_args_present(args: argparse.Namespace) -> bool:
+    return any(
+        value is not None
+        for value in (
+            getattr(args, "cwd", None),
+            getattr(args, "shell", None),
+            getattr(args, "euid", None),
+            getattr(args, "repo_root", None),
+            getattr(args, "agent", None),
+            getattr(args, "context_json", None),
+            getattr(args, "context_interactive", None),
+        )
+    )
+
+
+def _input_error(message: str, as_json: bool) -> int:
+    if as_json:
+        print(json.dumps({"error": "invalid_review_request", "message": message}, indent=2))
+    else:
+        print(f"invalid review request: {message}")
+    return 2
+
+
 def _context_error(exc: ValueError, as_json: bool) -> int:
     if as_json:
         print(json.dumps({"error": "invalid_context", "message": str(exc)}, indent=2))
     else:
         print(f"invalid context: {exc}")
     return 2
+
+
+def _read_stdin_review_request() -> ReviewRequest:
+    raw = sys.stdin.read()
+    if not raw.strip():
+        raise ValueError("stdin review request is empty")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid JSON on stdin: {exc.msg}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("stdin review request must be a JSON object")
+    schema_errors = validate_named_schema("review_request", payload)
+    if schema_errors:
+        raise ValueError("schema validation failed: " + "; ".join(schema_errors))
+    return ReviewRequest.from_dict(payload)
+
+
+def _review_exit(args: argparse.Namespace, decision: str) -> int:
+    return enforcement_exit_code(
+        decision,
+        enforce=getattr(args, "enforce", False),
+        fail_on=getattr(args, "fail_on", None),
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -179,15 +242,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     check_parser.add_argument("command")
     check_parser.add_argument("--json", action="store_true")
     _add_context_arguments(check_parser)
+    _add_enforcement_arguments(check_parser)
 
     review_parser = subparsers.add_parser(
         "review",
         help="Review a command with optional user intent.",
     )
+    review_source = review_parser.add_mutually_exclusive_group(required=True)
+    review_source.add_argument("--command")
+    review_source.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read a commandgraph.review_request.v1 object from stdin.",
+    )
     review_parser.add_argument("--intent")
-    review_parser.add_argument("--command", required=True)
     review_parser.add_argument("--json", action="store_true")
     _add_context_arguments(review_parser)
+    _add_enforcement_arguments(review_parser)
 
     doctor_parser = subparsers.add_parser("doctor", help="Check local CommandGraph data.")
     doctor_parser.add_argument("--json", action="store_true")
@@ -229,16 +300,33 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"- {reason}")
             if review.safer_next_step:
                 print(f"safer_next_step: {review.safer_next_step}")
-        return 0
+        return _review_exit(args, review.decision)
 
     if args.command_name == "review":
-        try:
-            context = _context_from_args(args)
-        except ValueError as exc:
-            return _context_error(exc, as_json=args.json)
+        if args.stdin:
+            if args.intent is not None or _context_args_present(args):
+                return _input_error(
+                    "--stdin cannot be combined with --intent or context flags",
+                    as_json=args.json,
+                )
+            try:
+                request = _read_stdin_review_request()
+            except ValueError as exc:
+                return _input_error(str(exc), as_json=args.json)
+            command = request.command
+            intent = request.intent
+            context = request.context
+        else:
+            try:
+                context = _context_from_args(args)
+            except ValueError as exc:
+                return _context_error(exc, as_json=args.json)
+            command = args.command
+            intent = args.intent
+
         review = review_command(
-            args.command,
-            intent=args.intent,
+            command,
+            intent=intent,
             context=context,
         )
         if args.json:
@@ -252,7 +340,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"related_commands: {', '.join(review.related_commands)}")
             if review.safer_next_step:
                 print(f"safer_next_step: {review.safer_next_step}")
-        return 0
+        return _review_exit(args, review.decision)
 
     if args.command_name == "doctor":
         health = data_health()
@@ -262,6 +350,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"commands: {health['command_count']}")
             print(f"risk_rules: {health['risk_rule_count']}")
             print(f"effects: {health['effect_count']}")
+            print(f"schemas: {health.get('schema_count', 0)}")
+            print(f"schema_errors: {len(health.get('schema_errors', []))}")
+            for error in health.get("schema_errors", []):
+                print(f"- schema: {error}")
+            print(f"risk_rule_errors: {len(health.get('risk_rule_errors', []))}")
+            for error in health.get("risk_rule_errors", []):
+                print(f"- risk_rule: {error}")
+            print(f"template_errors: {len(health.get('template_errors', []))}")
+            for error in health.get("template_errors", []):
+                print(f"- template: {error}")
+            print(f"resource_parity_errors: {len(health.get('resource_parity_errors', []))}")
+            for error in health.get("resource_parity_errors", []):
+                print(f"- resource: {error}")
             print(f"graph_nodes: {health['graph_node_count']}")
             print(f"graph_edges: {health['graph_edge_count']}")
             print(f"graph_errors: {len(health['graph_errors'])}")
