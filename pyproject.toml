@@ -16,8 +16,8 @@ dependencies = []
 semantic = ["sentence-transformers>=3.0,<6"]
 
 [project.scripts]
-commandgraph = "commandgraph.cli:main"
-cmdgraph = "commandgraph.cli:main"
+commandgraph = "commandgraph.entrypoint:main"
+cmdgraph = "commandgraph.entrypoint:main"
 
 [tool.setuptools]
 packages = ["commandgraph", "commandgraph.analyzers"]
