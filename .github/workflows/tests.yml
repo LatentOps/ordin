@@ -129,7 +129,7 @@ jobs:
           from commandgraph.availability import detect_environment
 
           environment = detect_environment()
-          assert environment.os_name == "linux"
+          assert environment.os == "linux"
           assert environment.distro_id
           print(environment)
           PY
