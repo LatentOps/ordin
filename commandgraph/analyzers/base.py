@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Callable, Sequence
 
+from commandgraph.context import ExecutionContext
 from commandgraph.data import load_effect_catalog
 from commandgraph.graph import EffectEvidence
 from commandgraph.shell import _strip_wrappers
@@ -14,6 +15,7 @@ class Invocation:
     executable: str
     args: tuple[str, ...]
     raw_tokens: tuple[str, ...]
+    context: ExecutionContext | None = None
 
 
 @dataclass(frozen=True)
@@ -56,7 +58,10 @@ def _basename(token: str) -> str:
     return PurePosixPath(token).name if "/" in token else token
 
 
-def normalize_invocation(tokens: Sequence[str]) -> Invocation | None:
+def normalize_invocation(
+    tokens: Sequence[str],
+    context: ExecutionContext | None = None,
+) -> Invocation | None:
     remaining = _strip_wrappers(tokens)
     if not remaining:
         return None
@@ -71,6 +76,7 @@ def normalize_invocation(tokens: Sequence[str]) -> Invocation | None:
         executable=executable,
         args=tuple(args),
         raw_tokens=tuple(tokens),
+        context=context,
     )
 
 
@@ -137,6 +143,14 @@ def evidence(
         resource=resource,
         safer_next_step=safer if isinstance(safer, str) else None,
     )
+
+
+def path_resource(invocation: Invocation, target: str) -> str:
+    if invocation.context:
+        resolved = invocation.context.resolve_path(target)
+        if resolved is not None:
+            return f"path:{resolved}"
+    return f"path:{target}"
 
 
 def unique_evidence(items: Sequence[EffectEvidence]) -> tuple[EffectEvidence, ...]:
