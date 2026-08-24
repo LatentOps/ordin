@@ -8,6 +8,7 @@ from .base import (
     SemanticAnalysis,
     evidence,
     flag_present,
+    path_resource,
     unique_evidence,
 )
 
@@ -44,7 +45,7 @@ def analyze_rm(invocation: Invocation) -> SemanticAnalysis:
     targets = _operands(invocation.args)
     findings = []
     for target in targets or ("filesystem.target",):
-        resource = f"path:{target}"
+        resource = path_resource(invocation, target)
         findings.append(evidence("filesystem.delete", "rm target", resource))
         if flag_present(
             invocation.args,
@@ -92,7 +93,7 @@ def analyze_chmod(invocation: Invocation) -> SemanticAnalysis:
     mode, targets = _chmod_mode_and_targets(invocation.args)
     findings = []
     for target in targets or ("filesystem.target",):
-        resource = f"path:{target}"
+        resource = path_resource(invocation, target)
         findings.append(
             evidence("filesystem.permission_change", "chmod mode change", resource)
         )
@@ -126,7 +127,7 @@ def analyze_chown(invocation: Invocation) -> SemanticAnalysis:
     targets = operands[1:] if len(operands) > 1 else ()
     findings = []
     for target in targets or ("filesystem.target",):
-        resource = f"path:{target}"
+        resource = path_resource(invocation, target)
         findings.append(
             evidence("filesystem.ownership_change", "chown ownership change", resource)
         )

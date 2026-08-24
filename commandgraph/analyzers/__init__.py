@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Sequence
 
+from commandgraph.context import ExecutionContext
+
 from .base import Analyzer, SemanticAnalysis, normalize_invocation
 
 _REGISTRY: dict[str, Analyzer] = {}
@@ -15,8 +17,11 @@ def register(*executables: str):
     return decorator
 
 
-def analyze_tokens(tokens: Sequence[str]) -> SemanticAnalysis | None:
-    invocation = normalize_invocation(tokens)
+def analyze_tokens(
+    tokens: Sequence[str],
+    context: ExecutionContext | None = None,
+) -> SemanticAnalysis | None:
+    invocation = normalize_invocation(tokens, context=context)
     if invocation is None:
         return None
     analyzer = _REGISTRY.get(invocation.executable)
