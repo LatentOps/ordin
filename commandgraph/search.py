@@ -94,13 +94,13 @@ def tokenize(text: str) -> list[str]:
     return [token.lower() for token in TOKEN_RE.findall(text) if token.lower() not in STOPWORDS]
 
 
-def expand_query(query: str, synonyms: dict[str, list[str]]) -> Counter[str]:
+def expand_query(query: str, synonyms: dict[str, list[str]]) -> dict[str, float]:
     tokens = tokenize(query)
-    expanded: Counter[str] = Counter()
+    expanded: dict[str, float] = {}
     for token in tokens:
-        expanded[token] += 2.0
+        expanded[token] = expanded.get(token, 0.0) + 2.0
         for synonym in synonyms.get(token, []):
-            expanded[synonym] += 0.8
+            expanded[synonym] = expanded.get(synonym, 0.0) + 0.8
     return expanded
 
 
@@ -175,7 +175,7 @@ def bm25_idf_by_term(commands: list[dict]) -> dict[str, float]:
 
 
 def _legacy_lexical_score(
-    expanded: Counter[str],
+    expanded: dict[str, float],
     token_counts: Counter[str],
     idf: dict[str, float],
 ) -> float:
@@ -188,7 +188,7 @@ def _legacy_lexical_score(
 
 
 def _bm25_lexical_score(
-    expanded: Counter[str],
+    expanded: dict[str, float],
     token_counts: Counter[str],
     idf: dict[str, float],
     *,

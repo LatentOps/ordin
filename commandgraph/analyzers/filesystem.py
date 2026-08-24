@@ -98,7 +98,7 @@ def analyze_chmod(invocation: Invocation) -> SemanticAnalysis:
                     resource,
                 )
             )
-    notes = ()
+    notes: tuple[str, ...] = ()
     if _broad_permission_mode(mode):
         notes = (f"permission mode {mode!r} broadly grants access",)
     return SemanticAnalysis(

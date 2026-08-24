@@ -147,7 +147,9 @@ def data_health() -> dict[str, Any]:
         "effects": validation_effect_catalog,
     }
 
-    command_names = [command.get("command") for command in validation_commands]
+    command_names = [
+        name for command in validation_commands if isinstance((name := command.get("command")), str)
+    ]
     missing_schema = [
         command.get("command", "<unknown>")
         for command in validation_commands
