@@ -72,7 +72,7 @@ def _targets(args: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(token for token in args if not token.startswith("-"))
 
 
-@register("git")
+@register("git", pack="git")
 def analyze_git(invocation: Invocation) -> SemanticAnalysis:
     subcommand, args = _split_git_args(invocation.args)
     flags = tuple(token for token in invocation.args if token.startswith("-"))
@@ -177,7 +177,14 @@ def analyze_git(invocation: Invocation) -> SemanticAnalysis:
         )
 
     elif subcommand == "tag":
-        mutation = flag_present(args, "-d", "-f", "--delete", "--force", short_chars="df")
+        mutation = flag_present(
+            args,
+            "-d",
+            "-f",
+            "--delete",
+            "--force",
+            short_chars="df",
+        )
         findings.append(
             evidence(
                 "git.history_rewrite" if mutation else "git.read",
