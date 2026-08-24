@@ -275,7 +275,10 @@ def _compare_json_tree(
     source_root: Path,
     package_root: Path,
     label: str,
+    *,
+    ignored_package_roots: set[str] | None = None,
 ) -> list[str]:
+    ignored = ignored_package_roots or set()
     errors: list[str] = []
     source_files = {
         path.relative_to(source_root)
@@ -286,6 +289,7 @@ def _compare_json_tree(
         path.relative_to(package_root)
         for path in package_root.rglob("*.json")
         if path.is_file()
+        and not (path.relative_to(package_root).parts and path.relative_to(package_root).parts[0] in ignored)
     }
     for relative in sorted(source_files | package_files):
         source_path = source_root / relative
@@ -316,6 +320,7 @@ def resource_parity_errors() -> list[str]:
         SOURCE_DATA_DIR,
         PACKAGE_DATA_DIR,
         "resource",
+        ignored_package_roots={"schemas"},
     )
     if SOURCE_SCHEMA_DIR.exists() and PACKAGE_SCHEMA_DIR.exists():
         errors.extend(
