@@ -20,6 +20,16 @@ DESTRUCTIVE_EFFECTS = {
     "system.configuration_write",
     "system.device_write",
 }
+DESTRUCTIVE_CATEGORIES = {
+    "filesystem_delete",
+    "recursive_delete",
+    "container_delete",
+    "container_cleanup",
+    "history_rewrite",
+    "package_remove",
+    "system_configuration_write",
+    "device_write",
+}
 
 
 @dataclass(frozen=True)
@@ -105,6 +115,13 @@ def _has_any(values: Iterable[str], candidates: set[str]) -> bool:
     return bool(set(values) & candidates)
 
 
+def _is_destructive(action: ObservedAction) -> bool:
+    return (
+        _has_any(action.effects, DESTRUCTIVE_EFFECTS)
+        or _has_any(action.categories, DESTRUCTIVE_CATEGORIES)
+    )
+
+
 def evaluate_trajectory(
     trace: ActionTrace | None,
     current_command: str,
@@ -126,8 +143,6 @@ def evaluate_trajectory(
     )
     findings: list[TrajectoryFinding] = []
 
-    # Secret read followed by a data-uploading action is materially riskier than
-    # either action reviewed in isolation.
     prior_secret_read = any(
         "secret.read" in action.effects
         or "secret_exposure" in action.categories
@@ -153,17 +168,19 @@ def evaluate_trajectory(
             )
         )
 
-    # Download -> executable permission -> execution is a classic staged
-    # remote-code chain. Preserve ordering rather than merely checking whether
-    # all effects appeared somewhere in the trace.
     download_indices = [
-        index for index, action in enumerate(prior)
+        index
+        for index, action in enumerate(prior)
         if "network.download" in action.effects
+        or "network_download" in action.categories
     ]
     permission_indices = [
-        index for index, action in enumerate(prior)
+        index
+        for index, action in enumerate(prior)
         if "filesystem.permission_change" in action.effects
         or "filesystem.recursive_permission_change" in action.effects
+        or "permission_change" in action.categories
+        or "recursive_permission_change" in action.categories
     ]
     staged_download = any(
         download_index < permission_index
@@ -173,6 +190,8 @@ def evaluate_trajectory(
     current_executes_code = (
         "code.execute" in current.effects
         or "code.remote_execute" in current.effects
+        or "code_execution" in current.categories
+        or "remote_code_execution" in current.categories
         or _looks_like_path_execution(current_command)
     )
     if staged_download and current_executes_code:
@@ -191,14 +210,8 @@ def evaluate_trajectory(
             )
         )
 
-    destructive_prior_count = sum(
-        _has_any(action.effects, DESTRUCTIVE_EFFECTS)
-        for action in prior
-    )
-    if (
-        destructive_prior_count >= 2
-        and _has_any(current.effects, DESTRUCTIVE_EFFECTS)
-    ):
+    destructive_prior_count = sum(_is_destructive(action) for action in prior)
+    if destructive_prior_count >= 2 and _is_destructive(current):
         findings.append(
             TrajectoryFinding(
                 risk="high",
@@ -228,9 +241,7 @@ def evaluate_trajectory(
             TrajectoryFinding(
                 risk="high",
                 category="trajectory_repeated_privilege_escalation",
-                reason=(
-                    "trajectory repeatedly invokes elevated-privilege actions"
-                ),
+                reason="trajectory repeatedly invokes elevated-privilege actions",
                 safer_next_step=(
                     "Confirm why repeated elevation is required and narrow the "
                     "privileged operation before continuing."
