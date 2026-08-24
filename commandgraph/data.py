@@ -47,11 +47,15 @@ def _load_core_risk_rules() -> list[dict[str, Any]]:
 def _load_core_effect_catalog() -> dict[str, dict[str, Any]]:
     payload = load_json(DATA_DIR / "effects.json")
     effects = payload.get("effects", {}) if isinstance(payload, dict) else {}
-    return {
-        name: definition
-        for name, definition in effects.items()
-        if isinstance(name, str) and isinstance(definition, dict)
-    } if isinstance(effects, dict) else {}
+    return (
+        {
+            name: definition
+            for name, definition in effects.items()
+            if isinstance(name, str) and isinstance(definition, dict)
+        }
+        if isinstance(effects, dict)
+        else {}
+    )
 
 
 def load_risk_rules() -> list[dict[str, Any]]:
@@ -66,9 +70,7 @@ def load_effect_catalog() -> dict[str, dict[str, Any]]:
     for pack in enabled_packs():
         for name, definition in load_pack_effect_catalog(pack).items():
             if name in effects and effects[name] != definition:
-                raise ValueError(
-                    f"enabled command pack {pack.name!r} redefines effect {name!r}"
-                )
+                raise ValueError(f"enabled command pack {pack.name!r} redefines effect {name!r}")
             effects[name] = definition
     return effects
 
@@ -120,20 +122,12 @@ def data_health() -> dict[str, Any]:
     pack_errors = pack_file_errors(packs)
 
     core_commands = _load_core_commands()
-    all_pack_commands = [
-        command
-        for pack in packs
-        for command in load_pack_commands(pack)
-    ]
+    all_pack_commands = [command for pack in packs for command in load_pack_commands(pack)]
     validation_commands = [*core_commands, *all_pack_commands]
     commands = load_commands(include_man_index=False)
 
     core_rules = _load_core_risk_rules()
-    all_pack_rules = [
-        rule
-        for pack in packs
-        for rule in load_pack_risk_rules(pack)
-    ]
+    all_pack_rules = [rule for pack in packs for rule in load_pack_risk_rules(pack)]
     validation_rules = [*core_rules, *all_pack_rules]
     risk_rules = load_risk_rules()
     risk_payload = {
@@ -146,27 +140,25 @@ def data_health() -> dict[str, Any]:
     for pack in packs:
         for name, definition in load_pack_effect_catalog(pack).items():
             if name in validation_effect_catalog and validation_effect_catalog[name] != definition:
-                pack_errors.append(
-                    f"pack {pack.name!r} redefines effect {name!r}"
-                )
+                pack_errors.append(f"pack {pack.name!r} redefines effect {name!r}")
             validation_effect_catalog[name] = definition
     effect_payload = {
         "schema_version": EFFECT_CATALOG_SCHEMA_VERSION,
         "effects": validation_effect_catalog,
     }
 
-    command_names = [command.get("command") for command in validation_commands]
+    command_names: list[str] = []
+    for command in validation_commands:
+        command_name = command.get("command")
+        if isinstance(command_name, str):
+            command_names.append(command_name)
     missing_schema = [
         command.get("command", "<unknown>")
         for command in validation_commands
         if not command.get("schema_version")
     ]
     duplicate_commands = sorted(
-        {
-            command
-            for command in command_names
-            if command_names.count(command) > 1
-        }
+        {command for command in command_names if command_names.count(command) > 1}
     )
 
     from .analyzers import analyzer_pack_bindings
@@ -184,8 +176,7 @@ def data_health() -> dict[str, Any]:
     schema_errors = validate_schema_files()
     schema_errors.extend(validate_command_card_schemas(validation_commands))
     schema_errors.extend(
-        f"risk rules: {error}"
-        for error in validate_named_schema("risk_rules", risk_payload)
+        f"risk rules: {error}" for error in validate_named_schema("risk_rules", risk_payload)
     )
     schema_errors.extend(
         f"effect catalog: {error}"
@@ -201,13 +192,10 @@ def data_health() -> dict[str, Any]:
     for pack in packs:
         for analyzer in pack.analyzers:
             if analyzer not in bindings:
-                pack_errors.append(
-                    f"pack {pack.name!r} references unknown analyzer {analyzer!r}"
-                )
+                pack_errors.append(f"pack {pack.name!r} references unknown analyzer {analyzer!r}")
             elif bindings[analyzer] != pack.name:
                 pack_errors.append(
-                    f"pack {pack.name!r} analyzer {analyzer!r} is bound to "
-                    f"{bindings[analyzer]!r}"
+                    f"pack {pack.name!r} analyzer {analyzer!r} is bound to {bindings[analyzer]!r}"
                 )
 
     risk_rule_errors = validate_risk_rule_semantics(risk_payload)
@@ -233,9 +221,9 @@ def data_health() -> dict[str, Any]:
         )
 
     from .packs import pack_list_payload
+
     schema_errors.extend(
-        f"pack list: {error}"
-        for error in validate_named_schema("pack_list", pack_list_payload())
+        f"pack list: {error}" for error in validate_named_schema("pack_list", pack_list_payload())
     )
 
     schema_errors = sorted(set(schema_errors))

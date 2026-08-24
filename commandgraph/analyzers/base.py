@@ -93,12 +93,7 @@ def flag_present(
             key = token.split("=", 1)[0]
             if key in wanted:
                 return True
-        if (
-            short_chars
-            and token.startswith("-")
-            and not token.startswith("--")
-            and len(token) > 1
-        ):
+        if short_chars and token.startswith("-") and not token.startswith("--") and len(token) > 1:
             cluster = token[1:]
             if any(char in cluster for char in short_chars):
                 return True
@@ -120,10 +115,10 @@ def option_value(
         for name in long_names:
             prefix = f"{name}="
             if token.startswith(prefix):
-                return token[len(prefix):]
+                return token[len(prefix) :]
         for name in shorts:
             if len(name) == 2 and token.startswith(name) and token != name:
-                return token[len(name):]
+                return token[len(name) :]
     return None
 
 

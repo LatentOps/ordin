@@ -61,8 +61,7 @@ def _non_option_values(
                 skip_next = True
             continue
         if any(
-            token.startswith(short)
-            and token != short
+            token.startswith(short) and token != short
             for short in options_with_values
             if short.startswith("-") and not short.startswith("--") and len(short) == 2
         ):

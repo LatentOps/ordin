@@ -330,17 +330,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             context = _context_from_args(args)
         except ValueError as exc:
             return _context_error(exc, as_json=args.json)
-        review = check_command(args.command, context=context)
+        risk_review = check_command(args.command, context=context)
         if args.json:
-            print(json.dumps(review.as_dict(), indent=2))
+            print(json.dumps(risk_review.as_dict(), indent=2))
         else:
-            print(f"decision: {review.decision}")
-            print(f"risk: {review.risk}")
-            for reason in review.reasons:
+            print(f"decision: {risk_review.decision}")
+            print(f"risk: {risk_review.risk}")
+            for reason in risk_review.reasons:
                 print(f"- {reason}")
-            if review.safer_next_step:
-                print(f"safer_next_step: {review.safer_next_step}")
-        return _review_exit(args, review.decision)
+            if risk_review.safer_next_step:
+                print(f"safer_next_step: {risk_review.safer_next_step}")
+        return _review_exit(args, risk_review.decision)
 
     if args.command_name == "review":
         if args.stdin:
@@ -366,29 +366,26 @@ def main(argv: Sequence[str] | None = None) -> int:
             intent = args.intent
             trace = None
 
-        review = review_command(
+        command_review = review_command(
             command,
             intent=intent,
             context=context,
             trace=trace,
         )
         if args.json:
-            print(json.dumps(review.as_dict(), indent=2))
+            print(json.dumps(command_review.as_dict(), indent=2))
         else:
-            print(f"decision: {review.decision}")
-            print(f"risk: {review.risk}")
-            for reason in review.reasons:
+            print(f"decision: {command_review.decision}")
+            print(f"risk: {command_review.risk}")
+            for reason in command_review.reasons:
                 print(f"- {reason}")
-            if review.related_commands:
-                print(f"related_commands: {', '.join(review.related_commands)}")
-            if review.trajectory_categories:
-                print(
-                    "trajectory_categories: "
-                    + ", ".join(review.trajectory_categories)
-                )
-            if review.safer_next_step:
-                print(f"safer_next_step: {review.safer_next_step}")
-        return _review_exit(args, review.decision)
+            if command_review.related_commands:
+                print(f"related_commands: {', '.join(command_review.related_commands)}")
+            if command_review.trajectory_categories:
+                print("trajectory_categories: " + ", ".join(command_review.trajectory_categories))
+            if command_review.safer_next_step:
+                print(f"safer_next_step: {command_review.safer_next_step}")
+        return _review_exit(args, command_review.decision)
 
     if args.command_name == "doctor":
         health = data_health()
@@ -399,7 +396,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"risk_rules: {health['risk_rule_count']}")
             print(f"effects: {health['effect_count']}")
             print(f"schemas: {health.get('schema_count', 0)}")
-            print(f"packs: {health.get('loaded_pack_count', 0)}/{health.get('pack_count', 0)} loaded")
+            print(
+                f"packs: {health.get('loaded_pack_count', 0)}/{health.get('pack_count', 0)} loaded"
+            )
             if health.get("loaded_packs"):
                 print(f"loaded_packs: {', '.join(health['loaded_packs'])}")
             print(f"pack_errors: {len(health.get('pack_errors', []))}")

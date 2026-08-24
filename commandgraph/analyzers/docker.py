@@ -70,7 +70,7 @@ def _split_docker_args(args: tuple[str, ...]) -> tuple[str | None, tuple[str, ..
             index += 1
     if index >= len(args):
         return None, ()
-    return args[index], args[index + 1:]
+    return args[index], args[index + 1 :]
 
 
 def _targets(args: tuple[str, ...]) -> tuple[str, ...]:
@@ -117,13 +117,9 @@ def analyze_docker(invocation: Invocation) -> SemanticAnalysis:
         if compose_subcommand in {"ps", "logs", "config", "images"}:
             findings.append(evidence("container.read", f"docker compose {compose_subcommand}"))
         elif compose_subcommand in {"up", "start", "restart"}:
-            findings.append(
-                evidence("container.create", f"docker compose {compose_subcommand}")
-            )
+            findings.append(evidence("container.create", f"docker compose {compose_subcommand}"))
         elif compose_subcommand in {"down", "rm"}:
-            findings.append(
-                evidence("container.delete", f"docker compose {compose_subcommand}")
-            )
+            findings.append(evidence("container.delete", f"docker compose {compose_subcommand}"))
         elif compose_subcommand in {"exec", "run"}:
             findings.append(evidence("code.execute", f"docker compose {compose_subcommand}"))
 

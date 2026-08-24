@@ -52,9 +52,7 @@ def analyze_rm(invocation: Invocation) -> SemanticAnalysis:
             "--recursive",
             short_chars="rR",
         ):
-            findings.append(
-                evidence("filesystem.recursive_delete", "rm recursive flag", resource)
-            )
+            findings.append(evidence("filesystem.recursive_delete", "rm recursive flag", resource))
     if flag_present(invocation.args, "--force", short_chars="f"):
         findings.append(evidence("confirmation.bypass", "rm force flag"))
 
@@ -81,10 +79,7 @@ def _broad_permission_mode(mode: str | None) -> bool:
     if re.fullmatch(r"[0-7]{3,4}", mode):
         return mode[-3:] == "777" or mode[-1] in {"6", "7"}
     normalized = mode.lower().replace(" ", "")
-    return any(
-        marker in normalized
-        for marker in ("a+rwx", "ugo+rwx", "o+w", "o+rwx", "a+w")
-    )
+    return any(marker in normalized for marker in ("a+rwx", "ugo+rwx", "o+w", "o+rwx", "a+w"))
 
 
 @register("chmod")
@@ -94,9 +89,7 @@ def analyze_chmod(invocation: Invocation) -> SemanticAnalysis:
     findings = []
     for target in targets or ("filesystem.target",):
         resource = path_resource(invocation, target)
-        findings.append(
-            evidence("filesystem.permission_change", "chmod mode change", resource)
-        )
+        findings.append(evidence("filesystem.permission_change", "chmod mode change", resource))
         if flag_present(invocation.args, "--recursive", short_chars="R"):
             findings.append(
                 evidence(
@@ -105,7 +98,7 @@ def analyze_chmod(invocation: Invocation) -> SemanticAnalysis:
                     resource,
                 )
             )
-    notes = ()
+    notes: tuple[str, ...] = ()
     if _broad_permission_mode(mode):
         notes = (f"permission mode {mode!r} broadly grants access",)
     return SemanticAnalysis(
@@ -128,9 +121,7 @@ def analyze_chown(invocation: Invocation) -> SemanticAnalysis:
     findings = []
     for target in targets or ("filesystem.target",):
         resource = path_resource(invocation, target)
-        findings.append(
-            evidence("filesystem.ownership_change", "chown ownership change", resource)
-        )
+        findings.append(evidence("filesystem.ownership_change", "chown ownership change", resource))
         if flag_present(invocation.args, "--recursive", short_chars="R"):
             findings.append(
                 evidence(

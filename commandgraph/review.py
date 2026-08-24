@@ -75,21 +75,12 @@ def warn_for_intent_mismatch(
 
     return (
         "mismatch",
-        [
-            (
-                f'command "{executable}" is not one of the top command matches '
-                f'for intent "{intent}"'
-            )
-        ],
+        [(f'command "{executable}" is not one of the top command matches for intent "{intent}"')],
     )
 
 
 def _stronger_decision(current: str, candidate: str) -> str:
-    return (
-        candidate
-        if DECISION_ORDER[candidate] > DECISION_ORDER[current]
-        else current
-    )
+    return candidate if DECISION_ORDER[candidate] > DECISION_ORDER[current] else current
 
 
 def review_command(
@@ -140,9 +131,7 @@ def review_command(
                 safer_next_step = first_step
 
     if intent_alignment == "mismatch":
-        reasons.extend(
-            reason for reason in alignment_reasons if reason not in reasons
-        )
+        reasons.extend(reason for reason in alignment_reasons if reason not in reasons)
         if decision in {"allow", "ask"}:
             decision = "warn"
             review_risk = max_risk(review_risk, "medium")

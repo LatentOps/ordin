@@ -194,9 +194,7 @@ def pack_file_errors(packs: Iterable[CommandPack] | None = None) -> list[str]:
                     errors.append(str(exc))
                     continue
                 if not path.is_file():
-                    errors.append(
-                        f"pack {pack.name!r} {field} file does not exist: {relative!r}"
-                    )
+                    errors.append(f"pack {pack.name!r} {field} file does not exist: {relative!r}")
     for missing in sorted(unknown_configured_pack_names(pack_list)):
         errors.append(f"configured command pack does not exist: {missing!r}")
     return sorted(set(errors))

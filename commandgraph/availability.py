@@ -69,9 +69,7 @@ def environment_from_os_release(
     payload = parse_os_release(os_release_text)
     distro_id = payload.get("ID")
     distro_like = tuple(
-        item.strip().lower()
-        for item in payload.get("ID_LIKE", "").split()
-        if item.strip()
+        item.strip().lower() for item in payload.get("ID_LIKE", "").split() if item.strip()
     )
     return EnvironmentInfo(
         os=normalized_os,
@@ -105,23 +103,15 @@ def platform_compatibility(
     if not isinstance(constraints, dict) or not constraints:
         return None, None
 
-    allowed_os = {
-        str(item).lower()
-        for item in constraints.get("os", [])
-        if isinstance(item, str)
-    }
+    allowed_os = {str(item).lower() for item in constraints.get("os", []) if isinstance(item, str)}
     if allowed_os and environment.os not in allowed_os:
         return False, f"platform metadata targets {', '.join(sorted(allowed_os))}"
 
     allowed_ids = {
-        str(item).lower()
-        for item in constraints.get("distro_ids", [])
-        if isinstance(item, str)
+        str(item).lower() for item in constraints.get("distro_ids", []) if isinstance(item, str)
     }
     allowed_like = {
-        str(item).lower()
-        for item in constraints.get("distro_like", [])
-        if isinstance(item, str)
+        str(item).lower() for item in constraints.get("distro_like", []) if isinstance(item, str)
     }
     if not allowed_ids and not allowed_like:
         return True, f"platform metadata matches {environment.os}"
@@ -140,10 +130,7 @@ def platform_compatibility(
 
     label = environment.distro_id or "/".join(environment.distro_like)
     expected = sorted(allowed_ids | allowed_like)
-    return False, (
-        f"distribution {label or 'unknown'} does not match "
-        f"{', '.join(expected)}"
-    )
+    return False, (f"distribution {label or 'unknown'} does not match {', '.join(expected)}")
 
 
 def command_availability(

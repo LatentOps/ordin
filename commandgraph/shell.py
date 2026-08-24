@@ -239,7 +239,7 @@ def command_substitutions(command: str) -> list[str]:
                 elif inner == "\\":
                     inner_escaped = True
                 elif inner == "`":
-                    script = command[index + 1:cursor].strip()
+                    script = command[index + 1 : cursor].strip()
                     if script:
                         scripts.append(script)
                     index = cursor

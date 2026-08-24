@@ -116,9 +116,8 @@ def _has_any(values: Iterable[str], candidates: set[str]) -> bool:
 
 
 def _is_destructive(action: ObservedAction) -> bool:
-    return (
-        _has_any(action.effects, DESTRUCTIVE_EFFECTS)
-        or _has_any(action.categories, DESTRUCTIVE_CATEGORIES)
+    return _has_any(action.effects, DESTRUCTIVE_EFFECTS) or _has_any(
+        action.categories, DESTRUCTIVE_CATEGORIES
     )
 
 
@@ -132,10 +131,7 @@ def evaluate_trajectory(
     if trace is None or not trace.actions:
         return TrajectoryEvaluation(trace_length=0, findings=())
 
-    prior = [
-        observe_action(action.command, context=context)
-        for action in trace.actions
-    ]
+    prior = [observe_action(action.command, context=context) for action in trace.actions]
     current = observe_action(
         current_command,
         context=context,
@@ -144,22 +140,17 @@ def evaluate_trajectory(
     findings: list[TrajectoryFinding] = []
 
     prior_secret_read = any(
-        "secret.read" in action.effects
-        or "secret_exposure" in action.categories
+        "secret.read" in action.effects or "secret_exposure" in action.categories
         for action in prior
     )
-    current_upload = (
-        "network.upload" in current.effects
-        or "network_upload" in current.categories
-    )
+    current_upload = "network.upload" in current.effects or "network_upload" in current.categories
     if prior_secret_read and current_upload:
         findings.append(
             TrajectoryFinding(
                 risk="critical",
                 category="trajectory_secret_exfiltration",
                 reason=(
-                    "trajectory reads secret material before an action that can "
-                    "upload local data"
+                    "trajectory reads secret material before an action that can upload local data"
                 ),
                 safer_next_step=(
                     "Do not transmit the data. Confirm the destination and remove "
@@ -171,8 +162,7 @@ def evaluate_trajectory(
     download_indices = [
         index
         for index, action in enumerate(prior)
-        if "network.download" in action.effects
-        or "network_download" in action.categories
+        if "network.download" in action.effects or "network_download" in action.categories
     ]
     permission_indices = [
         index
@@ -228,13 +218,11 @@ def evaluate_trajectory(
         )
 
     prior_elevated = sum(
-        "privilege.escalate" in action.effects
-        or "elevated_privileges" in action.categories
+        "privilege.escalate" in action.effects or "elevated_privileges" in action.categories
         for action in prior
     )
     current_elevated = (
-        "privilege.escalate" in current.effects
-        or "elevated_privileges" in current.categories
+        "privilege.escalate" in current.effects or "elevated_privileges" in current.categories
     )
     if prior_elevated >= 1 and current_elevated:
         findings.append(

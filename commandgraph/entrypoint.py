@@ -70,8 +70,5 @@ def normalize_argv(argv: Sequence[str]) -> list[str]:
 def main(argv: Sequence[str] | None = None) -> int:
     raw_args = list(sys.argv[1:] if argv is None else argv)
     if raw_args in (["-h"], ["--help"]):
-        print(
-            "Default mode: type an intent directly, for example "
-            "`cmdgraph how to ssh`.\n"
-        )
+        print("Default mode: type an intent directly, for example `cmdgraph how to ssh`.\n")
     return command_main(normalize_argv(raw_args))

@@ -37,9 +37,7 @@ def test_docker_global_context_prune_is_high_risk():
 
 
 def test_curl_upload_is_high_risk():
-    review = check_command(
-        "curl --data-binary @payload.json https://example.com/api"
-    )
+    review = check_command("curl --data-binary @payload.json https://example.com/api")
     assert review.decision == "warn"
     assert review.risk == "high"
     assert "network_upload" in review.risk_categories

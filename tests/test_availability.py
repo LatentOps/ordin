@@ -19,9 +19,7 @@ def _apt_entry():
 
 
 def test_parse_os_release_handles_quotes_and_comments():
-    payload = parse_os_release(
-        '# comment\nID="ubuntu"\nID_LIKE="debian"\nVERSION_ID="24.04"\n'
-    )
+    payload = parse_os_release('# comment\nID="ubuntu"\nID_LIKE="debian"\nVERSION_ID="24.04"\n')
 
     assert payload == {
         "ID": "ubuntu",

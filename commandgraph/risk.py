@@ -144,9 +144,7 @@ def _sensitive_redirection_target(tokens: list[str]) -> str | None:
             continue
         target = tokens[index + 1]
         normalized = target.rstrip("/")
-        if target in {
-            "/etc", "/boot", "/usr", "/bin", "/sbin", "/root", "~/.ssh"
-        }:
+        if target in {"/etc", "/boot", "/usr", "/bin", "/sbin", "/root", "~/.ssh"}:
             return target
         if any(target.startswith(prefix) for prefix in SENSITIVE_REDIRECT_PREFIXES):
             return target
@@ -171,7 +169,7 @@ def _path_from_resource(
 ) -> str | None:
     if not resource or not resource.startswith("path:"):
         return None
-    value = resource[len("path:"):]
+    value = resource[len("path:") :]
     if value.startswith("/"):
         return value
     return context.resolve_path(value) if context else None
@@ -341,18 +339,12 @@ def _review_segment(
                 _append_unique(risk_categories, ["unclassified_command"])
                 _append_unique(
                     safer_next_steps,
-                    [
-                        "Review the command semantics before execution or add a "
-                        "command card for it."
-                    ],
+                    ["Review the command semantics before execution or add a command card for it."],
                 )
             elif analyzer_matched and not has_semantic_effects:
                 _append_unique(
                     reasons,
-                    [
-                        f'analyzer recognized "{executable}" but did not classify '
-                        "this invocation"
-                    ],
+                    [f'analyzer recognized "{executable}" but did not classify this invocation'],
                 )
                 _append_unique(risk_categories, ["unclassified_command"])
             elif command is not None and not has_semantic_effects:
@@ -372,10 +364,7 @@ def _review_segment(
                     else:
                         _append_unique(
                             reasons,
-                            [
-                                f'command graph default risk for "{executable}" is '
-                                f"{default_risk}"
-                            ],
+                            [f'command graph default risk for "{executable}" is {default_risk}'],
                         )
         else:
             _append_unique(reasons, ["could not identify the command executable"])
@@ -410,9 +399,7 @@ def _pipe_findings(
                     decision="warn",
                     risk="high",
                     reasons=["downloads and executes remote code"],
-                    safer_next_step=(
-                        "Download the script, inspect it, then run only if trusted."
-                    ),
+                    safer_next_step=("Download the script, inspect it, then run only if trusted."),
                     matched_rules=["curl_shell"],
                     risk_categories=["remote_code_execution"],
                 )
@@ -442,11 +429,7 @@ def _merge_reviews(reviews: list[RiskReview]) -> RiskReview:
         if safer_next_step is None and review.safer_next_step:
             safer_next_step = review.safer_next_step
 
-    risk = (
-        "unknown"
-        if decision == "ask" and has_unknown and known_risk == "low"
-        else known_risk
-    )
+    risk = "unknown" if decision == "ask" and has_unknown and known_risk == "low" else known_risk
     if decision == "block" and known_risk == "critical":
         risk = "critical"
 

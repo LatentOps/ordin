@@ -81,9 +81,7 @@ def test_selective_pack_loading_is_exact(monkeypatch):
 
 def test_wildcard_loads_all_discovered_packs(monkeypatch):
     monkeypatch.setenv("COMMANDGRAPH_PACKS", "*")
-    assert {pack.name for pack in enabled_packs()} == {
-        pack.name for pack in discover_packs()
-    }
+    assert {pack.name for pack in enabled_packs()} == {pack.name for pack in discover_packs()}
 
 
 def test_unknown_configured_pack_is_reported_by_doctor(monkeypatch):

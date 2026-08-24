@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, Sequence
+from typing import Any, Protocol, Sequence
 
 
 class SemanticReranker(Protocol):
@@ -18,7 +18,7 @@ class SentenceTransformerReranker:
     """Optional sentence-transformers backend loaded only from a local path."""
 
     model_path: Path
-    _model: object
+    _model: Any
     name: str = "sentence-transformers"
 
     @classmethod

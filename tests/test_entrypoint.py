@@ -13,9 +13,7 @@ def test_normalize_bare_intent_to_search():
 
 
 def test_normalize_bare_search_flags():
-    assert normalize_argv(
-        ["make", "file", "runnable", "--json", "--limit", "2"]
-    ) == [
+    assert normalize_argv(["make", "file", "runnable", "--json", "--limit", "2"]) == [
         "search",
         "make file runnable",
         "--json",
@@ -43,9 +41,7 @@ def test_double_dash_keeps_following_tokens_literal():
 
 
 def test_bare_query_executes_search(capsys):
-    exit_code = main(
-        ["make", "file", "runnable", "--limit", "1", "--json"]
-    )
+    exit_code = main(["make", "file", "runnable", "--limit", "1", "--json"])
     payload = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0
@@ -54,9 +50,7 @@ def test_bare_query_executes_search(capsys):
 
 
 def test_bare_query_supports_multiword_unquoted_intent(capsys):
-    exit_code = main(
-        ["lookup", "dns", "for", "domain", "example.com", "--limit=1", "--json"]
-    )
+    exit_code = main(["lookup", "dns", "for", "domain", "example.com", "--limit=1", "--json"])
     payload = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0

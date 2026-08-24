@@ -52,6 +52,4 @@ class ActionTrace:
             raise ValueError(
                 f"trace contains {len(raw_actions)} actions; maximum is {MAX_TRACE_ACTIONS}"
             )
-        return cls(
-            actions=tuple(TraceAction.from_dict(action) for action in raw_actions)
-        )
+        return cls(actions=tuple(TraceAction.from_dict(action) for action in raw_actions))

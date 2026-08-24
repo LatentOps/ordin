@@ -107,10 +107,7 @@ def test_review_result_with_trace_validates_schema():
 def test_trace_length_is_bounded():
     payload = {
         "schema_version": "commandgraph.action_trace.v1",
-        "actions": [
-            {"command": f"echo {index}"}
-            for index in range(MAX_TRACE_ACTIONS + 1)
-        ],
+        "actions": [{"command": f"echo {index}"} for index in range(MAX_TRACE_ACTIONS + 1)],
     }
 
     with pytest.raises(ValueError, match="maximum"):
