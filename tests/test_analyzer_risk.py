@@ -49,3 +49,10 @@ def test_existing_root_delete_block_still_wins():
     review = check_command("rm -rf /")
     assert review.decision == "block"
     assert review.risk == "critical"
+
+
+def test_recognized_but_unknown_analyzer_invocation_asks():
+    review = check_command("git totally-unknown-operation")
+    assert review.decision == "ask"
+    assert review.risk == "unknown"
+    assert "unclassified_command" in review.risk_categories
