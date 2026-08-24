@@ -17,7 +17,9 @@
     "available": {"type": ["boolean", "null"]},
     "executable_path": {"type": ["string", "null"]},
     "platform_compatible": {"type": ["boolean", "null"]},
-    "availability_reason": {"type": ["string", "null"]}
+    "availability_reason": {"type": ["string", "null"]},
+    "semantic_reranked": {"type": "boolean"},
+    "semantic_score": {"type": ["number", "null"]}
   },
   "additionalProperties": false
 }
