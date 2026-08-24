@@ -19,6 +19,7 @@
     "subcommands": {"type": "object"},
     "requires_privileges": {"type": "array", "items": {"type": "string"}},
     "safer_alternatives": {"type": "array"},
+    "platforms": {"type": "object", "properties": {"os": {"type": "array", "items": {"type": "string"}}, "distro_ids": {"type": "array", "items": {"type": "string"}}, "distro_like": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false},
     "source": {"type": "string"},
     "man_section": {"type": "string"}
   },
