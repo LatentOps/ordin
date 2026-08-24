@@ -4,9 +4,11 @@ from dataclasses import dataclass
 
 from . import REVIEW_SCHEMA_VERSION
 from .context import ExecutionContext
-from .risk import check_command
+from .risk import DECISION_ORDER, check_command, decision_for_risk, max_risk
 from .search import SearchResult, search
 from .shell import executable_name
+from .trace import ActionTrace
+from .trajectory import evaluate_trajectory
 
 
 @dataclass(frozen=True)
@@ -20,6 +22,9 @@ class CommandReview:
     related_commands: list[str]
     intent_alignment: str
     context: ExecutionContext | None = None
+    trace: ActionTrace | None = None
+    trace_length: int = 0
+    trajectory_categories: list[str] | None = None
 
     def as_dict(self) -> dict:
         return {
@@ -33,6 +38,9 @@ class CommandReview:
             "related_commands": self.related_commands,
             "intent_alignment": self.intent_alignment,
             "context": self.context.as_dict() if self.context else None,
+            "trace": self.trace.as_dict() if self.trace else None,
+            "trace_length": self.trace_length,
+            "trajectory_categories": self.trajectory_categories or [],
         }
 
 
@@ -76,10 +84,19 @@ def warn_for_intent_mismatch(
     )
 
 
+def _stronger_decision(current: str, candidate: str) -> str:
+    return (
+        candidate
+        if DECISION_ORDER[candidate] > DECISION_ORDER[current]
+        else current
+    )
+
+
 def review_command(
     command: str,
     intent: str | None = None,
     context: ExecutionContext | None = None,
+    trace: ActionTrace | None = None,
 ) -> CommandReview:
     risk = check_command(command, context=context)
     related = search(intent or command, limit=3)
@@ -92,12 +109,43 @@ def review_command(
     decision = risk.decision
     review_risk = risk.risk
     reasons = list(risk.reasons)
+    safer_next_step = risk.safer_next_step
+
+    trajectory = evaluate_trajectory(
+        trace,
+        command,
+        context=context,
+        current_review=risk,
+    )
+    if trajectory.risk is not None:
+        prior_risk = review_risk
+        review_risk = max_risk(review_risk, trajectory.risk)
+        decision = _stronger_decision(
+            decision,
+            decision_for_risk(trajectory.risk),
+        )
+        for finding in trajectory.findings:
+            if finding.reason not in reasons:
+                reasons.append(finding.reason)
+        if review_risk != prior_risk:
+            first_step = next(
+                (
+                    finding.safer_next_step
+                    for finding in trajectory.findings
+                    if finding.safer_next_step
+                ),
+                None,
+            )
+            if first_step:
+                safer_next_step = first_step
 
     if intent_alignment == "mismatch":
-        reasons.extend(alignment_reasons)
+        reasons.extend(
+            reason for reason in alignment_reasons if reason not in reasons
+        )
         if decision in {"allow", "ask"}:
             decision = "warn"
-            review_risk = "medium"
+            review_risk = max_risk(review_risk, "medium")
 
     return CommandReview(
         intent=intent,
@@ -105,8 +153,11 @@ def review_command(
         decision=decision,
         risk=review_risk,
         reasons=reasons,
-        safer_next_step=risk.safer_next_step,
+        safer_next_step=safer_next_step,
         related_commands=related_commands,
         intent_alignment=intent_alignment,
         context=context,
+        trace=trace,
+        trace_length=trajectory.trace_length,
+        trajectory_categories=trajectory.categories,
     )
