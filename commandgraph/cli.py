@@ -15,6 +15,7 @@ from .review import review_command
 from .risk import check_command
 from .schema import validate_named_schema
 from .search import search
+from .shell_integration import render_shell_init
 
 
 def print_search(query: str, limit: int, as_json: bool = False) -> None:
@@ -238,6 +239,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     graph_parser.add_argument("--json", action="store_true")
 
+    shell_init_parser = subparsers.add_parser(
+        "shell-init",
+        help="Print opt-in interactive shell integration.",
+    )
+    shell_init_parser.add_argument("shell", choices=["bash", "zsh"])
+
     check_parser = subparsers.add_parser("check", help="Review a command for risk.")
     check_parser.add_argument("command")
     check_parser.add_argument("--json", action="store_true")
@@ -284,6 +291,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command_name == "graph":
         return print_graph(as_json=args.json)
+
+    if args.command_name == "shell-init":
+        print(render_shell_init(args.shell), end="")
+        return 0
 
     if args.command_name == "check":
         try:
