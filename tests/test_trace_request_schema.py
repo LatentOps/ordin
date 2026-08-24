@@ -27,7 +27,7 @@ def test_trace_request_and_review_result_match_public_schemas():
 
 
 def test_trace_rejects_more_than_32_actions():
-    with pytest.raises(ValueError, match="at most 32"):
+    with pytest.raises(ValueError, match="maximum is 32"):
         ActionTrace.from_dict(
             {
                 "schema_version": "commandgraph.action_trace.v1",
