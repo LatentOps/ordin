@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 from . import REVIEW_REQUEST_SCHEMA_VERSION
+from .trace import ActionTrace
 
 
 @dataclass(frozen=True)
@@ -89,6 +90,7 @@ class ReviewRequest:
     command: str
     intent: str | None = None
     context: ExecutionContext | None = None
+    trace: ActionTrace | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -96,6 +98,7 @@ class ReviewRequest:
             "command": self.command,
             "intent": self.intent,
             "context": self.context.as_dict() if self.context else None,
+            "trace": self.trace.as_dict() if self.trace else None,
         }
 
     @classmethod
@@ -115,4 +118,5 @@ class ReviewRequest:
             command=command,
             intent=intent,
             context=ExecutionContext.from_dict(payload.get("context")),
+            trace=ActionTrace.from_dict(payload.get("trace")),
         )
