@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from math import log
 from typing import Callable, Literal
 
 from . import SEARCH_SCHEMA_VERSION
 from .availability import EnvironmentInfo, command_availability, detect_environment
 from .data import load_commands, load_synonyms
+from .semantic import SemanticReranker, validate_semantic_scores
 from .templates import suggest_commands
 
 
@@ -45,6 +46,8 @@ WEAK_MATCH_TERMS = {
 BM25_K1 = 1.4
 BM25_B = 0.72
 BM25_SCALE = 3.0
+SEMANTIC_SCALE = 4.0
+DEFAULT_SEMANTIC_WEIGHT = 0.5
 RankerName = Literal["bm25", "legacy"]
 
 
@@ -62,6 +65,8 @@ class SearchResult:
     executable_path: str | None = None
     platform_compatible: bool | None = None
     availability_reason: str | None = None
+    semantic_reranked: bool = False
+    semantic_score: float | None = None
 
     def as_dict(self) -> dict:
         return {
@@ -78,6 +83,12 @@ class SearchResult:
             "executable_path": self.executable_path,
             "platform_compatible": self.platform_compatible,
             "availability_reason": self.availability_reason,
+            "semantic_reranked": self.semantic_reranked,
+            "semantic_score": (
+                round(self.semantic_score, 4)
+                if self.semantic_score is not None
+                else None
+            ),
         }
 
 
@@ -256,6 +267,49 @@ def _feature_score(
     return score, phrase_reason, signals
 
 
+def _semantic_rerank(
+    query: str,
+    ranked: list[SearchResult],
+    documents_by_command: dict[str, str],
+    *,
+    limit: int,
+    semantic_reranker: SemanticReranker,
+    semantic_weight: float,
+) -> list[SearchResult]:
+    if not ranked:
+        return []
+    if semantic_weight < 0.0 or semantic_weight > 1.0:
+        raise ValueError("semantic_weight must be between 0 and 1")
+
+    candidate_count = min(len(ranked), max(limit * 4, 20))
+    candidates = ranked[:candidate_count]
+    documents = [documents_by_command[item.command] for item in candidates]
+    scores = validate_semantic_scores(
+        semantic_reranker.score(query, documents),
+        len(candidates),
+    )
+
+    reranked: list[SearchResult] = []
+    for item, semantic_score in zip(candidates, scores):
+        adjustment = semantic_score * SEMANTIC_SCALE * semantic_weight
+        reranked.append(
+            replace(
+                item,
+                score=item.score + adjustment,
+                why=(
+                    f"{item.why}; semantic {semantic_reranker.name} "
+                    f"{semantic_score:.3f}"
+                ),
+                semantic_reranked=True,
+                semantic_score=semantic_score,
+            )
+        )
+    return sorted(
+        reranked,
+        key=lambda result: (-result.score, result.command),
+    )[:limit]
+
+
 def _search(
     query: str,
     limit: int,
@@ -263,6 +317,8 @@ def _search(
     ranker: RankerName,
     environment: EnvironmentInfo | None,
     which: Callable[[str], str | None] | None,
+    semantic_reranker: SemanticReranker | None = None,
+    semantic_weight: float = DEFAULT_SEMANTIC_WEIGHT,
 ) -> list[SearchResult]:
     synonyms = load_synonyms()
     expanded = expand_query(query, synonyms)
@@ -280,6 +336,10 @@ def _search(
     else:
         idf = legacy_idf_by_term(commands)
 
+    documents_by_command = {
+        str(entry.get("command", "")): command_text(entry)
+        for entry in commands
+    }
     results: list[SearchResult] = []
     for entry, token_counts, document_length in zip(
         commands, token_counts_by_command, lengths
@@ -351,7 +411,19 @@ def _search(
             )
         )
 
-    return sorted(results, key=lambda result: (-result.score, result.command))[:limit]
+    ranked = sorted(results, key=lambda result: (-result.score, result.command))
+    if semantic_reranker is not None:
+        if ranker != "bm25":
+            raise ValueError("semantic reranking is supported only on the BM25 path")
+        return _semantic_rerank(
+            query,
+            ranked,
+            documents_by_command,
+            limit=limit,
+            semantic_reranker=semantic_reranker,
+            semantic_weight=semantic_weight,
+        )
+    return ranked[:limit]
 
 
 def search(
@@ -360,6 +432,8 @@ def search(
     *,
     environment: EnvironmentInfo | None = None,
     which: Callable[[str], str | None] | None = None,
+    semantic_reranker: SemanticReranker | None = None,
+    semantic_weight: float = DEFAULT_SEMANTIC_WEIGHT,
 ) -> list[SearchResult]:
     return _search(
         query,
@@ -367,6 +441,8 @@ def search(
         ranker="bm25",
         environment=environment,
         which=which,
+        semantic_reranker=semantic_reranker,
+        semantic_weight=semantic_weight,
     )
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import Callable, Iterable
 
 from .search import SearchResult, search
@@ -159,6 +160,48 @@ class SearchBenchmarkReport:
         }
 
 
+@dataclass(frozen=True)
+class RankerComparisonReport:
+    baseline: SearchBenchmarkReport
+    candidate: SearchBenchmarkReport
+    baseline_seconds: float
+    candidate_seconds: float
+
+    @property
+    def latency_ratio(self) -> float | None:
+        if self.baseline_seconds <= 0:
+            return None
+        return self.candidate_seconds / self.baseline_seconds
+
+    def as_dict(self) -> dict:
+        return {
+            "baseline": self.baseline.as_dict(),
+            "candidate": self.candidate.as_dict(),
+            "metric_delta": {
+                "top1_accuracy": round(
+                    self.candidate.top1_accuracy - self.baseline.top1_accuracy, 4
+                ),
+                "recall_at_k": round(
+                    self.candidate.recall_at_k - self.baseline.recall_at_k, 4
+                ),
+                "mrr": round(
+                    self.candidate.mean_reciprocal_rank
+                    - self.baseline.mean_reciprocal_rank,
+                    4,
+                ),
+            },
+            "timing": {
+                "baseline_seconds": round(self.baseline_seconds, 6),
+                "candidate_seconds": round(self.candidate_seconds, 6),
+                "latency_ratio": (
+                    round(self.latency_ratio, 3)
+                    if self.latency_ratio is not None
+                    else None
+                ),
+            },
+        }
+
+
 def load_search_fixtures(path: Path) -> list[SearchFixture]:
     fixtures: list[SearchFixture] = []
     with path.open("r", encoding="utf-8") as handle:
@@ -213,3 +256,26 @@ def evaluate_search_quality(
             )
         )
     return SearchBenchmarkReport(cases=tuple(cases))
+
+
+def compare_search_quality(
+    fixtures: Iterable[SearchFixture],
+    *,
+    baseline_fn: Callable[[str, int], list[SearchResult]],
+    candidate_fn: Callable[[str, int], list[SearchResult]],
+) -> RankerComparisonReport:
+    fixture_list = list(fixtures)
+    started = perf_counter()
+    baseline = evaluate_search_quality(fixture_list, search_fn=baseline_fn)
+    baseline_seconds = perf_counter() - started
+
+    started = perf_counter()
+    candidate = evaluate_search_quality(fixture_list, search_fn=candidate_fn)
+    candidate_seconds = perf_counter() - started
+
+    return RankerComparisonReport(
+        baseline=baseline,
+        candidate=candidate,
+        baseline_seconds=baseline_seconds,
+        candidate_seconds=candidate_seconds,
+    )

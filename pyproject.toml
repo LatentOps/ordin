@@ -12,6 +12,9 @@ license = { text = "Apache-2.0" }
 authors = [{ name = "LatentOps" }]
 dependencies = []
 
+[project.optional-dependencies]
+semantic = ["sentence-transformers>=3.0,<6"]
+
 [project.scripts]
 commandgraph = "commandgraph.cli:main"
 cmdgraph = "commandgraph.cli:main"
