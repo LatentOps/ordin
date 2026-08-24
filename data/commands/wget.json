@@ -1,0 +1,15 @@
+{
+  "schema_version": "commandgraph.command_card.v1",
+  "command": "wget",
+  "summary": "Download files and content from network endpoints.",
+  "aliases": ["web get", "download url", "fetch file"],
+  "intents": ["download a file from a url", "fetch remote content", "download web resource"],
+  "default_risk": "medium",
+  "risk_tags": ["network_access", "remote_content", "filesystem_write"],
+  "effects": [
+    {"effect": "network.download", "resource": "network.remote"},
+    {"effect": "filesystem.write", "resource": "filesystem.target"}
+  ],
+  "examples": [{"command": "wget https://example.com/file.tar.gz", "explanation": "Download a file from a URL."}],
+  "templates": [{"command": "wget {url}", "description": "Download content from a URL."}]
+}

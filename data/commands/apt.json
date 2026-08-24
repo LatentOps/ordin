@@ -1,0 +1,20 @@
+{
+  "schema_version": "commandgraph.command_card.v1",
+  "command": "apt",
+  "summary": "Manage Debian-family system packages.",
+  "aliases": ["debian packages", "ubuntu packages", "apt install"],
+  "intents": ["install system package", "remove system package", "update package index", "show apt package"],
+  "default_risk": "medium",
+  "risk_tags": ["package_install", "package_remove", "system_package_manager"],
+  "subcommands": {
+    "install": {"effects": [{"effect": "package.install", "resource": "system.packages"}]},
+    "remove": {"effects": [{"effect": "package.remove", "resource": "system.packages"}]},
+    "purge": {"effects": [{"effect": "package.remove", "resource": "system.packages"}]},
+    "update": {"effects": [{"effect": "network.download", "resource": "package.index"}, {"effect": "package.read", "resource": "package.index"}]},
+    "list": {"effects": [{"effect": "package.read", "resource": "system.packages"}]},
+    "show": {"effects": [{"effect": "package.read", "resource": "system.packages"}]},
+    "search": {"effects": [{"effect": "package.read", "resource": "system.packages"}]}
+  },
+  "examples": [{"command": "apt list --installed", "explanation": "List installed packages without changing them."}],
+  "templates": [{"command": "apt show {package}", "description": "Show package metadata without installing it."}]
+}
