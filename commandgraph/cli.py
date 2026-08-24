@@ -11,6 +11,7 @@ from .data import data_health, find_command
 from .enforcement import enforcement_exit_code
 from .graph import build_effect_graph
 from .indexer import DEFAULT_INDEX_PATH, build_index, build_index_from_lines
+from .packs import pack_list_payload
 from .review import review_command
 from .risk import check_command
 from .schema import validate_named_schema
@@ -93,6 +94,25 @@ def print_graph(as_json: bool = False) -> int:
     print(f"edges: {len(graph.edges)}")
     for node_type in sorted(node_types):
         print(f"{node_type}_nodes: {node_types[node_type]}")
+    return 0
+
+
+def print_packs(as_json: bool = False) -> int:
+    payload = pack_list_payload()
+    if as_json:
+        print(json.dumps(payload, indent=2))
+        return 0
+    if not payload["packs"]:
+        print("No command packs discovered.")
+        return 0
+    for pack in payload["packs"]:
+        state = "loaded" if pack["loaded"] else "disabled"
+        default = ", default" if pack["enabled_by_default"] else ""
+        print(f"{pack['name']} {pack['version']} ({state}{default})")
+        print(f"  {pack['description']}")
+        print(f"  commands: {pack['command_count']}")
+        print(f"  risk_rule_files: {pack['risk_rule_file_count']}")
+        print(f"  analyzers: {', '.join(pack['analyzers']) or 'none'}")
     return 0
 
 
@@ -239,6 +259,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     graph_parser.add_argument("--json", action="store_true")
 
+    packs_parser = subparsers.add_parser(
+        "packs",
+        help="Inspect discovered and loaded command packs.",
+    )
+    packs_parser.add_argument("--json", action="store_true")
+
     shell_init_parser = subparsers.add_parser(
         "shell-init",
         help="Print opt-in interactive shell integration.",
@@ -291,6 +317,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.command_name == "graph":
         return print_graph(as_json=args.json)
+
+    if args.command_name == "packs":
+        return print_packs(as_json=args.json)
 
     if args.command_name == "shell-init":
         print(render_shell_init(args.shell), end="")
@@ -362,6 +391,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"risk_rules: {health['risk_rule_count']}")
             print(f"effects: {health['effect_count']}")
             print(f"schemas: {health.get('schema_count', 0)}")
+            print(f"packs: {health.get('loaded_pack_count', 0)}/{health.get('pack_count', 0)} loaded")
+            if health.get("loaded_packs"):
+                print(f"loaded_packs: {', '.join(health['loaded_packs'])}")
+            print(f"pack_errors: {len(health.get('pack_errors', []))}")
+            for error in health.get("pack_errors", []):
+                print(f"- pack: {error}")
             print(f"schema_errors: {len(health.get('schema_errors', []))}")
             for error in health.get("schema_errors", []):
                 print(f"- schema: {error}")
