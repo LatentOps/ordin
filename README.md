@@ -72,6 +72,26 @@ commandgraph review \
 
 ## Installation
 
+For the CLI, the recommended packaged installation is:
+
+```bash
+pipx install commandgraph
+```
+
+or:
+
+```bash
+uv tool install commandgraph
+```
+
+A normal Python environment can use:
+
+```bash
+python -m pip install commandgraph
+```
+
+For an unreleased source checkout:
+
 ```bash
 python -m pip install .
 ```
@@ -83,12 +103,19 @@ commandgraph --help
 cmdgraph --help
 ```
 
-Use `python -m commandgraph ...` only when running directly from a source
-checkout without installing the package first.
+The shorter `cmdgraph` command supports bare intent queries directly:
+
+```bash
+cmdgraph how to ssh
+cmdgraph make file runnable --json
+```
+
+See [docs/installation.md](docs/installation.md) for packaged, source, and optional semantic-reranker installation details.
 
 ## CLI
 
 ```bash
+cmdgraph how to ssh
 commandgraph search "what is using port 3000"
 cmdgraph search "make file runnable" --json
 commandgraph search 'find files named "*.py" in ./src'
