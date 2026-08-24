@@ -1,0 +1,70 @@
+name: rebrand-ordin-branch
+
+on:
+  push:
+    branches:
+      - rebrand-ordin
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: rebrand-ordin
+      - name: Move Python package namespace
+        run: git mv commandgraph ordin
+      - name: Rewrite project identity
+        shell: python
+        run: |
+          from pathlib import Path
+
+          root = Path('.')
+          text_suffixes = {'.py', '.md', '.toml', '.json', '.jsonl', '.yml', '.yaml', '.txt'}
+          replacements = [
+              ('CommandGraph', 'Ordin'),
+              ('COMMANDGRAPH', 'ORDIN'),
+              ('commandgraph', 'ordin'),
+              ('cmdgraph', 'ordin'),
+              ('command-graph', 'ordin'),
+          ]
+
+          for path in root.rglob('*'):
+              if not path.is_file() or '.git' in path.parts:
+                  continue
+              if path.suffix.lower() not in text_suffixes and path.name not in {'NOTICE'}:
+                  continue
+              text = path.read_text(encoding='utf-8')
+              updated = text
+              for old, new in replacements:
+                  updated = updated.replace(old, new)
+              if updated != text:
+                  path.write_text(updated, encoding='utf-8')
+
+          # The old project exposed two console aliases. After the full rename we
+          # intentionally expose one canonical CLI: `ordin`.
+          pyproject = Path('pyproject.toml')
+          lines = pyproject.read_text(encoding='utf-8').splitlines()
+          output = []
+          in_scripts = False
+          ordin_script_seen = False
+          for line in lines:
+              if line.startswith('['):
+                  in_scripts = line.strip() == '[project.scripts]'
+              if in_scripts and line.strip().startswith('ordin ='):
+                  if ordin_script_seen:
+                      continue
+                  ordin_script_seen = True
+              output.append(line)
+          pyproject.write_text('\n'.join(output) + '\n', encoding='utf-8')
+      - name: Commit migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Rebrand CommandGraph namespace to Ordin"
+          git push origin HEAD:rebrand-ordin
