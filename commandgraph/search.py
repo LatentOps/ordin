@@ -4,7 +4,7 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 from math import log
-from typing import Callable
+from typing import Callable, Literal
 
 from . import SEARCH_SCHEMA_VERSION
 from .availability import EnvironmentInfo, command_availability, detect_environment
@@ -42,6 +42,10 @@ WEAK_MATCH_TERMS = {
     "path",
     "paths",
 }
+BM25_K1 = 1.4
+BM25_B = 0.72
+BM25_SCALE = 3.0
+RankerName = Literal["bm25", "legacy"]
 
 
 @dataclass(frozen=True)
@@ -143,71 +147,173 @@ def phrase_match_score(query: str, entry: dict) -> tuple[float, str | None]:
     return best_score, best_reason
 
 
-def idf_by_term(commands: list[dict]) -> dict[str, float]:
-    doc_count = len(commands)
-    document_frequency: Counter[str] = Counter()
+def document_frequency(commands: list[dict]) -> Counter[str]:
+    frequency: Counter[str] = Counter()
     for entry in commands:
-        document_frequency.update(set(command_tokens(entry)))
+        frequency.update(set(command_tokens(entry)))
+    return frequency
+
+
+def legacy_idf_by_term(commands: list[dict]) -> dict[str, float]:
+    doc_count = len(commands)
+    frequency = document_frequency(commands)
     return {
-        term: log((doc_count + 1) / (frequency + 0.5)) + 1.0
-        for term, frequency in document_frequency.items()
+        term: log((doc_count + 1) / (count + 0.5)) + 1.0
+        for term, count in frequency.items()
     }
 
 
-def search(
-    query: str,
-    limit: int = 5,
+def bm25_idf_by_term(commands: list[dict]) -> dict[str, float]:
+    doc_count = len(commands)
+    frequency = document_frequency(commands)
+    return {
+        term: log(1.0 + (doc_count - count + 0.5) / (count + 0.5))
+        for term, count in frequency.items()
+    }
+
+
+def _legacy_lexical_score(
+    expanded: Counter[str],
+    token_counts: Counter[str],
+    idf: dict[str, float],
+) -> float:
+    score = 0.0
+    for term, weight in expanded.items():
+        count = token_counts.get(term, 0)
+        if count:
+            score += weight * idf.get(term, 1.0) * min(count, 3)
+    return score
+
+
+def _bm25_lexical_score(
+    expanded: Counter[str],
+    token_counts: Counter[str],
+    idf: dict[str, float],
     *,
-    environment: EnvironmentInfo | None = None,
-    which: Callable[[str], str | None] | None = None,
+    document_length: int,
+    average_document_length: float,
+) -> float:
+    if average_document_length <= 0:
+        return 0.0
+    length_norm = BM25_K1 * (
+        1.0 - BM25_B + BM25_B * document_length / average_document_length
+    )
+    score = 0.0
+    for term, query_weight in expanded.items():
+        term_frequency = token_counts.get(term, 0)
+        if term_frequency <= 0:
+            continue
+        normalized_tf = (
+            term_frequency * (BM25_K1 + 1.0)
+            / (term_frequency + length_norm)
+        )
+        score += query_weight * idf.get(term, 0.0) * normalized_tf
+    return score * BM25_SCALE
+
+
+def _feature_score(
+    query: str,
+    entry: dict,
+    query_tokens: set[str],
+) -> tuple[float, str | None, list[str]]:
+    score = 0.0
+    signals: list[str] = []
+    phrase_score, phrase_reason = phrase_match_score(query, entry)
+    score += phrase_score
+    if phrase_reason:
+        signals.append(phrase_reason)
+
+    for intent in entry.get("intents", []):
+        intent_tokens = set(tokenize(intent))
+        overlap = intent_tokens & query_tokens
+        if overlap:
+            score += 2.5 * len(overlap)
+    if entry.get("intents"):
+        best_intent_overlap = max(
+            (
+                len(set(tokenize(intent)) & query_tokens)
+                for intent in entry.get("intents", [])
+            ),
+            default=0,
+        )
+        if best_intent_overlap:
+            signals.append(f"intent overlap {best_intent_overlap}")
+
+    alias_overlap_count = 0
+    for alias in entry.get("aliases", []):
+        alias_overlap = set(tokenize(alias)) & query_tokens
+        if alias_overlap:
+            score += 2.0 * len(alias_overlap)
+            alias_overlap_count = max(alias_overlap_count, len(alias_overlap))
+    if alias_overlap_count:
+        signals.append(f"alias overlap {alias_overlap_count}")
+
+    command_name = entry.get("command", "").lower()
+    if command_name in query_tokens:
+        score += 8.0
+        signals.append("exact command token")
+
+    return score, phrase_reason, signals
+
+
+def _search(
+    query: str,
+    limit: int,
+    *,
+    ranker: RankerName,
+    environment: EnvironmentInfo | None,
+    which: Callable[[str], str | None] | None,
 ) -> list[SearchResult]:
     synonyms = load_synonyms()
     expanded = expand_query(query, synonyms)
     commands = load_commands()
-    idf = idf_by_term(commands)
-    results: list[SearchResult] = []
     query_tokens = set(tokenize(query))
     environment = environment or detect_environment()
 
-    for entry in commands:
-        score = 0.0
-        matched_terms: set[str] = set()
-        strong_terms: set[str] = set()
-        token_counts = command_tokens(entry)
+    token_counts_by_command = [command_tokens(entry) for entry in commands]
+    lengths = [sum(counts.values()) for counts in token_counts_by_command]
+    average_document_length = (
+        sum(lengths) / len(lengths) if lengths else 0.0
+    )
+    if ranker == "bm25":
+        idf = bm25_idf_by_term(commands)
+    else:
+        idf = legacy_idf_by_term(commands)
+
+    results: list[SearchResult] = []
+    for entry, token_counts, document_length in zip(
+        commands, token_counts_by_command, lengths
+    ):
+        matched_terms = {
+            term for term in expanded if token_counts.get(term, 0) > 0
+        }
+        strong_terms = {
+            term for term in matched_terms if term not in WEAK_MATCH_TERMS
+        }
         command_name = entry.get("command", "").lower()
+        if command_name and command_name in expanded:
+            matched_terms.add(command_name)
+            strong_terms.add(command_name)
 
-        for term, weight in expanded.items():
-            if not term:
-                continue
-            count = token_counts.get(term, 0)
-            if count:
-                matched_terms.add(term)
-                if term not in WEAK_MATCH_TERMS:
-                    strong_terms.add(term)
-                score += weight * idf.get(term, 1.0) * min(count, 3)
-            if term == command_name:
-                matched_terms.add(term)
-                strong_terms.add(term)
-                score += 6.0
+        feature_score, phrase_reason, feature_signals = _feature_score(
+            query, entry, query_tokens
+        )
+        if ranker == "bm25":
+            lexical_score = _bm25_lexical_score(
+                expanded,
+                token_counts,
+                idf,
+                document_length=document_length,
+                average_document_length=average_document_length,
+            )
+        else:
+            lexical_score = _legacy_lexical_score(expanded, token_counts, idf)
 
-        phrase_score, phrase_reason = phrase_match_score(query, entry)
-        score += phrase_score
+        if command_name in expanded:
+            lexical_score += 6.0
 
-        for intent in entry.get("intents", []):
-            intent_tokens = set(tokenize(intent))
-            overlap = intent_tokens & query_tokens
-            if overlap:
-                score += 2.5 * len(overlap)
-
-        for alias in entry.get("aliases", []):
-            alias_overlap = set(tokenize(alias)) & query_tokens
-            if alias_overlap:
-                score += 2.0 * len(alias_overlap)
-
-        if command_name in query_tokens:
-            score += 8.0
-
-        if score <= 0 or (phrase_score <= 0 and not strong_terms):
+        score = lexical_score + feature_score
+        if score <= 0 or (phrase_reason is None and not strong_terms):
             continue
 
         availability = command_availability(
@@ -221,19 +327,19 @@ def search(
         example = examples[0]["command"] if examples else None
         suggested_commands = suggest_commands(entry, query)
         matched = sorted(matched_terms)[:6]
-        why_parts = []
-        if phrase_reason:
-            why_parts.append(phrase_reason)
+        why_parts = [
+            f"{ranker} lexical {lexical_score:.2f}",
+            *feature_signals,
+        ]
         if matched:
             why_parts.append(f"matched {', '.join(matched)}")
         why_parts.append(availability.reason)
-        why = "; ".join(why_parts) if why_parts else "matched command graph metadata"
         results.append(
             SearchResult(
                 command=entry["command"],
                 summary=entry["summary"],
                 score=score,
-                why=why,
+                why="; ".join(why_parts),
                 example=example,
                 risk=entry.get("default_risk", "unknown"),
                 matched_terms=matched,
@@ -246,3 +352,36 @@ def search(
         )
 
     return sorted(results, key=lambda result: (-result.score, result.command))[:limit]
+
+
+def search(
+    query: str,
+    limit: int = 5,
+    *,
+    environment: EnvironmentInfo | None = None,
+    which: Callable[[str], str | None] | None = None,
+) -> list[SearchResult]:
+    return _search(
+        query,
+        limit,
+        ranker="bm25",
+        environment=environment,
+        which=which,
+    )
+
+
+def search_legacy(
+    query: str,
+    limit: int = 5,
+    *,
+    environment: EnvironmentInfo | None = None,
+    which: Callable[[str], str | None] | None = None,
+) -> list[SearchResult]:
+    """Previous weighted-IDF ranker retained for deterministic comparison."""
+    return _search(
+        query,
+        limit,
+        ranker="legacy",
+        environment=environment,
+        which=which,
+    )
