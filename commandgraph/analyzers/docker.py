@@ -77,7 +77,7 @@ def _targets(args: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(token for token in args if not token.startswith("-"))
 
 
-@register("docker")
+@register("docker", pack="docker")
 def analyze_docker(invocation: Invocation) -> SemanticAnalysis:
     subcommand, args = _split_docker_args(invocation.args)
     flags = tuple(token for token in invocation.args if token.startswith("-"))
