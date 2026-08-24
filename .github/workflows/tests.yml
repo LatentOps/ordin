@@ -16,6 +16,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install development tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev]"
+      - name: Lint
+        run: ruff check commandgraph tests
+      - name: Format check
+        run: ruff format --check commandgraph tests
+      - name: Static type check
+        run: >-
+          mypy
+          commandgraph/entrypoint.py
+          commandgraph/context.py
+          commandgraph/trace.py
+          commandgraph/enforcement.py
+          commandgraph/availability.py
+      - name: Compile package
+        run: python -m compileall -q commandgraph
+
   test:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
@@ -38,3 +65,34 @@ jobs:
         run: pytest -q
       - name: Validate bundled data and graph
         run: python -m commandgraph doctor
+
+  package:
+    name: Build and install package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install packaging tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+      - name: Build distributions
+        run: python -m build
+      - name: Validate distribution metadata
+        run: python -m twine check dist/*
+      - name: Install wheel in clean environment
+        run: |
+          python -m venv /tmp/commandgraph-wheel
+          /tmp/commandgraph-wheel/bin/python -m pip install --upgrade pip
+          /tmp/commandgraph-wheel/bin/python -m pip install dist/*.whl
+          /tmp/commandgraph-wheel/bin/cmdgraph --help > /tmp/commandgraph-help.txt
+          /tmp/commandgraph-wheel/bin/cmdgraph doctor
+          /tmp/commandgraph-wheel/bin/cmdgraph make file runnable --limit 1 --json > /tmp/commandgraph-search.json
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: commandgraph-dist
+          path: dist/*
+          if-no-files-found: error
