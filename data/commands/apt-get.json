@@ -6,6 +6,7 @@
   "intents": ["install system package with apt-get", "remove system package with apt-get", "update package index"],
   "default_risk": "medium",
   "risk_tags": ["package_install", "package_remove", "system_package_manager"],
+  "platforms": {"os": ["linux"], "distro_ids": ["debian", "ubuntu", "linuxmint", "pop"], "distro_like": ["debian"]},
   "subcommands": {
     "install": {"effects": [{"effect": "package.install", "resource": "system.packages"}]},
     "remove": {"effects": [{"effect": "package.remove", "resource": "system.packages"}]},

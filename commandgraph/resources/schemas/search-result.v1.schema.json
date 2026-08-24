@@ -13,7 +13,11 @@
     "example": {"type": ["string", "null"]},
     "risk": {"type": "string"},
     "matched_terms": {"type": "array", "items": {"type": "string"}},
-    "suggested_commands": {"type": "array", "items": {"type": "object"}}
+    "suggested_commands": {"type": "array", "items": {"type": "object"}},
+    "available": {"type": ["boolean", "null"]},
+    "executable_path": {"type": ["string", "null"]},
+    "platform_compatible": {"type": ["boolean", "null"]},
+    "availability_reason": {"type": ["string", "null"]}
   },
   "additionalProperties": false
 }
