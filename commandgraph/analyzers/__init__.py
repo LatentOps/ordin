@@ -26,6 +26,7 @@ def register(*executables: str, pack: str | None = None):
                 pack=pack,
             )
         return analyzer
+
     return decorator
 
 
@@ -55,10 +56,7 @@ def supported_analyzers(*, loaded_only: bool = False) -> tuple[str, ...]:
 
 
 def analyzer_pack_bindings() -> dict[str, str | None]:
-    return {
-        executable: registration.pack
-        for executable, registration in sorted(_REGISTRY.items())
-    }
+    return {executable: registration.pack for executable, registration in sorted(_REGISTRY.items())}
 
 
 from . import docker as _docker  # noqa: E402,F401

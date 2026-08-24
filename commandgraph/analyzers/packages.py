@@ -64,7 +64,7 @@ def _find_subcommand(
 ) -> tuple[str | None, tuple[str, ...]]:
     for index, token in enumerate(args):
         if token in candidates:
-            return token, args[index + 1:]
+            return token, args[index + 1 :]
     return None, ()
 
 
@@ -138,9 +138,7 @@ def analyze_npm(invocation: Invocation) -> SemanticAnalysis:
         else:
             findings.append(evidence("package.install", f"npm {subcommand}"))
             if not ignore_scripts:
-                findings.append(
-                    evidence("code.execute", "npm lifecycle/package scripts")
-                )
+                findings.append(evidence("code.execute", "npm lifecycle/package scripts"))
     elif subcommand in {"uninstall", "remove", "rm", "un"}:
         findings.append(evidence("package.remove", f"npm {subcommand}"))
     elif subcommand in {"list", "ls", "view", "info", "outdated"}:

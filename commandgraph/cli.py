@@ -382,10 +382,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if review.related_commands:
                 print(f"related_commands: {', '.join(review.related_commands)}")
             if review.trajectory_categories:
-                print(
-                    "trajectory_categories: "
-                    + ", ".join(review.trajectory_categories)
-                )
+                print("trajectory_categories: " + ", ".join(review.trajectory_categories))
             if review.safer_next_step:
                 print(f"safer_next_step: {review.safer_next_step}")
         return _review_exit(args, review.decision)
@@ -399,7 +396,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"risk_rules: {health['risk_rule_count']}")
             print(f"effects: {health['effect_count']}")
             print(f"schemas: {health.get('schema_count', 0)}")
-            print(f"packs: {health.get('loaded_pack_count', 0)}/{health.get('pack_count', 0)} loaded")
+            print(
+                f"packs: {health.get('loaded_pack_count', 0)}/{health.get('pack_count', 0)} loaded"
+            )
             if health.get("loaded_packs"):
                 print(f"loaded_packs: {', '.join(health['loaded_packs'])}")
             print(f"pack_errors: {len(health.get('pack_errors', []))}")

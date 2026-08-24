@@ -30,10 +30,7 @@ def suggest_commands(entry: dict, query: str, limit: int = 3) -> list[dict[str, 
     suggestions: list[dict[str, str]] = []
 
     for template in entry.get("templates", []):
-        slots = {
-            str(key): str(value)
-            for key, value in template.get("safe_defaults", {}).items()
-        }
+        slots = {str(key): str(value) for key, value in template.get("safe_defaults", {}).items()}
         slots.update(extracted_slots)
         command = render_template(template["command"], slots)
         if command is None:

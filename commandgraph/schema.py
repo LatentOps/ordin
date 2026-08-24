@@ -77,15 +77,8 @@ def validate_instance(
 
     expected_type = schema.get("type")
     if expected_type is not None:
-        expected = (
-            expected_type
-            if isinstance(expected_type, list)
-            else [expected_type]
-        )
-        if not any(
-            isinstance(item, str) and _type_matches(instance, item)
-            for item in expected
-        ):
+        expected = expected_type if isinstance(expected_type, list) else [expected_type]
+        if not any(isinstance(item, str) and _type_matches(instance, item) for item in expected):
             errors.append(f"{path}: expected type {expected_type!r}")
             return errors
 
@@ -118,9 +111,7 @@ def validate_instance(
         item_schema = schema.get("items")
         if isinstance(item_schema, dict):
             for index, value in enumerate(instance):
-                errors.extend(
-                    validate_instance(value, item_schema, f"{path}[{index}]")
-                )
+                errors.extend(validate_instance(value, item_schema, f"{path}[{index}]"))
 
     if isinstance(instance, dict):
         required = schema.get("required", [])
@@ -133,17 +124,13 @@ def validate_instance(
             properties = {}
         for key, value in instance.items():
             if key in properties and isinstance(properties[key], dict):
-                errors.extend(
-                    validate_instance(value, properties[key], f"{path}.{key}")
-                )
+                errors.extend(validate_instance(value, properties[key], f"{path}.{key}"))
                 continue
             additional = schema.get("additionalProperties", True)
             if additional is False:
                 errors.append(f"{path}: unexpected property {key!r}")
             elif isinstance(additional, dict):
-                errors.extend(
-                    validate_instance(value, additional, f"{path}.{key}")
-                )
+                errors.extend(validate_instance(value, additional, f"{path}.{key}"))
 
     any_of = schema.get("anyOf")
     if isinstance(any_of, list):
@@ -260,7 +247,9 @@ def validate_template_semantics(commands: Iterable[dict[str, Any]]) -> list[str]
                 )
             defaults = template.get("safe_defaults", {})
             if defaults is not None and not isinstance(defaults, dict):
-                errors.append(f"command {command} template {index}: safe_defaults must be an object")
+                errors.append(
+                    f"command {command} template {index}: safe_defaults must be an object"
+                )
             elif isinstance(defaults, dict):
                 extra_defaults = sorted(set(defaults) - fields)
                 if extra_defaults:
@@ -281,15 +270,16 @@ def _compare_json_tree(
     ignored = ignored_package_roots or set()
     errors: list[str] = []
     source_files = {
-        path.relative_to(source_root)
-        for path in source_root.rglob("*.json")
-        if path.is_file()
+        path.relative_to(source_root) for path in source_root.rglob("*.json") if path.is_file()
     }
     package_files = {
         path.relative_to(package_root)
         for path in package_root.rglob("*.json")
         if path.is_file()
-        and not (path.relative_to(package_root).parts and path.relative_to(package_root).parts[0] in ignored)
+        and not (
+            path.relative_to(package_root).parts
+            and path.relative_to(package_root).parts[0] in ignored
+        )
     }
     for relative in sorted(source_files | package_files):
         source_path = source_root / relative
@@ -307,9 +297,7 @@ def _compare_json_tree(
             errors.append(f"{label} {relative.as_posix()}: {exc}")
             continue
         if source_payload != package_payload:
-            errors.append(
-                f"packaged {label} differs from source: {relative.as_posix()}"
-            )
+            errors.append(f"packaged {label} differs from source: {relative.as_posix()}")
     return errors
 
 

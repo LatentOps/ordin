@@ -16,7 +16,7 @@ def test_bash_init_is_explicit_reversible_and_has_no_eval():
     assert "commandgraph_shell_disable()" in script
     assert "command bash -c" in script
     assert "eval " not in script
-    assert "--cwd \"$PWD\"" in script
+    assert '--cwd "$PWD"' in script
     assert "--interactive" in script
 
 
@@ -43,9 +43,7 @@ def test_unsupported_shell_is_rejected():
 
 def _fake_commandgraph(path: Path, *, decision: str, exit_code: int) -> None:
     path.write_text(
-        "#!/bin/sh\n"
-        f"printf 'decision: {decision}\\nrisk: low\\n'\n"
-        f"exit {exit_code}\n",
+        f"#!/bin/sh\nprintf 'decision: {decision}\\nrisk: low\\n'\nexit {exit_code}\n",
         encoding="utf-8",
     )
     path.chmod(path.stat().st_mode | stat.S_IXUSR)

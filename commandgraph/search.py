@@ -85,19 +85,13 @@ class SearchResult:
             "availability_reason": self.availability_reason,
             "semantic_reranked": self.semantic_reranked,
             "semantic_score": (
-                round(self.semantic_score, 4)
-                if self.semantic_score is not None
-                else None
+                round(self.semantic_score, 4) if self.semantic_score is not None else None
             ),
         }
 
 
 def tokenize(text: str) -> list[str]:
-    return [
-        token.lower()
-        for token in TOKEN_RE.findall(text)
-        if token.lower() not in STOPWORDS
-    ]
+    return [token.lower() for token in TOKEN_RE.findall(text) if token.lower() not in STOPWORDS]
 
 
 def expand_query(query: str, synonyms: dict[str, list[str]]) -> Counter[str]:
@@ -168,10 +162,7 @@ def document_frequency(commands: list[dict]) -> Counter[str]:
 def legacy_idf_by_term(commands: list[dict]) -> dict[str, float]:
     doc_count = len(commands)
     frequency = document_frequency(commands)
-    return {
-        term: log((doc_count + 1) / (count + 0.5)) + 1.0
-        for term, count in frequency.items()
-    }
+    return {term: log((doc_count + 1) / (count + 0.5)) + 1.0 for term, count in frequency.items()}
 
 
 def bm25_idf_by_term(commands: list[dict]) -> dict[str, float]:
@@ -206,18 +197,13 @@ def _bm25_lexical_score(
 ) -> float:
     if average_document_length <= 0:
         return 0.0
-    length_norm = BM25_K1 * (
-        1.0 - BM25_B + BM25_B * document_length / average_document_length
-    )
+    length_norm = BM25_K1 * (1.0 - BM25_B + BM25_B * document_length / average_document_length)
     score = 0.0
     for term, query_weight in expanded.items():
         term_frequency = token_counts.get(term, 0)
         if term_frequency <= 0:
             continue
-        normalized_tf = (
-            term_frequency * (BM25_K1 + 1.0)
-            / (term_frequency + length_norm)
-        )
+        normalized_tf = term_frequency * (BM25_K1 + 1.0) / (term_frequency + length_norm)
         score += query_weight * idf.get(term, 0.0) * normalized_tf
     return score * BM25_SCALE
 
@@ -241,10 +227,7 @@ def _feature_score(
             score += 2.5 * len(overlap)
     if entry.get("intents"):
         best_intent_overlap = max(
-            (
-                len(set(tokenize(intent)) & query_tokens)
-                for intent in entry.get("intents", [])
-            ),
+            (len(set(tokenize(intent)) & query_tokens) for intent in entry.get("intents", [])),
             default=0,
         )
         if best_intent_overlap:
@@ -296,10 +279,7 @@ def _semantic_rerank(
             replace(
                 item,
                 score=item.score + adjustment,
-                why=(
-                    f"{item.why}; semantic {semantic_reranker.name} "
-                    f"{semantic_score:.3f}"
-                ),
+                why=(f"{item.why}; semantic {semantic_reranker.name} {semantic_score:.3f}"),
                 semantic_reranked=True,
                 semantic_score=semantic_score,
             )
@@ -328,36 +308,25 @@ def _search(
 
     token_counts_by_command = [command_tokens(entry) for entry in commands]
     lengths = [sum(counts.values()) for counts in token_counts_by_command]
-    average_document_length = (
-        sum(lengths) / len(lengths) if lengths else 0.0
-    )
+    average_document_length = sum(lengths) / len(lengths) if lengths else 0.0
     if ranker == "bm25":
         idf = bm25_idf_by_term(commands)
     else:
         idf = legacy_idf_by_term(commands)
 
     documents_by_command = {
-        str(entry.get("command", "")): command_text(entry)
-        for entry in commands
+        str(entry.get("command", "")): command_text(entry) for entry in commands
     }
     results: list[SearchResult] = []
-    for entry, token_counts, document_length in zip(
-        commands, token_counts_by_command, lengths
-    ):
-        matched_terms = {
-            term for term in expanded if token_counts.get(term, 0) > 0
-        }
-        strong_terms = {
-            term for term in matched_terms if term not in WEAK_MATCH_TERMS
-        }
+    for entry, token_counts, document_length in zip(commands, token_counts_by_command, lengths):
+        matched_terms = {term for term in expanded if token_counts.get(term, 0) > 0}
+        strong_terms = {term for term in matched_terms if term not in WEAK_MATCH_TERMS}
         command_name = entry.get("command", "").lower()
         if command_name and command_name in expanded:
             matched_terms.add(command_name)
             strong_terms.add(command_name)
 
-        feature_score, phrase_reason, feature_signals = _feature_score(
-            query, entry, query_tokens
-        )
+        feature_score, phrase_reason, feature_signals = _feature_score(query, entry, query_tokens)
         if ranker == "bm25":
             lexical_score = _bm25_lexical_score(
                 expanded,

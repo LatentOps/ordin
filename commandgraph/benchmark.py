@@ -39,20 +39,14 @@ class SearchFixture:
             or not expected
             or any(not isinstance(item, str) or not item for item in expected)
         ):
-            raise ValueError(
-                f"fixture {fixture_id!r} requires a non-empty expected command list"
-            )
+            raise ValueError(f"fixture {fixture_id!r} requires a non-empty expected command list")
         if not isinstance(top_k, int) or top_k < 1:
             raise ValueError(f"fixture {fixture_id!r} top_k must be >= 1")
         if requirement not in VALID_REQUIREMENTS:
             raise ValueError(
-                f"fixture {fixture_id!r} requirement must be one of "
-                f"{sorted(VALID_REQUIREMENTS)}"
+                f"fixture {fixture_id!r} requirement must be one of {sorted(VALID_REQUIREMENTS)}"
             )
-        if (
-            not isinstance(tags, list)
-            or any(not isinstance(tag, str) or not tag for tag in tags)
-        ):
+        if not isinstance(tags, list) or any(not isinstance(tag, str) or not tag for tag in tags):
             raise ValueError(f"fixture {fixture_id!r} tags must be strings")
 
         return cls(
@@ -79,8 +73,7 @@ class SearchCaseResult:
     @property
     def recall_hit(self) -> bool:
         return (
-            self.first_relevant_rank is not None
-            and self.first_relevant_rank <= self.fixture.top_k
+            self.first_relevant_rank is not None and self.first_relevant_rank <= self.fixture.top_k
         )
 
     @property
@@ -181,12 +174,9 @@ class RankerComparisonReport:
                 "top1_accuracy": round(
                     self.candidate.top1_accuracy - self.baseline.top1_accuracy, 4
                 ),
-                "recall_at_k": round(
-                    self.candidate.recall_at_k - self.baseline.recall_at_k, 4
-                ),
+                "recall_at_k": round(self.candidate.recall_at_k - self.baseline.recall_at_k, 4),
                 "mrr": round(
-                    self.candidate.mean_reciprocal_rank
-                    - self.baseline.mean_reciprocal_rank,
+                    self.candidate.mean_reciprocal_rank - self.baseline.mean_reciprocal_rank,
                     4,
                 ),
             },
@@ -194,9 +184,7 @@ class RankerComparisonReport:
                 "baseline_seconds": round(self.baseline_seconds, 6),
                 "candidate_seconds": round(self.candidate_seconds, 6),
                 "latency_ratio": (
-                    round(self.latency_ratio, 3)
-                    if self.latency_ratio is not None
-                    else None
+                    round(self.latency_ratio, 3) if self.latency_ratio is not None else None
                 ),
             },
         }
@@ -212,13 +200,9 @@ def load_search_fixtures(path: Path) -> list[SearchFixture]:
             try:
                 payload = json.loads(line)
             except json.JSONDecodeError as exc:
-                raise ValueError(
-                    f"invalid JSON at {path}:{line_number}: {exc.msg}"
-                ) from exc
+                raise ValueError(f"invalid JSON at {path}:{line_number}: {exc.msg}") from exc
             if not isinstance(payload, dict):
-                raise ValueError(
-                    f"fixture at {path}:{line_number} must be a JSON object"
-                )
+                raise ValueError(f"fixture at {path}:{line_number} must be a JSON object")
             fixtures.append(SearchFixture.from_dict(payload))
     return fixtures
 
@@ -244,8 +228,10 @@ def evaluate_search_quality(
         results = search_fn(fixture.query, fixture.top_k)
         ranked = tuple(result.command for result in results)
         rank = _first_relevant_rank(ranked, fixture.expected_commands)
-        passed = rank == 1 if fixture.requirement == "top1" else (
-            rank is not None and rank <= fixture.top_k
+        passed = (
+            rank == 1
+            if fixture.requirement == "top1"
+            else (rank is not None and rank <= fixture.top_k)
         )
         cases.append(
             SearchCaseResult(

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 SUPPORTED_SHELLS = ("bash", "zsh")
 
-_BASH_INIT = r'''# CommandGraph interactive integration for Bash.
+_BASH_INIT = r"""# CommandGraph interactive integration for Bash.
 # Source with: source <(commandgraph shell-init bash)
 
 __commandgraph_shell_threshold() {
@@ -68,9 +68,9 @@ commandgraph_shell_disable() {
   unset -f __commandgraph_shell_threshold 2>/dev/null || true
   unset -f commandgraph_shell_disable 2>/dev/null || true
 }
-'''
+"""
 
-_ZSH_INIT = r'''# CommandGraph interactive integration for Zsh.
+_ZSH_INIT = r"""# CommandGraph interactive integration for Zsh.
 # Source with: source <(commandgraph shell-init zsh)
 # Ctrl-X Ctrl-G reviews the current ZLE buffer and accepts it only when allowed.
 
@@ -213,7 +213,7 @@ commandgraph_shell_disable() {
 }
 
 commandgraph_shell_enable_zle
-'''
+"""
 
 
 def render_shell_init(shell: str) -> str:
@@ -222,6 +222,4 @@ def render_shell_init(shell: str) -> str:
         return _BASH_INIT
     if normalized == "zsh":
         return _ZSH_INIT
-    raise ValueError(
-        f"unsupported shell {shell!r}; choose one of: {', '.join(SUPPORTED_SHELLS)}"
-    )
+    raise ValueError(f"unsupported shell {shell!r}; choose one of: {', '.join(SUPPORTED_SHELLS)}")

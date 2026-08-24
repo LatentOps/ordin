@@ -8,22 +8,15 @@ from commandgraph.shell import shell_tokens
 
 
 def _effect_names(command: str) -> set[str]:
-    return {
-        item.effect
-        for item in effects_for_tokens(shell_tokens(command))
-    }
+    return {item.effect for item in effects_for_tokens(shell_tokens(command))}
 
 
 def _produced_effect_ids(graph, source: str, effect_type: str) -> set[str]:
-    targets = {
-        edge.target
-        for edge in graph.outgoing(source, "produces")
-    }
+    targets = {edge.target for edge in graph.outgoing(source, "produces")}
     return {
         target
         for target in targets
-        if graph.nodes[target].type == "effect"
-        and graph.nodes[target].label == effect_type
+        if graph.nodes[target].type == "effect" and graph.nodes[target].label == effect_type
     }
 
 
@@ -43,8 +36,7 @@ def test_builds_typed_nodes_and_edges_from_command_cards():
     )
     assert rm_delete_effects
     assert all(
-        graph.nodes[node_id].metadata["effect_type"]
-        == "filesystem.delete"
+        graph.nodes[node_id].metadata["effect_type"] == "filesystem.delete"
         for node_id in rm_delete_effects
     )
     assert any(

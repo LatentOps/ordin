@@ -95,8 +95,7 @@ class CommandEffectGraph:
         if existing is not None:
             if existing.type != node_type:
                 raise ValueError(
-                    f"graph node {node_id!r} changes type "
-                    f"from {existing.type!r} to {node_type!r}"
+                    f"graph node {node_id!r} changes type from {existing.type!r} to {node_type!r}"
                 )
             return existing
         node = GraphNode(
@@ -139,17 +138,13 @@ class CommandEffectGraph:
         return [
             edge
             for edge in self.edges
-            if edge.source == node_id
-            and (relation is None or edge.relation == relation)
+            if edge.source == node_id and (relation is None or edge.relation == relation)
         ]
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "schema_version": EFFECT_GRAPH_SCHEMA_VERSION,
-            "nodes": [
-                self.nodes[node_id].as_dict()
-                for node_id in sorted(self.nodes)
-            ],
+            "nodes": [self.nodes[node_id].as_dict() for node_id in sorted(self.nodes)],
             "edges": [
                 edge.as_dict()
                 for edge in sorted(
@@ -266,11 +261,7 @@ def build_effect_graph(
     commands: list[dict[str, Any]] | None = None,
     catalog: dict[str, dict[str, Any]] | None = None,
 ) -> CommandEffectGraph:
-    commands = (
-        load_commands(include_man_index=False)
-        if commands is None
-        else commands
-    )
+    commands = load_commands(include_man_index=False) if commands is None else commands
     catalog = load_effect_catalog() if catalog is None else catalog
     graph = CommandEffectGraph()
 
@@ -347,11 +338,7 @@ def build_effect_graph(
             graph.add_edge(command_id, "requires", privilege_id)
 
         for alternative in entry.get("safer_alternatives", []):
-            target = (
-                alternative.get("command")
-                if isinstance(alternative, dict)
-                else alternative
-            )
+            target = alternative.get("command") if isinstance(alternative, dict) else alternative
             if not isinstance(target, str) or not target:
                 continue
             target_id = f"command:{target}"
@@ -429,11 +416,7 @@ def _evidence_from_effects(
         risk = definition.get("risk")
         category = definition.get("category")
         reason = definition.get("reason")
-        if (
-            risk not in VALID_RISKS
-            or not isinstance(category, str)
-            or not isinstance(reason, str)
-        ):
+        if risk not in VALID_RISKS or not isinstance(category, str) or not isinstance(reason, str):
             continue
         safer_next_step = definition.get("safer_next_step")
         evidence.append(
@@ -444,11 +427,7 @@ def _evidence_from_effects(
                 reason=reason,
                 source=source,
                 resource=spec.resource,
-                safer_next_step=(
-                    safer_next_step
-                    if isinstance(safer_next_step, str)
-                    else None
-                ),
+                safer_next_step=(safer_next_step if isinstance(safer_next_step, str) else None),
             )
         )
     return evidence
@@ -466,15 +445,8 @@ def _flag_effect_evidence(
     for canonical, metadata in flags.items():
         if not isinstance(canonical, str) or not isinstance(metadata, dict):
             continue
-        aliases = [
-            alias
-            for alias in metadata.get("aliases", [])
-            if isinstance(alias, str)
-        ]
-        if any(
-            _flag_matches(token, canonical, aliases)
-            for token in args
-        ):
+        aliases = [alias for alias in metadata.get("aliases", []) if isinstance(alias, str)]
+        if any(_flag_matches(token, canonical, aliases) for token in args):
             evidence.extend(
                 _evidence_from_effects(
                     metadata.get("effects", []),
@@ -490,11 +462,7 @@ def _normalized_command_tokens(tokens: Sequence[str]) -> list[str]:
     if not remaining:
         return []
     executable = remaining[0].rsplit("/", 1)[-1].lower()
-    if (
-        executable in {"python", "python3"}
-        and len(remaining) >= 3
-        and remaining[1] == "-m"
-    ):
+    if executable in {"python", "python3"} and len(remaining) >= 3 and remaining[1] == "-m":
         module = remaining[2].rsplit("/", 1)[-1].lower()
         return [module, *remaining[3:]]
     return [executable, *remaining[1:]]
@@ -584,10 +552,7 @@ def _iter_effect_owners(entry: dict[str, Any]) -> Iterable[tuple[str, Any]]:
                 for flag, flag_metadata in sub_flags.items():
                     if isinstance(flag_metadata, dict):
                         yield (
-                            (
-                                f"command {command_name} subcommand "
-                                f"{subcommand} flag {flag}"
-                            ),
+                            (f"command {command_name} subcommand {subcommand} flag {flag}"),
                             flag_metadata.get("effects", []),
                         )
 
@@ -596,11 +561,7 @@ def validate_effect_graph_data(
     commands: list[dict[str, Any]] | None = None,
     catalog: dict[str, dict[str, Any]] | None = None,
 ) -> list[str]:
-    commands = (
-        load_commands(include_man_index=False)
-        if commands is None
-        else commands
-    )
+    commands = load_commands(include_man_index=False) if commands is None else commands
     catalog = load_effect_catalog() if catalog is None else catalog
     errors: list[str] = []
 
@@ -612,66 +573,44 @@ def validate_effect_graph_data(
             errors.append(f"effect {effect_name!r} must be an object")
             continue
         if definition.get("risk") not in VALID_RISKS:
-            errors.append(
-                f"effect {effect_name!r} has invalid risk "
-                f"{definition.get('risk')!r}"
-            )
+            errors.append(f"effect {effect_name!r} has invalid risk {definition.get('risk')!r}")
         if not isinstance(definition.get("category"), str):
             errors.append(f"effect {effect_name!r} is missing category")
         if not isinstance(definition.get("reason"), str):
             errors.append(f"effect {effect_name!r} is missing reason")
 
     command_names = {
-        entry.get("command")
-        for entry in commands
-        if isinstance(entry.get("command"), str)
+        entry.get("command") for entry in commands if isinstance(entry.get("command"), str)
     }
     for entry in commands:
         command_name = entry.get("command", "<unknown>")
         for owner, raw_effects in _iter_effect_owners(entry):
             for spec in _effect_specs(raw_effects):
                 if spec.effect not in catalog:
-                    errors.append(
-                        f"{owner} references unknown effect {spec.effect!r}"
-                    )
+                    errors.append(f"{owner} references unknown effect {spec.effect!r}")
 
         for field_name in ("flags", "subcommands"):
             value = entry.get(field_name, {})
             if value is not None and not isinstance(value, dict):
-                errors.append(
-                    f"command {command_name!r} field {field_name!r} "
-                    "must be an object"
-                )
+                errors.append(f"command {command_name!r} field {field_name!r} must be an object")
 
         privileges = entry.get("requires_privileges", [])
         if not isinstance(privileges, list) or any(
-            not isinstance(item, str) or not item
-            for item in privileges
+            not isinstance(item, str) or not item for item in privileges
         ):
-            errors.append(
-                f"command {command_name!r} has invalid requires_privileges"
-            )
+            errors.append(f"command {command_name!r} has invalid requires_privileges")
 
         alternatives = entry.get("safer_alternatives", [])
         if not isinstance(alternatives, list):
-            errors.append(
-                f"command {command_name!r} safer_alternatives must be a list"
-            )
+            errors.append(f"command {command_name!r} safer_alternatives must be a list")
             continue
         for alternative in alternatives:
-            target = (
-                alternative.get("command")
-                if isinstance(alternative, dict)
-                else alternative
-            )
+            target = alternative.get("command") if isinstance(alternative, dict) else alternative
             if not isinstance(target, str) or not target:
-                errors.append(
-                    f"command {command_name!r} has invalid safer alternative"
-                )
+                errors.append(f"command {command_name!r} has invalid safer alternative")
             elif target not in command_names:
                 errors.append(
-                    f"command {command_name!r} references missing safer "
-                    f"alternative {target!r}"
+                    f"command {command_name!r} references missing safer alternative {target!r}"
                 )
 
     if not errors:

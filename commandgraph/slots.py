@@ -8,7 +8,9 @@ PATH_RE = re.compile(r"(?:^|\s)((?:\.{1,2}|~|/)[^\s]+|[A-Za-z0-9_.-]+\.[A-Za-z0-
 QUOTED_RE = re.compile(r"['\"]([^'\"]+)['\"]")
 WILDCARD_RE = re.compile(r"\b([\w.-]*[*?][\w.*?-]*)\b")
 URL_RE = re.compile(r"\bhttps?://[^\s]+", re.IGNORECASE)
-HOST_RE = re.compile(r"\b(?:host|domain|server|endpoint)\s+([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b", re.IGNORECASE)
+HOST_RE = re.compile(
+    r"\b(?:host|domain|server|endpoint)\s+([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b", re.IGNORECASE
+)
 
 
 def _valid_port(value: str) -> bool:
@@ -54,11 +56,15 @@ def extract_slots(text: str) -> dict[str, str]:
     if named_match and "pattern" not in slots:
         slots["pattern"] = named_match.group(1)
 
-    package_match = re.search(r"\b(?:install|uninstall|remove)\s+package\s+([A-Za-z0-9_.@/-]+)\b", text, re.IGNORECASE)
+    package_match = re.search(
+        r"\b(?:install|uninstall|remove)\s+package\s+([A-Za-z0-9_.@/-]+)\b", text, re.IGNORECASE
+    )
     if package_match:
         slots["package"] = package_match.group(1)
 
-    process_match = re.search(r"\b(?:kill|stop|find)\s+(?:process\s+)?([A-Za-z0-9_.-]+)\b", text, re.IGNORECASE)
+    process_match = re.search(
+        r"\b(?:kill|stop|find)\s+(?:process\s+)?([A-Za-z0-9_.-]+)\b", text, re.IGNORECASE
+    )
     if process_match and not process_match.group(1).isdigit():
         slots["process"] = process_match.group(1)
 

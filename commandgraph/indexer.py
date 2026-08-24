@@ -11,9 +11,7 @@ from . import MAN_INDEX_SCHEMA_VERSION
 
 
 DEFAULT_INDEX_PATH = Path.home() / ".cache" / "commandgraph" / "man_index.json"
-APROPOS_LINE_RE = re.compile(
-    r"^(?P<names>.+?)\s+\((?P<section>[^)]+)\)\s+-\s+(?P<summary>.+)$"
-)
+APROPOS_LINE_RE = re.compile(r"^(?P<names>.+?)\s+\((?P<section>[^)]+)\)\s+-\s+(?P<summary>.+)$")
 DEFAULT_SECTIONS = ("1", "8")
 
 
