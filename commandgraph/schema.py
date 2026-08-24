@@ -35,6 +35,8 @@ SCHEMA_FILES = {
     "risk_rules": "risk-rules.v1.schema.json",
     "effect_catalog": "effect-catalog.v1.schema.json",
     "effect_graph": "effect-graph.v1.schema.json",
+    "command_pack": "command-pack.v1.schema.json",
+    "pack_list": "pack-list.v1.schema.json",
 }
 
 
@@ -269,28 +271,63 @@ def validate_template_semantics(commands: Iterable[dict[str, Any]]) -> list[str]
     return errors
 
 
-def resource_parity_errors() -> list[str]:
-    if not SOURCE_DATA_DIR.exists() or not PACKAGE_DATA_DIR.exists():
-        return []
+def _compare_json_tree(
+    source_root: Path,
+    package_root: Path,
+    label: str,
+    *,
+    ignored_package_roots: set[str] | None = None,
+) -> list[str]:
+    ignored = ignored_package_roots or set()
     errors: list[str] = []
-    source_paths = [
-        *sorted((SOURCE_DATA_DIR / "commands").glob("*.json")),
-        SOURCE_DATA_DIR / "risk_rules.json",
-        SOURCE_DATA_DIR / "synonyms.json",
-        SOURCE_DATA_DIR / "effects.json",
-    ]
-    for source_path in source_paths:
-        relative = source_path.relative_to(SOURCE_DATA_DIR)
-        package_path = PACKAGE_DATA_DIR / relative
-        if not package_path.exists():
-            errors.append(f"packaged resource missing: {relative.as_posix()}")
+    source_files = {
+        path.relative_to(source_root)
+        for path in source_root.rglob("*.json")
+        if path.is_file()
+    }
+    package_files = {
+        path.relative_to(package_root)
+        for path in package_root.rglob("*.json")
+        if path.is_file()
+        and not (path.relative_to(package_root).parts and path.relative_to(package_root).parts[0] in ignored)
+    }
+    for relative in sorted(source_files | package_files):
+        source_path = source_root / relative
+        package_path = package_root / relative
+        if relative not in package_files:
+            errors.append(f"packaged {label} missing: {relative.as_posix()}")
+            continue
+        if relative not in source_files:
+            errors.append(f"packaged {label} has extra file: {relative.as_posix()}")
             continue
         try:
             source_payload = json.loads(source_path.read_text(encoding="utf-8"))
             package_payload = json.loads(package_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            errors.append(f"resource {relative.as_posix()}: {exc}")
+            errors.append(f"{label} {relative.as_posix()}: {exc}")
             continue
         if source_payload != package_payload:
-            errors.append(f"packaged resource differs from source: {relative.as_posix()}")
+            errors.append(
+                f"packaged {label} differs from source: {relative.as_posix()}"
+            )
     return errors
+
+
+def resource_parity_errors() -> list[str]:
+    if not SOURCE_DATA_DIR.exists() or not PACKAGE_DATA_DIR.exists():
+        return []
+    errors = _compare_json_tree(
+        SOURCE_DATA_DIR,
+        PACKAGE_DATA_DIR,
+        "resource",
+        ignored_package_roots={"schemas"},
+    )
+    if SOURCE_SCHEMA_DIR.exists() and PACKAGE_SCHEMA_DIR.exists():
+        errors.extend(
+            _compare_json_tree(
+                SOURCE_SCHEMA_DIR,
+                PACKAGE_SCHEMA_DIR,
+                "schema",
+            )
+        )
+    return sorted(set(errors))

@@ -15,6 +15,8 @@ available under `schemas/`; installed packages carry the same files under
 - `risk-rules.v1.schema.json`
 - `effect-catalog.v1.schema.json`
 - `effect-graph.v1.schema.json`
+- `command-pack.v1.schema.json`
+- `pack-list.v1.schema.json`
 
 ## Versioning policy
 
@@ -25,19 +27,22 @@ or reinterpreting an existing field requires a new schema version.
 
 Command cards remain `commandgraph.command_card.v1`; the typed effect metadata
 added to cards is additive. Review requests use
-`commandgraph.review_request.v1`.
+`commandgraph.review_request.v1`. Pack manifests use
+`commandgraph.command_pack.v1`, while `commandgraph packs --json` returns
+`commandgraph.pack_list.v1`.
 
 ## Doctor validation
 
 `commandgraph doctor` validates repository/package metadata in layers:
 
 1. schema files are present and declare Draft 2020-12;
-2. command cards, risk rules, and the effect catalog satisfy their schemas;
+2. command cards, risk rules, effect catalogs, and pack manifests satisfy their schemas;
 3. risk rule regexes compile, rule IDs are unique, and risk values are valid;
 4. command templates use known slot names and valid `safe_defaults`;
-5. typed graph effects and references are valid;
-6. graph export satisfies the public effect-graph schema;
-7. source data and packaged resource copies are identical in a source checkout.
+5. command-pack files exist, use safe relative paths, and reference the expected analyzer bindings;
+6. typed graph effects and references are valid;
+7. graph and pack-list exports satisfy their public JSON Schemas;
+8. source data, pack data, schemas, and packaged resource copies are identical in a source checkout.
 
 The runtime validator is intentionally dependency-free. It implements only the
 JSON Schema keywords used by the checked-in contracts; the schemas themselves

@@ -24,8 +24,5 @@
     "volume prune": {"effects": [{"effect": "container.prune", "resource": "container_runtime"}]}
   },
   "examples": [{"command": "docker ps", "explanation": "List running containers."}],
-  "templates": [
-    {"command": "docker ps", "description": "List running containers."},
-    {"command": "docker images", "description": "List local images."}
-  ]
+  "templates": [{"command": "docker ps", "description": "List running containers."}, {"command": "docker images", "description": "List local images."}]
 }

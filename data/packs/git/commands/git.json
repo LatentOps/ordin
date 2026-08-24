@@ -1,0 +1,24 @@
+{
+  "schema_version": "commandgraph.command_card.v1",
+  "command": "git",
+  "summary": "Track source code history and collaborate through repositories.",
+  "aliases": ["version control", "repository", "commit"],
+  "intents": ["commit changes", "see changed files", "push branch", "revert code", "inspect history"],
+  "default_risk": "medium",
+  "risk_tags": ["source_control", "history_rewrite"],
+  "subcommands": {
+    "status": {"effects": [{"effect": "git.read", "resource": "repository"}]},
+    "diff": {"effects": [{"effect": "git.read", "resource": "repository"}]},
+    "log": {"effects": [{"effect": "git.read", "resource": "repository"}]},
+    "show": {"effects": [{"effect": "git.read", "resource": "repository"}]},
+    "add": {"effects": [{"effect": "git.local_write", "resource": "repository"}]},
+    "commit": {"effects": [{"effect": "git.local_write", "resource": "repository"}]},
+    "switch": {"effects": [{"effect": "git.local_write", "resource": "repository"}]},
+    "checkout": {"effects": [{"effect": "git.local_write", "resource": "repository"}]},
+    "push": {"effects": [{"effect": "git.remote_write", "resource": "repository.remote"}], "flags": {"--force": {"aliases": ["-f", "--force-with-lease"], "effects": [{"effect": "git.history_rewrite", "resource": "repository.remote"}]}}},
+    "reset": {"effects": [{"effect": "git.local_write", "resource": "repository"}], "flags": {"--hard": {"effects": [{"effect": "git.history_rewrite", "resource": "repository"}]}}},
+    "clean": {"effects": [{"effect": "filesystem.delete", "resource": "repository.working_tree"}], "flags": {"-f": {"aliases": ["--force"], "effects": [{"effect": "confirmation.bypass", "resource": "repository.working_tree"}]}}}
+  },
+  "examples": [{"command": "git status --short", "explanation": "Show changed files concisely."}, {"command": "git diff", "explanation": "Inspect unstaged changes."}],
+  "templates": [{"command": "git status --short", "description": "Show changed files concisely."}, {"command": "git log --oneline --decorate --graph -n 20", "description": "Inspect recent repository history."}, {"command": "git switch {branch}", "description": "Switch to a branch."}]
+}

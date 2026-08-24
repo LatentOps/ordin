@@ -1,0 +1,4 @@
+{
+  "schema_version": "commandgraph.risk_rules.v1",
+  "rules": [{"id":"force_push","pattern":"\\bgit\\s+push\\b.*(--force|-f)","risk":"high","category":"history_rewrite","reason":"force-push can rewrite shared branch history","safer_next_step":"Use --force-with-lease only after confirming the branch and remote."}]
+}
