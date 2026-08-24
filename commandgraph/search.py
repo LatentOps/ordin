@@ -4,8 +4,10 @@ import re
 from collections import Counter
 from dataclasses import dataclass
 from math import log
+from typing import Callable
 
 from . import SEARCH_SCHEMA_VERSION
+from .availability import EnvironmentInfo, command_availability, detect_environment
 from .data import load_commands, load_synonyms
 from .templates import suggest_commands
 
@@ -52,6 +54,10 @@ class SearchResult:
     risk: str
     matched_terms: list[str]
     suggested_commands: list[dict[str, str]]
+    available: bool | None = None
+    executable_path: str | None = None
+    platform_compatible: bool | None = None
+    availability_reason: str | None = None
 
     def as_dict(self) -> dict:
         return {
@@ -64,6 +70,10 @@ class SearchResult:
             "risk": self.risk,
             "matched_terms": self.matched_terms,
             "suggested_commands": self.suggested_commands,
+            "available": self.available,
+            "executable_path": self.executable_path,
+            "platform_compatible": self.platform_compatible,
+            "availability_reason": self.availability_reason,
         }
 
 
@@ -144,13 +154,20 @@ def idf_by_term(commands: list[dict]) -> dict[str, float]:
     }
 
 
-def search(query: str, limit: int = 5) -> list[SearchResult]:
+def search(
+    query: str,
+    limit: int = 5,
+    *,
+    environment: EnvironmentInfo | None = None,
+    which: Callable[[str], str | None] | None = None,
+) -> list[SearchResult]:
     synonyms = load_synonyms()
     expanded = expand_query(query, synonyms)
     commands = load_commands()
     idf = idf_by_term(commands)
     results: list[SearchResult] = []
     query_tokens = set(tokenize(query))
+    environment = environment or detect_environment()
 
     for entry in commands:
         score = 0.0
@@ -193,6 +210,13 @@ def search(query: str, limit: int = 5) -> list[SearchResult]:
         if score <= 0 or (phrase_score <= 0 and not strong_terms):
             continue
 
+        availability = command_availability(
+            entry,
+            environment=environment,
+            which=which,
+        )
+        score += availability.score_adjustment
+
         examples = entry.get("examples", [])
         example = examples[0]["command"] if examples else None
         suggested_commands = suggest_commands(entry, query)
@@ -202,6 +226,7 @@ def search(query: str, limit: int = 5) -> list[SearchResult]:
             why_parts.append(phrase_reason)
         if matched:
             why_parts.append(f"matched {', '.join(matched)}")
+        why_parts.append(availability.reason)
         why = "; ".join(why_parts) if why_parts else "matched command graph metadata"
         results.append(
             SearchResult(
@@ -213,6 +238,10 @@ def search(query: str, limit: int = 5) -> list[SearchResult]:
                 risk=entry.get("default_risk", "unknown"),
                 matched_terms=matched,
                 suggested_commands=suggested_commands,
+                available=availability.installed,
+                executable_path=availability.executable_path,
+                platform_compatible=availability.platform_compatible,
+                availability_reason=availability.reason,
             )
         )
 
