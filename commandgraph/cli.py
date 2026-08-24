@@ -356,6 +356,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             command = request.command
             intent = request.intent
             context = request.context
+            trace = request.trace
         else:
             try:
                 context = _context_from_args(args)
@@ -363,11 +364,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 return _context_error(exc, as_json=args.json)
             command = args.command
             intent = args.intent
+            trace = None
 
         review = review_command(
             command,
             intent=intent,
             context=context,
+            trace=trace,
         )
         if args.json:
             print(json.dumps(review.as_dict(), indent=2))
@@ -378,6 +381,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"- {reason}")
             if review.related_commands:
                 print(f"related_commands: {', '.join(review.related_commands)}")
+            if review.trajectory_categories:
+                print(
+                    "trajectory_categories: "
+                    + ", ".join(review.trajectory_categories)
+                )
             if review.safer_next_step:
                 print(f"safer_next_step: {review.safer_next_step}")
         return _review_exit(args, review.decision)
