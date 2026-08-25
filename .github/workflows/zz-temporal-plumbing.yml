@@ -1,0 +1,297 @@
+name: one-off temporal policy plumbing
+
+on:
+  push:
+    branches:
+      - temporal-action-policies
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: temporal-action-policies
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Apply temporal policy integration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding="utf-8")
+              if new in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f"expected anchor not found in {path}: {old!r}")
+              file.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          # Keep source/package default temporal policy byte-identical.
+          source_policy = Path("data/temporal_policies.json").read_text(encoding="utf-8")
+          Path("ordin/resources/temporal_policies.json").write_text(source_policy, encoding="utf-8")
+
+          replace_once(
+              "ordin/__init__.py",
+              'ACTION_ENVELOPE_SCHEMA_VERSION = "ordin.action_envelope.v1"\n'
+              'ACTION_REVIEW_SCHEMA_VERSION = "ordin.action_review.v1"\n',
+              'ACTION_ENVELOPE_SCHEMA_VERSION = "ordin.action_envelope.v1"\n'
+              'ACTION_HISTORY_SCHEMA_VERSION = "ordin.action_history.v1"\n'
+              'ACTION_REVIEW_SCHEMA_VERSION = "ordin.action_review.v1"\n',
+          )
+          replace_once(
+              "ordin/__init__.py",
+              'POLICY_SET_SCHEMA_VERSION = "ordin.policy_set.v1"\n',
+              'POLICY_SET_SCHEMA_VERSION = "ordin.policy_set.v1"\n'
+              'TEMPORAL_POLICY_SET_SCHEMA_VERSION = "ordin.temporal_policy_set.v1"\n',
+          )
+          replace_once(
+              "ordin/__init__.py",
+              'from .action import ActionEnvelope, ActionResource, ActionReview, review_action\n',
+              'from .action import ActionEnvelope, ActionHistory, ActionResource, ActionReview, review_action\n',
+          )
+          replace_once(
+              "ordin/__init__.py",
+              'from .trace import ActionTrace, TraceAction\n',
+              'from .temporal import (\n'
+              '    CompiledTemporalPolicySet,\n'
+              '    TemporalActionEvidence,\n'
+              '    TemporalPolicySet,\n'
+              '    TemporalPredicate,\n'
+              '    TemporalRule,\n'
+              '    default_temporal_policy,\n'
+              '    load_temporal_policy,\n'
+              ')\n'
+              'from .trace import ActionTrace, TraceAction\n',
+          )
+          replace_once(
+              "ordin/__init__.py",
+              '    "ACTION_ENVELOPE_SCHEMA_VERSION",\n',
+              '    "ACTION_ENVELOPE_SCHEMA_VERSION",\n    "ACTION_HISTORY_SCHEMA_VERSION",\n',
+          )
+          replace_once(
+              "ordin/__init__.py",
+              '    "ActionEnvelope",\n',
+              '    "ActionEnvelope",\n    "ActionHistory",\n',
+          )
+          replace_once(
+              "ordin/__init__.py",
+              '    "CompiledActionPolicySet",\n',
+              '    "CompiledActionPolicySet",\n    "CompiledTemporalPolicySet",\n',
+          )
+          replace_once(
+              "ordin/__init__.py",
+              '    "TraceAction",\n',
+              '    "TEMPORAL_POLICY_SET_SCHEMA_VERSION",\n'
+              '    "TemporalActionEvidence",\n'
+              '    "TemporalPolicySet",\n'
+              '    "TemporalPredicate",\n'
+              '    "TemporalRule",\n'
+              '    "TraceAction",\n',
+          )
+          replace_once(
+              "ordin/__init__.py",
+              '    "load_action_policy",\n',
+              '    "default_temporal_policy",\n    "load_action_policy",\n    "load_temporal_policy",\n',
+          )
+
+          replace_once(
+              "ordin/action.py",
+              'from dataclasses import dataclass, field\n',
+              'from dataclasses import dataclass, field, replace\n',
+          )
+          replace_once(
+              "ordin/action.py",
+              'from . import ACTION_ENVELOPE_SCHEMA_VERSION, ACTION_REVIEW_SCHEMA_VERSION\n',
+              'from . import (\n'
+              '    ACTION_ENVELOPE_SCHEMA_VERSION,\n'
+              '    ACTION_HISTORY_SCHEMA_VERSION,\n'
+              '    ACTION_REVIEW_SCHEMA_VERSION,\n'
+              ')\n',
+          )
+          replace_once(
+              "ordin/action.py",
+              'from .policy import Decision, DecisionResultMixin\n'
+              'from .review import review_command\n',
+              'from .policy import Decision, DecisionResultMixin, stronger_decision\n'
+              'from .review import review_command\n'
+              'from .risk import decision_for_risk, max_risk\n',
+          )
+          replace_once(
+              "ordin/action.py",
+              'from .semantics import semantic_evidence_for_command\n',
+              'from .semantics import semantic_evidence_for_command\n'
+              'from .temporal import (\n'
+              '    CompiledTemporalPolicySet,\n'
+              '    TemporalActionEvidence,\n'
+              '    TemporalPolicySet,\n'
+              '    default_temporal_policy,\n'
+              '    temporal_evidence_for_command,\n'
+              ')\n',
+          )
+          replace_once(
+              "ordin/action.py",
+              'MAX_ACTION_ID_LENGTH = 128\n',
+              'MAX_ACTION_ID_LENGTH = 128\nMAX_ACTION_HISTORY = 32\n',
+          )
+
+          marker = '\n\n@dataclass(frozen=True)\nclass ActionReview(DecisionResultMixin):\n'
+          history_class = '''\n\n@dataclass(frozen=True)\nclass ActionHistory:\n    """Bounded caller-supplied history of prior generic actions."""\n\n    actions: tuple[ActionEnvelope, ...] = ()\n\n    def __post_init__(self) -> None:\n        if len(self.actions) > MAX_ACTION_HISTORY:\n            raise ValueError(f"action history maximum is {MAX_ACTION_HISTORY}")\n        if any(not isinstance(action, ActionEnvelope) for action in self.actions):\n            raise ValueError("action history entries must be ActionEnvelope values")\n\n    def as_dict(self) -> dict[str, Any]:\n        return {\n            "schema_version": ACTION_HISTORY_SCHEMA_VERSION,\n            "actions": [action.as_dict() for action in self.actions],\n        }\n\n    @classmethod\n    def from_dict(cls, payload: Mapping[str, Any]) -> "ActionHistory":\n        if not isinstance(payload, Mapping):\n            raise ValueError("action history must be a JSON object")\n        schema_version = payload.get("schema_version")\n        if schema_version != ACTION_HISTORY_SCHEMA_VERSION:\n            raise ValueError(f"unsupported action history schema: {schema_version!r}")\n        actions_raw = payload.get("actions")\n        if not isinstance(actions_raw, list):\n            raise ValueError("action history actions must be an array")\n        if len(actions_raw) > MAX_ACTION_HISTORY:\n            raise ValueError(f"action history maximum is {MAX_ACTION_HISTORY}")\n        actions: list[ActionEnvelope] = []\n        for item in actions_raw:\n            if not isinstance(item, Mapping):\n                raise ValueError("action history entries must be JSON objects")\n            actions.append(ActionEnvelope.from_dict(item))\n        return cls(actions=tuple(actions))\n'''
+          replace_once("ordin/action.py", marker, history_class + marker)
+
+          replace_once(
+              "ordin/action.py",
+              'def review_action(action: ActionEnvelope) -> ActionReview:\n'
+              '    """Review a generic action through a registered deterministic adapter."""\n',
+              'def _review_action_base(action: ActionEnvelope) -> ActionReview:\n'
+              '    """Review one action without applying temporal history."""\n',
+          )
+          action_path = Path("ordin/action.py")
+          action_text = action_path.read_text(encoding="utf-8")
+          if 'def _temporal_evidence_for_action(' not in action_text:
+              action_text += '''\n\ndef _temporal_evidence_for_action(\n    action: ActionEnvelope,\n    review: ActionReview | None = None,\n) -> TemporalActionEvidence:\n    if action.kind == "shell" and action.operation == "execute":\n        command = action.parameters.get("command")\n        if isinstance(command, str) and command.strip():\n            return temporal_evidence_for_command(command, context=action.context)\n    base = review or _review_action_base(action)\n    signals = frozenset(f"effect:{effect}" for effect in base.effects)\n    return TemporalActionEvidence(kind=action.kind, operation=action.operation, signals=signals)\n\n\ndef review_action(\n    action: ActionEnvelope,\n    *,\n    history: ActionHistory | None = None,\n    temporal_policy: TemporalPolicySet | CompiledTemporalPolicySet | None = None,\n) -> ActionReview:\n    """Review an action and optionally apply bounded temporal history."""\n\n    base = _review_action_base(action)\n    if history is None or not history.actions:\n        return base\n\n    if temporal_policy is None:\n        compiled = default_temporal_policy()\n    elif isinstance(temporal_policy, TemporalPolicySet):\n        compiled = temporal_policy.compile()\n    elif isinstance(temporal_policy, CompiledTemporalPolicySet):\n        compiled = temporal_policy\n    else:\n        raise ValueError("temporal_policy must be a temporal policy set, compiled policy, or null")\n\n    prior = tuple(_temporal_evidence_for_action(item) for item in history.actions)\n    current = _temporal_evidence_for_action(action, review=base)\n    evaluation = compiled.evaluate(prior, current)\n    if not evaluation.matches:\n        return base\n\n    review_risk = base.risk\n    decision = base.decision\n    reasons = list(base.reasons)\n    safer_next_step = base.safer_next_step\n    prior_risk = review_risk\n    if evaluation.risk is not None:\n        review_risk = max_risk(review_risk, evaluation.risk)\n        decision = stronger_decision(decision, decision_for_risk(evaluation.risk))\n    for match in evaluation.matches:\n        if match.reason not in reasons:\n            reasons.append(match.reason)\n    if review_risk != prior_risk:\n        first_step = next(\n            (match.safer_next_step for match in evaluation.matches if match.safer_next_step),\n            None,\n        )\n        if first_step:\n            safer_next_step = first_step\n\n    categories = sorted(\n        set(base.trajectory_categories).union(match.category for match in evaluation.matches)\n    )\n    return replace(\n        base,\n        decision=decision,\n        risk=review_risk,\n        reasons=reasons,\n        safer_next_step=safer_next_step,\n        trajectory_categories=categories,\n    )\n'''
+              action_path.write_text(action_text, encoding="utf-8")
+
+          replace_once(
+              "ordin/api.py",
+              'from .action import ActionEnvelope, ActionReview, review_action\n',
+              'from .action import ActionEnvelope, ActionHistory, ActionReview, review_action\n',
+          )
+          replace_once(
+              "ordin/api.py",
+              'from .trace import ActionTrace\n',
+              'from .temporal import CompiledTemporalPolicySet, TemporalPolicySet\nfrom .trace import ActionTrace\n',
+          )
+          replace_once(
+              "ordin/api.py",
+              '    action_policy: ActionPolicySet | CompiledActionPolicySet | None = None\n',
+              '    action_policy: ActionPolicySet | CompiledActionPolicySet | None = None\n'
+              '    temporal_policy: TemporalPolicySet | CompiledTemporalPolicySet | None = None\n',
+          )
+          replace_once(
+              "ordin/api.py",
+              '        elif self.action_policy is not None and not isinstance(\n'
+              '            self.action_policy, CompiledActionPolicySet\n'
+              '        ):\n'
+              '            raise ValueError("action_policy must be an ActionPolicySet, compiled policy, or null")\n',
+              '        elif self.action_policy is not None and not isinstance(\n'
+              '            self.action_policy, CompiledActionPolicySet\n'
+              '        ):\n'
+              '            raise ValueError("action_policy must be an ActionPolicySet, compiled policy, or null")\n'
+              '        if isinstance(self.temporal_policy, TemporalPolicySet):\n'
+              '            object.__setattr__(self, "temporal_policy", self.temporal_policy.compile())\n'
+              '        elif self.temporal_policy is not None and not isinstance(\n'
+              '            self.temporal_policy, CompiledTemporalPolicySet\n'
+              '        ):\n'
+              '            raise ValueError(\n'
+              '                "temporal_policy must be a TemporalPolicySet, compiled policy, or null"\n'
+              '            )\n',
+          )
+          replace_once(
+              "ordin/api.py",
+              '    def review_action(\n'
+              '        self,\n'
+              '        action: ActionEnvelope | Mapping[str, Any],\n'
+              '    ) -> ActionReview:\n',
+              '    def review_action(\n'
+              '        self,\n'
+              '        action: ActionEnvelope | Mapping[str, Any],\n'
+              '        *,\n'
+              '        history: ActionHistory | Mapping[str, Any] | None = None,\n'
+              '    ) -> ActionReview:\n',
+          )
+          replace_once(
+              "ordin/api.py",
+              '        result = review_action(parsed)\n'
+              '        compiled_policy = self.action_policy\n',
+              '        parsed_history = self._parse_history(history)\n'
+              '        temporal = self.temporal_policy\n'
+              '        result = review_action(\n'
+              '            parsed,\n'
+              '            history=parsed_history,\n'
+              '            temporal_policy=(\n'
+              '                temporal if isinstance(temporal, CompiledTemporalPolicySet) else None\n'
+              '            ),\n'
+              '        )\n'
+              '        compiled_policy = self.action_policy\n',
+          )
+          api_path = Path("ordin/api.py")
+          api_text = api_path.read_text(encoding="utf-8")
+          anchor = '    def _parse_action(self, action: ActionEnvelope | Mapping[str, Any]) -> ActionEnvelope:\n'
+          history_method = '''    def _parse_history(\n        self, history: ActionHistory | Mapping[str, Any] | None\n    ) -> ActionHistory | None:\n        if history is None or isinstance(history, ActionHistory):\n            return history\n        if not isinstance(history, Mapping):\n            raise ValueError("history must be an ActionHistory, mapping, or null")\n        payload = dict(history)\n        errors = validate_named_schema("action_history", payload)\n        if errors:\n            raise ValueError("action history schema validation failed: " + "; ".join(errors))\n        return ActionHistory.from_dict(payload)\n\n'''
+          if history_method not in api_text:
+              if anchor not in api_text:
+                  raise SystemExit("action parser method anchor not found")
+              api_path.write_text(api_text.replace(anchor, history_method + anchor, 1), encoding="utf-8")
+
+          replace_once(
+              "ordin/schema.py",
+              '    "action_envelope": "action-envelope.v1.schema.json",\n'
+              '    "action_review": "action-review.v1.schema.json",\n',
+              '    "action_envelope": "action-envelope.v1.schema.json",\n'
+              '    "action_history": "action-history.v1.schema.json",\n'
+              '    "action_review": "action-review.v1.schema.json",\n',
+          )
+          replace_once(
+              "ordin/schema.py",
+              '    "policy_set": "policy-set.v1.schema.json",\n',
+              '    "policy_set": "policy-set.v1.schema.json",\n'
+              '    "temporal_policy_set": "temporal-policy-set.v1.schema.json",\n',
+          )
+          replace_once(
+              ".pre-commit-config.yaml",
+              '          ordin/semantics.py\n          ordin/policy.py\n',
+              '          ordin/semantics.py\n          ordin/temporal.py\n          ordin/policy.py\n',
+          )
+
+          # Doctor validates the default temporal policy and source/package parity.
+          data_path = Path("ordin/data.py")
+          data_text = data_path.read_text(encoding="utf-8")
+          health_anchor = '    schema_errors = validate_schema_files()\n'
+          temporal_health = '''    temporal_rule_count = 0\n    try:\n        from .temporal import default_temporal_policy\n\n        temporal_rule_count = len(default_temporal_policy().policy.rules)\n    except ValueError as exc:\n        schema_errors = [f"temporal policy: {exc}"]\n    else:\n        schema_errors = []\n\n    source_temporal = SOURCE_DATA_DIR / "temporal_policies.json"\n    package_temporal = PACKAGE_DATA_DIR / "temporal_policies.json"\n    temporal_parity_errors: list[str] = []\n    if source_temporal.exists() and package_temporal.exists():\n        if source_temporal.read_bytes() != package_temporal.read_bytes():\n            temporal_parity_errors.append("temporal_policies.json differs from packaged resource")\n\n'''
+          if temporal_health not in data_text:
+              if health_anchor not in data_text:
+                  raise SystemExit("data health anchor not found")
+              data_text = data_text.replace(health_anchor, temporal_health + '    schema_errors.extend(validate_schema_files())\n', 1)
+          data_text = data_text.replace(
+              '    parity_errors = resource_parity_errors()\n',
+              '    parity_errors = [*resource_parity_errors(), *temporal_parity_errors]\n',
+              1,
+          )
+          data_text = data_text.replace(
+              '        "effect_count": len(effect_catalog),\n',
+              '        "effect_count": len(effect_catalog),\n        "temporal_rule_count": temporal_rule_count,\n',
+              1,
+          )
+          data_path.write_text(data_text, encoding="utf-8")
+
+          # Fix the test fixture literal and make it normal JSON/Python.
+          test_path = Path("tests/test_temporal_policy.py")
+          test_text = test_path.read_text(encoding="utf-8")
+          test_text = test_text.replace('"safer_next_step": null,', '"safer_next_step": None,')
+          test_text = test_text.replace('        ).replace("null", "null"),', '        ),')
+          test_path.write_text(test_text, encoding="utf-8")
+          PY
+      - name: Format and compile
+        run: |
+          python -m pip install "ruff==0.16.4"
+          ruff format ordin/action.py ordin/api.py ordin/data.py ordin/temporal.py ordin/trajectory.py tests/test_temporal_policy.py
+          ruff check ordin/action.py ordin/api.py ordin/data.py ordin/temporal.py ordin/trajectory.py tests/test_temporal_policy.py
+          python -m compileall -q ordin tests/test_temporal_policy.py
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then
+            echo "No temporal plumbing changes required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ordin/__init__.py ordin/action.py ordin/api.py ordin/schema.py ordin/data.py .pre-commit-config.yaml ordin/resources/temporal_policies.json tests/test_temporal_policy.py ordin/temporal.py ordin/trajectory.py
+          git commit -m "Wire bounded temporal policies into action review"
+          git push origin HEAD:temporal-action-policies
