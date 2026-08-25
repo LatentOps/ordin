@@ -161,6 +161,16 @@ def test_generic_download_permission_execute_chain_matches_default_policy():
     assert "trajectory_download_execute" in review.trajectory_categories
 
 
+def test_temporal_policy_direct_inputs_are_bounded(tmp_path):
+    with pytest.raises(ValueError, match="signal must be at most"):
+        TemporalPredicate(("signal:" + "x" * 300,))
+
+    oversized = tmp_path / "oversized.json"
+    oversized.write_text("x" * 1_048_577, encoding="utf-8")
+    with pytest.raises(ValueError, match="exceeds maximum size"):
+        load_temporal_policy(oversized)
+
+
 def test_temporal_policy_loader_validates_schema(tmp_path):
     path = tmp_path / "temporal.json"
     path.write_text(

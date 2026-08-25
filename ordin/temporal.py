@@ -14,6 +14,9 @@ from .shell import SHELL_EXECUTABLES, executable_name_from_tokens, split_shell_s
 
 TEMPORAL_POLICY_SCHEMA_VERSION = "ordin.temporal_policy_set.v1"
 MAX_HISTORY_ACTIONS = 32
+MAX_TEMPORAL_POLICY_FILE_BYTES = 1_048_576
+MAX_TEMPORAL_TEXT_LENGTH = 32768
+MAX_TEMPORAL_SIGNAL_LENGTH = 256
 MAX_TEMPORAL_RULES = 128
 MAX_TEMPORAL_STEPS = 8
 MAX_STEP_SIGNALS = 64
@@ -51,6 +54,10 @@ class TemporalPredicate:
         for signal in self.signals_any:
             if not isinstance(signal, str) or not signal:
                 raise ValueError("temporal predicate signals must be non-empty strings")
+            if len(signal) > MAX_TEMPORAL_SIGNAL_LENGTH:
+                raise ValueError(
+                    f"temporal predicate signal must be at most {MAX_TEMPORAL_SIGNAL_LENGTH} characters"
+                )
             if not signal.startswith(("effect:", "category:", "signal:")):
                 raise ValueError(f"unsupported temporal signal namespace: {signal!r}")
 
@@ -107,6 +114,17 @@ class TemporalRule:
             raise ValueError("within_actions cannot be smaller than the number of pattern steps")
         if not self.reason:
             raise ValueError("temporal rule reason must be non-empty")
+        if len(self.reason) > MAX_TEMPORAL_TEXT_LENGTH:
+            raise ValueError(
+                f"temporal rule reason must be at most {MAX_TEMPORAL_TEXT_LENGTH} characters"
+            )
+        if (
+            self.safer_next_step is not None
+            and len(self.safer_next_step) > MAX_TEMPORAL_TEXT_LENGTH
+        ):
+            raise ValueError(
+                f"temporal safer_next_step must be at most {MAX_TEMPORAL_TEXT_LENGTH} characters"
+            )
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> "TemporalRule":
@@ -365,6 +383,14 @@ def default_temporal_policy() -> CompiledTemporalPolicySet:
 def load_temporal_policy(path: str | Path) -> CompiledTemporalPolicySet:
     policy_path = Path(path)
     try:
+        size = policy_path.stat().st_size
+    except OSError as exc:
+        raise ValueError(f"cannot read temporal policy file {policy_path}: {exc}") from exc
+    if size > MAX_TEMPORAL_POLICY_FILE_BYTES:
+        raise ValueError(
+            f"temporal policy file exceeds maximum size {MAX_TEMPORAL_POLICY_FILE_BYTES} bytes"
+        )
+    try:
         payload = json.loads(policy_path.read_text(encoding="utf-8"))
     except OSError as exc:
         raise ValueError(f"cannot read temporal policy file {policy_path}: {exc}") from exc
@@ -434,6 +460,8 @@ def _string_tuple(
     for item in value:
         if not isinstance(item, str) or not item:
             raise ValueError(f"{key} items must be non-empty strings")
+        if len(item) > MAX_TEMPORAL_SIGNAL_LENGTH:
+            raise ValueError(f"{key} items must be at most {MAX_TEMPORAL_SIGNAL_LENGTH} characters")
         if item not in result:
             result.append(item)
     if required and not result:
