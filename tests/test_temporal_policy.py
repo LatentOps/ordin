@@ -177,11 +177,11 @@ def test_temporal_policy_loader_validates_schema(tmp_path):
                         "within_actions": 2,
                         "pattern": [{"signals_any": ["signal:x"]}],
                         "reason": "x",
-                        "safer_next_step": null,
+                        "safer_next_step": None,
                     }
                 ],
             }
-        ).replace("null", "null"),
+        ),
         encoding="utf-8",
     )
 

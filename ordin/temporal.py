@@ -45,7 +45,9 @@ class TemporalPredicate:
         if len(self.signals_any) > MAX_STEP_SIGNALS:
             raise ValueError(f"temporal predicate supports at most {MAX_STEP_SIGNALS} signals")
         if len(self.kinds) > MAX_STEP_VALUES or len(self.operations) > MAX_STEP_VALUES:
-            raise ValueError(f"temporal predicate supports at most {MAX_STEP_VALUES} kind/operation values")
+            raise ValueError(
+                f"temporal predicate supports at most {MAX_STEP_VALUES} kind/operation values"
+            )
         for signal in self.signals_any:
             if not isinstance(signal, str) or not signal:
                 raise ValueError("temporal predicate signals must be non-empty strings")
@@ -56,7 +58,9 @@ class TemporalPredicate:
     def from_dict(cls, payload: Mapping[str, Any]) -> "TemporalPredicate":
         _reject_unknown(payload, {"signals_any", "kinds", "operations"}, "temporal predicate")
         return cls(
-            signals_any=_string_tuple(payload, "signals_any", required=True, maximum=MAX_STEP_SIGNALS),
+            signals_any=_string_tuple(
+                payload, "signals_any", required=True, maximum=MAX_STEP_SIGNALS
+            ),
             kinds=_string_tuple(payload, "kinds", maximum=MAX_STEP_VALUES),
             operations=_string_tuple(payload, "operations", maximum=MAX_STEP_VALUES),
         )
@@ -128,7 +132,11 @@ class TemporalRule:
         reason = payload.get("reason")
         safer_next_step = payload.get("safer_next_step")
         enabled = payload.get("enabled", True)
-        if not isinstance(rule_id, str) or not isinstance(risk, str) or not isinstance(category, str):
+        if (
+            not isinstance(rule_id, str)
+            or not isinstance(risk, str)
+            or not isinstance(category, str)
+        ):
             raise ValueError("temporal rule requires string id, risk, and category")
         if not isinstance(within_actions, int) or isinstance(within_actions, bool):
             raise ValueError("temporal rule within_actions must be an integer")
@@ -198,7 +206,9 @@ class TemporalPolicySet:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> "TemporalPolicySet":
-        _reject_unknown(payload, {"schema_version", "policy_id", "version", "rules"}, "temporal policy set")
+        _reject_unknown(
+            payload, {"schema_version", "policy_id", "version", "rules"}, "temporal policy set"
+        )
         schema_version = payload.get("schema_version")
         policy_id = payload.get("policy_id")
         version = payload.get("version")
@@ -334,9 +344,7 @@ class CompiledTemporalPolicySet:
         bounded_prior = tuple(prior[-MAX_HISTORY_ACTIONS:])
         actions = (*bounded_prior, current)
         matches = tuple(
-            match
-            for compiled in self.rules
-            if (match := compiled.evaluate(actions)) is not None
+            match for compiled in self.rules if (match := compiled.evaluate(actions)) is not None
         )
         return TemporalEvaluation(history_length=len(bounded_prior), matches=matches)
 

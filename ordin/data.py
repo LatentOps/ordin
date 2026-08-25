@@ -173,7 +173,24 @@ def data_health() -> dict[str, Any]:
         validate_template_semantics,
     )
 
-    schema_errors = validate_schema_files()
+    temporal_rule_count = 0
+    try:
+        from .temporal import default_temporal_policy
+
+        temporal_rule_count = len(default_temporal_policy().policy.rules)
+    except ValueError as exc:
+        schema_errors = [f"temporal policy: {exc}"]
+    else:
+        schema_errors = []
+
+    source_temporal = SOURCE_DATA_DIR / "temporal_policies.json"
+    package_temporal = PACKAGE_DATA_DIR / "temporal_policies.json"
+    temporal_parity_errors: list[str] = []
+    if source_temporal.exists() and package_temporal.exists():
+        if source_temporal.read_bytes() != package_temporal.read_bytes():
+            temporal_parity_errors.append("temporal_policies.json differs from packaged resource")
+
+    schema_errors.extend(validate_schema_files())
     schema_errors.extend(validate_command_card_schemas(validation_commands))
     schema_errors.extend(
         f"risk rules: {error}" for error in validate_named_schema("risk_rules", risk_payload)
@@ -200,7 +217,7 @@ def data_health() -> dict[str, Any]:
 
     risk_rule_errors = validate_risk_rule_semantics(risk_payload)
     template_errors = validate_template_semantics(validation_commands)
-    parity_errors = resource_parity_errors()
+    parity_errors = [*resource_parity_errors(), *temporal_parity_errors]
 
     graph_errors = validate_effect_graph_data(
         commands=commands,
@@ -238,6 +255,7 @@ def data_health() -> dict[str, Any]:
         "risk_rule_count": len(risk_rules),
         "known_risk_rule_count": len(validation_rules),
         "effect_count": len(effect_catalog),
+        "temporal_rule_count": temporal_rule_count,
         "schema_count": len(SCHEMA_FILES),
         "pack_count": len(packs),
         "loaded_pack_count": len(active_packs),

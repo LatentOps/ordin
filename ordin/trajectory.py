@@ -75,8 +75,7 @@ def evaluate_trajectory(
         return TrajectoryEvaluation(trace_length=0, findings=())
 
     prior = tuple(
-        temporal_evidence_for_command(action.command, context=context)
-        for action in trace.actions
+        temporal_evidence_for_command(action.command, context=context) for action in trace.actions
     )
     current = temporal_evidence_for_command(
         current_command,
