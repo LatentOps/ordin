@@ -1,0 +1,45 @@
+name: one-off temporal CLI type fix
+
+on:
+  push:
+    branches:
+      - temporal-action-policies
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: temporal-action-policies
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Rename compiled policy locals
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("ordin/cli.py")
+          text = path.read_text(encoding="utf-8")
+          policy_old = '''            try:\n                compiled = load_action_policy(args.path)\n            except ValueError as exc:\n                return _policy_error(exc, as_json=args.json)\n            payload = {\n                "schema_version": compiled.policy.schema_version,\n                "policy_id": compiled.policy.policy_id,\n                "version": compiled.policy.version,\n                "digest": compiled.digest,\n                "rule_count": len(compiled.policy.rules),\n            }\n'''
+          policy_new = '''            try:\n                compiled_policy = load_action_policy(args.path)\n            except ValueError as exc:\n                return _policy_error(exc, as_json=args.json)\n            payload = {\n                "schema_version": compiled_policy.policy.schema_version,\n                "policy_id": compiled_policy.policy.policy_id,\n                "version": compiled_policy.policy.version,\n                "digest": compiled_policy.digest,\n                "rule_count": len(compiled_policy.policy.rules),\n            }\n'''
+          temporal_old = '''            try:\n                compiled = load_temporal_policy(args.path)\n            except ValueError as exc:\n                return _temporal_policy_error(exc, as_json=args.json)\n            payload = {\n                "schema_version": compiled.policy.schema_version,\n                "policy_id": compiled.policy.policy_id,\n                "version": compiled.policy.version,\n                "rule_count": len(compiled.policy.rules),\n            }\n'''
+          temporal_new = '''            try:\n                compiled_temporal = load_temporal_policy(args.path)\n            except ValueError as exc:\n                return _temporal_policy_error(exc, as_json=args.json)\n            payload = {\n                "schema_version": compiled_temporal.policy.schema_version,\n                "policy_id": compiled_temporal.policy.policy_id,\n                "version": compiled_temporal.policy.version,\n                "rule_count": len(compiled_temporal.policy.rules),\n            }\n'''
+          if policy_old not in text or temporal_old not in text:
+              raise SystemExit("expected CLI validation blocks not found")
+          path.write_text(text.replace(policy_old, policy_new, 1).replace(temporal_old, temporal_new, 1), encoding="utf-8")
+          PY
+          python -m pip install "ruff==0.16.4" "mypy>=1.17,<2"
+          ruff format ordin/cli.py
+          python -m mypy ordin/cli.py
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ordin/cli.py
+          git commit -m "Disambiguate policy compiler types in CLI"
+          git push origin HEAD:temporal-action-policies
