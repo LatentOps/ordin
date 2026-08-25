@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from . import REVIEW_SCHEMA_VERSION
 from .context import ExecutionContext
-from .policy import DECISION_ORDER, Decision, DecisionResultMixin
+from .policy import Decision, DecisionResultMixin, stronger_decision
 from .risk import check_command, decision_for_risk, max_risk
 from .search import SearchResult, search
 from .shell import executable_name
@@ -80,10 +80,6 @@ def warn_for_intent_mismatch(
     )
 
 
-def _stronger_decision(current: Decision, candidate: Decision) -> Decision:
-    return candidate if DECISION_ORDER[candidate] > DECISION_ORDER[current] else current
-
-
 def review_command(
     command: str,
     intent: str | None = None,
@@ -112,7 +108,7 @@ def review_command(
     if trajectory.risk is not None:
         prior_risk = review_risk
         review_risk = max_risk(review_risk, trajectory.risk)
-        decision = _stronger_decision(
+        decision = stronger_decision(
             decision,
             decision_for_risk(trajectory.risk),
         )
@@ -133,7 +129,7 @@ def review_command(
 
     if intent_alignment == "mismatch":
         reasons.extend(reason for reason in alignment_reasons if reason not in reasons)
-        decision = _stronger_decision(decision, "warn")
+        decision = stronger_decision(decision, "warn")
         review_risk = max_risk(review_risk, "medium")
 
     return CommandReview(
