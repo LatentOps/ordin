@@ -50,7 +50,32 @@
     },
     "adapter": {"type": ["string", "null"]},
     "intent_alignment": {"type": "string"},
-    "trajectory_categories": {"type": "array", "items": {"type": "string"}}
+    "trajectory_categories": {"type": "array", "items": {"type": "string"}},
+    "policy": {
+      "type": "object",
+      "required": ["policy_id", "version", "digest"],
+      "properties": {
+        "policy_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "version": {"type": "string", "minLength": 1, "maxLength": 64},
+        "digest": {"type": "string", "minLength": 64, "maxLength": 64}
+      },
+      "additionalProperties": false
+    },
+    "policy_matches": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "decision", "reason", "safer_next_step"],
+        "properties": {
+          "rule_id": {"type": "string", "minLength": 1, "maxLength": 128},
+          "decision": {"enum": ["allow", "warn", "ask", "block"]},
+          "reason": {"type": "string", "minLength": 1, "maxLength": 32768},
+          "safer_next_step": {"type": ["string", "null"]}
+        },
+        "additionalProperties": false
+      }
+    }
   },
   "additionalProperties": false
 }
