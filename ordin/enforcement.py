@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from .policy import (
-    DECISION_EXIT_CODES,
+    DECISION_EXIT_CODES as DECISION_EXIT_CODES,
     DECISION_ORDER,
-    FAIL_THRESHOLDS,
+    FAIL_THRESHOLDS as FAIL_THRESHOLDS,
     ReviewPolicy,
     validate_decision,
     validate_fail_threshold,
