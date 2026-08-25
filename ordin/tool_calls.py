@@ -137,7 +137,9 @@ class ToolSemanticRule:
             raise ValueError("tool semantics runtime must be a string or null")
         if server is not None and not isinstance(server, str):
             raise ValueError("tool semantics server must be a string or null")
-        if not isinstance(effects_raw, list) or any(not isinstance(item, str) for item in effects_raw):
+        if not isinstance(effects_raw, list) or any(
+            not isinstance(item, str) for item in effects_raw
+        ):
             raise ValueError("tool semantics effects must be an array of strings")
         if len(effects_raw) > MAX_TOOL_EFFECTS:
             raise ValueError(f"tool semantics effects support at most {MAX_TOOL_EFFECTS} items")
