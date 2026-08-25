@@ -1,0 +1,57 @@
+{
+  "schema_version": "ordin.temporal_policy_set.v1",
+  "policy_id": "ordin-default-temporal",
+  "version": "1",
+  "rules": [
+    {
+      "id": "secret-exfiltration",
+      "risk": "critical",
+      "category": "trajectory_secret_exfiltration",
+      "within_actions": 32,
+      "pattern": [
+        {"signals_any": ["effect:secret.read", "category:secret_exposure"]},
+        {"signals_any": ["effect:network.upload", "category:network_upload"]}
+      ],
+      "reason": "trajectory reads secret material before an action that can upload local data",
+      "safer_next_step": "Do not transmit the data. Confirm the destination and remove secret material from the payload first."
+    },
+    {
+      "id": "download-permission-execute",
+      "risk": "high",
+      "category": "trajectory_download_execute",
+      "within_actions": 32,
+      "pattern": [
+        {"signals_any": ["effect:network.download", "category:network_download"]},
+        {"signals_any": ["effect:filesystem.permission_change", "effect:filesystem.recursive_permission_change", "category:permission_change", "category:recursive_permission_change"]},
+        {"signals_any": ["effect:code.execute", "effect:code.remote_execute", "category:code_execution", "category:remote_code_execution", "signal:path_execution"]}
+      ],
+      "reason": "trajectory downloads remote content, makes a target executable, then executes local code",
+      "safer_next_step": "Inspect and verify the downloaded artifact before granting execute permission or running it."
+    },
+    {
+      "id": "repeated-destructive-actions",
+      "risk": "high",
+      "category": "trajectory_repeated_destructive_actions",
+      "within_actions": 32,
+      "pattern": [
+        {"signals_any": ["effect:filesystem.delete", "effect:filesystem.recursive_delete", "effect:container.delete", "effect:container.prune", "effect:git.history_rewrite", "effect:package.remove", "effect:system.configuration_write", "effect:system.device_write", "category:filesystem_delete", "category:recursive_delete", "category:container_delete", "category:container_cleanup", "category:history_rewrite", "category:package_remove", "category:system_configuration_write", "category:device_write"]},
+        {"signals_any": ["effect:filesystem.delete", "effect:filesystem.recursive_delete", "effect:container.delete", "effect:container.prune", "effect:git.history_rewrite", "effect:package.remove", "effect:system.configuration_write", "effect:system.device_write", "category:filesystem_delete", "category:recursive_delete", "category:container_delete", "category:container_cleanup", "category:history_rewrite", "category:package_remove", "category:system_configuration_write", "category:device_write"]},
+        {"signals_any": ["effect:filesystem.delete", "effect:filesystem.recursive_delete", "effect:container.delete", "effect:container.prune", "effect:git.history_rewrite", "effect:package.remove", "effect:system.configuration_write", "effect:system.device_write", "category:filesystem_delete", "category:recursive_delete", "category:container_delete", "category:container_cleanup", "category:history_rewrite", "category:package_remove", "category:system_configuration_write", "category:device_write"]}
+      ],
+      "reason": "trajectory contains repeated destructive actions before another destructive command",
+      "safer_next_step": "Stop the destructive retry sequence and inspect the current state and affected targets before continuing."
+    },
+    {
+      "id": "repeated-privilege-escalation",
+      "risk": "high",
+      "category": "trajectory_repeated_privilege_escalation",
+      "within_actions": 32,
+      "pattern": [
+        {"signals_any": ["effect:privilege.escalate", "category:elevated_privileges"]},
+        {"signals_any": ["effect:privilege.escalate", "category:elevated_privileges"]}
+      ],
+      "reason": "trajectory repeatedly invokes elevated-privilege actions",
+      "safer_next_step": "Confirm why repeated elevation is required and narrow the privileged operation before continuing."
+    }
+  ]
+}
