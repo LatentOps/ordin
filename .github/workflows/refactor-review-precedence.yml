@@ -1,0 +1,46 @@
+name: refactor-review-precedence
+
+on:
+  push:
+    branches:
+      - public-python-api
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: public-python-api
+      - name: Use centralized review precedence in risk aggregation
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("ordin/risk.py")
+          text = path.read_text(encoding="utf-8")
+          old_import = "from .policy import DECISION_ORDER, Decision, DecisionResultMixin\n"
+          new_import = "from .policy import Decision, DecisionResultMixin, stronger_decision\n"
+          old_merge = '''        if DECISION_ORDER[review.decision] > DECISION_ORDER[decision]:
+              decision = review.decision
+          '''
+          new_merge = '''        decision = stronger_decision(decision, review.decision)
+          '''
+          if old_import not in text:
+              raise SystemExit("expected policy import not found")
+          if old_merge not in text:
+              raise SystemExit("expected review merge block not found")
+          text = text.replace(old_import, new_import, 1)
+          text = text.replace(old_merge, new_merge, 1)
+          path.write_text(text, encoding="utf-8")
+      - name: Commit refactor
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+dipeshbabu@users.noreply.github.com"
+          git add ordin/risk.py
+          git commit -m "Centralize compound review precedence"
+          git push origin HEAD:public-python-api
