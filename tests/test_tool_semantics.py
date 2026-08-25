@@ -150,9 +150,7 @@ def test_tool_semantics_feed_temporal_review():
     ordin = Ordin(tool_semantics=_registry())
     history = ActionHistory(
         actions=(
-            MCPAdapter(server="vault-local").adapt(
-                "read_secret", {"name": "deployment-token"}
-            ),
+            MCPAdapter(server="vault-local").adapt("read_secret", {"name": "deployment-token"}),
         )
     )
     current = ToolCallAdapter(runtime="agent-runtime").adapt(
