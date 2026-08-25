@@ -70,7 +70,9 @@ def test_action_cli_applies_bounded_history_file(tmp_path, monkeypatch, capsys):
 
 def test_action_cli_rejects_invalid_history_file(tmp_path, monkeypatch, capsys):
     history_path = tmp_path / "history.json"
-    history_path.write_text(json.dumps({"schema_version": "wrong", "actions": []}), encoding="utf-8")
+    history_path.write_text(
+        json.dumps({"schema_version": "wrong", "actions": []}), encoding="utf-8"
+    )
     _stdin_payload(monkeypatch, ActionEnvelope.shell("git status --short").as_dict())
 
     assert main(["action", "--stdin", "--history", str(history_path), "--json"]) == 2
