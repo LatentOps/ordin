@@ -140,8 +140,7 @@ class MCPAdapter:
             command = args.get(self.command_argument)
             if not isinstance(command, str) or not command.strip():
                 raise ValueError(
-                    f"MCP shell tool {tool!r} requires non-empty "
-                    f"{self.command_argument!r} argument"
+                    f"MCP shell tool {tool!r} requires non-empty {self.command_argument!r} argument"
                 )
             return ActionEnvelope(
                 kind="shell",
