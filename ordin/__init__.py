@@ -30,7 +30,8 @@ from .action_policy import (
     PolicyResourceMatcher,
     load_action_policy,
 )
-from .agent import AgentDecision, AgentDisposition, AgentGate
+from .adapters import MCPAdapter, ToolCallAdapter
+from .agent import AgentDecision, AgentDisposition, AgentGate, AgentReview
 from .api import Ordin
 from .context import ExecutionContext, ReviewRequest
 from .policy import Decision, FailThreshold, ReviewPolicy
@@ -64,6 +65,7 @@ __all__ = [
     "AgentDecision",
     "AgentDisposition",
     "AgentGate",
+    "AgentReview",
     "CommandReview",
     "CompiledActionPolicySet",
     "CompiledTemporalPolicySet",
@@ -73,6 +75,7 @@ __all__ = [
     "ExecutionContext",
     "FailThreshold",
     "MAN_INDEX_SCHEMA_VERSION",
+    "MCPAdapter",
     "Ordin",
     "PACK_LIST_SCHEMA_VERSION",
     "PACK_MANIFEST_SCHEMA_VERSION",
@@ -94,6 +97,7 @@ __all__ = [
     "TemporalPolicySet",
     "TemporalPredicate",
     "TemporalRule",
+    "ToolCallAdapter",
     "TraceAction",
     "__version__",
     "default_temporal_policy",

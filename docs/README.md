@@ -28,6 +28,7 @@ orun 'git status --short'
 
 - [Python API](python-api.md)
 - [Generic action review](action-review.md)
+- [Tool and MCP adapters](tool-and-mcp-adapters.md)
 - [Declarative action policies](policies.md)
 - [Temporal action policies](temporal-policies.md)
 - [Schema contracts](schema-contracts.md)
@@ -39,6 +40,7 @@ The Python API reviews actions but never executes them.
 ## I want to gate an AI agent
 
 - [Agent runtime integration](agent-integration.md)
+- [Tool and MCP adapters](tool-and-mcp-adapters.md)
 - [Generic action review](action-review.md)
 - [Declarative action policies](policies.md)
 - [Temporal action policies](temporal-policies.md)
@@ -52,7 +54,7 @@ The canonical integration is:
 agent proposes action -> Ordin -> execute / escalate / deny -> caller runtime
 ```
 
-Ordin does not become the agent framework, shell executor, sandbox, or approval service.
+Ordin does not become the agent framework, shell executor, sandbox, MCP transport, or approval service.
 
 ## I want to understand how Ordin decides
 
@@ -77,6 +79,7 @@ Ordin does not become the agent framework, shell executor, sandbox, or approval 
 
 - [Development workflow](development-workflow.md)
 - [Generic action review and adapter contract](action-review.md)
+- [Tool and MCP adapters](tool-and-mcp-adapters.md)
 - [Declarative action policies](policies.md)
 - [Temporal action policies](temporal-policies.md)
 - [Command packs](command-packs.md)
@@ -93,4 +96,4 @@ pre-commit run --all-files
 pytest -q
 ```
 
-The core design rule across safety layers is conservative composition: richer semantic, contextual, temporal, or caller-owned policy evidence must not erase a known stronger safety requirement. Execution policy is applied separately by the caller or shell integration.
+The core design rule across safety layers is conservative composition: richer semantic, contextual, temporal, adapter, or caller-owned policy evidence must not erase a known stronger safety requirement. Execution policy is applied separately by the caller or shell integration.
