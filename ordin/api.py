@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
+from .action import ActionEnvelope, ActionReview, review_action
 from .context import ExecutionContext, ReviewRequest
 from .policy import ReviewPolicy
 from .review import CommandReview, review_command
@@ -17,7 +18,7 @@ class Ordin:
     """Stable library entry point for command discovery and pre-execution review.
 
     Ordin is intentionally side-effect free: these methods search and review
-    actions but never execute shell commands.
+    actions but never execute shell commands or generic actions.
     """
 
     context: ExecutionContext | None = None
@@ -66,7 +67,23 @@ class Ordin:
             trace=parsed.trace if parsed.trace is not None else self.trace,
         )
 
-    def allows(self, review: RiskReview | CommandReview) -> bool:
+    def review_action(
+        self,
+        action: ActionEnvelope | Mapping[str, Any],
+    ) -> ActionReview:
+        parsed = self._parse_action(action)
+        if parsed.context is None and self.context is not None:
+            parsed = ActionEnvelope(
+                kind=parsed.kind,
+                operation=parsed.operation,
+                parameters=parsed.parameters,
+                intent=parsed.intent,
+                context=self.context,
+                action_id=parsed.action_id,
+            )
+        return review_action(parsed)
+
+    def allows(self, review: RiskReview | CommandReview | ActionReview) -> bool:
         return self.policy.allows(review)
 
     def _parse_request(self, request: ReviewRequest | Mapping[str, Any]) -> ReviewRequest:
@@ -79,3 +96,14 @@ class Ordin:
         if errors:
             raise ValueError("review request schema validation failed: " + "; ".join(errors))
         return ReviewRequest.from_dict(payload)
+
+    def _parse_action(self, action: ActionEnvelope | Mapping[str, Any]) -> ActionEnvelope:
+        if isinstance(action, ActionEnvelope):
+            return action
+        if not isinstance(action, Mapping):
+            raise ValueError("action must be an ActionEnvelope or mapping")
+        payload = dict(action)
+        errors = validate_named_schema("action_envelope", payload)
+        if errors:
+            raise ValueError("action envelope schema validation failed: " + "; ".join(errors))
+        return ActionEnvelope.from_dict(payload)

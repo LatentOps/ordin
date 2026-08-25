@@ -14,6 +14,7 @@ EXPLICIT_COMMANDS = {
     "shell-init",
     "check",
     "review",
+    "action",
     "doctor",
     "index",
 }

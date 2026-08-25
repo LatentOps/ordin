@@ -12,6 +12,9 @@ available under `schemas/`; installed packages carry the same files under
 - `risk-review.v1.schema.json`
 - `review-result.v1.schema.json`
 - `review-request.v1.schema.json`
+- `action-envelope.v1.schema.json`
+- `action-review.v1.schema.json`
+- `action-trace.v1.schema.json`
 - `risk-rules.v1.schema.json`
 - `effect-catalog.v1.schema.json`
 - `effect-graph.v1.schema.json`
@@ -26,10 +29,14 @@ consumers. Removing fields, changing field types, changing required semantics,
 or reinterpreting an existing field requires a new schema version.
 
 Command cards remain `ordin.command_card.v1`; the typed effect metadata
-added to cards is additive. Review requests use
-`ordin.review_request.v1`. Pack manifests use
-`ordin.command_pack.v1`, while `ordin packs --json` returns
-`ordin.pack_list.v1`.
+added to cards is additive. Command review requests use
+`ordin.review_request.v1`. Generic actions use `ordin.action_envelope.v1` and
+return `ordin.action_review.v1`. Pack manifests use `ordin.command_pack.v1`,
+while `ordin packs --json` returns `ordin.pack_list.v1`.
+
+The generic action schema deliberately permits future action-kind identifiers.
+Schema acceptance does not imply semantic confidence: if Ordin has no deterministic
+adapter for an accepted kind/operation, review returns `ask` rather than `allow`.
 
 ## Doctor validation
 
@@ -45,8 +52,9 @@ added to cards is additive. Review requests use
 8. source data, pack data, schemas, and packaged resource copies are identical in a source checkout.
 
 The runtime validator is intentionally dependency-free. It implements only the
-JSON Schema keywords used by the checked-in contracts; the schemas themselves
-remain standard Draft 2020-12 documents that external tooling can validate with
-full JSON Schema implementations.
+JSON Schema keywords used by the checked-in contracts, including bounded string,
+array, and object sizes where the runtime consumes untrusted action payloads.
+The schemas themselves remain standard Draft 2020-12 documents that external
+tooling can validate with full JSON Schema implementations.
 
 Any validation error makes `doctor` return a non-zero exit status.

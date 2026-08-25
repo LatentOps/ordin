@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
+from .action import ActionEnvelope, review_action
 from .context import ExecutionContext, ReviewRequest
 from .data import data_health, find_command
 from .enforcement import enforcement_exit_code
@@ -229,6 +230,22 @@ def _read_stdin_review_request() -> ReviewRequest:
     return ReviewRequest.from_dict(payload)
 
 
+def _read_stdin_action_envelope() -> ActionEnvelope:
+    raw = sys.stdin.read()
+    if not raw.strip():
+        raise ValueError("stdin action envelope is empty")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid JSON on stdin: {exc.msg}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("stdin action envelope must be a JSON object")
+    schema_errors = validate_named_schema("action_envelope", payload)
+    if schema_errors:
+        raise ValueError("schema validation failed: " + "; ".join(schema_errors))
+    return ActionEnvelope.from_dict(payload)
+
+
 def _review_exit(args: argparse.Namespace, decision: str) -> int:
     return enforcement_exit_code(
         decision,
@@ -292,6 +309,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     review_parser.add_argument("--json", action="store_true")
     _add_context_arguments(review_parser)
     _add_enforcement_arguments(review_parser)
+
+    action_parser = subparsers.add_parser(
+        "action",
+        help="Review a versioned generic action envelope from stdin.",
+    )
+    action_parser.add_argument(
+        "--stdin",
+        action="store_true",
+        required=True,
+        help="Read an ordin.action_envelope.v1 object from stdin.",
+    )
+    action_parser.add_argument("--json", action="store_true")
+    _add_enforcement_arguments(action_parser)
 
     doctor_parser = subparsers.add_parser("doctor", help="Check local Ordin data.")
     doctor_parser.add_argument("--json", action="store_true")
@@ -386,6 +416,44 @@ def main(argv: Sequence[str] | None = None) -> int:
             if command_review.safer_next_step:
                 print(f"safer_next_step: {command_review.safer_next_step}")
         return _review_exit(args, command_review.decision)
+
+    if args.command_name == "action":
+        try:
+            action = _read_stdin_action_envelope()
+        except ValueError as exc:
+            return _input_error(str(exc), as_json=args.json)
+        action_review = review_action(action)
+        if args.json:
+            print(json.dumps(action_review.as_dict(), indent=2))
+        else:
+            print(f"decision: {action_review.decision}")
+            print(f"risk: {action_review.risk}")
+            for reason in action_review.reasons:
+                print(f"- {reason}")
+            if action_review.effects:
+                print("effects: " + ", ".join(action_review.effects))
+            if action_review.safer_next_step:
+                print(f"safer_next_step: {action_review.safer_next_step}")
+        return _review_exit(args, action_review.decision)
+
+    if args.command_name == "action":
+        try:
+            action = _read_stdin_action_envelope()
+        except ValueError as exc:
+            return _input_error(str(exc), as_json=args.json)
+        action_review = review_action(action)
+        if args.json:
+            print(json.dumps(action_review.as_dict(), indent=2))
+        else:
+            print(f"decision: {action_review.decision}")
+            print(f"risk: {action_review.risk}")
+            for reason in action_review.reasons:
+                print(f"- {reason}")
+            if action_review.effects:
+                print("effects: " + ", ".join(action_review.effects))
+            if action_review.safer_next_step:
+                print(f"safer_next_step: {action_review.safer_next_step}")
+        return _review_exit(args, action_review.decision)
 
     if args.command_name == "doctor":
         health = data_health()
