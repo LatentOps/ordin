@@ -2,15 +2,12 @@ from __future__ import annotations
 
 from .policy import (
     DECISION_EXIT_CODES as DECISION_EXIT_CODES,
-    DECISION_ORDER,
+    ENFORCEMENT_ORDER as ENFORCEMENT_ORDER,
     FAIL_THRESHOLDS as FAIL_THRESHOLDS,
     ReviewPolicy,
     validate_decision,
     validate_fail_threshold,
 )
-
-
-ENFORCEMENT_ORDER = DECISION_ORDER
 
 
 def enforcement_exit_code(
