@@ -436,6 +436,25 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"safer_next_step: {action_review.safer_next_step}")
         return _review_exit(args, action_review.decision)
 
+    if args.command_name == "action":
+        try:
+            action = _read_stdin_action_envelope()
+        except ValueError as exc:
+            return _input_error(str(exc), as_json=args.json)
+        action_review = review_action(action)
+        if args.json:
+            print(json.dumps(action_review.as_dict(), indent=2))
+        else:
+            print(f"decision: {action_review.decision}")
+            print(f"risk: {action_review.risk}")
+            for reason in action_review.reasons:
+                print(f"- {reason}")
+            if action_review.effects:
+                print(f"effects: {", ".join(action_review.effects)}")
+            if action_review.safer_next_step:
+                print(f"safer_next_step: {action_review.safer_next_step}")
+        return _review_exit(args, action_review.decision)
+
     if args.command_name == "doctor":
         health = data_health()
         if args.json:
