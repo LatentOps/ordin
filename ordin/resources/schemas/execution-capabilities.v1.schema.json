@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/ordin/execution-capabilities.v1.schema.json",
+  "title": "Ordin Execution Capabilities v1",
+  "type": "object",
+  "required": ["schema_version", "filesystem", "filesystem_scopes", "network", "network_scopes", "privilege_escalation", "process_execution"],
+  "properties": {
+    "schema_version": {"const": "ordin.execution_capabilities.v1"},
+    "filesystem": {"enum": ["none", "read", "write", "unknown"]},
+    "filesystem_scopes": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {"type": "string", "minLength": 1, "maxLength": 32768}
+    },
+    "network": {"enum": ["none", "read", "write", "unknown"]},
+    "network_scopes": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {"type": "string", "minLength": 1, "maxLength": 32768}
+    },
+    "privilege_escalation": {"type": ["boolean", "null"]},
+    "process_execution": {"type": ["boolean", "null"]}
+  },
+  "additionalProperties": false
+}
