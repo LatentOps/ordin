@@ -412,9 +412,7 @@ def _temporal_evidence_for_action(
         signals = {f"effect:{effect}" for effect in base.effects}
 
     predicted_effects = tuple(
-        signal.removeprefix("effect:")
-        for signal in signals
-        if signal.startswith("effect:")
+        signal.removeprefix("effect:") for signal in signals if signal.startswith("effect:")
     )
     signals.update(f"signal:predicted-effect:{effect}" for effect in predicted_effects)
 

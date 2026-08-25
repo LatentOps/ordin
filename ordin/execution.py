@@ -29,8 +29,11 @@ NETWORK_RESOURCE_TYPES = frozenset(("url", "host", "network", "endpoint"))
 
 
 class ResourceLike(Protocol):
-    type: str
-    value: str
+    @property
+    def type(self) -> str: ...
+
+    @property
+    def value(self) -> str: ...
 
 
 def _validate_json(value: Any, *, path: str = "metadata", depth: int = 0) -> None:
@@ -331,9 +334,7 @@ def derive_capabilities(
     filesystem: CapabilityAccess = "none"
     if filesystem_effects:
         filesystem = (
-            "read"
-            if filesystem_effects.issubset(FILESYSTEM_READ_ONLY_EFFECTS)
-            else "write"
+            "read" if filesystem_effects.issubset(FILESYSTEM_READ_ONLY_EFFECTS) else "write"
         )
 
     network: CapabilityAccess = "none"
@@ -342,20 +343,12 @@ def derive_capabilities(
 
     filesystem_scopes = tuple(
         sorted(
-            {
-                resource.value
-                for resource in resources
-                if resource.type in FILESYSTEM_RESOURCE_TYPES
-            }
+            {resource.value for resource in resources if resource.type in FILESYSTEM_RESOURCE_TYPES}
         )
     )
     network_scopes = tuple(
         sorted(
-            {
-                resource.value
-                for resource in resources
-                if resource.type in NETWORK_RESOURCE_TYPES
-            }
+            {resource.value for resource in resources if resource.type in NETWORK_RESOURCE_TYPES}
         )
     )
     privilege = any(effect.startswith("privilege.") for effect in effect_set)

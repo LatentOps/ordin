@@ -147,7 +147,7 @@ def test_observation_round_trip_is_bounded_and_schema_valid():
 
     with pytest.raises(ValueError, match="valid 1 to 64 character identifier"):
         ObservedResource(type="INVALID TYPE", value="x")
-    with pytest.raises(ValueError, match="duplicate"):
+    with pytest.raises(ValueError, match="must be unique"):
         ObservationHistory(observations=(observation, observation))
 
 
