@@ -18,9 +18,9 @@ __ordin_shell_threshold() {
   esac
 }
 
-cgr() {
+orun() {
   if (( $# != 1 )); then
-    printf '%s\n' "Usage: cgr 'command text'" >&2
+    printf '%s\n' "Usage: orun 'command text'" >&2
     return 2
   fi
 
@@ -64,7 +64,7 @@ cgr() {
 }
 
 ordin_shell_disable() {
-  unset -f cgr 2>/dev/null || true
+  unset -f orun 2>/dev/null || true
   unset -f __ordin_shell_threshold 2>/dev/null || true
   unset -f ordin_shell_disable 2>/dev/null || true
 }
@@ -106,9 +106,9 @@ __ordin_review_args() {
   print -rN -- "${args[@]}"
 }
 
-cgr() {
+orun() {
   if (( $# != 1 )); then
-    print -ru2 -- "Usage: cgr 'command text'"
+    print -ru2 -- "Usage: orun 'command text'"
     return 2
   fi
 
@@ -205,7 +205,7 @@ ordin_shell_disable() {
     bindkey -r '^X^G' 2>/dev/null || true
     zle -D ordin-review-accept 2>/dev/null || true
   fi
-  unfunction cgr 2>/dev/null || true
+  unfunction orun 2>/dev/null || true
   unfunction __ordin_shell_threshold 2>/dev/null || true
   unfunction __ordin_zle_review_accept 2>/dev/null || true
   unfunction ordin_shell_enable_zle 2>/dev/null || true

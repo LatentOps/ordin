@@ -15,12 +15,12 @@ source <(ordin shell-init bash)
 Then run exact shell text through the reviewed wrapper:
 
 ```bash
-cgr 'git status --short'
-cgr 'rm -rf ./build'
-cgr $'printf "one\\n"\nprintf "two\\n"'
+orun 'git status --short'
+orun 'rm -rf ./build'
+orun $'printf "one\\n"\nprintf "two\\n"'
 ```
 
-`cgr` sends the exact string to `ordin check` with explicit context from
+`orun` sends the exact string to `ordin check` with explicit context from
 the shell (`PWD`, shell name, `EUID`, interactive mode, and optionally
 `ORDIN_REPO_ROOT`). It executes the string in a child Bash process only
 when the enforcement threshold allows it. The wrapper never uses `eval`.
@@ -43,7 +43,7 @@ Load the integration:
 source <(ordin shell-init zsh)
 ```
 
-Zsh gets the same `cgr 'command text'` wrapper plus a ZLE widget bound to
+Zsh gets the same `orun 'command text'` wrapper plus a ZLE widget bound to
 **Ctrl-X Ctrl-G**. Type a command into the normal Zsh prompt and press that key
 sequence to review the current `BUFFER`. If the review passes, the widget calls
 the original ZLE `accept-line`, so `cd`, exports, aliases, functions, pipelines,

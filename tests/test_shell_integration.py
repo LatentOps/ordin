@@ -12,7 +12,7 @@ from ordin.shell_integration import render_shell_init
 
 def test_bash_init_is_explicit_reversible_and_has_no_eval():
     script = render_shell_init("bash")
-    assert "cgr()" in script
+    assert "orun()" in script
     assert "ordin_shell_disable()" in script
     assert "command bash -c" in script
     assert "eval " not in script
@@ -66,7 +66,7 @@ def test_bash_wrapper_executes_allowed_exact_text(tmp_path):
         [
             bash,
             "-c",
-            f"source {init_file}; cgr $'printf one\\nprintf two'",
+            f"source {init_file}; orun $'printf one\\nprintf two'",
         ],
         text=True,
         capture_output=True,
@@ -95,7 +95,7 @@ def test_bash_wrapper_does_not_execute_blocked_text(tmp_path):
         [
             bash,
             "-c",
-            f"source {init_file}; cgr 'touch {blocked_path}'",
+            f"source {init_file}; orun 'touch {blocked_path}'",
         ],
         text=True,
         capture_output=True,
