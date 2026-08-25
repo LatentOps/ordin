@@ -1,0 +1,188 @@
+name: one-off temporal CLI plumbing
+
+on:
+  push:
+    branches:
+      - temporal-action-policies
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: temporal-action-policies
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Wire history and temporal policy CLI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding="utf-8")
+              if new in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f"expected anchor not found in {path}: {old!r}")
+              file.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "ordin/cli.py",
+              'from .action import ActionEnvelope, review_action\n',
+              'from .action import ActionEnvelope, ActionHistory, review_action\n',
+          )
+          replace_once(
+              "ordin/cli.py",
+              'from .trace import ActionTrace\n',
+              'from .temporal import load_temporal_policy\nfrom .trace import ActionTrace\n',
+          )
+          replace_once(
+              "ordin/cli.py",
+              'def _policy_error(exc: ValueError, as_json: bool) -> int:\n',
+              'def _history_error(exc: ValueError, as_json: bool) -> int:\n'
+              '    if as_json:\n'
+              '        print(json.dumps({"error": "invalid_action_history", "message": str(exc)}, indent=2))\n'
+              '    else:\n'
+              '        print(f"invalid action history: {exc}")\n'
+              '    return 2\n\n\n'
+              'def _temporal_policy_error(exc: ValueError, as_json: bool) -> int:\n'
+              '    if as_json:\n'
+              '        print(json.dumps({"error": "invalid_temporal_policy", "message": str(exc)}, indent=2))\n'
+              '    else:\n'
+              '        print(f"invalid temporal policy: {exc}")\n'
+              '    return 2\n\n\n'
+              'def _policy_error(exc: ValueError, as_json: bool) -> int:\n',
+          )
+          replace_once(
+              "ordin/cli.py",
+              'def _review_exit(args: argparse.Namespace, decision: str) -> int:\n',
+              'def _read_action_history_file(path: str) -> ActionHistory:\n'
+              '    history_path = Path(path)\n'
+              '    try:\n'
+              '        payload = json.loads(history_path.read_text(encoding="utf-8"))\n'
+              '    except OSError as exc:\n'
+              '        raise ValueError(f"cannot read action history {history_path}: {exc}") from exc\n'
+              '    except json.JSONDecodeError as exc:\n'
+              '        raise ValueError(f"invalid action history JSON: {exc.msg}") from exc\n'
+              '    if not isinstance(payload, dict):\n'
+              '        raise ValueError("action history file must contain a JSON object")\n'
+              '    errors = validate_named_schema("action_history", payload)\n'
+              '    if errors:\n'
+              '        raise ValueError("action history schema validation failed: " + "; ".join(errors))\n'
+              '    return ActionHistory.from_dict(payload)\n\n\n'
+              'def _review_exit(args: argparse.Namespace, decision: str) -> int:\n',
+          )
+          replace_once(
+              "ordin/cli.py",
+              '    action_parser.add_argument(\n'
+              '        "--policy",\n'
+              '        help="Explicit local ordin.policy_set.v1 JSON file to apply.",\n'
+              '    )\n',
+              '    action_parser.add_argument(\n'
+              '        "--policy",\n'
+              '        help="Explicit local ordin.policy_set.v1 JSON file to apply.",\n'
+              '    )\n'
+              '    action_parser.add_argument(\n'
+              '        "--history",\n'
+              '        help="Explicit local ordin.action_history.v1 JSON file.",\n'
+              '    )\n'
+              '    action_parser.add_argument(\n'
+              '        "--temporal-policy",\n'
+              '        help="Explicit local ordin.temporal_policy_set.v1 JSON file; defaults to bundled rules.",\n'
+              '    )\n',
+          )
+          replace_once(
+              "ordin/cli.py",
+              '    doctor_parser = subparsers.add_parser("doctor", help="Check local Ordin data.")\n',
+              '    temporal_parser = subparsers.add_parser(\n'
+              '        "temporal",\n'
+              '        help="Validate bounded temporal action policies.",\n'
+              '    )\n'
+              '    temporal_subparsers = temporal_parser.add_subparsers(\n'
+              '        dest="temporal_command", required=True\n'
+              '    )\n'
+              '    temporal_validate_parser = temporal_subparsers.add_parser(\n'
+              '        "validate", help="Validate and compile a temporal policy file."\n'
+              '    )\n'
+              '    temporal_validate_parser.add_argument("path")\n'
+              '    temporal_validate_parser.add_argument("--json", action="store_true")\n\n'
+              '    doctor_parser = subparsers.add_parser("doctor", help="Check local Ordin data.")\n',
+          )
+          replace_once(
+              "ordin/cli.py",
+              '    if args.command_name == "action":\n'
+              '        try:\n'
+              '            action = _read_stdin_action_envelope()\n'
+              '        except ValueError as exc:\n'
+              '            return _input_error(str(exc), as_json=args.json)\n'
+              '        action_review = review_action(action)\n',
+              '    if args.command_name == "temporal":\n'
+              '        if args.temporal_command == "validate":\n'
+              '            try:\n'
+              '                compiled = load_temporal_policy(args.path)\n'
+              '            except ValueError as exc:\n'
+              '                return _temporal_policy_error(exc, as_json=args.json)\n'
+              '            payload = {\n'
+              '                "schema_version": compiled.policy.schema_version,\n'
+              '                "policy_id": compiled.policy.policy_id,\n'
+              '                "version": compiled.policy.version,\n'
+              '                "rule_count": len(compiled.policy.rules),\n'
+              '            }\n'
+              '            if args.json:\n'
+              '                print(json.dumps(payload, indent=2))\n'
+              '            else:\n'
+              '                print(f"policy_id: {payload[\'policy_id\']}")\n'
+              '                print(f"version: {payload[\'version\']}")\n'
+              '                print(f"rules: {payload[\'rule_count\']}")\n'
+              '            return 0\n\n'
+              '    if args.command_name == "action":\n'
+              '        try:\n'
+              '            action = _read_stdin_action_envelope()\n'
+              '        except ValueError as exc:\n'
+              '            return _input_error(str(exc), as_json=args.json)\n'
+              '        history = None\n'
+              '        if args.history:\n'
+              '            try:\n'
+              '                history = _read_action_history_file(args.history)\n'
+              '            except ValueError as exc:\n'
+              '                return _history_error(exc, as_json=args.json)\n'
+              '        temporal_policy = None\n'
+              '        if args.temporal_policy:\n'
+              '            try:\n'
+              '                temporal_policy = load_temporal_policy(args.temporal_policy)\n'
+              '            except ValueError as exc:\n'
+              '                return _temporal_policy_error(exc, as_json=args.json)\n'
+              '        action_review = review_action(\n'
+              '            action, history=history, temporal_policy=temporal_policy\n'
+              '        )\n',
+          )
+          replace_once(
+              "ordin/entrypoint.py",
+              '    "policy",\n    "doctor",\n',
+              '    "policy",\n    "temporal",\n    "doctor",\n',
+          )
+          PY
+      - name: Format and validate
+        run: |
+          python -m pip install "ruff==0.16.4"
+          ruff format ordin/cli.py ordin/entrypoint.py tests/test_action_cli.py tests/test_temporal_cli.py
+          ruff check ordin/cli.py ordin/entrypoint.py tests/test_action_cli.py tests/test_temporal_cli.py
+          python -m compileall -q ordin tests/test_action_cli.py tests/test_temporal_cli.py
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then
+            echo "No temporal CLI changes required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ordin/cli.py ordin/entrypoint.py tests/test_action_cli.py tests/test_temporal_cli.py
+          git commit -m "Expose bounded action history and temporal policy CLI"
+          git push origin HEAD:temporal-action-policies
