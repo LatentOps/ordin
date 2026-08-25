@@ -1,11 +1,11 @@
-from commandgraph.search import search
+from ordin.search import search
 
 
 def test_runnable_query_finds_chmod_first():
     results = search("make file runnable", limit=3)
     assert results
     assert results[0].command == "chmod"
-    assert results[0].as_dict()["schema_version"] == "commandgraph.search_result.v1"
+    assert results[0].as_dict()["schema_version"] == "ordin.search_result.v1"
 
 
 def test_port_query_finds_inspection_tools():

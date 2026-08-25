@@ -1,4 +1,4 @@
-from commandgraph.risk import check_command
+from ordin.risk import check_command
 
 
 def test_read_only_git_subcommand_uses_semantic_low_risk():

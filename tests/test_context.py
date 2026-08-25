@@ -1,8 +1,8 @@
 import pytest
 
-from commandgraph.context import ExecutionContext, ReviewRequest
-from commandgraph.analyzers import analyze_tokens
-from commandgraph.shell import shell_tokens
+from ordin.context import ExecutionContext, ReviewRequest
+from ordin.analyzers import analyze_tokens
+from ordin.shell import shell_tokens
 
 
 def test_review_request_has_versioned_machine_contract():
@@ -19,7 +19,7 @@ def test_review_request_has_versioned_machine_contract():
         ),
     )
     payload = request.as_dict()
-    assert payload["schema_version"] == "commandgraph.review_request.v1"
+    assert payload["schema_version"] == "ordin.review_request.v1"
     assert payload["context"]["cwd"] == "/repo"
     assert payload["context"]["interactive"] is False
 
@@ -27,7 +27,7 @@ def test_review_request_has_versioned_machine_contract():
 def test_review_request_round_trips_and_keeps_missing_context_explicit():
     request = ReviewRequest.from_dict(
         {
-            "schema_version": "commandgraph.review_request.v1",
+            "schema_version": "ordin.review_request.v1",
             "command": "git status",
             "context": {"cwd": "/repo"},
         }
@@ -42,7 +42,7 @@ def test_review_request_rejects_unknown_schema():
     with pytest.raises(ValueError):
         ReviewRequest.from_dict(
             {
-                "schema_version": "commandgraph.review_request.v999",
+                "schema_version": "ordin.review_request.v999",
                 "command": "git status",
             }
         )

@@ -1,10 +1,10 @@
-from commandgraph.review import review_command
+from ordin.review import review_command
 
 
 def test_review_reports_intent_alignment():
     review = review_command("chmod +x script.sh", intent="make file runnable")
     payload = review.as_dict()
-    assert payload["schema_version"] == "commandgraph.review.v1"
+    assert payload["schema_version"] == "ordin.review.v1"
     assert payload["intent_alignment"] == "matched"
     assert review.decision in {"allow", "warn"}
 

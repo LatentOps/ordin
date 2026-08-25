@@ -1,10 +1,10 @@
-from commandgraph.data import data_health, find_command
-from commandgraph.graph import (
+from ordin.data import data_health, find_command
+from ordin.graph import (
     build_effect_graph,
     effects_for_tokens,
     validate_effect_graph_data,
 )
-from commandgraph.shell import shell_tokens
+from ordin.shell import shell_tokens
 
 
 def _effect_names(command: str) -> set[str]:
@@ -87,7 +87,7 @@ def test_effect_resources_keep_producer_provenance():
 
 def test_graph_export_has_stable_schema_version():
     payload = build_effect_graph().as_dict()
-    assert payload["schema_version"] == "commandgraph.effect_graph.v1"
+    assert payload["schema_version"] == "ordin.effect_graph.v1"
     assert payload["nodes"]
     assert payload["edges"]
 
@@ -140,7 +140,7 @@ def test_data_health_includes_effect_graph_validation():
 def test_validation_rejects_unknown_effect_and_missing_alternative():
     commands = [
         {
-            "schema_version": "commandgraph.command_card.v1",
+            "schema_version": "ordin.command_card.v1",
             "command": "demo",
             "summary": "Demo command.",
             "aliases": [],

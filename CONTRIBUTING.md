@@ -1,6 +1,6 @@
-# Contributing to CommandGraph
+# Contributing to Ordin
 
-CommandGraph is an open-source LatentOps project for local, intent-aware
+Ordin is an open-source LatentOps project for local, intent-aware
 Linux command discovery and safety review. Contributions should keep the
 project local-first, explainable, and useful without cloud services.
 
@@ -9,7 +9,7 @@ project local-first, explainable, and useful without cloud services.
 Before opening a pull request:
 
 - Run `pytest -q`.
-- Run `python -m commandgraph doctor`.
+- Run `python -m ordin doctor`.
 - Keep core behavior offline by default.
 - Do not add telemetry, command upload, shell history upload, or required remote services.
 - Keep dependencies small and justify any new dependency in the pull request.
@@ -79,7 +79,7 @@ Command-specific parsing belongs in command metadata or semantic analyzers;
 the catalog should remain reusable across command families.
 
 Run `validate_effect_graph_data()` indirectly through the normal test suite and
-`commandgraph doctor`. Unknown effect references or broken graph relationships
+`ordin doctor`. Unknown effect references or broken graph relationships
 must fail validation.
 
 ## Risk Rules
@@ -106,7 +106,7 @@ silently treating it as low risk.
 
 ## Man-Page Indexing
 
-The local man-page indexer must remain optional. CommandGraph should still work
+The local man-page indexer must remain optional. Ordin should still work
 from bundled curated data when `apropos` or `man -k` is unavailable.
 
 Man-page entries intentionally remain valid without typed effects; curated
@@ -119,7 +119,7 @@ local man-db tools on the test machine.
 
 - Scope is focused and unrelated cleanup is avoided.
 - Tests pass.
-- `python -m commandgraph doctor` passes.
+- `python -m ordin doctor` passes.
 - New JSON output keeps a schema version.
 - Effect references and typed graph relationships validate.
 - Command cards and risk rules are conservative.

@@ -1,6 +1,6 @@
 # Typed Command and Effect Graph
 
-CommandGraph keeps its graph local and deterministic. The graph is built in
+Ordin keeps its graph local and deterministic. The graph is built in
 memory from versioned command cards and the bundled effect catalog; it does not
 require a graph database, hosted model, or network service.
 
@@ -27,11 +27,11 @@ and typed relationships:
 - `command --requires--> privilege`
 
 The public graph export uses
-`commandgraph.effect_graph.v1`.
+`ordin.effect_graph.v1`.
 
 ## Command Card Extensions
 
-The original `commandgraph.command_card.v1` fields remain valid. Typed graph
+The original `ordin.command_card.v1` fields remain valid. Typed graph
 metadata is additive, so older cards continue to load.
 
 A command-level effect:
@@ -108,13 +108,13 @@ Optional graph relationships:
 ```
 
 `requires_privileges` names a local capability or privilege boundary; it does
-not assert that CommandGraph can verify that capability yet. Context-aware
+not assert that Ordin can verify that capability yet. Context-aware
 verification is a later layer.
 
 ## Effect Catalog
 
 `data/effects.json` is the canonical local vocabulary. The packaged mirror is
-`commandgraph/resources/effects.json`.
+`ordin/resources/effects.json`.
 
 Each effect defines:
 
@@ -185,8 +185,8 @@ compatibility while cards are migrated incrementally.
 - missing safer-alternative command references;
 - graph construction invariants.
 
-`commandgraph.data.data_health()` includes graph errors and graph node/edge
-counts. `commandgraph doctor --json` therefore exposes graph health today;
+`ordin.data.data_health()` includes graph errors and graph node/edge
+counts. `ordin doctor --json` therefore exposes graph health today;
 broader JSON Schema validation is tracked separately.
 
 ## Scope Boundary

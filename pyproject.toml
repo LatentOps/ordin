@@ -3,14 +3,14 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "commandgraph"
+name = "ordin"
 version = "0.1.0"
-description = "Intent-aware command discovery and safety checks for humans and AI agents."
+description = "Local command intelligence and pre-execution safety for humans and AI agents."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [{ name = "LatentOps" }]
-keywords = ["cli", "linux", "shell", "safety", "agents", "command-line"]
+keywords = ["cli", "linux", "shell", "safety", "agents", "policy", "command-line"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -29,9 +29,9 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/LatentOps/command-graph"
-Repository = "https://github.com/LatentOps/command-graph"
-Issues = "https://github.com/LatentOps/command-graph/issues"
+Homepage = "https://github.com/LatentOps/ordin"
+Repository = "https://github.com/LatentOps/ordin"
+Issues = "https://github.com/LatentOps/ordin/issues"
 
 [project.optional-dependencies]
 semantic = ["sentence-transformers>=3.0,<6"]
@@ -44,14 +44,13 @@ dev = [
 ]
 
 [project.scripts]
-commandgraph = "commandgraph.entrypoint:main"
-cmdgraph = "commandgraph.entrypoint:main"
+ordin = "ordin.entrypoint:main"
 
 [tool.setuptools]
-packages = ["commandgraph", "commandgraph.analyzers"]
+packages = ["ordin", "ordin.analyzers"]
 
 [tool.setuptools.package-data]
-commandgraph = ["resources/*.json", "resources/**/*.json"]
+ordin = ["resources/*.json", "resources/**/*.json"]
 
 [tool.ruff]
 target-version = "py310"

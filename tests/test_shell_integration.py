@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from commandgraph.cli import main
-from commandgraph.shell_integration import render_shell_init
+from ordin.cli import main
+from ordin.shell_integration import render_shell_init
 
 
 def test_bash_init_is_explicit_reversible_and_has_no_eval():
     script = render_shell_init("bash")
-    assert "cgr()" in script
-    assert "commandgraph_shell_disable()" in script
+    assert "orun()" in script
+    assert "ordin_shell_disable()" in script
     assert "command bash -c" in script
     assert "eval " not in script
     assert '--cwd "$PWD"' in script
@@ -22,10 +22,10 @@ def test_bash_init_is_explicit_reversible_and_has_no_eval():
 
 def test_zsh_init_includes_review_accept_widget_without_rebinding_enter():
     script = render_shell_init("zsh")
-    assert "commandgraph-review-accept" in script
+    assert "ordin-review-accept" in script
     assert "^X^G" in script
     assert "zle .accept-line" in script
-    assert "commandgraph_shell_disable()" in script
+    assert "ordin_shell_disable()" in script
     assert "eval " not in script
     assert "bindkey '^M'" not in script
 
@@ -41,7 +41,7 @@ def test_unsupported_shell_is_rejected():
         render_shell_init("fish")
 
 
-def _fake_commandgraph(path: Path, *, decision: str, exit_code: int) -> None:
+def _fake_ordin(path: Path, *, decision: str, exit_code: int) -> None:
     path.write_text(
         f"#!/bin/sh\nprintf 'decision: {decision}\\nrisk: low\\n'\nexit {exit_code}\n",
         encoding="utf-8",
@@ -56,8 +56,8 @@ def test_bash_wrapper_executes_allowed_exact_text(tmp_path):
 
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    _fake_commandgraph(bin_dir / "commandgraph", decision="allow", exit_code=0)
-    init_file = tmp_path / "commandgraph.bash"
+    _fake_ordin(bin_dir / "ordin", decision="allow", exit_code=0)
+    init_file = tmp_path / "ordin.bash"
     init_file.write_text(render_shell_init("bash"), encoding="utf-8")
 
     env = os.environ.copy()
@@ -66,7 +66,7 @@ def test_bash_wrapper_executes_allowed_exact_text(tmp_path):
         [
             bash,
             "-c",
-            f"source {init_file}; cgr $'printf one\\nprintf two'",
+            f"source {init_file}; orun $'printf one\\nprintf two'",
         ],
         text=True,
         capture_output=True,
@@ -84,8 +84,8 @@ def test_bash_wrapper_does_not_execute_blocked_text(tmp_path):
 
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    _fake_commandgraph(bin_dir / "commandgraph", decision="block", exit_code=30)
-    init_file = tmp_path / "commandgraph.bash"
+    _fake_ordin(bin_dir / "ordin", decision="block", exit_code=30)
+    init_file = tmp_path / "ordin.bash"
     init_file.write_text(render_shell_init("bash"), encoding="utf-8")
     blocked_path = tmp_path / "must-not-exist"
 
@@ -95,7 +95,7 @@ def test_bash_wrapper_does_not_execute_blocked_text(tmp_path):
         [
             bash,
             "-c",
-            f"source {init_file}; cgr 'touch {blocked_path}'",
+            f"source {init_file}; orun 'touch {blocked_path}'",
         ],
         text=True,
         capture_output=True,
@@ -111,6 +111,6 @@ def test_bash_generated_script_has_valid_syntax(tmp_path):
     bash = shutil.which("bash")
     if bash is None:
         pytest.skip("bash is unavailable")
-    init_file = tmp_path / "commandgraph.bash"
+    init_file = tmp_path / "ordin.bash"
     init_file.write_text(render_shell_init("bash"), encoding="utf-8")
     subprocess.run([bash, "-n", str(init_file)], check=True)

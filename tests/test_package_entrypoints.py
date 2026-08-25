@@ -19,10 +19,10 @@ def _venv_script(venv_path: Path, script_name: str) -> Path:
     return venv_path / "bin" / script_name
 
 
-def test_package_install_exposes_cli_entrypoints_and_graph_data(tmp_path):
+def test_package_install_exposes_ordin_cli_and_graph_data(tmp_path):
     venv_path = tmp_path / "venv"
     # Python 3.12+ venvs may omit setuptools; expose the runner build backend
-    # while still installing CommandGraph and its console scripts into this venv.
+    # while still installing Ordin and its console script into this venv.
     venv.EnvBuilder(with_pip=True, system_site_packages=True).create(venv_path)
     python = _venv_python(venv_path)
 
@@ -42,42 +42,40 @@ def test_package_install_exposes_cli_entrypoints_and_graph_data(tmp_path):
         cwd=PROJECT_ROOT,
     )
 
-    outputs = []
-    for script_name in ("commandgraph", "cmdgraph"):
-        script = _venv_script(venv_path, script_name)
-        result = subprocess.run(
-            [str(script), "--help"],
-            check=True,
-            cwd=PROJECT_ROOT,
-            text=True,
-            capture_output=True,
-        )
-        assert "Intent-aware command discovery and safety checks." in result.stdout
-        outputs.append(result.stdout)
+    script = _venv_script(venv_path, "ordin")
+    help_result = subprocess.run(
+        [str(script), "--help"],
+        check=True,
+        cwd=PROJECT_ROOT,
+        text=True,
+        capture_output=True,
+    )
+    assert "command" in help_result.stdout.lower()
+    assert "safety" in help_result.stdout.lower()
 
-        doctor = subprocess.run(
-            [str(script), "doctor", "--json"],
-            check=True,
-            cwd=venv_path,
-            text=True,
-            capture_output=True,
-        )
-        health = json.loads(doctor.stdout)
-        assert health["effect_count"] >= 20
-        assert health["schema_count"] >= 8
-        assert health["schema_errors"] == []
-        assert health["risk_rule_errors"] == []
-        assert health["template_errors"] == []
-        assert health["graph_node_count"] > health["command_count"]
-        assert health["graph_errors"] == []
-        assert health["ok"] is True
+    doctor = subprocess.run(
+        [str(script), "doctor", "--json"],
+        check=True,
+        cwd=venv_path,
+        text=True,
+        capture_output=True,
+    )
+    health = json.loads(doctor.stdout)
+    assert health["effect_count"] >= 20
+    assert health["schema_count"] >= 8
+    assert health["schema_errors"] == []
+    assert health["risk_rule_errors"] == []
+    assert health["template_errors"] == []
+    assert health["graph_node_count"] > health["command_count"]
+    assert health["graph_errors"] == []
+    assert health["ok"] is True
 
     schema_check = subprocess.run(
         [
             str(python),
             "-c",
             (
-                "from commandgraph.schema import validate_schema_files; "
+                "from ordin.schema import validate_schema_files; "
                 "errors = validate_schema_files(); "
                 "assert not errors, errors"
             ),
@@ -88,4 +86,3 @@ def test_package_install_exposes_cli_entrypoints_and_graph_data(tmp_path):
         capture_output=True,
     )
     assert schema_check.returncode == 0
-    assert outputs[0] == outputs[1]

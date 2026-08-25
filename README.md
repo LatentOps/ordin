@@ -1,159 +1,169 @@
-# CommandGraph
+# Ordin
 
-Intent-aware command discovery and safety checks for humans and AI agents.
+**Local command intelligence and pre-execution safety for humans and AI agents.**
 
-CommandGraph is an open-source LatentOps project and an advanced
-`apropos`-style tool for Linux terminals. It maps natural-language intent to
-relevant commands, examples, templates, typed command effects, and local safety
-checks.
+Ordin turns shell intent and command text into structured, explainable decisions. It can find commands from natural language, resolve typed command effects, review risky actions with execution context, reason over recent action traces, and provide an opt-in shell gate before execution.
 
-## Goals
+Ordin is local-first. Core search and safety review do not require a cloud service, telemetry, or remote command execution.
 
-- Help users find commands by intent, not exact command names.
-- Explain why a command matched the user's query.
-- Fill simple command templates from query slots like ports, paths, package names, and hosts.
-- Show safe examples before mutation.
-- Classify command risk before execution.
-- Represent command, subcommand, flag, effect, resource, privilege, and safer-alternative relationships explicitly.
-- Provide a simple JSON review interface for AI agents.
-
-## Non-Goals
-
-- No automatic command execution by default.
-- No cloud dependency.
-- No free-form shell generation.
-- No replacement for careful operator judgment.
-
-## Example
-
-```bash
-commandgraph search "make file runnable"
-```
+## What Ordin does
 
 ```text
-chmod
-  why: matched intent "make script runnable"
-  example: chmod +x script.sh
-  risk: medium
+natural-language intent
+        |
+        v
+command discovery ---------> examples / templates
+        |
+        v
+shell parsing + normalization
+        |
+        v
+semantic analyzers + typed effects
+        |
+        v
+context + recent action trace
+        |
+        v
+policy evaluation
+        |
+        v
+allow / warn / ask / block
 ```
+
+The same engine is usable from a terminal, shell integration, or machine-readable JSON interface for agents.
+
+## Install
+
+For the CLI, use an isolated tool environment:
 
 ```bash
-commandgraph search "make file runnable" --json
-```
-
-```json
-[
-  {
-    "schema_version": "commandgraph.search_result.v1",
-    "command": "chmod",
-    "summary": "Change file mode bits and permissions.",
-    "risk": "medium"
-  }
-]
-```
-
-```bash
-commandgraph check "git reset --hard HEAD~1"
-```
-
-```text
-decision: warn
-risk: high
-- changes local source-control state (subcommand git reset)
-- can rewrite or discard source-control history (subcommand git reset flag --hard)
-```
-
-```bash
-commandgraph review \
-  --intent "clean dependencies" \
-  --command "rm -rf node_modules" \
-  --json
-```
-
-## Installation
-
-For the CLI, the recommended packaged installation is:
-
-```bash
-pipx install commandgraph
+pipx install ordin
 ```
 
 or:
 
 ```bash
-uv tool install commandgraph
+uv tool install ordin
 ```
 
 A normal Python environment can use:
 
 ```bash
-python -m pip install commandgraph
+python -m pip install ordin
 ```
 
-For an unreleased source checkout:
+For an unreleased checkout:
 
 ```bash
+git clone https://github.com/LatentOps/ordin.git
+cd ordin
 python -m pip install .
 ```
 
-The package installs two equivalent console commands:
+Ordin installs one canonical command:
 
 ```bash
-commandgraph --help
-cmdgraph --help
+ordin --help
 ```
 
-The shorter `cmdgraph` command supports bare intent queries directly:
+See [docs/installation.md](docs/installation.md) for development and optional semantic-reranker installation.
+
+## Quick start
+
+Search directly from natural language:
 
 ```bash
-cmdgraph how to ssh
-cmdgraph make file runnable --json
+ordin how to ssh
+ordin make file runnable --json
+ordin what is using port 3000 --limit 3
 ```
 
-See [docs/installation.md](docs/installation.md) for packaged, source, and optional semantic-reranker installation details.
-
-## CLI
+Explicit search is also available:
 
 ```bash
-cmdgraph how to ssh
-commandgraph search "what is using port 3000"
-cmdgraph search "make file runnable" --json
-commandgraph search 'find files named "*.py" in ./src'
-commandgraph explain chmod
-commandgraph check "cat .env" --json
-commandgraph check "git status --short" --json
-commandgraph review --intent "make file runnable" --command "curl https://example.com" --json
-commandgraph index
-commandgraph doctor --json
+ordin search "find large files"
 ```
 
-Machine-readable output includes schema versions so agents can depend on stable
-contracts. The bundled graph currently seeds 30 command cards, can suggest
-commands from simple templates, can merge an optional local man-page index built
-from `apropos` or `man -k`, and can build a typed in-memory effect graph from
-curated command metadata.
+Inspect the semantic knowledge Ordin has about a command:
 
-## Levels
+```bash
+ordin explain chmod
+ordin graph --json
+ordin packs
+```
 
-### Level 1: Semantic Apropos
+Review a command before execution:
 
-Local command search using:
+```bash
+ordin check "git reset --hard HEAD~1"
+```
 
-- bundled command graph files;
-- optional local man-page data from `apropos` or `man -k`;
-- synonym expansion;
-- slot extraction for common values such as ports, paths, packages, hosts, and patterns;
-- command templates;
-- lightweight scoring;
-- command popularity and availability signals later.
+Example result:
 
-Template suggestions do not invent missing path or depth targets. A template
-that has a genuinely safe default may opt into it explicitly with
-`safe_defaults`; otherwise missing slots leave that suggestion incomplete.
+```text
+decision: warn
+risk: high
+- changes local source-control state
+- can rewrite or discard source-control history
+```
 
-### Level 2: Typed CommandGraph
+Add intent and execution context:
 
-Curated command cards can express:
+```bash
+ordin review \
+  --intent "clean generated dependencies" \
+  --command "rm -rf node_modules" \
+  --cwd "$PWD" \
+  --json
+```
+
+Machine callers can send a versioned review request through stdin:
+
+```bash
+cat request.json | ordin review --stdin --json
+```
+
+## Safety model
+
+Ordin uses four decisions:
+
+- **allow**: known low-risk behavior with no stronger finding.
+- **warn**: known elevated behavior that should be reviewed before execution.
+- **ask**: Ordin cannot establish enough semantic confidence to treat the action as safe.
+- **block**: a known critical condition was detected.
+
+Unknown commands are not silently treated as safe.
+
+Review combines several layers:
+
+1. shell-aware parsing of compound commands, pipelines, substitutions, and shell payloads;
+2. semantic analyzers for high-value command families;
+3. typed effects such as filesystem deletion, network upload, privilege escalation, package installation, source-control mutation, and container changes;
+4. exact risk rules for dangerous combinations;
+5. optional execution context such as working directory, repository boundary, privilege level, shell, and agent identity;
+6. bounded trace-aware rules for multi-action sequences such as secret read → network upload or download → permission change → execute.
+
+A later layer can raise a decision, but it does not weaken a stronger safety finding from an earlier layer.
+
+## Command intelligence
+
+Ordin's search path is deterministic by default. It combines BM25-style lexical retrieval with intent, alias, template, local command availability, and Linux distribution signals.
+
+```bash
+ordin search "lookup dns for example.com" --json
+```
+
+An optional local semantic reranker can rerank only a bounded deterministic candidate set. It is not part of the default dependency set and Ordin does not automatically download a model.
+
+```bash
+python -m pip install "ordin[semantic]"
+```
+
+See [docs/semantic-reranking.md](docs/semantic-reranking.md).
+
+## Typed effect graph
+
+Curated command metadata can express relationships such as:
 
 ```text
 intent -> command
@@ -165,79 +175,87 @@ command -> safer alternative
 command -> required privilege
 ```
 
-The graph is local and built in memory; there is no graph-database dependency.
+The graph is built locally in memory and does not require a graph database.
 
-Effects have a shared vocabulary and policy metadata in `data/effects.json`.
-Migrated commands can therefore distinguish behavior inside one executable.
-For example, `git status` produces a low-risk read effect while
-`git reset --hard` produces a high-risk history-rewrite effect.
-
-See [docs/effect-graph.md](docs/effect-graph.md) for the command-card extensions,
-effect catalog, graph API, and validation rules.
-
-### Level 3: Command Guard
-
-Review shell commands before execution:
-
-```text
-intent + command + context -> allow / warn / block / ask
+```bash
+ordin graph
+ordin graph --json
 ```
 
-Decision semantics are conservative:
+See [docs/effect-graph.md](docs/effect-graph.md) and [docs/schema-contracts.md](docs/schema-contracts.md).
 
-- `allow`: the command has a known low-risk semantic/default baseline with no higher-risk finding;
-- `warn`: CommandGraph found a known medium/high-risk behavior that should be reviewed before execution;
-- `ask`: the command is unclassified, incomplete, or cannot be parsed confidently enough to treat as safe;
-- `block`: CommandGraph found a known critical condition.
+## Shell integration
 
-Unknown is not treated as safe. Compound shell input is segmented at common
-operators such as `&&`, `||`, `;`, and pipes, and risk from any dangerous
-segment propagates to the overall review. Shell payloads passed through common
-`sh -c`/`bash -c` forms are reviewed recursively, and sensitive output
-redirection is surfaced explicitly.
+Shell integration is explicit and reversible. Ordin does not modify shell startup files automatically.
 
-For command cards with typed effects, Command Guard consumes those effects
-before falling back to the card's coarse `default_risk`. Existing risk rules
-remain active and can still raise the final result, including critical blocks.
+For Bash:
 
-### Later Learning
-
-Do not start with RL. Start with retrieval, ranking, templates, typed effects,
-and deterministic risk rules.
-
-Later learning can use:
-
-- click and accept/reject feedback;
-- supervised learning-to-rank;
-- contextual bandits for next suggestion;
-- offline/constrained RL only for multi-step planning in sandboxes.
-
-## Project Layout
-
-```text
-commandgraph/
-  commandgraph/          Python package
-    graph.py             Typed graph construction + effect resolution
-    resources/           Packaged data mirror
-  data/
-    commands/            Command graph entries
-    effects.json         Typed effect catalog and risk metadata
-    synonyms.json        Intent expansion terms
-    risk_rules.json      Local command risk rules
-  docs/
-    architecture.md
-    effect-graph.md
-  examples/
-  tests/
+```bash
+source <(ordin shell-init bash)
+orun 'git status --short'
+orun 'rm -rf ./build'
 ```
 
-## Contributing
+For Zsh:
 
-Contributions should keep CommandGraph local-first, explainable, and safe by
-default. See [CONTRIBUTING.md](CONTRIBUTING.md) for command-card, effect,
-risk-rule, testing, and pull request requirements.
+```zsh
+source <(ordin shell-init zsh)
+```
+
+The Zsh integration also provides an opt-in review widget. See [docs/shell-integration.md](docs/shell-integration.md).
+
+## Machine-readable contracts
+
+Public payloads carry stable schema versions under the Ordin namespace, for example:
+
+```json
+{
+  "schema_version": "ordin.review_request.v1",
+  "command": "git status --short"
+}
+```
+
+Schemas are published in [`schemas/`](schemas/) and packaged with the Python distribution. `ordin doctor` validates schemas, resources, command packs, risk rules, templates, and graph relationships.
+
+## Repository layout
+
+```text
+ordin/              Python package and packaged resources
+data/               Curated command cards, effects, packs, and risk rules
+schemas/            Public JSON Schema contracts
+benchmarks/         Search-quality fixtures
+examples/           Example machine-readable requests
+docs/               Architecture and feature documentation
+tests/              Unit, integration, packaging, and safety tests
+.github/workflows/  CI and release pipelines
+```
+
+The source data and packaged resource mirror are validated for parity in CI.
+
+## Development
+
+```bash
+python -m pip install -e ".[dev]"
+ruff check ordin tests
+ruff format --check ordin tests
+pytest -q
+python -m ordin doctor
+```
+
+Pull requests also run staged mypy checks, Python 3.10–3.13 tests, wheel/sdist validation, clean installed-CLI smoke tests, and packaged installation checks on Debian and Fedora.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/development-workflow.md](docs/development-workflow.md).
+
+## Design constraints
+
+Ordin intentionally does not:
+
+- execute commands automatically by default;
+- require a cloud service for core behavior;
+- upload shell history or command text;
+- generate arbitrary shell programs from free-form prompts;
+- treat unclassified behavior as safe.
 
 ## License
 
-CommandGraph is licensed under the Apache License 2.0. See [LICENSE](LICENSE)
-and [NOTICE](NOTICE).
+Ordin is licensed under the Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

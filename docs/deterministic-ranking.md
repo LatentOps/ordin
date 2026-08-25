@@ -1,6 +1,6 @@
 # Deterministic Search Ranking
 
-CommandGraph uses a deterministic BM25-style lexical ranker for intent-to-command retrieval. The ranker remains local and dependency-free.
+Ordin uses a deterministic BM25-style lexical ranker for intent-to-command retrieval. The ranker remains local and dependency-free.
 
 ## Ranking Signals
 
@@ -38,7 +38,7 @@ This gives later retrieval work a stable baseline rather than relying on anecdot
 
 ## Parameters
 
-The current BM25 constants are checked into `commandgraph.search`:
+The current BM25 constants are checked into `ordin.search`:
 
 - `k1 = 1.4`
 - `b = 0.72`

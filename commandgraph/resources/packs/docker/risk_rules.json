@@ -1,7 +1,0 @@
-{
-  "schema_version": "commandgraph.risk_rules.v1",
-  "rules": [
-    {"id":"docker_prune","pattern":"\\bdocker\\s+.*\\bprune\\b","risk":"high","category":"container_cleanup","reason":"can remove Docker images, containers, networks, or volumes","safer_next_step":"List affected Docker resources before pruning."},
-    {"id":"docker_rm_force","pattern":"\\bdocker\\s+rm\\b.*(-f|--force)","risk":"high","category":"container_delete","reason":"force-removes containers","safer_next_step":"Inspect the container name and status before removal."}
-  ]
-}

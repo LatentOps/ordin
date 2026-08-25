@@ -1,5 +1,5 @@
-from commandgraph.slots import extract_slots
-from commandgraph.templates import render_template, suggest_commands
+from ordin.slots import extract_slots
+from ordin.templates import render_template, suggest_commands
 
 
 def test_extracts_common_slots():

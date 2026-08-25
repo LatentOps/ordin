@@ -1,6 +1,6 @@
 import json
 
-from commandgraph.cli import main
+from ordin.cli import main
 
 
 def test_check_cli_uses_context_flags_for_root_resolution(capsys):

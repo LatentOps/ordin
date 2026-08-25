@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from commandgraph.availability import EnvironmentInfo
-from commandgraph.benchmark import evaluate_search_quality, load_search_fixtures
-from commandgraph.search import search, search_legacy
+from ordin.availability import EnvironmentInfo
+from ordin.benchmark import evaluate_search_quality, load_search_fixtures
+from ordin.search import search, search_legacy
 
 
 ROOT = Path(__file__).resolve().parents[1]

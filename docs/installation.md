@@ -1,51 +1,52 @@
 # Installation
 
-CommandGraph is packaged as the Python distribution `commandgraph` and installs two equivalent console commands: `commandgraph` and the shorter `cmdgraph`.
+Ordin is distributed as the Python package `ordin` and installs one canonical console command: `ordin`.
 
-## PyPI
+## Recommended CLI installation
 
-After a release is published to PyPI, the recommended CLI installation is:
+Use an isolated tool environment:
 
 ```bash
-pipx install commandgraph
+pipx install ordin
 ```
 
-or with `uv`:
+or:
 
 ```bash
-uv tool install commandgraph
-```
-
-A normal Python environment can use:
-
-```bash
-python -m pip install commandgraph
+uv tool install ordin
 ```
 
 Then verify the installation:
 
 ```bash
-cmdgraph doctor
-cmdgraph make file runnable
+ordin --help
+ordin doctor
+ordin make file runnable
+```
+
+A normal Python environment can use:
+
+```bash
+python -m pip install ordin
 ```
 
 ## Optional semantic reranking
 
-The deterministic BM25 search path has no ML runtime dependency. Local semantic reranking is optional:
+The deterministic search and safety paths have no ML runtime dependency. Local semantic reranking is optional:
 
 ```bash
-python -m pip install "commandgraph[semantic]"
+python -m pip install "ordin[semantic]"
 ```
 
-CommandGraph still requires an explicit local model path and does not automatically download a model.
+A semantic model must be supplied from an explicit local path. Ordin does not automatically download one.
 
 ## Install from source
 
 For an unreleased checkout:
 
 ```bash
-git clone https://github.com/LatentOps/command-graph.git
-cd command-graph
+git clone https://github.com/LatentOps/ordin.git
+cd ordin
 python -m pip install .
 ```
 
@@ -55,6 +56,15 @@ For development:
 python -m pip install -e ".[dev]"
 ```
 
-## Supported Python
+Run the local validation gate with:
 
-CommandGraph supports Python 3.10 through 3.13. The CI matrix tests each supported version before merge.
+```bash
+ruff check ordin tests
+ruff format --check ordin tests
+pytest -q
+python -m ordin doctor
+```
+
+## Supported Python and Linux validation
+
+Ordin supports Python 3.10 through 3.13. CI tests every supported Python version and also performs isolated installed-CLI smoke tests on Debian and Fedora in addition to the standard Ubuntu runner.
