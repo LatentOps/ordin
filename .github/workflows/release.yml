@@ -36,7 +36,7 @@ jobs:
           project_version = pyproject["project"]["version"]
 
           namespace = {}
-          exec(Path("commandgraph/__init__.py").read_text(encoding="utf-8"), namespace)
+          exec(Path("ordin/__init__.py").read_text(encoding="utf-8"), namespace)
           runtime_version = namespace["__version__"]
           if project_version != runtime_version:
               raise SystemExit(
@@ -58,15 +58,15 @@ jobs:
         run: python -m twine check dist/*
       - name: Smoke-test built wheel
         run: |
-          python -m venv /tmp/commandgraph-release
-          /tmp/commandgraph-release/bin/python -m pip install --upgrade pip
-          /tmp/commandgraph-release/bin/python -m pip install dist/*.whl
-          /tmp/commandgraph-release/bin/cmdgraph doctor
-          /tmp/commandgraph-release/bin/cmdgraph make file runnable --limit 1 --json
+          python -m venv /tmp/ordin-release
+          /tmp/ordin-release/bin/python -m pip install --upgrade pip
+          /tmp/ordin-release/bin/python -m pip install dist/*.whl
+          /tmp/ordin-release/bin/ordin doctor
+          /tmp/ordin-release/bin/ordin make file runnable --limit 1 --json
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: commandgraph-release-dist
+          name: ordin-release-dist
           path: dist/*
           if-no-files-found: error
 
@@ -77,14 +77,14 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/commandgraph
+      url: https://pypi.org/p/ordin
     permissions:
       id-token: write
     steps:
       - name: Download validated release artifacts
         uses: actions/download-artifact@v4
         with:
-          name: commandgraph-release-dist
+          name: ordin-release-dist
           path: dist
       - name: Publish with PyPI Trusted Publishing
         uses: pypa/gh-action-pypi-publish@release/v1
