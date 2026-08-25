@@ -2,7 +2,7 @@ import pytest
 
 from ordin import ReviewPolicy
 from ordin.policy import DECISION_ORDER, decision_value, validate_decision, validate_fail_threshold
-from ordin.risk import RiskReview
+from ordin.risk import RiskReview, check_command
 
 
 def test_decision_order_is_monotonic_for_agent_enforcement():
@@ -38,6 +38,13 @@ def test_policy_accepts_review_objects_and_exposes_result_properties():
     assert review.blocked is False
     assert review.requires_attention is True
     assert ReviewPolicy(fail_on="ask").requires_escalation(review) is True
+
+
+def test_unknown_compound_segment_cannot_be_weakened_to_warning():
+    review = check_command("mystery-command && rm -rf ./build")
+    assert review.decision == "ask"
+    assert review.risk == "high"
+    assert ReviewPolicy(fail_on="ask").allows(review) is False
 
 
 def test_invalid_decisions_and_thresholds_fail_explicitly():
