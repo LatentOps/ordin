@@ -28,64 +28,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install ".[dev]"
-      - name: Lint
-        run: ruff check ordin tests
-      - name: Format check
-        run: ruff format --check ordin tests
-      - name: Static type check
-        run: >-
-          mypy
-          ordin/entrypoint.py
-          ordin/context.py
-          ordin/trace.py
-          ordin/enforcement.py
-          ordin/availability.py
-      - name: Compile package
-        run: python -m compileall -q ordin
-      - name: Enforce Ordin namespace
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          roots = [
-              Path("ordin"),
-              Path("tests"),
-              Path("data"),
-              Path("schemas"),
-              Path("docs"),
-              Path("examples"),
-              Path("benchmarks"),
-              Path("README.md"),
-              Path("CONTRIBUTING.md"),
-              Path("NOTICE"),
-              Path("pyproject.toml"),
-              Path(".github/workflows/tests.yml"),
-              Path(".github/workflows/release.yml"),
-          ]
-          forbidden = (
-              "command" + "graph",
-              "Command" + "Graph",
-              "COMMAND" + "GRAPH",
-              "cmd" + "graph",
-              "command" + "-graph",
-          )
-          suffixes = {".py", ".md", ".toml", ".json", ".jsonl", ".yml", ".yaml", ".txt"}
-          failures = []
-          for root in roots:
-              paths = [root] if root.is_file() else root.rglob("*")
-              for path in paths:
-                  if not path.is_file():
-                      continue
-                  if path.suffix.lower() not in suffixes and path.name != "NOTICE":
-                      continue
-                  text = path.read_text(encoding="utf-8")
-                  for token in forbidden:
-                      if token in text:
-                          failures.append(f"{path}: contains legacy token {token!r}")
-          if failures:
-              raise SystemExit("\n".join(failures))
-          print("Ordin namespace is clean")
-          PY
+      - name: Validate pre-commit configuration
+        run: pre-commit validate-config
+      - name: Run shared local quality gate
+        run: pre-commit run --all-files --show-diff-on-failure
 
   test:
     name: Python ${{ matrix.python-version }}
