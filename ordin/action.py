@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field, replace
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from . import (
     ACTION_ENVELOPE_SCHEMA_VERSION,
@@ -14,6 +14,10 @@ from .policy import Decision, DecisionResultMixin, stronger_decision
 from .review import review_command
 from .risk import decision_for_risk, max_risk
 from .semantics import semantic_evidence_for_command
+
+if TYPE_CHECKING:
+    from .tool_calls import CompiledToolSemanticsRegistry, ToolSemanticsRegistry
+
 from .temporal import (
     CompiledTemporalPolicySet,
     TemporalActionEvidence,
@@ -303,8 +307,17 @@ def _resources_from_semantics(
     return resources
 
 
-def _review_action_base(action: ActionEnvelope) -> ActionReview:
+def _review_action_base(
+    action: ActionEnvelope,
+    *,
+    tool_semantics: "ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None" = None,
+) -> ActionReview:
     """Review one action without applying temporal history."""
+
+    if action.kind in {"tool", "mcp"} and action.operation == "call" and tool_semantics is not None:
+        from .tool_calls import review_tool_action
+
+        return review_tool_action(action, tool_semantics)
 
     if action.kind == "shell" and action.operation == "execute":
         command = action.parameters.get("command")
@@ -361,12 +374,14 @@ def _review_action_base(action: ActionEnvelope) -> ActionReview:
 def _temporal_evidence_for_action(
     action: ActionEnvelope,
     review: ActionReview | None = None,
+    *,
+    tool_semantics: "ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None" = None,
 ) -> TemporalActionEvidence:
     if action.kind == "shell" and action.operation == "execute":
         command = action.parameters.get("command")
         if isinstance(command, str) and command.strip():
             return temporal_evidence_for_command(command, context=action.context)
-    base = review or _review_action_base(action)
+    base = review or _review_action_base(action, tool_semantics=tool_semantics)
     signals = frozenset(f"effect:{effect}" for effect in base.effects)
     return TemporalActionEvidence(kind=action.kind, operation=action.operation, signals=signals)
 
@@ -376,10 +391,11 @@ def review_action(
     *,
     history: ActionHistory | None = None,
     temporal_policy: TemporalPolicySet | CompiledTemporalPolicySet | None = None,
+    tool_semantics: "ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None" = None,
 ) -> ActionReview:
     """Review an action and optionally apply bounded temporal history."""
 
-    base = _review_action_base(action)
+    base = _review_action_base(action, tool_semantics=tool_semantics)
     if history is None or not history.actions:
         return base
 
@@ -392,8 +408,11 @@ def review_action(
     else:
         raise ValueError("temporal_policy must be a temporal policy set, compiled policy, or null")
 
-    prior = tuple(_temporal_evidence_for_action(item) for item in history.actions)
-    current = _temporal_evidence_for_action(action, review=base)
+    prior = tuple(
+        _temporal_evidence_for_action(item, tool_semantics=tool_semantics)
+        for item in history.actions
+    )
+    current = _temporal_evidence_for_action(action, review=base, tool_semantics=tool_semantics)
     evaluation = compiled.evaluate(prior, current)
     if not evaluation.matches:
         return base
