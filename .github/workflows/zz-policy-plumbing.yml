@@ -1,0 +1,225 @@
+name: one-off declarative policy plumbing
+
+on:
+  push:
+    branches:
+      - declarative-action-policy
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: declarative-action-policy
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Apply policy plumbing and correctness fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding="utf-8")
+              if new in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f"expected patch anchor not found in {path}: {old!r}")
+              file.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          # Policy engine: use execution enforcement order, not review-label precedence.
+          replace_once(
+              "ordin/action_policy.py",
+              "from .policy import Decision, REVIEW_PRECEDENCE, stronger_decision, validate_decision\n",
+              "from .policy import Decision, ENFORCEMENT_ORDER, validate_decision\n",
+          )
+          replace_once(
+              "ordin/action_policy.py",
+              '        ids = [rule.id for rule in self.rules]\n'
+              '        duplicates = sorted({rule_id for rule_id in ids if ids.count(rule_id) > 1})\n'
+              '        if duplicates:\n'
+              '            raise ValueError("duplicate policy rule ids: " + ", ".join(duplicates))\n',
+              '        seen: set[str] = set()\n'
+              '        duplicates: set[str] = set()\n'
+              '        for rule in self.rules:\n'
+              '            if rule.id in seen:\n'
+              '                duplicates.add(rule.id)\n'
+              '            seen.add(rule.id)\n'
+              '        if duplicates:\n'
+              '            raise ValueError("duplicate policy rule ids: " + ", ".join(sorted(duplicates)))\n',
+          )
+          replace_once(
+              "ordin/action_policy.py",
+              '            if decision is None or REVIEW_PRECEDENCE[match.decision] > REVIEW_PRECEDENCE[decision]:\n'
+              '                decision = match.decision\n',
+              '            if decision is None or ENFORCEMENT_ORDER[match.decision] > ENFORCEMENT_ORDER[decision]:\n'
+              '                decision = match.decision\n',
+          )
+          replace_once(
+              "ordin/action_policy.py",
+              '        final_decision = review.decision\n'
+              '        if evaluation.decision is not None:\n'
+              '            final_decision = stronger_decision(review.decision, evaluation.decision)\n',
+              '        final_decision = review.decision\n'
+              '        if (\n'
+              '            evaluation.decision is not None\n'
+              '            and ENFORCEMENT_ORDER[evaluation.decision] > ENFORCEMENT_ORDER[review.decision]\n'
+              '        ):\n'
+              '            final_decision = evaluation.decision\n',
+          )
+          replace_once(
+              "ordin/action_policy.py",
+              '    if condition.privileged is not None:\n'
+              '        privileged = bool(context is not None and context.euid == 0)\n'
+              '        if privileged != condition.privileged:\n'
+              '            return False\n'
+              '    if condition.intent is not None and _intent_state(review) != condition.intent:\n'
+              '        return False\n',
+              '    if condition.privileged is not None:\n'
+              '        if context is None or context.euid is None:\n'
+              '            return False\n'
+              '        if (context.euid == 0) != condition.privileged:\n'
+              '            return False\n'
+              '    if condition.intent is not None and not _intent_matches(condition.intent, review):\n'
+              '        return False\n',
+          )
+          replace_once(
+              "ordin/action_policy.py",
+              'def _intent_state(review: ActionReview) -> IntentState:\n'
+              '    if review.action.intent is None or not review.action.intent.strip():\n'
+              '        return "absent"\n'
+              '    if review.intent_alignment == "mismatch":\n'
+              '        return "mismatch"\n'
+              '    if review.intent_alignment == "aligned":\n'
+              '        return "aligned"\n'
+              '    if review.intent_alignment == "not_applicable":\n'
+              '        return "not_applicable"\n'
+              '    return "present"\n',
+              'def _intent_matches(expected: IntentState, review: ActionReview) -> bool:\n'
+              '    present = bool(review.action.intent is not None and review.action.intent.strip())\n'
+              '    if expected == "present":\n'
+              '        return present\n'
+              '    if expected == "absent":\n'
+              '        return not present\n'
+              '    if not present:\n'
+              '        return False\n'
+              '    return review.intent_alignment == expected\n',
+          )
+          replace_once(
+              "ordin/action_policy.py",
+              '    if not isinstance(payload, Mapping):\n'
+              '        raise ValueError("policy file must contain a JSON object")\n'
+              '    return ActionPolicySet.from_dict(payload).compile()\n',
+              '    if not isinstance(payload, Mapping):\n'
+              '        raise ValueError("policy file must contain a JSON object")\n'
+              '    from .schema import validate_named_schema\n\n'
+              '    errors = validate_named_schema("policy_set", dict(payload))\n'
+              '    if errors:\n'
+              '        raise ValueError("policy schema validation failed: " + "; ".join(errors))\n'
+              '    return ActionPolicySet.from_dict(payload).compile()\n',
+          )
+
+          # Public schema registration.
+          replace_once(
+              "ordin/schema.py",
+              '    "action_review": "action-review.v1.schema.json",\n'
+              '    "review_request": "review-request.v1.schema.json",\n',
+              '    "action_review": "action-review.v1.schema.json",\n'
+              '    "policy_set": "policy-set.v1.schema.json",\n'
+              '    "review_request": "review-request.v1.schema.json",\n',
+          )
+
+          # CLI: explicit local policy loading + validator, and remove duplicate action dispatch.
+          replace_once(
+              "ordin/cli.py",
+              'from .action import ActionEnvelope, review_action\n',
+              'from .action import ActionEnvelope, review_action\nfrom .action_policy import load_action_policy\n',
+          )
+          replace_once(
+              "ordin/cli.py",
+              'def _context_error(exc: ValueError, as_json: bool) -> int:\n',
+              'def _policy_error(exc: ValueError, as_json: bool) -> int:\n'
+              '    if as_json:\n'
+              '        print(json.dumps({"error": "invalid_policy", "message": str(exc)}, indent=2))\n'
+              '    else:\n'
+              '        print(f"invalid policy: {exc}")\n'
+              '    return 2\n\n\n'
+              'def _context_error(exc: ValueError, as_json: bool) -> int:\n',
+          )
+          replace_once(
+              "ordin/cli.py",
+              '    action_parser.add_argument("--json", action="store_true")\n'
+              '    _add_enforcement_arguments(action_parser)\n\n'
+              '    doctor_parser = subparsers.add_parser("doctor", help="Check local Ordin data.")\n',
+              '    action_parser.add_argument("--json", action="store_true")\n'
+              '    action_parser.add_argument(\n'
+              '        "--policy",\n'
+              '        help="Explicit local ordin.policy_set.v1 JSON file to apply.",\n'
+              '    )\n'
+              '    _add_enforcement_arguments(action_parser)\n\n'
+              '    policy_parser = subparsers.add_parser(\n'
+              '        "policy",\n'
+              '        help="Validate local declarative action policies.",\n'
+              '    )\n'
+              '    policy_subparsers = policy_parser.add_subparsers(\n'
+              '        dest="policy_command", required=True\n'
+              '    )\n'
+              '    policy_validate_parser = policy_subparsers.add_parser(\n'
+              '        "validate", help="Validate and compile a local policy file."\n'
+              '    )\n'
+              '    policy_validate_parser.add_argument("path")\n'
+              '    policy_validate_parser.add_argument("--json", action="store_true")\n\n'
+              '    doctor_parser = subparsers.add_parser("doctor", help="Check local Ordin data.")\n',
+          )
+
+          action_block = '''    if args.command_name == "action":\n        try:\n            action = _read_stdin_action_envelope()\n        except ValueError as exc:\n            return _input_error(str(exc), as_json=args.json)\n        action_review = review_action(action)\n        if args.json:\n            print(json.dumps(action_review.as_dict(), indent=2))\n        else:\n            print(f"decision: {action_review.decision}")\n            print(f"risk: {action_review.risk}")\n            for reason in action_review.reasons:\n                print(f"- {reason}")\n            if action_review.effects:\n                print("effects: " + ", ".join(action_review.effects))\n            if action_review.safer_next_step:\n                print(f"safer_next_step: {action_review.safer_next_step}")\n        return _review_exit(args, action_review.decision)\n'''
+          cli_path = Path("ordin/cli.py")
+          cli_text = cli_path.read_text(encoding="utf-8")
+          if cli_text.count(action_block) == 2:
+              first = cli_text.find(action_block)
+              second = cli_text.find(action_block, first + len(action_block))
+              cli_text = cli_text[:second] + cli_text[second + len(action_block):]
+              cli_path.write_text(cli_text, encoding="utf-8")
+          elif cli_text.count(action_block) != 1:
+              raise SystemExit("expected one or two unmodified generic action dispatch blocks")
+
+          replace_once(
+              "ordin/cli.py",
+              action_block,
+              '''    if args.command_name == "policy":\n        if args.policy_command == "validate":\n            try:\n                compiled = load_action_policy(args.path)\n            except ValueError as exc:\n                return _policy_error(exc, as_json=args.json)\n            payload = {\n                "schema_version": compiled.policy.schema_version,\n                "policy_id": compiled.policy.policy_id,\n                "version": compiled.policy.version,\n                "digest": compiled.digest,\n                "rule_count": len(compiled.policy.rules),\n            }\n            if args.json:\n                print(json.dumps(payload, indent=2))\n            else:\n                print(f"policy_id: {payload['policy_id']}")\n                print(f"version: {payload['version']}")\n                print(f"digest: {payload['digest']}")\n                print(f"rules: {payload['rule_count']}")\n            return 0\n\n    if args.command_name == "action":\n        try:\n            action = _read_stdin_action_envelope()\n        except ValueError as exc:\n            return _input_error(str(exc), as_json=args.json)\n        action_review = review_action(action)\n        if args.policy:\n            try:\n                action_policy = load_action_policy(args.policy)\n            except ValueError as exc:\n                return _policy_error(exc, as_json=args.json)\n            action_review = action_policy.apply(action_review)\n        if args.json:\n            print(json.dumps(action_review.as_dict(), indent=2))\n        else:\n            print(f"decision: {action_review.decision}")\n            print(f"risk: {action_review.risk}")\n            for reason in action_review.reasons:\n                print(f"- {reason}")\n            if action_review.effects:\n                print("effects: " + ", ".join(action_review.effects))\n            if action_review.policy_matches:\n                print(\n                    "policy_matches: "\n                    + ", ".join(item["rule_id"] for item in action_review.policy_matches)\n                )\n            if action_review.safer_next_step:\n                print(f"safer_next_step: {action_review.safer_next_step}")\n        return _review_exit(args, action_review.decision)\n''',
+          )
+
+          replace_once(
+              "ordin/entrypoint.py",
+              '    "action",\n    "doctor",\n',
+              '    "action",\n    "policy",\n    "doctor",\n',
+          )
+          replace_once(
+              ".pre-commit-config.yaml",
+              '          ordin/action.py\n          ordin/api.py\n',
+              '          ordin/action.py\n          ordin/action_policy.py\n          ordin/api.py\n',
+          )
+          PY
+      - name: Format and validate changed Python
+        run: |
+          python -m pip install "ruff==0.16.4"
+          ruff format ordin/action.py ordin/action_policy.py ordin/api.py ordin/cli.py ordin/entrypoint.py tests/test_action_policy.py tests/test_action_policy_cli.py
+          ruff check ordin/action.py ordin/action_policy.py ordin/api.py ordin/cli.py ordin/entrypoint.py tests/test_action_policy.py tests/test_action_policy_cli.py
+          python -m compileall -q ordin
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then
+            echo "No policy plumbing changes required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ordin/action_policy.py ordin/schema.py ordin/cli.py ordin/entrypoint.py .pre-commit-config.yaml ordin/action.py ordin/api.py tests/test_action_policy.py tests/test_action_policy_cli.py
+          git commit -m "Wire declarative action policies into Ordin"
+          git push origin HEAD:declarative-action-policy
