@@ -40,8 +40,8 @@ jobs:
           )
           replace_once(
               "ordin/cli.py",
-              'from .trace import ActionTrace\n',
-              'from .temporal import load_temporal_policy\nfrom .trace import ActionTrace\n',
+              'from .shell_integration import render_shell_init\n',
+              'from .shell_integration import render_shell_init\nfrom .temporal import load_temporal_policy\n',
           )
           replace_once(
               "ordin/cli.py",
@@ -84,7 +84,8 @@ jobs:
               '    action_parser.add_argument(\n'
               '        "--policy",\n'
               '        help="Explicit local ordin.policy_set.v1 JSON file to apply.",\n'
-              '    )\n',
+              '    )\n'
+              '    _add_enforcement_arguments(action_parser)\n',
               '    action_parser.add_argument(\n'
               '        "--policy",\n'
               '        help="Explicit local ordin.policy_set.v1 JSON file to apply.",\n'
@@ -96,7 +97,8 @@ jobs:
               '    action_parser.add_argument(\n'
               '        "--temporal-policy",\n'
               '        help="Explicit local ordin.temporal_policy_set.v1 JSON file; defaults to bundled rules.",\n'
-              '    )\n',
+              '    )\n'
+              '    _add_enforcement_arguments(action_parser)\n',
           )
           replace_once(
               "ordin/cli.py",
@@ -122,7 +124,8 @@ jobs:
               '            action = _read_stdin_action_envelope()\n'
               '        except ValueError as exc:\n'
               '            return _input_error(str(exc), as_json=args.json)\n'
-              '        action_review = review_action(action)\n',
+              '        action_review = review_action(action)\n'
+              '        if args.policy:\n',
               '    if args.command_name == "temporal":\n'
               '        if args.temporal_command == "validate":\n'
               '            try:\n'
@@ -161,7 +164,8 @@ jobs:
               '                return _temporal_policy_error(exc, as_json=args.json)\n'
               '        action_review = review_action(\n'
               '            action, history=history, temporal_policy=temporal_policy\n'
-              '        )\n',
+              '        )\n'
+              '        if args.policy:\n',
           )
           replace_once(
               "ordin/entrypoint.py",
