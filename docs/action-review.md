@@ -44,6 +44,7 @@ action = ActionEnvelope.shell(
 review = ordin.review_action(action)
 
 assert review.adapter == "shell"
+assert review.capabilities is not None
 ```
 
 Mappings are accepted too, but mapping inputs are validated against the public envelope schema before review.
@@ -72,7 +73,10 @@ The output uses `ordin.action_review.v1` and includes:
 - typed effects when an adapter can establish them;
 - structured resources derived from semantic evidence;
 - the adapter responsible for classification;
+- an advisory execution capability profile;
 - intent-alignment and trajectory categories when available from the underlying adapter.
+
+Capability profiles describe the minimum class of filesystem, network, privilege, and process capabilities Ordin can infer from typed effects/resources. They are advisory only. The caller owns actual sandbox enforcement. See [Execution capability profiles and observations](execution-evidence.md).
 
 ## Shell adapter
 
@@ -93,6 +97,12 @@ and a resource such as:
 path:/workspace/repo/build
 ```
 
+## Tool and MCP adapters
+
+Generic tool and MCP actions normalize through the public `ToolCallAdapter` and `MCPAdapter`. Trusted local semantics may be supplied through `ToolSemanticsRegistry` so exact runtime/server identities can produce typed effects/resources without allowing untrusted call arguments to declare their own safety labels.
+
+See [Tool and MCP adapters](tool-and-mcp-adapters.md).
+
 ## Conservative extension contract
 
 New adapters should follow these rules:
@@ -108,13 +118,15 @@ New adapters should follow these rules:
 9. **Add offline tests.** Cover safe, risky, unknown, malformed, schema, and installed-package behavior.
 10. **Document public semantics.** Any new action kind or operation that can produce a confident review needs a stable explanation and examples.
 
-MCP and generic tool-call adapters are intentionally separate follow-up work so their semantics can build on this contract instead of being rushed into the foundational type.
-
 ## Schema files
 
 The public contracts live in:
 
 - `schemas/action-envelope.v1.schema.json`
+- `schemas/action-history.v1.schema.json`
 - `schemas/action-review.v1.schema.json`
+- `schemas/execution-capabilities.v1.schema.json`
+- `schemas/action-observation.v1.schema.json`
+- `schemas/observation-history.v1.schema.json`
 
 Packaged copies are validated for parity by `ordin doctor` and CI.

@@ -10,6 +10,12 @@ from . import (
     ACTION_REVIEW_SCHEMA_VERSION,
 )
 from .context import ExecutionContext
+from .execution import (
+    ActionObservation,
+    ExecutionCapabilityProfile,
+    ObservationHistory,
+    derive_capabilities,
+)
 from .policy import Decision, DecisionResultMixin, stronger_decision
 from .review import review_command
 from .risk import decision_for_risk, max_risk
@@ -260,6 +266,7 @@ class ActionReview(DecisionResultMixin):
     effects: list[str]
     resources: list[ActionResource]
     adapter: str | None
+    capabilities: ExecutionCapabilityProfile | None = None
     intent_alignment: str = "not_applicable"
     trajectory_categories: list[str] = field(default_factory=list)
     policy: dict[str, str] | None = None
@@ -276,6 +283,7 @@ class ActionReview(DecisionResultMixin):
             "effects": list(self.effects),
             "resources": [resource.as_dict() for resource in self.resources],
             "adapter": self.adapter,
+            "capabilities": self.capabilities.as_dict() if self.capabilities else None,
             "intent_alignment": self.intent_alignment,
             "trajectory_categories": list(self.trajectory_categories),
         }
@@ -307,6 +315,15 @@ def _resources_from_semantics(
     return resources
 
 
+def _with_capabilities(review: ActionReview) -> ActionReview:
+    if review.capabilities is not None:
+        return review
+    return replace(
+        review,
+        capabilities=derive_capabilities(review.action.kind, review.effects, review.resources),
+    )
+
+
 def _review_action_base(
     action: ActionEnvelope,
     *,
@@ -317,7 +334,7 @@ def _review_action_base(
     if action.kind in {"tool", "mcp"} and action.operation == "call" and tool_semantics is not None:
         from .tool_calls import review_tool_action
 
-        return review_tool_action(action, tool_semantics)
+        return _with_capabilities(review_tool_action(action, tool_semantics))
 
     if action.kind == "shell" and action.operation == "execute":
         command = action.parameters.get("command")
@@ -331,6 +348,7 @@ def _review_action_base(
                 effects=[],
                 resources=[],
                 adapter="shell",
+                capabilities=derive_capabilities("shell", (), ()),
             )
         command_review = review_command(
             command,
@@ -338,15 +356,18 @@ def _review_action_base(
             context=action.context,
         )
         semantics = semantic_evidence_for_command(command, context=action.context)
+        effects = list(semantics.effects)
+        resources = _resources_from_semantics(command, action.context)
         return ActionReview(
             action=action,
             decision=command_review.decision,
             risk=command_review.risk,
             reasons=list(command_review.reasons),
             safer_next_step=command_review.safer_next_step,
-            effects=list(semantics.effects),
-            resources=_resources_from_semantics(command, action.context),
+            effects=effects,
+            resources=resources,
             adapter="shell",
+            capabilities=derive_capabilities(action.kind, effects, resources),
             intent_alignment=command_review.intent_alignment,
             trajectory_categories=list(command_review.trajectory_categories or []),
         )
@@ -368,6 +389,7 @@ def _review_action_base(
         effects=[],
         resources=[],
         adapter=None,
+        capabilities=derive_capabilities(action.kind, (), ()),
     )
 
 
@@ -375,27 +397,81 @@ def _temporal_evidence_for_action(
     action: ActionEnvelope,
     review: ActionReview | None = None,
     *,
+    observation: ActionObservation | None = None,
     tool_semantics: "ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None" = None,
 ) -> TemporalActionEvidence:
     if action.kind == "shell" and action.operation == "execute":
         command = action.parameters.get("command")
         if isinstance(command, str) and command.strip():
-            return temporal_evidence_for_command(command, context=action.context)
-    base = review or _review_action_base(action, tool_semantics=tool_semantics)
-    signals = frozenset(f"effect:{effect}" for effect in base.effects)
-    return TemporalActionEvidence(kind=action.kind, operation=action.operation, signals=signals)
+            evidence = temporal_evidence_for_command(command, context=action.context)
+            signals = set(evidence.signals)
+        else:
+            signals = set()
+    else:
+        base = review or _review_action_base(action, tool_semantics=tool_semantics)
+        signals = {f"effect:{effect}" for effect in base.effects}
+
+    predicted_effects = tuple(
+        signal.removeprefix("effect:") for signal in signals if signal.startswith("effect:")
+    )
+    signals.update(f"signal:predicted-effect:{effect}" for effect in predicted_effects)
+
+    if observation is not None:
+        for effect in observation.effects:
+            signals.add(f"effect:{effect}")
+            signals.add(f"signal:observed-effect:{effect}")
+        if observation.exit_code is not None:
+            signals.add(
+                "signal:observed-success"
+                if observation.exit_code == 0
+                else "signal:observed-failure"
+            )
+
+    return TemporalActionEvidence(
+        kind=action.kind,
+        operation=action.operation,
+        signals=frozenset(signals),
+    )
+
+
+def _observations_for_history(
+    history: ActionHistory | None,
+    observations: ObservationHistory | None,
+) -> dict[str, ActionObservation]:
+    if observations is None or not observations.observations:
+        return {}
+    if history is None or not history.actions:
+        raise ValueError("observations require matching action history")
+
+    counts: dict[str, int] = {}
+    for prior in history.actions:
+        if prior.action_id is not None:
+            counts[prior.action_id] = counts.get(prior.action_id, 0) + 1
+
+    result = observations.by_action_id()
+    unknown = sorted(set(result) - set(counts))
+    if unknown:
+        raise ValueError("observations reference unknown action_id values: " + ", ".join(unknown))
+    ambiguous = sorted(action_id for action_id in result if counts[action_id] != 1)
+    if ambiguous:
+        raise ValueError(
+            "observations require unique matching action_id values: " + ", ".join(ambiguous)
+        )
+    return result
 
 
 def review_action(
     action: ActionEnvelope,
     *,
     history: ActionHistory | None = None,
+    observations: ObservationHistory | None = None,
     temporal_policy: TemporalPolicySet | CompiledTemporalPolicySet | None = None,
     tool_semantics: "ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None" = None,
 ) -> ActionReview:
     """Review an action and optionally apply bounded temporal history."""
 
     base = _review_action_base(action, tool_semantics=tool_semantics)
+    observation_map = _observations_for_history(history, observations)
     if history is None or not history.actions:
         return base
 
@@ -409,10 +485,18 @@ def review_action(
         raise ValueError("temporal_policy must be a temporal policy set, compiled policy, or null")
 
     prior = tuple(
-        _temporal_evidence_for_action(item, tool_semantics=tool_semantics)
+        _temporal_evidence_for_action(
+            item,
+            observation=observation_map.get(item.action_id) if item.action_id else None,
+            tool_semantics=tool_semantics,
+        )
         for item in history.actions
     )
-    current = _temporal_evidence_for_action(action, review=base, tool_semantics=tool_semantics)
+    current = _temporal_evidence_for_action(
+        action,
+        review=base,
+        tool_semantics=tool_semantics,
+    )
     evaluation = compiled.evaluate(prior, current)
     if not evaluation.matches:
         return base

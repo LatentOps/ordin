@@ -6,6 +6,7 @@ from typing import Any, Mapping
 from .action import ActionEnvelope, ActionHistory, ActionReview, review_action
 from .action_policy import ActionPolicySet, CompiledActionPolicySet
 from .context import ExecutionContext, ReviewRequest
+from .execution import ObservationHistory
 from .policy import ReviewPolicy
 from .review import CommandReview, review_command
 from .risk import RiskReview, check_command
@@ -102,6 +103,7 @@ class Ordin:
         action: ActionEnvelope | Mapping[str, Any],
         *,
         history: ActionHistory | Mapping[str, Any] | None = None,
+        observations: ObservationHistory | Mapping[str, Any] | None = None,
     ) -> ActionReview:
         parsed = self._parse_action(action)
         if parsed.context is None and self.context is not None:
@@ -114,11 +116,13 @@ class Ordin:
                 action_id=parsed.action_id,
             )
         parsed_history = self._parse_history(history)
+        parsed_observations = self._parse_observations(observations)
         temporal = self.temporal_policy
         tool_semantics = self.tool_semantics
         result = review_action(
             parsed,
             history=parsed_history,
+            observations=parsed_observations,
             temporal_policy=(temporal if isinstance(temporal, CompiledTemporalPolicySet) else None),
             tool_semantics=(
                 tool_semantics
@@ -157,6 +161,20 @@ class Ordin:
         if errors:
             raise ValueError("action history schema validation failed: " + "; ".join(errors))
         return ActionHistory.from_dict(payload)
+
+    def _parse_observations(
+        self,
+        observations: ObservationHistory | Mapping[str, Any] | None,
+    ) -> ObservationHistory | None:
+        if observations is None or isinstance(observations, ObservationHistory):
+            return observations
+        if not isinstance(observations, Mapping):
+            raise ValueError("observations must be an ObservationHistory, mapping, or null")
+        payload = dict(observations)
+        errors = validate_named_schema("observation_history", payload)
+        if errors:
+            raise ValueError("observation history schema validation failed: " + "; ".join(errors))
+        return ObservationHistory.from_dict(payload)
 
     def _parse_action(self, action: ActionEnvelope | Mapping[str, Any]) -> ActionEnvelope:
         if isinstance(action, ActionEnvelope):

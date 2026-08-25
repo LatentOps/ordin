@@ -7,6 +7,7 @@ from .action import ActionEnvelope, ActionHistory, ActionReview
 from .adapters import MCPAdapter, ToolCallAdapter
 from .api import Ordin
 from .context import ExecutionContext
+from .execution import ObservationHistory
 from .review import CommandReview
 from .trace import ActionTrace
 
@@ -73,10 +74,15 @@ class AgentGate:
         action: ActionEnvelope | Mapping[str, Any],
         *,
         history: ActionHistory | Mapping[str, Any] | None = None,
+        observations: ObservationHistory | Mapping[str, Any] | None = None,
     ) -> AgentDecision:
         """Review a generic action through the same Ordin policy boundary."""
 
-        review = self.ordin.review_action(action, history=history)
+        review = self.ordin.review_action(
+            action,
+            history=history,
+            observations=observations,
+        )
         return AgentDecision(
             disposition=self._disposition(review),
             review=review,
@@ -92,6 +98,7 @@ class AgentGate:
         context: ExecutionContext | None = None,
         action_id: str | None = None,
         history: ActionHistory | Mapping[str, Any] | None = None,
+        observations: ObservationHistory | Mapping[str, Any] | None = None,
     ) -> AgentDecision:
         action = adapter.adapt(
             tool,
@@ -100,7 +107,11 @@ class AgentGate:
             context=context,
             action_id=action_id,
         )
-        return self.evaluate_action(action, history=history)
+        return self.evaluate_action(
+            action,
+            history=history,
+            observations=observations,
+        )
 
     def evaluate_mcp(
         self,
@@ -112,6 +123,7 @@ class AgentGate:
         context: ExecutionContext | None = None,
         action_id: str | None = None,
         history: ActionHistory | Mapping[str, Any] | None = None,
+        observations: ObservationHistory | Mapping[str, Any] | None = None,
     ) -> AgentDecision:
         action = adapter.adapt(
             tool,
@@ -120,7 +132,11 @@ class AgentGate:
             context=context,
             action_id=action_id,
         )
-        return self.evaluate_action(action, history=history)
+        return self.evaluate_action(
+            action,
+            history=history,
+            observations=observations,
+        )
 
     def _disposition(self, review: AgentReview) -> AgentDisposition:
         if review.blocked:

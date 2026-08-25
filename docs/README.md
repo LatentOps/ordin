@@ -28,6 +28,7 @@ orun 'git status --short'
 
 - [Python API](python-api.md)
 - [Generic action review](action-review.md)
+- [Execution capability profiles and observations](execution-evidence.md)
 - [Tool and MCP adapters](tool-and-mcp-adapters.md)
 - [Declarative action policies](policies.md)
 - [Temporal action policies](temporal-policies.md)
@@ -41,6 +42,7 @@ The Python API reviews actions but never executes them.
 
 - [Agent runtime integration](agent-integration.md)
 - [Tool and MCP adapters](tool-and-mcp-adapters.md)
+- [Execution capability profiles and observations](execution-evidence.md)
 - [Generic action review](action-review.md)
 - [Declarative action policies](policies.md)
 - [Temporal action policies](temporal-policies.md)
@@ -60,6 +62,7 @@ Ordin does not become the agent framework, shell executor, sandbox, MCP transpor
 
 - [Architecture](architecture.md)
 - [Generic action review](action-review.md)
+- [Execution capability profiles and observations](execution-evidence.md)
 - [Declarative action policies](policies.md)
 - [Temporal action policies](temporal-policies.md)
 - [Typed effect graph](effect-graph.md)
@@ -87,6 +90,7 @@ The safety benchmark has separate hard regression gates for false allows, critic
 - [Development workflow](development-workflow.md)
 - [Safety benchmark and adversarial fuzzing](safety-benchmark.md)
 - [Generic action review and adapter contract](action-review.md)
+- [Execution capability profiles and observations](execution-evidence.md)
 - [Tool and MCP adapters](tool-and-mcp-adapters.md)
 - [Declarative action policies](policies.md)
 - [Temporal action policies](temporal-policies.md)
@@ -104,4 +108,4 @@ pre-commit run --all-files
 pytest -q
 ```
 
-The core design rule across safety layers is conservative composition: richer semantic, contextual, temporal, adapter, or caller-owned policy evidence must not erase a known stronger safety requirement. Execution policy is applied separately by the caller or shell integration.
+The core design rule across safety layers is conservative composition: richer semantic, contextual, temporal, adapter, observed, or caller-owned policy evidence must not erase a known stronger safety requirement. Execution policy is applied separately by the caller or shell integration.

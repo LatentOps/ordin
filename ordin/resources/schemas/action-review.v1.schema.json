@@ -3,7 +3,7 @@
   "$id": "https://latentops.dev/schemas/ordin/action-review.v1.schema.json",
   "title": "Ordin Action Review v1",
   "type": "object",
-  "required": ["schema_version", "action", "decision", "risk", "reasons", "safer_next_step", "effects", "resources", "adapter", "intent_alignment", "trajectory_categories"],
+  "required": ["schema_version", "action", "decision", "risk", "reasons", "safer_next_step", "effects", "resources", "adapter", "capabilities", "intent_alignment", "trajectory_categories"],
   "properties": {
     "schema_version": {"const": "ordin.action_review.v1"},
     "action": {
@@ -49,6 +49,28 @@
       }
     },
     "adapter": {"type": ["string", "null"]},
+    "capabilities": {
+      "type": ["object", "null"],
+      "required": ["schema_version", "filesystem", "filesystem_scopes", "network", "network_scopes", "privilege_escalation", "process_execution"],
+      "properties": {
+        "schema_version": {"const": "ordin.execution_capabilities.v1"},
+        "filesystem": {"enum": ["none", "read", "write", "unknown"]},
+        "filesystem_scopes": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {"type": "string", "minLength": 1, "maxLength": 32768}
+        },
+        "network": {"enum": ["none", "read", "write", "unknown"]},
+        "network_scopes": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {"type": "string", "minLength": 1, "maxLength": 32768}
+        },
+        "privilege_escalation": {"type": ["boolean", "null"]},
+        "process_execution": {"type": ["boolean", "null"]}
+      },
+      "additionalProperties": false
+    },
     "intent_alignment": {"type": "string"},
     "trajectory_categories": {"type": "array", "items": {"type": "string"}},
     "policy": {

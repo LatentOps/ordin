@@ -1,0 +1,20 @@
+{
+  "schema_version": "ordin.observation_history.v1",
+  "observations": [
+    {
+      "schema_version": "ordin.action_observation.v1",
+      "action_id": "step-17",
+      "exit_code": 0,
+      "effects": ["filesystem.read"],
+      "resources": [
+        {
+          "type": "path",
+          "value": "/workspace/config.json"
+        }
+      ],
+      "metadata": {
+        "runtime": "local-agent"
+      }
+    }
+  ]
+}

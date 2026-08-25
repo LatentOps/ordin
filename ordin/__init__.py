@@ -9,6 +9,9 @@ REVIEW_REQUEST_SCHEMA_VERSION = "ordin.review_request.v1"
 ACTION_ENVELOPE_SCHEMA_VERSION = "ordin.action_envelope.v1"
 ACTION_HISTORY_SCHEMA_VERSION = "ordin.action_history.v1"
 ACTION_REVIEW_SCHEMA_VERSION = "ordin.action_review.v1"
+ACTION_OBSERVATION_SCHEMA_VERSION = "ordin.action_observation.v1"
+OBSERVATION_HISTORY_SCHEMA_VERSION = "ordin.observation_history.v1"
+EXECUTION_CAPABILITIES_SCHEMA_VERSION = "ordin.execution_capabilities.v1"
 ACTION_TRACE_SCHEMA_VERSION = "ordin.action_trace.v1"
 POLICY_SET_SCHEMA_VERSION = "ordin.policy_set.v1"
 TEMPORAL_POLICY_SET_SCHEMA_VERSION = "ordin.temporal_policy_set.v1"
@@ -35,6 +38,13 @@ from .adapters import MCPAdapter, ToolCallAdapter
 from .agent import AgentDecision, AgentDisposition, AgentGate, AgentReview
 from .api import Ordin
 from .context import ExecutionContext, ReviewRequest
+from .execution import (
+    ActionObservation,
+    ExecutionCapabilityProfile,
+    ObservationHistory,
+    ObservedResource,
+    derive_capabilities,
+)
 from .policy import Decision, FailThreshold, ReviewPolicy
 from .review import CommandReview
 from .risk import RiskReview
@@ -60,10 +70,14 @@ from .trace import ActionTrace, TraceAction
 __all__ = [
     "ACTION_ENVELOPE_SCHEMA_VERSION",
     "ACTION_HISTORY_SCHEMA_VERSION",
+    "ACTION_OBSERVATION_SCHEMA_VERSION",
     "ACTION_REVIEW_SCHEMA_VERSION",
     "ACTION_TRACE_SCHEMA_VERSION",
+    "EXECUTION_CAPABILITIES_SCHEMA_VERSION",
+    "OBSERVATION_HISTORY_SCHEMA_VERSION",
     "ActionEnvelope",
     "ActionHistory",
+    "ActionObservation",
     "ActionPolicyCondition",
     "ActionPolicyRule",
     "ActionPolicySet",
@@ -81,10 +95,13 @@ __all__ = [
     "Decision",
     "EFFECT_CATALOG_SCHEMA_VERSION",
     "EFFECT_GRAPH_SCHEMA_VERSION",
+    "ExecutionCapabilityProfile",
     "ExecutionContext",
     "FailThreshold",
     "MAN_INDEX_SCHEMA_VERSION",
     "MCPAdapter",
+    "ObservationHistory",
+    "ObservedResource",
     "Ordin",
     "PACK_LIST_SCHEMA_VERSION",
     "PACK_MANIFEST_SCHEMA_VERSION",
@@ -114,6 +131,7 @@ __all__ = [
     "TraceAction",
     "__version__",
     "default_temporal_policy",
+    "derive_capabilities",
     "load_action_policy",
     "load_temporal_policy",
     "load_tool_semantics",
