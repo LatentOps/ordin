@@ -1,10 +1,10 @@
 # Ordin
 
-**Know what a shell action will do before it runs.**
+**Know what an action will do before it runs.**
 
-Ordin is a local command-intelligence and pre-execution safety engine for developers and AI agents. It can find shell commands from natural-language intent, review proposed commands before execution, and act as a deterministic gate between an agent and its shell runtime.
+Ordin is a local command-intelligence and pre-execution safety engine for developers and AI agents. It can find shell commands from natural-language intent, review proposed commands and generic actions before execution, and act as a deterministic gate between an agent and its runtime.
 
-Core search and safety review are local-first. Ordin does not require a cloud service, upload command history, or execute agent actions on its own.
+Core search and safety review are local-first. Ordin does not require a cloud service, upload command or action history, or execute agent actions on its own.
 
 ## Install
 
@@ -39,7 +39,7 @@ python -m pip install .
 
 See [Installation](docs/installation.md) for development setup and optional semantic reranking.
 
-## Three ways to use Ordin
+## Four ways to use Ordin
 
 ### 1. Find the command you need
 
@@ -59,7 +59,7 @@ ordin search "lookup dns for example.com" --limit 3
 
 Ordin uses deterministic lexical retrieval by default and can incorporate local command availability and Linux distribution signals.
 
-### 2. Review a command before you run it
+### 2. Review a command or generic action
 
 ```bash
 ordin check "git reset --hard HEAD~1"
@@ -74,7 +74,7 @@ risk: high
 - can rewrite or discard source-control history
 ```
 
-For richer review, provide intent and execution context:
+For richer shell review, provide intent and execution context:
 
 ```bash
 ordin review \
@@ -85,9 +85,33 @@ ordin review \
   --json
 ```
 
-Unknown commands are not silently treated as safe.
+Or review a versioned generic action:
 
-### 3. Gate an AI agent before shell execution
+```bash
+cat examples/action.json | ordin action --stdin --json
+```
+
+Unknown commands and actions are not silently treated as safe.
+
+### 3. Add an explicit local policy
+
+Validate a data-only policy:
+
+```bash
+ordin policy validate examples/policy.json
+```
+
+Apply it to a generic action:
+
+```bash
+cat examples/action.json | ordin action --stdin --policy examples/policy.json --json
+```
+
+Policies match structured action kinds, operations, effects, resources, context, agent identity, intent state, and trajectory findings. They are explicit local JSON, cannot execute code, and can only preserve or strengthen the core safety requirement.
+
+See [Declarative action policies](docs/policies.md).
+
+### 4. Gate an AI agent before execution
 
 ```python
 from ordin import AgentGate
@@ -121,12 +145,12 @@ agent proposes action
         +--> deny
         |
         v
-caller-owned shell / sandbox
+caller-owned tool / shell / sandbox
 ```
 
 `AgentGate` never runs the command. The integrating runtime owns execution, sandboxing, approval UI, retries, and trace persistence.
 
-See [Agent runtime integration](docs/agent-integration.md) and [Python API](docs/python-api.md).
+See [Agent runtime integration](docs/agent-integration.md), [Generic action review](docs/action-review.md), and [Python API](docs/python-api.md).
 
 ## Optional shell gate
 
@@ -150,14 +174,16 @@ source <(ordin shell-init zsh)
 
 ## What Ordin evaluates
 
-A command review can combine:
+A review can combine:
 
 1. shell-aware parsing of compound commands, pipelines, substitutions, groups, and nested shell payloads;
 2. semantic analyzers for high-value command families;
 3. typed effects such as filesystem deletion, network upload, package installation, source-control mutation, privilege escalation, and container changes;
-4. exact rules for dangerous combinations;
-5. optional execution context such as working directory, repository boundary, effective UID, shell, and agent identity;
-6. bounded recent-action traces for multi-step patterns such as secret read followed by upload or download followed by permission change and execution.
+4. structured resources such as paths, URLs, packages, and later tool-specific targets;
+5. exact rules for dangerous combinations;
+6. optional execution context such as working directory, repository boundary, effective UID, shell, and agent identity;
+7. bounded recent-action traces for multi-step patterns;
+8. explicit caller-owned declarative policy.
 
 The result uses four review decisions:
 
@@ -165,30 +191,21 @@ The result uses four review decisions:
 | --- | --- |
 | `allow` | Known low-risk behavior with no stronger finding. |
 | `warn` | Known elevated behavior that should be reviewed. |
-| `ask` | Ordin cannot establish enough confidence to treat the action as safe. |
-| `block` | A known critical condition was detected. |
+| `ask` | Ordin cannot establish enough confidence or policy requires approval. |
+| `block` | A known critical condition or explicit blocking policy was detected. |
 
 Agent integrations can then apply a separate `ReviewPolicy` to decide what proceeds automatically and what requires escalation.
 
 ## Machine-readable review
 
-Non-Python runtimes can send a versioned request through stdin:
+Non-Python runtimes can send versioned requests through stdin:
 
 ```bash
 cat examples/review.json | ordin review --stdin --json
+cat examples/action.json | ordin action --stdin --json
 ```
 
-Public payloads use versioned Ordin schemas, for example:
-
-```json
-{
-  "schema_version": "ordin.review_request.v1",
-  "command": "git status --short",
-  "intent": "inspect repository state",
-  "context": null,
-  "trace": null
-}
-```
+Public payloads use versioned Ordin schemas, including `ordin.review_request.v1`, `ordin.action_envelope.v1`, `ordin.action_review.v1`, and `ordin.policy_set.v1`.
 
 Schemas live in [`schemas/`](schemas/) and are validated by `ordin doctor` and CI.
 
@@ -242,6 +259,8 @@ See [Effect graph](docs/effect-graph.md) and [Schema contracts](docs/schema-cont
 | I want to... | Start here |
 | --- | --- |
 | install or use the CLI | [Installation](docs/installation.md), [Bare intent CLI](docs/bare-intent-cli.md) |
+| review generic actions | [Generic action review](docs/action-review.md) |
+| define local policy | [Declarative action policies](docs/policies.md) |
 | embed Ordin in Python | [Python API](docs/python-api.md) |
 | gate an AI agent | [Agent runtime integration](docs/agent-integration.md) |
 | enable reviewed shell execution | [Shell integration](docs/shell-integration.md) |
@@ -265,7 +284,7 @@ The shared pre-commit gate covers Ruff lint and formatting, staged mypy checks, 
 ## Repository layout
 
 ```text
-ordin/              library, CLI, analyzers, agent gate, packaged resources
+ordin/              library, CLI, analyzers, action/policy engine, packaged resources
 data/               curated command cards, effects, packs, and risk rules
 schemas/            public JSON Schema contracts
 benchmarks/         deterministic search-quality fixtures
@@ -280,10 +299,11 @@ tests/              unit, integration, packaging, and safety tests
 
 Ordin intentionally does not:
 
-- execute commands received through the Python API or `review --stdin`;
+- execute commands or generic actions received through review APIs;
 - become a general agent framework;
 - require a hosted service for core behavior;
-- upload shell history or command text;
+- upload shell history, command text, or action payloads;
+- automatically fetch remote policy;
 - generate arbitrary shell programs from free-form prompts;
 - treat unclassified behavior as safe.
 
