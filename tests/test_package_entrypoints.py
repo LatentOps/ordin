@@ -92,11 +92,13 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
             str(python),
             "-c",
             (
-                "from ordin import Ordin, ReviewPolicy; "
-                "gate = Ordin(policy=ReviewPolicy(fail_on='warn')); "
-                "review = gate.review('git status --short'); "
+                "from ordin import AgentGate, Ordin, ReviewPolicy; "
+                "ordin = Ordin(policy=ReviewPolicy(fail_on='warn')); "
+                "review = ordin.review('git status --short'); "
                 "assert review.allowed; "
-                "assert gate.allows(review)"
+                "assert ordin.allows(review); "
+                "result = AgentGate(ordin).evaluate('git status --short'); "
+                "assert result.may_execute"
             ),
         ],
         check=True,
