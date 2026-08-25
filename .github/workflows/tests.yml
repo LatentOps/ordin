@@ -29,19 +29,57 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install ".[dev]"
       - name: Lint
-        run: ruff check commandgraph tests
+        run: ruff check ordin tests
       - name: Format check
-        run: ruff format --check commandgraph tests
+        run: ruff format --check ordin tests
       - name: Static type check
         run: >-
           mypy
-          commandgraph/entrypoint.py
-          commandgraph/context.py
-          commandgraph/trace.py
-          commandgraph/enforcement.py
-          commandgraph/availability.py
+          ordin/entrypoint.py
+          ordin/context.py
+          ordin/trace.py
+          ordin/enforcement.py
+          ordin/availability.py
       - name: Compile package
-        run: python -m compileall -q commandgraph
+        run: python -m compileall -q ordin
+      - name: Enforce Ordin namespace
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          roots = [
+              Path("ordin"),
+              Path("tests"),
+              Path("data"),
+              Path("schemas"),
+              Path("docs"),
+              Path("examples"),
+              Path("benchmarks"),
+              Path("README.md"),
+              Path("CONTRIBUTING.md"),
+              Path("NOTICE"),
+              Path("pyproject.toml"),
+              Path(".github/workflows/tests.yml"),
+              Path(".github/workflows/release.yml"),
+          ]
+          forbidden = ("commandgraph", "CommandGraph", "COMMANDGRAPH", "cmdgraph", "command-graph")
+          suffixes = {".py", ".md", ".toml", ".json", ".jsonl", ".yml", ".yaml", ".txt"}
+          failures = []
+          for root in roots:
+              paths = [root] if root.is_file() else root.rglob("*")
+              for path in paths:
+                  if not path.is_file():
+                      continue
+                  if path.suffix.lower() not in suffixes and path.name != "NOTICE":
+                      continue
+                  text = path.read_text(encoding="utf-8")
+                  for token in forbidden:
+                      if token in text:
+                          failures.append(f"{path}: contains legacy token {token!r}")
+          if failures:
+              raise SystemExit("\n".join(failures))
+          print("Ordin namespace is clean")
+          PY
 
   test:
     name: Python ${{ matrix.python-version }}
@@ -64,7 +102,7 @@ jobs:
       - name: Run tests
         run: pytest -q
       - name: Validate bundled data and graph
-        run: python -m commandgraph doctor
+        run: python -m ordin doctor
 
   package:
     name: Build and install package
@@ -84,16 +122,16 @@ jobs:
         run: python -m twine check dist/*
       - name: Install wheel in clean environment
         run: |
-          python -m venv /tmp/commandgraph-wheel
-          /tmp/commandgraph-wheel/bin/python -m pip install --upgrade pip
-          /tmp/commandgraph-wheel/bin/python -m pip install dist/*.whl
-          /tmp/commandgraph-wheel/bin/cmdgraph --help > /tmp/commandgraph-help.txt
-          /tmp/commandgraph-wheel/bin/cmdgraph doctor
-          /tmp/commandgraph-wheel/bin/cmdgraph make file runnable --limit 1 --json > /tmp/commandgraph-search.json
+          python -m venv /tmp/ordin-wheel
+          /tmp/ordin-wheel/bin/python -m pip install --upgrade pip
+          /tmp/ordin-wheel/bin/python -m pip install dist/*.whl
+          /tmp/ordin-wheel/bin/ordin --help > /tmp/ordin-help.txt
+          /tmp/ordin-wheel/bin/ordin doctor
+          /tmp/ordin-wheel/bin/ordin make file runnable --limit 1 --json > /tmp/ordin-search.json
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: commandgraph-dist
+          name: ordin-dist
           path: dist/*
           if-no-files-found: error
 
@@ -118,15 +156,15 @@ jobs:
       - name: Install distro prerequisites
         run: ${{ matrix.setup }}
       - uses: actions/checkout@v4
-      - name: Install CommandGraph in isolated environment
+      - name: Install Ordin in isolated environment
         run: |
-          python3 -m venv /tmp/commandgraph-distro
-          /tmp/commandgraph-distro/bin/python -m pip install --upgrade pip
-          /tmp/commandgraph-distro/bin/python -m pip install .
+          python3 -m venv /tmp/ordin-distro
+          /tmp/ordin-distro/bin/python -m pip install --upgrade pip
+          /tmp/ordin-distro/bin/python -m pip install .
       - name: Verify local distro detection
         run: |
-          /tmp/commandgraph-distro/bin/python - <<'PY'
-          from commandgraph.availability import detect_environment
+          /tmp/ordin-distro/bin/python - <<'PY'
+          from ordin.availability import detect_environment
 
           environment = detect_environment()
           assert environment.os == "linux"
@@ -135,5 +173,5 @@ jobs:
           PY
       - name: Smoke-test installed CLI
         run: |
-          /tmp/commandgraph-distro/bin/cmdgraph doctor
-          /tmp/commandgraph-distro/bin/cmdgraph make file runnable --limit 1 --json
+          /tmp/ordin-distro/bin/ordin doctor
+          /tmp/ordin-distro/bin/ordin make file runnable --limit 1 --json
