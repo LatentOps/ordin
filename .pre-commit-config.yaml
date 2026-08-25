@@ -22,6 +22,7 @@ repos:
         name: Mypy typed boundaries
         entry: >-
           python -m mypy
+          ordin/safety_benchmark.py
           ordin/adapters.py
           ordin/agent.py
           ordin/action.py
