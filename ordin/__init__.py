@@ -14,6 +14,7 @@ EFFECT_GRAPH_SCHEMA_VERSION = "ordin.effect_graph.v1"
 PACK_MANIFEST_SCHEMA_VERSION = "ordin.command_pack.v1"
 PACK_LIST_SCHEMA_VERSION = "ordin.pack_list.v1"
 
+from .agent import AgentDecision, AgentDisposition, AgentGate
 from .api import Ordin
 from .context import ExecutionContext, ReviewRequest
 from .policy import Decision, FailThreshold, ReviewPolicy
@@ -25,6 +26,9 @@ from .trace import ActionTrace, TraceAction
 __all__ = [
     "ACTION_TRACE_SCHEMA_VERSION",
     "ActionTrace",
+    "AgentDecision",
+    "AgentDisposition",
+    "AgentGate",
     "CommandReview",
     "Decision",
     "EFFECT_CATALOG_SCHEMA_VERSION",
