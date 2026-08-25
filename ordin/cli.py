@@ -431,7 +431,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             for reason in action_review.reasons:
                 print(f"- {reason}")
             if action_review.effects:
-                print(f"effects: {", ".join(action_review.effects)}")
+                print("effects: " + ", ".join(action_review.effects))
             if action_review.safer_next_step:
                 print(f"safer_next_step: {action_review.safer_next_step}")
         return _review_exit(args, action_review.decision)
