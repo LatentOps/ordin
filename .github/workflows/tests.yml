@@ -33,6 +33,27 @@ jobs:
       - name: Run shared local quality gate
         run: pre-commit run --all-files --show-diff-on-failure
 
+  safety-benchmark:
+    name: Safety benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Ordin
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+      - name: Run deterministic safety benchmark
+        run: python scripts/run_safety_benchmark.py --json-out safety-benchmark-report.json
+      - name: Upload safety benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ordin-safety-benchmark
+          path: safety-benchmark-report.json
+          if-no-files-found: error
+
   test:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
