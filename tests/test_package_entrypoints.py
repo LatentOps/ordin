@@ -95,7 +95,8 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
             "-c",
             (
                 "from ordin import ActionEnvelope, ActionHistory, ActionPolicyCondition, "
-                "ActionPolicyRule, ActionPolicySet, AgentGate, Ordin, ReviewPolicy; "
+                "ActionPolicyRule, ActionPolicySet, AgentGate, MCPAdapter, Ordin, "
+                "ReviewPolicy, ToolCallAdapter; "
                 "policy = ActionPolicySet(policy_id='wheel-policy', version='1', rules=("
                 "ActionPolicyRule(id='approve-shell', decision='ask', "
                 "when=ActionPolicyCondition(kinds=('shell',))),)); "
@@ -113,7 +114,12 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
                 "history=history); "
                 "assert temporal_review.blocked; "
                 "assert 'trajectory_secret_exfiltration' in temporal_review.trajectory_categories; "
-                "assert AgentGate().evaluate('git status --short').may_execute"
+                "gate = AgentGate(); "
+                "assert gate.evaluate('git status --short').may_execute; "
+                "tool = ToolCallAdapter(runtime='wheel-agent'); "
+                "assert gate.evaluate_tool(tool, 'unknown', {}).requires_approval; "
+                "mcp = MCPAdapter(server='wheel-shell', shell_tools=frozenset({'run'})); "
+                "assert gate.evaluate_mcp(mcp, 'run', {'command': 'git status --short'}).may_execute"
             ),
         ],
         check=True,
