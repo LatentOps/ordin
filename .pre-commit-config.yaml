@@ -23,7 +23,9 @@ repos:
         entry: >-
           python -m mypy
           ordin/agent.py
+          ordin/action.py
           ordin/api.py
+          ordin/semantics.py
           ordin/policy.py
           ordin/entrypoint.py
           ordin/context.py

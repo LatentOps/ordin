@@ -31,6 +31,8 @@ SCHEMA_FILES = {
     "search_result": "search-result.v1.schema.json",
     "risk_review": "risk-review.v1.schema.json",
     "review_result": "review-result.v1.schema.json",
+    "action_envelope": "action-envelope.v1.schema.json",
+    "action_review": "action-review.v1.schema.json",
     "review_request": "review-request.v1.schema.json",
     "risk_rules": "risk-rules.v1.schema.json",
     "effect_catalog": "effect-catalog.v1.schema.json",
@@ -91,6 +93,9 @@ def validate_instance(
         min_length = schema.get("minLength")
         if isinstance(min_length, int) and len(instance) < min_length:
             errors.append(f"{path}: string is shorter than {min_length}")
+        max_length = schema.get("maxLength")
+        if isinstance(max_length, int) and len(instance) > max_length:
+            errors.append(f"{path}: string is longer than {max_length}")
         pattern = schema.get("pattern")
         if isinstance(pattern, str):
             try:
@@ -108,12 +113,18 @@ def validate_instance(
         min_items = schema.get("minItems")
         if isinstance(min_items, int) and len(instance) < min_items:
             errors.append(f"{path}: array has fewer than {min_items} items")
+        max_items = schema.get("maxItems")
+        if isinstance(max_items, int) and len(instance) > max_items:
+            errors.append(f"{path}: array has more than {max_items} items")
         item_schema = schema.get("items")
         if isinstance(item_schema, dict):
             for index, value in enumerate(instance):
                 errors.extend(validate_instance(value, item_schema, f"{path}[{index}]"))
 
     if isinstance(instance, dict):
+        max_properties = schema.get("maxProperties")
+        if isinstance(max_properties, int) and len(instance) > max_properties:
+            errors.append(f"{path}: object has more than {max_properties} properties")
         required = schema.get("required", [])
         if isinstance(required, list):
             for key in required:
