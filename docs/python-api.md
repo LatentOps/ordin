@@ -44,7 +44,7 @@ Policy thresholds match CLI enforcement:
 | `ask` | `allow`, `warn` |
 | `block` | `allow`, `warn`, `ask` |
 
-The decision order is `allow < warn < ask < block`. An uncertain `ask` therefore cannot be weakened by merging it with a warning from another shell segment.
+Review aggregation and execution policy intentionally use separate precedence rules. When multiple findings are combined, a known warning remains the dominant review label over uncertainty so Ordin preserves the v0.1 CLI behavior. For execution thresholds, `ask` is stricter than `warn` because an uncertain action requires explicit approval. Keeping these concepts separate avoids forcing two different safety questions into one global ordering.
 
 ## Context
 
