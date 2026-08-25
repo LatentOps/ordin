@@ -40,7 +40,7 @@ jobs:
       - name: Run release quality gate
         run: |
           python -m pip install --upgrade pip
-          python -m pip install ".[dev]"
+          python -m pip install "setuptools>=68" ".[dev]"
           ruff check ordin tests
           ruff format --check ordin tests
           mypy ordin/entrypoint.py ordin/context.py ordin/trace.py ordin/enforcement.py ordin/availability.py
