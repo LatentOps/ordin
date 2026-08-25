@@ -65,8 +65,9 @@ def test_agent_gate_passes_context_and_trace_to_ordin():
     assert result.review.context == context
     assert result.review.trace == trace
     assert result.review.trace_length == 1
-    assert "secret_exfiltration_sequence" in result.review.trajectory_categories
-    assert result.disposition == "escalate"
+    assert "trajectory_secret_exfiltration" in result.review.trajectory_categories
+    assert result.review.blocked is True
+    assert result.disposition == "deny"
 
 
 def test_agent_decision_keeps_underlying_review_visible():
