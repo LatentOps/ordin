@@ -38,6 +38,7 @@ semantic = ["sentence-transformers>=3.0,<6"]
 dev = [
     "build>=1.2,<2",
     "mypy>=1.17,<2",
+    "pre-commit>=3.7,<5",
     "pytest>=8,<10",
     "ruff>=0.12,<1",
     "twine>=6,<7",
