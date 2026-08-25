@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/ordin/observation-history.v1.schema.json",
+  "title": "Ordin Observation History v1",
+  "type": "object",
+  "required": ["schema_version", "observations"],
+  "properties": {
+    "schema_version": {"const": "ordin.observation_history.v1"},
+    "observations": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": ["schema_version", "action_id", "exit_code", "effects", "resources", "metadata"],
+        "properties": {
+          "schema_version": {"const": "ordin.action_observation.v1"},
+          "action_id": {"type": "string", "minLength": 1, "maxLength": 128},
+          "exit_code": {"type": ["integer", "null"]},
+          "effects": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[a-z][a-z0-9_.-]*$"}
+          },
+          "resources": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "object",
+              "required": ["type", "value"],
+              "properties": {
+                "type": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_.-]*$"},
+                "value": {"type": "string", "minLength": 1, "maxLength": 32768}
+              },
+              "additionalProperties": false
+            }
+          },
+          "metadata": {"type": "object", "maxProperties": 128, "additionalProperties": true}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
