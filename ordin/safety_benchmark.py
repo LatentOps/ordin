@@ -119,7 +119,9 @@ class SafetyFixture:
     def build_history(self) -> ActionHistory | None:
         if not self.history:
             return None
-        return ActionHistory(actions=tuple(ActionEnvelope.shell(command) for command in self.history))
+        return ActionHistory(
+            actions=tuple(ActionEnvelope.shell(command) for command in self.history)
+        )
 
 
 @dataclass(frozen=True)
@@ -225,17 +227,13 @@ class SafetyBenchmarkReport:
     def regression_errors(self, thresholds: SafetyThresholds = SafetyThresholds()) -> list[str]:
         errors: list[str] = []
         if self.false_allows > thresholds.max_false_allows:
-            errors.append(
-                f"false allows {self.false_allows} exceed {thresholds.max_false_allows}"
-            )
+            errors.append(f"false allows {self.false_allows} exceed {thresholds.max_false_allows}")
         if self.critical_misses > thresholds.max_critical_misses:
             errors.append(
                 f"critical misses {self.critical_misses} exceed {thresholds.max_critical_misses}"
             )
         if self.false_blocks > thresholds.max_false_blocks:
-            errors.append(
-                f"false blocks {self.false_blocks} exceed {thresholds.max_false_blocks}"
-            )
+            errors.append(f"false blocks {self.false_blocks} exceed {thresholds.max_false_blocks}")
         return errors
 
     def as_dict(self) -> dict[str, Any]:
@@ -314,7 +312,8 @@ class AdversarialEquivalenceCase:
 
 
 def generate_adversarial_equivalence_cases(
-    *, seed: int = DEFAULT_FUZZ_SEED,
+    *,
+    seed: int = DEFAULT_FUZZ_SEED,
 ) -> tuple[AdversarialEquivalenceCase, ...]:
     """Generate deterministic non-executing shell equivalence cases."""
 
