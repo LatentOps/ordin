@@ -32,12 +32,10 @@ jobs:
           import tomllib
           from pathlib import Path
 
+          from ordin import __version__ as runtime_version
+
           pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
           project_version = pyproject["project"]["version"]
-
-          namespace = {}
-          exec(Path("ordin/__init__.py").read_text(encoding="utf-8"), namespace)
-          runtime_version = namespace["__version__"]
           if project_version != runtime_version:
               raise SystemExit(
                   f"version mismatch: pyproject={project_version}, runtime={runtime_version}"
@@ -63,6 +61,7 @@ jobs:
           /tmp/ordin-release/bin/python -m pip install dist/*.whl
           /tmp/ordin-release/bin/ordin doctor
           /tmp/ordin-release/bin/ordin make file runnable --limit 1 --json
+          /tmp/ordin-release/bin/python -c "from ordin import Ordin; assert Ordin().review('git status --short').allowed"
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
