@@ -1,55 +1,18 @@
 # Ordin
 
-**Local command intelligence and pre-execution safety for humans and AI agents.**
+**Know what a shell action will do before it runs.**
 
-Ordin turns shell intent and command text into structured, explainable decisions. It can find commands from natural language, resolve typed command effects, review risky actions with execution context, reason over recent action traces, and provide an opt-in shell gate before execution.
+Ordin is a local command-intelligence and pre-execution safety engine for developers and AI agents. It can find shell commands from natural-language intent, review proposed commands before execution, and act as a deterministic gate between an agent and its shell runtime.
 
-Ordin is local-first. Core search and safety review do not require a cloud service, telemetry, or remote command execution.
+Core search and safety review are local-first. Ordin does not require a cloud service, upload command history, or execute agent actions on its own.
 
-## What Ordin does
+## Install v0.1.0
 
-```text
-natural-language intent
-        |
-        v
-command discovery ---------> examples / templates
-        |
-        v
-shell parsing + normalization
-        |
-        v
-semantic analyzers + typed effects
-        |
-        v
-context + recent action trace
-        |
-        v
-policy evaluation
-        |
-        v
-allow / warn / ask / block
-```
-
-The same engine is usable from a terminal, shell integration, or machine-readable JSON interface for agents.
-
-## Install
-
-For the CLI, use an isolated tool environment:
+The first public release is available from GitHub Releases. PyPI publishing is not enabled yet.
 
 ```bash
-pipx install ordin
-```
-
-or:
-
-```bash
-uv tool install ordin
-```
-
-A normal Python environment can use:
-
-```bash
-python -m pip install ordin
+python -m pip install https://github.com/LatentOps/ordin/releases/download/v0.1.0/ordin-0.1.0-py3-none-any.whl
+ordin doctor
 ```
 
 For an unreleased checkout:
@@ -60,45 +23,35 @@ cd ordin
 python -m pip install .
 ```
 
-Ordin installs one canonical command:
+See [Installation](docs/installation.md) for development setup and optional semantic reranking.
+
+## Three ways to use Ordin
+
+### 1. Find the command you need
+
+Describe the task instead of remembering the exact Linux command:
 
 ```bash
-ordin --help
+ordin what is using port 3000
+ordin find files larger than 1gb
+ordin make file runnable
 ```
 
-See [docs/installation.md](docs/installation.md) for development and optional semantic-reranker installation.
-
-## Quick start
-
-Search directly from natural language:
+Or use the explicit search command:
 
 ```bash
-ordin how to ssh
-ordin make file runnable --json
-ordin what is using port 3000 --limit 3
+ordin search "lookup dns for example.com" --limit 3
 ```
 
-Explicit search is also available:
+Ordin uses deterministic lexical retrieval by default and can incorporate local command availability and Linux distribution signals.
 
-```bash
-ordin search "find large files"
-```
-
-Inspect the semantic knowledge Ordin has about a command:
-
-```bash
-ordin explain chmod
-ordin graph --json
-ordin packs
-```
-
-Review a command before execution:
+### 2. Review a command before you run it
 
 ```bash
 ordin check "git reset --hard HEAD~1"
 ```
 
-Example result:
+Example:
 
 ```text
 decision: warn
@@ -107,63 +60,145 @@ risk: high
 - can rewrite or discard source-control history
 ```
 
-Add intent and execution context:
+For richer review, provide intent and execution context:
 
 ```bash
 ordin review \
-  --intent "clean generated dependencies" \
+  --intent "remove generated dependencies" \
   --command "rm -rf node_modules" \
   --cwd "$PWD" \
+  --repo-root "$PWD" \
   --json
 ```
 
-Machine callers can send a versioned review request through stdin:
-
-```bash
-cat request.json | ordin review --stdin --json
-```
-
-## Safety model
-
-Ordin uses four decisions:
-
-- **allow**: known low-risk behavior with no stronger finding.
-- **warn**: known elevated behavior that should be reviewed before execution.
-- **ask**: Ordin cannot establish enough semantic confidence to treat the action as safe.
-- **block**: a known critical condition was detected.
-
 Unknown commands are not silently treated as safe.
 
-Review combines several layers:
+### 3. Gate an AI agent before shell execution
 
-1. shell-aware parsing of compound commands, pipelines, substitutions, and shell payloads;
+```python
+from ordin import AgentGate
+
+result = AgentGate().evaluate(
+    "git status --short",
+    intent="inspect repository state",
+)
+
+if result.may_execute:
+    # Execute through your own sandbox or tool runtime.
+    ...
+elif result.requires_approval:
+    # Ask a human or caller-owned approval service.
+    ...
+else:
+    # Reject the proposed action.
+    ...
+```
+
+The runtime flow is deliberately small:
+
+```text
+agent proposes action
+        |
+        v
+      Ordin
+        |
+        +--> execute
+        +--> escalate
+        +--> deny
+        |
+        v
+caller-owned shell / sandbox
+```
+
+`AgentGate` never runs the command. The integrating runtime owns execution, sandboxing, approval UI, retries, and trace persistence.
+
+See [Agent runtime integration](docs/agent-integration.md) and [Python API](docs/python-api.md).
+
+## Optional shell gate
+
+Shell integration is explicit and reversible. Ordin does not edit shell startup files automatically.
+
+For Bash:
+
+```bash
+source <(ordin shell-init bash)
+orun 'git status --short'
+orun 'rm -rf ./build'
+```
+
+For Zsh:
+
+```zsh
+source <(ordin shell-init zsh)
+```
+
+`orun` reviews the exact command first and only executes according to the shell integration's review flow. See [Shell integration](docs/shell-integration.md).
+
+## What Ordin evaluates
+
+A command review can combine:
+
+1. shell-aware parsing of compound commands, pipelines, substitutions, groups, and nested shell payloads;
 2. semantic analyzers for high-value command families;
-3. typed effects such as filesystem deletion, network upload, privilege escalation, package installation, source-control mutation, and container changes;
-4. exact risk rules for dangerous combinations;
-5. optional execution context such as working directory, repository boundary, privilege level, shell, and agent identity;
-6. bounded trace-aware rules for multi-action sequences such as secret read → network upload or download → permission change → execute.
+3. typed effects such as filesystem deletion, network upload, package installation, source-control mutation, privilege escalation, and container changes;
+4. exact rules for dangerous combinations;
+5. optional execution context such as working directory, repository boundary, effective UID, shell, and agent identity;
+6. bounded recent-action traces for multi-step patterns such as secret read followed by upload or download followed by permission change and execution.
 
-A later layer can raise a decision, but it does not weaken a stronger safety finding from an earlier layer.
+The result uses four review decisions:
+
+| Decision | Meaning |
+| --- | --- |
+| `allow` | Known low-risk behavior with no stronger finding. |
+| `warn` | Known elevated behavior that should be reviewed. |
+| `ask` | Ordin cannot establish enough confidence to treat the action as safe. |
+| `block` | A known critical condition was detected. |
+
+Agent integrations can then apply a separate `ReviewPolicy` to decide what proceeds automatically and what requires escalation.
+
+## Machine-readable review
+
+Non-Python runtimes can send a versioned request through stdin:
+
+```bash
+cat examples/review.json | ordin review --stdin --json
+```
+
+Public payloads use versioned Ordin schemas, for example:
+
+```json
+{
+  "schema_version": "ordin.review_request.v1",
+  "command": "git status --short",
+  "intent": "inspect repository state",
+  "context": null,
+  "trace": null
+}
+```
+
+Schemas live in [`schemas/`](schemas/) and are validated by `ordin doctor` and CI.
 
 ## Command intelligence
 
-Ordin's search path is deterministic by default. It combines BM25-style lexical retrieval with intent, alias, template, local command availability, and Linux distribution signals.
+Search is deterministic by default. Ordin combines BM25-style lexical scoring with intent, aliases, examples, templates, command availability, and Linux distribution compatibility.
 
 ```bash
-ordin search "lookup dns for example.com" --json
+ordin search "find large files" --json
+ordin explain find
+ordin packs
 ```
 
-An optional local semantic reranker can rerank only a bounded deterministic candidate set. It is not part of the default dependency set and Ordin does not automatically download a model.
+An optional local semantic reranker can reorder only a bounded deterministic candidate set. It is not part of the default dependency set and Ordin does not automatically download a model.
 
 ```bash
 python -m pip install "ordin[semantic]"
 ```
 
-See [docs/semantic-reranking.md](docs/semantic-reranking.md).
+See [Deterministic ranking](docs/deterministic-ranking.md), [Availability and platforms](docs/availability-and-platforms.md), and [Semantic reranking](docs/semantic-reranking.md).
 
 ## Typed effect graph
 
-Curated command metadata can express relationships such as:
+Curated command metadata can express:
 
 ```text
 intent -> command
@@ -182,79 +217,61 @@ ordin graph
 ordin graph --json
 ```
 
-See [docs/effect-graph.md](docs/effect-graph.md) and [docs/schema-contracts.md](docs/schema-contracts.md).
+See [Effect graph](docs/effect-graph.md) and [Schema contracts](docs/schema-contracts.md).
 
-## Shell integration
+## Documentation by goal
 
-Shell integration is explicit and reversible. Ordin does not modify shell startup files automatically.
+| I want to... | Start here |
+| --- | --- |
+| install or use the CLI | [Installation](docs/installation.md), [Bare intent CLI](docs/bare-intent-cli.md) |
+| embed Ordin in Python | [Python API](docs/python-api.md) |
+| gate an AI agent | [Agent runtime integration](docs/agent-integration.md) |
+| enable reviewed shell execution | [Shell integration](docs/shell-integration.md) |
+| understand safety behavior | [Architecture](docs/architecture.md), [Context-aware review](docs/context-aware-review.md), [Trace-aware review](docs/trace-aware-review.md) |
+| extend command knowledge | [Command packs](docs/command-packs.md), [Semantic analyzers](docs/semantic-analyzers.md), [Effect graph](docs/effect-graph.md) |
+| contribute | [Contributing](CONTRIBUTING.md), [Development workflow](docs/development-workflow.md) |
 
-For Bash:
-
-```bash
-source <(ordin shell-init bash)
-orun 'git status --short'
-orun 'rm -rf ./build'
-```
-
-For Zsh:
-
-```zsh
-source <(ordin shell-init zsh)
-```
-
-The Zsh integration also provides an opt-in review widget. See [docs/shell-integration.md](docs/shell-integration.md).
-
-## Machine-readable contracts
-
-Public payloads carry stable schema versions under the Ordin namespace, for example:
-
-```json
-{
-  "schema_version": "ordin.review_request.v1",
-  "command": "git status --short"
-}
-```
-
-Schemas are published in [`schemas/`](schemas/) and packaged with the Python distribution. `ordin doctor` validates schemas, resources, command packs, risk rules, templates, and graph relationships.
-
-## Repository layout
-
-```text
-ordin/              Python package and packaged resources
-data/               Curated command cards, effects, packs, and risk rules
-schemas/            Public JSON Schema contracts
-benchmarks/         Search-quality fixtures
-examples/           Example machine-readable requests
-docs/               Architecture and feature documentation
-tests/              Unit, integration, packaging, and safety tests
-.github/workflows/  CI and release pipelines
-```
-
-The source data and packaged resource mirror are validated for parity in CI.
+See the full [documentation index](docs/README.md).
 
 ## Development
 
 ```bash
 python -m pip install -e ".[dev]"
-ruff check ordin tests
-ruff format --check ordin tests
+pre-commit install
+pre-commit run --all-files
 pytest -q
-python -m ordin doctor
 ```
 
-Pull requests also run staged mypy checks, Python 3.10–3.13 tests, wheel/sdist validation, clean installed-CLI smoke tests, and packaged installation checks on Debian and Fedora.
+The shared pre-commit gate covers Ruff lint and formatting, staged mypy checks, compilation, `ordin doctor`, and repository namespace integrity. Pull requests additionally run Python 3.10 through 3.13, built-wheel validation, and isolated Debian/Fedora installation smoke tests.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/development-workflow.md](docs/development-workflow.md).
+## Repository layout
 
-## Design constraints
+```text
+ordin/              library, CLI, analyzers, agent gate, packaged resources
+data/               curated command cards, effects, packs, and risk rules
+schemas/            public JSON Schema contracts
+benchmarks/         deterministic search-quality fixtures
+examples/           human and agent integration examples
+docs/               usage, architecture, safety, and development documentation
+scripts/            repository integrity tooling
+tests/              unit, integration, packaging, and safety tests
+.github/workflows/  CI and release pipelines
+```
+
+## Design boundaries
 
 Ordin intentionally does not:
 
-- execute commands automatically by default;
-- require a cloud service for core behavior;
+- execute commands received through the Python API or `review --stdin`;
+- become a general agent framework;
+- require a hosted service for core behavior;
 - upload shell history or command text;
 - generate arbitrary shell programs from free-form prompts;
 - treat unclassified behavior as safe.
+
+## Release
+
+Current public release: [Ordin v0.1.0](https://github.com/LatentOps/ordin/releases/tag/v0.1.0).
 
 ## License
 
