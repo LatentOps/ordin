@@ -1,0 +1,41 @@
+name: fix-public-api-risk-type
+
+on:
+  push:
+    branches:
+      - public-python-api
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: public-python-api
+      - name: Type the aggregate review decision
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("ordin/risk.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''def _merge_reviews(reviews: list[RiskReview]) -> RiskReview:
+              decision = "allow"
+          '''
+          new = '''def _merge_reviews(reviews: list[RiskReview]) -> RiskReview:
+              decision: Decision = "allow"
+          '''
+          if old not in text:
+              raise SystemExit("expected _merge_reviews decision declaration not found")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+      - name: Commit type fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ordin/risk.py
+          git commit -m "Type aggregate review decisions"
+          git push origin HEAD:public-python-api
