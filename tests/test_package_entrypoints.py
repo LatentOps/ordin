@@ -64,7 +64,7 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
     health = json.loads(doctor.stdout)
     assert health["effect_count"] >= 20
     assert health["temporal_rule_count"] == 4
-    assert health["schema_count"] >= 14
+    assert health["schema_count"] >= 17
     assert health["schema_errors"] == []
     assert health["risk_rule_errors"] == []
     assert health["template_errors"] == []
@@ -94,10 +94,10 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
             str(python),
             "-c",
             (
-                "from ordin import ActionEnvelope, ActionHistory, ActionPolicyCondition, "
-                "ActionPolicyRule, ActionPolicySet, AgentGate, MCPAdapter, Ordin, "
-                "ReviewPolicy, ToolCallAdapter, ToolResourceBinding, ToolSemanticRule, "
-                "ToolSemanticsRegistry; "
+                "from ordin import ActionEnvelope, ActionHistory, ActionObservation, "
+                "ActionPolicyCondition, ActionPolicyRule, ActionPolicySet, AgentGate, "
+                "MCPAdapter, ObservationHistory, Ordin, ReviewPolicy, ToolCallAdapter, "
+                "ToolResourceBinding, ToolSemanticRule, ToolSemanticsRegistry; "
                 "policy = ActionPolicySet(policy_id='wheel-policy', version='1', rules=("
                 "ActionPolicyRule(id='approve-shell', decision='ask', "
                 "when=ActionPolicyCondition(kinds=('shell',))),)); "
@@ -106,6 +106,8 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
                 "assert review.allowed; "
                 "action_review = ordin.review_action(ActionEnvelope.shell('git status --short')); "
                 "assert action_review.uncertain; "
+                "assert action_review.capabilities is not None; "
+                "assert action_review.capabilities.process_execution; "
                 "assert action_review.policy_matches[0]['rule_id'] == 'approve-shell'; "
                 "assert not ordin.allows(action_review); "
                 "plain = Ordin(); "
@@ -128,7 +130,15 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
                 "tool_gate = AgentGate(Ordin(tool_semantics=registry)); "
                 "fs = MCPAdapter(server='filesystem-local'); "
                 "trusted = tool_gate.evaluate_mcp(fs, 'read_file', {'path': 'README.md'}); "
-                "assert trusted.may_execute and trusted.review.effects == ['filesystem.read']"
+                "assert trusted.may_execute and trusted.review.effects == ['filesystem.read']; "
+                "assert trusted.review.capabilities.filesystem == 'read'; "
+                "observed_history = ActionHistory(actions=("
+                "ActionEnvelope.shell('git status --short', action_id='wheel-observed'),)); "
+                "observations = ObservationHistory(observations=("
+                "ActionObservation(action_id='wheel-observed', exit_code=0),)); "
+                "observed_review = plain.review_action(ActionEnvelope.shell('git log -1 --oneline'), "
+                "history=observed_history, observations=observations); "
+                "assert observed_review.capabilities.process_execution"
             ),
         ],
         check=True,
