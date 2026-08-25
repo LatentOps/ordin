@@ -1,0 +1,61 @@
+name: temporary capability branch formatter
+
+on:
+  push:
+    branches:
+      - capabilities-observations
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: capabilities-observations
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Apply deterministic fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          execution = Path("ordin/execution.py")
+          text = execution.read_text(encoding="utf-8")
+          old = '''class ResourceLike(Protocol):
+              type: str
+              value: str
+          '''
+          new = '''class ResourceLike(Protocol):
+              @property
+              def type(self) -> str: ...
+
+              @property
+              def value(self) -> str: ...
+          '''
+          if old not in text:
+              raise SystemExit("ResourceLike anchor not found")
+          execution.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          tests = Path("tests/test_execution_observations.py")
+          text = tests.read_text(encoding="utf-8")
+          old = 'with pytest.raises(ValueError, match="duplicate"):'
+          new = 'with pytest.raises(ValueError, match="must be unique"):'
+          if old not in text:
+              raise SystemExit("duplicate assertion anchor not found")
+          tests.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+          python -m pip install "ruff==0.16.4"
+          python -m ruff format ordin/action.py ordin/execution.py tests/test_execution_observations.py
+      - name: Commit fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ordin/action.py ordin/execution.py tests/test_execution_observations.py
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix capability typing and formatting"
+          git push origin HEAD:capabilities-observations
