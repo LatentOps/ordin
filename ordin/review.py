@@ -133,9 +133,8 @@ def review_command(
 
     if intent_alignment == "mismatch":
         reasons.extend(reason for reason in alignment_reasons if reason not in reasons)
-        if decision in {"allow", "ask"}:
-            decision = "warn"
-            review_risk = max_risk(review_risk, "medium")
+        decision = _stronger_decision(decision, "warn")
+        review_risk = max_risk(review_risk, "medium")
 
     return CommandReview(
         intent=intent,
