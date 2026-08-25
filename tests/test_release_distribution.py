@@ -22,8 +22,8 @@ def test_installation_paths_are_github_native():
     installation = (ROOT / "docs" / "installation.md").read_text(encoding="utf-8")
     releasing = (ROOT / "docs" / "releasing.md").read_text(encoding="utf-8")
 
-    stable_install = 'git+https://github.com/LatentOps/ordin.git@v0.1.0'
-    development_install = 'git+https://github.com/LatentOps/ordin.git'
+    stable_install = "git+https://github.com/LatentOps/ordin.git@v0.1.0"
+    development_install = "git+https://github.com/LatentOps/ordin.git"
 
     assert stable_install in readme
     assert stable_install in installation
