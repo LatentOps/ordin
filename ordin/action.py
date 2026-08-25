@@ -224,7 +224,9 @@ class ActionReview(DecisionResultMixin):
         }
 
 
-def _resources_from_semantics(command: str, context: ExecutionContext | None) -> list[ActionResource]:
+def _resources_from_semantics(
+    command: str, context: ExecutionContext | None
+) -> list[ActionResource]:
     resolved = semantic_evidence_for_command(command, context=context)
     seen: set[tuple[str, str]] = set()
     resources: list[ActionResource] = []
@@ -279,7 +281,7 @@ def review_action(action: ActionEnvelope) -> ActionReview:
         )
 
     known_kind = action.kind in KNOWN_ACTION_KINDS
-    scope = f'{action.kind}.{action.operation}'
+    scope = f"{action.kind}.{action.operation}"
     if known_kind:
         reason = f'no semantic adapter is registered for action "{scope}"'
     else:
