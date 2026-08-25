@@ -52,6 +52,7 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
     )
     assert "command" in help_result.stdout.lower()
     assert "safety" in help_result.stdout.lower()
+    assert "action" in help_result.stdout.lower()
 
     doctor = subprocess.run(
         [str(script), "doctor", "--json"],
@@ -62,7 +63,7 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
     )
     health = json.loads(doctor.stdout)
     assert health["effect_count"] >= 20
-    assert health["schema_count"] >= 8
+    assert health["schema_count"] >= 10
     assert health["schema_errors"] == []
     assert health["risk_rule_errors"] == []
     assert health["template_errors"] == []
@@ -92,11 +93,16 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
             str(python),
             "-c",
             (
-                "from ordin import AgentGate, Ordin, ReviewPolicy; "
+                "from ordin import ActionEnvelope, AgentGate, Ordin, ReviewPolicy; "
                 "ordin = Ordin(policy=ReviewPolicy(fail_on='warn')); "
                 "review = ordin.review('git status --short'); "
                 "assert review.allowed; "
                 "assert ordin.allows(review); "
+                "action = ActionEnvelope.shell('git status --short'); "
+                "action_review = ordin.review_action(action); "
+                "assert action_review.allowed; "
+                "assert action_review.adapter == 'shell'; "
+                "assert ordin.allows(action_review); "
                 "result = AgentGate(ordin).evaluate('git status --short'); "
                 "assert result.may_execute"
             ),
