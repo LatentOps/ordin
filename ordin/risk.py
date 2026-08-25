@@ -9,6 +9,7 @@ from .analyzers import analyze_tokens
 from .context import ExecutionContext
 from .data import find_command, load_risk_rules
 from .graph import EffectEvidence, effects_for_tokens
+from .policy import DECISION_ORDER, Decision, DecisionResultMixin
 from .shell import (
     SHELL_EXECUTABLES,
     command_name_candidates,
@@ -27,12 +28,6 @@ RISK_ORDER = {
     "medium": 2,
     "high": 3,
     "critical": 4,
-}
-DECISION_ORDER = {
-    "allow": 1,
-    "ask": 2,
-    "warn": 3,
-    "block": 4,
 }
 RULE_EXECUTABLES = {
     "recursive_delete": {"rm"},
@@ -93,8 +88,8 @@ PRIVILEGE_SENSITIVE_EFFECTS = PATH_MUTATING_EFFECTS | {
 
 
 @dataclass(frozen=True)
-class RiskReview:
-    decision: str
+class RiskReview(DecisionResultMixin):
+    decision: Decision
     risk: str
     reasons: list[str]
     safer_next_step: str | None = None
@@ -117,7 +112,7 @@ def max_risk(current: str, candidate: str) -> str:
     return candidate if RISK_ORDER[candidate] > RISK_ORDER[current] else current
 
 
-def decision_for_risk(risk: str) -> str:
+def decision_for_risk(risk: str) -> Decision:
     if risk == "critical":
         return "block"
     if risk in {"high", "medium"}:
@@ -408,7 +403,7 @@ def _pipe_findings(
 
 
 def _merge_reviews(reviews: list[RiskReview]) -> RiskReview:
-    decision = "allow"
+    decision: Decision = "allow"
     known_risk = "low"
     has_unknown = False
     reasons: list[str] = []

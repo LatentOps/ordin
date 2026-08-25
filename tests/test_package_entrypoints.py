@@ -19,7 +19,7 @@ def _venv_script(venv_path: Path, script_name: str) -> Path:
     return venv_path / "bin" / script_name
 
 
-def test_package_install_exposes_ordin_cli_and_graph_data(tmp_path):
+def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
     venv_path = tmp_path / "venv"
     # Python 3.12+ venvs may omit setuptools; expose the runner build backend
     # while still installing Ordin and its console script into this venv.
@@ -86,3 +86,22 @@ def test_package_install_exposes_ordin_cli_and_graph_data(tmp_path):
         capture_output=True,
     )
     assert schema_check.returncode == 0
+
+    api_check = subprocess.run(
+        [
+            str(python),
+            "-c",
+            (
+                "from ordin import Ordin, ReviewPolicy; "
+                "gate = Ordin(policy=ReviewPolicy(fail_on='warn')); "
+                "review = gate.review('git status --short'); "
+                "assert review.allowed; "
+                "assert gate.allows(review)"
+            ),
+        ],
+        check=True,
+        cwd=venv_path,
+        text=True,
+        capture_output=True,
+    )
+    assert api_check.returncode == 0

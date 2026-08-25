@@ -4,7 +4,8 @@ from dataclasses import dataclass
 
 from . import REVIEW_SCHEMA_VERSION
 from .context import ExecutionContext
-from .risk import DECISION_ORDER, check_command, decision_for_risk, max_risk
+from .policy import Decision, DecisionResultMixin, stronger_decision
+from .risk import check_command, decision_for_risk, max_risk
 from .search import SearchResult, search
 from .shell import executable_name
 from .trace import ActionTrace
@@ -12,10 +13,10 @@ from .trajectory import evaluate_trajectory
 
 
 @dataclass(frozen=True)
-class CommandReview:
+class CommandReview(DecisionResultMixin):
     intent: str | None
     command: str
-    decision: str
+    decision: Decision
     risk: str
     reasons: list[str]
     safer_next_step: str | None
@@ -79,10 +80,6 @@ def warn_for_intent_mismatch(
     )
 
 
-def _stronger_decision(current: str, candidate: str) -> str:
-    return candidate if DECISION_ORDER[candidate] > DECISION_ORDER[current] else current
-
-
 def review_command(
     command: str,
     intent: str | None = None,
@@ -111,7 +108,7 @@ def review_command(
     if trajectory.risk is not None:
         prior_risk = review_risk
         review_risk = max_risk(review_risk, trajectory.risk)
-        decision = _stronger_decision(
+        decision = stronger_decision(
             decision,
             decision_for_risk(trajectory.risk),
         )
@@ -132,9 +129,8 @@ def review_command(
 
     if intent_alignment == "mismatch":
         reasons.extend(reason for reason in alignment_reasons if reason not in reasons)
-        if decision in {"allow", "ask"}:
-            decision = "warn"
-            review_risk = max_risk(review_risk, "medium")
+        decision = stronger_decision(decision, "warn")
+        review_risk = max_risk(review_risk, "medium")
 
     return CommandReview(
         intent=intent,

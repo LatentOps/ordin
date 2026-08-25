@@ -1,4 +1,4 @@
-"""Ordin: intent-aware command discovery and command safety checks."""
+"""Ordin public API for command intelligence and pre-execution safety."""
 
 __version__ = "0.1.0"
 
@@ -13,3 +13,37 @@ EFFECT_CATALOG_SCHEMA_VERSION = "ordin.effect_catalog.v1"
 EFFECT_GRAPH_SCHEMA_VERSION = "ordin.effect_graph.v1"
 PACK_MANIFEST_SCHEMA_VERSION = "ordin.command_pack.v1"
 PACK_LIST_SCHEMA_VERSION = "ordin.pack_list.v1"
+
+from .api import Ordin
+from .context import ExecutionContext, ReviewRequest
+from .policy import Decision, FailThreshold, ReviewPolicy
+from .review import CommandReview
+from .risk import RiskReview
+from .search import SearchResult
+from .trace import ActionTrace, TraceAction
+
+__all__ = [
+    "ACTION_TRACE_SCHEMA_VERSION",
+    "ActionTrace",
+    "CommandReview",
+    "Decision",
+    "EFFECT_CATALOG_SCHEMA_VERSION",
+    "EFFECT_GRAPH_SCHEMA_VERSION",
+    "ExecutionContext",
+    "FailThreshold",
+    "MAN_INDEX_SCHEMA_VERSION",
+    "Ordin",
+    "PACK_LIST_SCHEMA_VERSION",
+    "PACK_MANIFEST_SCHEMA_VERSION",
+    "REVIEW_REQUEST_SCHEMA_VERSION",
+    "REVIEW_SCHEMA_VERSION",
+    "RISK_RULES_SCHEMA_VERSION",
+    "RISK_SCHEMA_VERSION",
+    "ReviewPolicy",
+    "ReviewRequest",
+    "RiskReview",
+    "SEARCH_SCHEMA_VERSION",
+    "SearchResult",
+    "TraceAction",
+    "__version__",
+]
