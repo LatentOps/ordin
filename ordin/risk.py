@@ -403,7 +403,7 @@ def _pipe_findings(
 
 
 def _merge_reviews(reviews: list[RiskReview]) -> RiskReview:
-    decision = "allow"
+    decision: Decision = "allow"
     known_risk = "low"
     has_unknown = False
     reasons: list[str] = []
