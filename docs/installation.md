@@ -1,19 +1,27 @@
 # Installation
 
-Ordin is packaged as the Python distribution `ordin` and installs two equivalent console commands: `ordin` and the shorter `ordin`.
+Ordin is distributed as the Python package `ordin` and installs one canonical console command: `ordin`.
 
-## PyPI
+## Recommended CLI installation
 
-After a release is published to PyPI, the recommended CLI installation is:
+Use an isolated tool environment:
 
 ```bash
 pipx install ordin
 ```
 
-or with `uv`:
+or:
 
 ```bash
 uv tool install ordin
+```
+
+Then verify the installation:
+
+```bash
+ordin --help
+ordin doctor
+ordin make file runnable
 ```
 
 A normal Python environment can use:
@@ -22,22 +30,15 @@ A normal Python environment can use:
 python -m pip install ordin
 ```
 
-Then verify the installation:
-
-```bash
-ordin doctor
-ordin make file runnable
-```
-
 ## Optional semantic reranking
 
-The deterministic BM25 search path has no ML runtime dependency. Local semantic reranking is optional:
+The deterministic search and safety paths have no ML runtime dependency. Local semantic reranking is optional:
 
 ```bash
 python -m pip install "ordin[semantic]"
 ```
 
-Ordin still requires an explicit local model path and does not automatically download a model.
+A semantic model must be supplied from an explicit local path. Ordin does not automatically download one.
 
 ## Install from source
 
@@ -55,6 +56,15 @@ For development:
 python -m pip install -e ".[dev]"
 ```
 
-## Supported Python
+Run the local validation gate with:
 
-Ordin supports Python 3.10 through 3.13. The CI matrix tests each supported version before merge.
+```bash
+ruff check ordin tests
+ruff format --check ordin tests
+pytest -q
+python -m ordin doctor
+```
+
+## Supported Python and Linux validation
+
+Ordin supports Python 3.10 through 3.13. CI tests every supported Python version and also performs isolated installed-CLI smoke tests on Debian and Fedora in addition to the standard Ubuntu runner.
