@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/ordin/temporal-policy-set.v1.schema.json",
+  "title": "Ordin Temporal Policy Set v1",
+  "type": "object",
+  "required": ["schema_version", "policy_id", "version", "rules"],
+  "properties": {
+    "schema_version": {"const": "ordin.temporal_policy_set.v1"},
+    "policy_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "version": {"type": "string", "minLength": 1, "maxLength": 64},
+    "rules": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": ["id", "risk", "category", "within_actions", "pattern", "reason", "safer_next_step"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1, "maxLength": 128},
+          "risk": {"enum": ["medium", "high", "critical"]},
+          "category": {"type": "string", "minLength": 1, "maxLength": 128},
+          "within_actions": {"type": "integer", "minimum": 1, "maximum": 32},
+          "pattern": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 8,
+            "items": {
+              "type": "object",
+              "required": ["signals_any"],
+              "properties": {
+                "signals_any": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 64,
+                  "items": {"type": "string", "minLength": 1, "maxLength": 256}
+                },
+                "kinds": {
+                  "type": "array",
+                  "maxItems": 32,
+                  "items": {"type": "string", "minLength": 1, "maxLength": 64}
+                },
+                "operations": {
+                  "type": "array",
+                  "maxItems": 32,
+                  "items": {"type": "string", "minLength": 1, "maxLength": 128}
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "reason": {"type": "string", "minLength": 1, "maxLength": 32768},
+          "safer_next_step": {"type": ["string", "null"], "maxLength": 32768},
+          "enabled": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

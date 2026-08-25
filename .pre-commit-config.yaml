@@ -27,6 +27,7 @@ repos:
           ordin/action_policy.py
           ordin/api.py
           ordin/semantics.py
+          ordin/temporal.py
           ordin/policy.py
           ordin/entrypoint.py
           ordin/context.py

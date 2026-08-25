@@ -1,0 +1,16 @@
+{
+  "schema_version": "ordin.action_history.v1",
+  "actions": [
+    {
+      "schema_version": "ordin.action_envelope.v1",
+      "action_id": "prior-secret-read",
+      "kind": "shell",
+      "operation": "execute",
+      "parameters": {
+        "command": "cat .env"
+      },
+      "intent": "inspect local environment configuration",
+      "context": null
+    }
+  ]
+}

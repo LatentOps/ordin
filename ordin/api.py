@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from .action import ActionEnvelope, ActionReview, review_action
+from .action import ActionEnvelope, ActionHistory, ActionReview, review_action
 from .action_policy import ActionPolicySet, CompiledActionPolicySet
 from .context import ExecutionContext, ReviewRequest
 from .policy import ReviewPolicy
@@ -11,6 +11,7 @@ from .review import CommandReview, review_command
 from .risk import RiskReview, check_command
 from .schema import validate_named_schema
 from .search import SearchResult, search
+from .temporal import CompiledTemporalPolicySet, TemporalPolicySet
 from .trace import ActionTrace
 
 
@@ -26,6 +27,7 @@ class Ordin:
     trace: ActionTrace | None = None
     policy: ReviewPolicy = field(default_factory=ReviewPolicy)
     action_policy: ActionPolicySet | CompiledActionPolicySet | None = None
+    temporal_policy: TemporalPolicySet | CompiledTemporalPolicySet | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.action_policy, ActionPolicySet):
@@ -34,6 +36,14 @@ class Ordin:
             self.action_policy, CompiledActionPolicySet
         ):
             raise ValueError("action_policy must be an ActionPolicySet, compiled policy, or null")
+        if isinstance(self.temporal_policy, TemporalPolicySet):
+            object.__setattr__(self, "temporal_policy", self.temporal_policy.compile())
+        elif self.temporal_policy is not None and not isinstance(
+            self.temporal_policy, CompiledTemporalPolicySet
+        ):
+            raise ValueError(
+                "temporal_policy must be a TemporalPolicySet, compiled policy, or null"
+            )
 
     def search(self, query: str, *, limit: int = 5) -> list[SearchResult]:
         if not isinstance(query, str) or not query.strip():
@@ -80,6 +90,8 @@ class Ordin:
     def review_action(
         self,
         action: ActionEnvelope | Mapping[str, Any],
+        *,
+        history: ActionHistory | Mapping[str, Any] | None = None,
     ) -> ActionReview:
         parsed = self._parse_action(action)
         if parsed.context is None and self.context is not None:
@@ -91,7 +103,13 @@ class Ordin:
                 context=self.context,
                 action_id=parsed.action_id,
             )
-        result = review_action(parsed)
+        parsed_history = self._parse_history(history)
+        temporal = self.temporal_policy
+        result = review_action(
+            parsed,
+            history=parsed_history,
+            temporal_policy=(temporal if isinstance(temporal, CompiledTemporalPolicySet) else None),
+        )
         compiled_policy = self.action_policy
         if isinstance(compiled_policy, CompiledActionPolicySet):
             result = compiled_policy.apply(result)
@@ -110,6 +128,19 @@ class Ordin:
         if errors:
             raise ValueError("review request schema validation failed: " + "; ".join(errors))
         return ReviewRequest.from_dict(payload)
+
+    def _parse_history(
+        self, history: ActionHistory | Mapping[str, Any] | None
+    ) -> ActionHistory | None:
+        if history is None or isinstance(history, ActionHistory):
+            return history
+        if not isinstance(history, Mapping):
+            raise ValueError("history must be an ActionHistory, mapping, or null")
+        payload = dict(history)
+        errors = validate_named_schema("action_history", payload)
+        if errors:
+            raise ValueError("action history schema validation failed: " + "; ".join(errors))
+        return ActionHistory.from_dict(payload)
 
     def _parse_action(self, action: ActionEnvelope | Mapping[str, Any]) -> ActionEnvelope:
         if isinstance(action, ActionEnvelope):

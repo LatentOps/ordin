@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from .action import ActionEnvelope, review_action
+from .action import ActionEnvelope, ActionHistory, review_action
 from .action_policy import load_action_policy
 from .context import ExecutionContext, ReviewRequest
 from .data import data_health, find_command
@@ -19,6 +19,7 @@ from .risk import check_command
 from .schema import validate_named_schema
 from .search import search
 from .shell_integration import render_shell_init
+from .temporal import load_temporal_policy
 
 
 def print_search(query: str, limit: int, as_json: bool = False) -> None:
@@ -207,6 +208,22 @@ def _input_error(message: str, as_json: bool) -> int:
     return 2
 
 
+def _history_error(exc: ValueError, as_json: bool) -> int:
+    if as_json:
+        print(json.dumps({"error": "invalid_action_history", "message": str(exc)}, indent=2))
+    else:
+        print(f"invalid action history: {exc}")
+    return 2
+
+
+def _temporal_policy_error(exc: ValueError, as_json: bool) -> int:
+    if as_json:
+        print(json.dumps({"error": "invalid_temporal_policy", "message": str(exc)}, indent=2))
+    else:
+        print(f"invalid temporal policy: {exc}")
+    return 2
+
+
 def _policy_error(exc: ValueError, as_json: bool) -> int:
     if as_json:
         print(json.dumps({"error": "invalid_policy", "message": str(exc)}, indent=2))
@@ -253,6 +270,22 @@ def _read_stdin_action_envelope() -> ActionEnvelope:
     if schema_errors:
         raise ValueError("schema validation failed: " + "; ".join(schema_errors))
     return ActionEnvelope.from_dict(payload)
+
+
+def _read_action_history_file(path: str) -> ActionHistory:
+    history_path = Path(path)
+    try:
+        payload = json.loads(history_path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ValueError(f"cannot read action history {history_path}: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid action history JSON: {exc.msg}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("action history file must contain a JSON object")
+    errors = validate_named_schema("action_history", payload)
+    if errors:
+        raise ValueError("action history schema validation failed: " + "; ".join(errors))
+    return ActionHistory.from_dict(payload)
 
 
 def _review_exit(args: argparse.Namespace, decision: str) -> int:
@@ -334,6 +367,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--policy",
         help="Explicit local ordin.policy_set.v1 JSON file to apply.",
     )
+    action_parser.add_argument(
+        "--history",
+        help="Explicit local ordin.action_history.v1 JSON file.",
+    )
+    action_parser.add_argument(
+        "--temporal-policy",
+        help="Explicit local ordin.temporal_policy_set.v1 JSON file; defaults to bundled rules.",
+    )
     _add_enforcement_arguments(action_parser)
 
     policy_parser = subparsers.add_parser(
@@ -346,6 +387,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     policy_validate_parser.add_argument("path")
     policy_validate_parser.add_argument("--json", action="store_true")
+
+    temporal_parser = subparsers.add_parser(
+        "temporal",
+        help="Validate bounded temporal action policies.",
+    )
+    temporal_subparsers = temporal_parser.add_subparsers(dest="temporal_command", required=True)
+    temporal_validate_parser = temporal_subparsers.add_parser(
+        "validate", help="Validate and compile a temporal policy file."
+    )
+    temporal_validate_parser.add_argument("path")
+    temporal_validate_parser.add_argument("--json", action="store_true")
 
     doctor_parser = subparsers.add_parser("doctor", help="Check local Ordin data.")
     doctor_parser.add_argument("--json", action="store_true")
@@ -444,15 +496,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command_name == "policy":
         if args.policy_command == "validate":
             try:
-                compiled = load_action_policy(args.path)
+                compiled_policy = load_action_policy(args.path)
             except ValueError as exc:
                 return _policy_error(exc, as_json=args.json)
             payload = {
-                "schema_version": compiled.policy.schema_version,
-                "policy_id": compiled.policy.policy_id,
-                "version": compiled.policy.version,
-                "digest": compiled.digest,
-                "rule_count": len(compiled.policy.rules),
+                "schema_version": compiled_policy.policy.schema_version,
+                "policy_id": compiled_policy.policy.policy_id,
+                "version": compiled_policy.policy.version,
+                "digest": compiled_policy.digest,
+                "rule_count": len(compiled_policy.policy.rules),
             }
             if args.json:
                 print(json.dumps(payload, indent=2))
@@ -463,12 +515,44 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"rules: {payload['rule_count']}")
             return 0
 
+    if args.command_name == "temporal":
+        if args.temporal_command == "validate":
+            try:
+                compiled_temporal = load_temporal_policy(args.path)
+            except ValueError as exc:
+                return _temporal_policy_error(exc, as_json=args.json)
+            payload = {
+                "schema_version": compiled_temporal.policy.schema_version,
+                "policy_id": compiled_temporal.policy.policy_id,
+                "version": compiled_temporal.policy.version,
+                "rule_count": len(compiled_temporal.policy.rules),
+            }
+            if args.json:
+                print(json.dumps(payload, indent=2))
+            else:
+                print(f"policy_id: {payload['policy_id']}")
+                print(f"version: {payload['version']}")
+                print(f"rules: {payload['rule_count']}")
+            return 0
+
     if args.command_name == "action":
         try:
             action = _read_stdin_action_envelope()
         except ValueError as exc:
             return _input_error(str(exc), as_json=args.json)
-        action_review = review_action(action)
+        history = None
+        if args.history:
+            try:
+                history = _read_action_history_file(args.history)
+            except ValueError as exc:
+                return _history_error(exc, as_json=args.json)
+        temporal_policy = None
+        if args.temporal_policy:
+            try:
+                temporal_policy = load_temporal_policy(args.temporal_policy)
+            except ValueError as exc:
+                return _temporal_policy_error(exc, as_json=args.json)
+        action_review = review_action(action, history=history, temporal_policy=temporal_policy)
         if args.policy:
             try:
                 action_policy = load_action_policy(args.policy)

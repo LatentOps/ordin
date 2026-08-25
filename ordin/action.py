@@ -1,20 +1,33 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Mapping
 
-from . import ACTION_ENVELOPE_SCHEMA_VERSION, ACTION_REVIEW_SCHEMA_VERSION
+from . import (
+    ACTION_ENVELOPE_SCHEMA_VERSION,
+    ACTION_HISTORY_SCHEMA_VERSION,
+    ACTION_REVIEW_SCHEMA_VERSION,
+)
 from .context import ExecutionContext
-from .policy import Decision, DecisionResultMixin
+from .policy import Decision, DecisionResultMixin, stronger_decision
 from .review import review_command
+from .risk import decision_for_risk, max_risk
 from .semantics import semantic_evidence_for_command
+from .temporal import (
+    CompiledTemporalPolicySet,
+    TemporalActionEvidence,
+    TemporalPolicySet,
+    default_temporal_policy,
+    temporal_evidence_for_command,
+)
 
 
 ACTION_KIND_PATTERN = re.compile(r"^[a-z][a-z0-9_.-]*$")
 MAX_ACTION_KIND_LENGTH = 64
 MAX_OPERATION_LENGTH = 128
 MAX_ACTION_ID_LENGTH = 128
+MAX_ACTION_HISTORY = 32
 MAX_PARAMETER_DEPTH = 8
 MAX_PARAMETER_ITEMS = 128
 MAX_PARAMETER_STRING_LENGTH = 32768
@@ -196,6 +209,44 @@ class ActionEnvelope:
 
 
 @dataclass(frozen=True)
+class ActionHistory:
+    """Bounded caller-supplied history of prior generic actions."""
+
+    actions: tuple[ActionEnvelope, ...] = ()
+
+    def __post_init__(self) -> None:
+        if len(self.actions) > MAX_ACTION_HISTORY:
+            raise ValueError(f"action history maximum is {MAX_ACTION_HISTORY}")
+        if any(not isinstance(action, ActionEnvelope) for action in self.actions):
+            raise ValueError("action history entries must be ActionEnvelope values")
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": ACTION_HISTORY_SCHEMA_VERSION,
+            "actions": [action.as_dict() for action in self.actions],
+        }
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> "ActionHistory":
+        if not isinstance(payload, Mapping):
+            raise ValueError("action history must be a JSON object")
+        schema_version = payload.get("schema_version")
+        if schema_version != ACTION_HISTORY_SCHEMA_VERSION:
+            raise ValueError(f"unsupported action history schema: {schema_version!r}")
+        actions_raw = payload.get("actions")
+        if not isinstance(actions_raw, list):
+            raise ValueError("action history actions must be an array")
+        if len(actions_raw) > MAX_ACTION_HISTORY:
+            raise ValueError(f"action history maximum is {MAX_ACTION_HISTORY}")
+        actions: list[ActionEnvelope] = []
+        for item in actions_raw:
+            if not isinstance(item, Mapping):
+                raise ValueError("action history entries must be JSON objects")
+            actions.append(ActionEnvelope.from_dict(item))
+        return cls(actions=tuple(actions))
+
+
+@dataclass(frozen=True)
 class ActionReview(DecisionResultMixin):
     action: ActionEnvelope
     decision: Decision
@@ -252,8 +303,8 @@ def _resources_from_semantics(
     return resources
 
 
-def review_action(action: ActionEnvelope) -> ActionReview:
-    """Review a generic action through a registered deterministic adapter."""
+def _review_action_base(action: ActionEnvelope) -> ActionReview:
+    """Review one action without applying temporal history."""
 
     if action.kind == "shell" and action.operation == "execute":
         command = action.parameters.get("command")
@@ -304,4 +355,76 @@ def review_action(action: ActionEnvelope) -> ActionReview:
         effects=[],
         resources=[],
         adapter=None,
+    )
+
+
+def _temporal_evidence_for_action(
+    action: ActionEnvelope,
+    review: ActionReview | None = None,
+) -> TemporalActionEvidence:
+    if action.kind == "shell" and action.operation == "execute":
+        command = action.parameters.get("command")
+        if isinstance(command, str) and command.strip():
+            return temporal_evidence_for_command(command, context=action.context)
+    base = review or _review_action_base(action)
+    signals = frozenset(f"effect:{effect}" for effect in base.effects)
+    return TemporalActionEvidence(kind=action.kind, operation=action.operation, signals=signals)
+
+
+def review_action(
+    action: ActionEnvelope,
+    *,
+    history: ActionHistory | None = None,
+    temporal_policy: TemporalPolicySet | CompiledTemporalPolicySet | None = None,
+) -> ActionReview:
+    """Review an action and optionally apply bounded temporal history."""
+
+    base = _review_action_base(action)
+    if history is None or not history.actions:
+        return base
+
+    if temporal_policy is None:
+        compiled = default_temporal_policy()
+    elif isinstance(temporal_policy, TemporalPolicySet):
+        compiled = temporal_policy.compile()
+    elif isinstance(temporal_policy, CompiledTemporalPolicySet):
+        compiled = temporal_policy
+    else:
+        raise ValueError("temporal_policy must be a temporal policy set, compiled policy, or null")
+
+    prior = tuple(_temporal_evidence_for_action(item) for item in history.actions)
+    current = _temporal_evidence_for_action(action, review=base)
+    evaluation = compiled.evaluate(prior, current)
+    if not evaluation.matches:
+        return base
+
+    review_risk = base.risk
+    decision = base.decision
+    reasons = list(base.reasons)
+    safer_next_step = base.safer_next_step
+    prior_risk = review_risk
+    if evaluation.risk is not None:
+        review_risk = max_risk(review_risk, evaluation.risk)
+        decision = stronger_decision(decision, decision_for_risk(evaluation.risk))
+    for match in evaluation.matches:
+        if match.reason not in reasons:
+            reasons.append(match.reason)
+    if review_risk != prior_risk:
+        first_step = next(
+            (match.safer_next_step for match in evaluation.matches if match.safer_next_step),
+            None,
+        )
+        if first_step:
+            safer_next_step = first_step
+
+    categories = sorted(
+        set(base.trajectory_categories).union(match.category for match in evaluation.matches)
+    )
+    return replace(
+        base,
+        decision=decision,
+        risk=review_risk,
+        reasons=reasons,
+        safer_next_step=safer_next_step,
+        trajectory_categories=categories,
     )
