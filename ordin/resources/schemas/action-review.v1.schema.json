@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/ordin/action-review.v1.schema.json",
+  "title": "Ordin Action Review v1",
+  "type": "object",
+  "required": ["schema_version", "action", "decision", "risk", "reasons", "safer_next_step", "effects", "resources", "adapter", "intent_alignment", "trajectory_categories"],
+  "properties": {
+    "schema_version": {"const": "ordin.action_review.v1"},
+    "action": {
+      "type": "object",
+      "required": ["schema_version", "action_id", "kind", "operation", "parameters", "intent", "context"],
+      "properties": {
+        "schema_version": {"const": "ordin.action_envelope.v1"},
+        "action_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 128},
+        "kind": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_.-]*$"},
+        "operation": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_.-]*$"},
+        "parameters": {"type": "object", "maxProperties": 128, "additionalProperties": true},
+        "intent": {"type": ["string", "null"]},
+        "context": {
+          "type": ["object", "null"],
+          "properties": {
+            "cwd": {"type": ["string", "null"]},
+            "shell": {"type": ["string", "null"]},
+            "euid": {"type": ["integer", "null"], "minimum": 0},
+            "interactive": {"type": ["boolean", "null"]},
+            "repo_root": {"type": ["string", "null"]},
+            "agent": {"type": ["string", "null"]}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "decision": {"enum": ["allow", "warn", "ask", "block"]},
+    "risk": {"enum": ["unknown", "low", "medium", "high", "critical"]},
+    "reasons": {"type": "array", "items": {"type": "string"}},
+    "safer_next_step": {"type": ["string", "null"]},
+    "effects": {"type": "array", "items": {"type": "string"}},
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "value"],
+        "properties": {
+          "type": {"type": "string", "minLength": 1, "maxLength": 64},
+          "value": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "adapter": {"type": ["string", "null"]},
+    "intent_alignment": {"type": "string"},
+    "trajectory_categories": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}
