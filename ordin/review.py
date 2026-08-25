@@ -4,7 +4,8 @@ from dataclasses import dataclass
 
 from . import REVIEW_SCHEMA_VERSION
 from .context import ExecutionContext
-from .risk import DECISION_ORDER, check_command, decision_for_risk, max_risk
+from .policy import DECISION_ORDER, Decision, DecisionResultMixin
+from .risk import check_command, decision_for_risk, max_risk
 from .search import SearchResult, search
 from .shell import executable_name
 from .trace import ActionTrace
@@ -12,10 +13,10 @@ from .trajectory import evaluate_trajectory
 
 
 @dataclass(frozen=True)
-class CommandReview:
+class CommandReview(DecisionResultMixin):
     intent: str | None
     command: str
-    decision: str
+    decision: Decision
     risk: str
     reasons: list[str]
     safer_next_step: str | None
@@ -79,7 +80,7 @@ def warn_for_intent_mismatch(
     )
 
 
-def _stronger_decision(current: str, candidate: str) -> str:
+def _stronger_decision(current: Decision, candidate: Decision) -> Decision:
     return candidate if DECISION_ORDER[candidate] > DECISION_ORDER[current] else current
 
 
