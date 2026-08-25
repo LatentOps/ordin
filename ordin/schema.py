@@ -36,6 +36,7 @@ SCHEMA_FILES = {
     "action_review": "action-review.v1.schema.json",
     "policy_set": "policy-set.v1.schema.json",
     "temporal_policy_set": "temporal-policy-set.v1.schema.json",
+    "tool_semantics": "tool-semantics.v1.schema.json",
     "review_request": "review-request.v1.schema.json",
     "risk_rules": "risk-rules.v1.schema.json",
     "effect_catalog": "effect-catalog.v1.schema.json",
