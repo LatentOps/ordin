@@ -24,6 +24,7 @@ repos:
           python -m mypy
           ordin/agent.py
           ordin/action.py
+          ordin/action_policy.py
           ordin/api.py
           ordin/semantics.py
           ordin/policy.py

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Literal, Mapping, Sequence, cast
 
 from .action import ActionResource, ActionReview
-from .policy import Decision, REVIEW_PRECEDENCE, stronger_decision, validate_decision
+from .policy import Decision, ENFORCEMENT_ORDER, validate_decision
 
 
 POLICY_SCHEMA_VERSION = "ordin.policy_set.v1"
@@ -114,7 +114,9 @@ class ActionPolicyCondition:
         if not isinstance(resources_raw, list):
             raise ValueError("policy condition resources_any must be an array")
         if len(resources_raw) > MAX_MATCH_VALUES:
-            raise ValueError(f"policy condition resources_any must contain at most {MAX_MATCH_VALUES} items")
+            raise ValueError(
+                f"policy condition resources_any must contain at most {MAX_MATCH_VALUES} items"
+            )
         resources: list[PolicyResourceMatcher] = []
         for item in resources_raw:
             if not isinstance(item, Mapping):
@@ -269,14 +271,20 @@ class ActionPolicySet:
         _validate_identifier(self.version, "policy version", MAX_POLICY_VERSION_LENGTH)
         if len(self.rules) > MAX_POLICY_RULES:
             raise ValueError(f"policy set must contain at most {MAX_POLICY_RULES} rules")
-        ids = [rule.id for rule in self.rules]
-        duplicates = sorted({rule_id for rule_id in ids if ids.count(rule_id) > 1})
+        seen: set[str] = set()
+        duplicates: set[str] = set()
+        for rule in self.rules:
+            if rule.id in seen:
+                duplicates.add(rule.id)
+            seen.add(rule.id)
         if duplicates:
-            raise ValueError("duplicate policy rule ids: " + ", ".join(duplicates))
+            raise ValueError("duplicate policy rule ids: " + ", ".join(sorted(duplicates)))
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> "ActionPolicySet":
-        _reject_unknown_keys(payload, {"schema_version", "policy_id", "version", "rules"}, "policy set")
+        _reject_unknown_keys(
+            payload, {"schema_version", "policy_id", "version", "rules"}, "policy set"
+        )
         schema_version = payload.get("schema_version")
         policy_id = payload.get("policy_id")
         version = payload.get("version")
@@ -366,7 +374,7 @@ class CompiledActionPolicySet:
         )
         decision: Decision | None = None
         for match in matches:
-            if decision is None or REVIEW_PRECEDENCE[match.decision] > REVIEW_PRECEDENCE[decision]:
+            if decision is None or ENFORCEMENT_ORDER[match.decision] > ENFORCEMENT_ORDER[decision]:
                 decision = match.decision
         return PolicyEvaluation(
             policy_id=self.policy.policy_id,
@@ -390,8 +398,11 @@ class CompiledActionPolicySet:
             )
 
         final_decision = review.decision
-        if evaluation.decision is not None:
-            final_decision = stronger_decision(review.decision, evaluation.decision)
+        if (
+            evaluation.decision is not None
+            and ENFORCEMENT_ORDER[evaluation.decision] > ENFORCEMENT_ORDER[review.decision]
+        ):
+            final_decision = evaluation.decision
 
         reasons = list(review.reasons)
         for match in evaluation.matches:
@@ -450,6 +461,11 @@ def load_action_policy(path: str | Path) -> CompiledActionPolicySet:
         raise ValueError(f"invalid policy JSON: {exc.msg}") from exc
     if not isinstance(payload, Mapping):
         raise ValueError("policy file must contain a JSON object")
+    from .schema import validate_named_schema
+
+    errors = validate_named_schema("policy_set", dict(payload))
+    if errors:
+        raise ValueError("policy schema validation failed: " + "; ".join(errors))
     return ActionPolicySet.from_dict(payload).compile()
 
 
@@ -492,15 +508,18 @@ def _condition_matches(condition: ActionPolicyCondition, review: ActionReview) -
         return False
     if condition.cwd_prefixes:
         cwd = context.cwd if context else None
-        if cwd is None or not any(_path_within_prefix(cwd, prefix) for prefix in condition.cwd_prefixes):
+        if cwd is None or not any(
+            _path_within_prefix(cwd, prefix) for prefix in condition.cwd_prefixes
+        ):
             return False
     if condition.repo_scope is not None and _repo_scope(review) != condition.repo_scope:
         return False
     if condition.privileged is not None:
-        privileged = bool(context is not None and context.euid == 0)
-        if privileged != condition.privileged:
+        if context is None or context.euid is None:
             return False
-    if condition.intent is not None and _intent_state(review) != condition.intent:
+        if (context.euid == 0) != condition.privileged:
+            return False
+    if condition.intent is not None and not _intent_matches(condition.intent, review):
         return False
     if condition.trajectory_any and not set(review.trajectory_categories).intersection(
         condition.trajectory_any
@@ -509,16 +528,15 @@ def _condition_matches(condition: ActionPolicyCondition, review: ActionReview) -
     return True
 
 
-def _intent_state(review: ActionReview) -> IntentState:
-    if review.action.intent is None or not review.action.intent.strip():
-        return "absent"
-    if review.intent_alignment == "mismatch":
-        return "mismatch"
-    if review.intent_alignment == "aligned":
-        return "aligned"
-    if review.intent_alignment == "not_applicable":
-        return "not_applicable"
-    return "present"
+def _intent_matches(expected: IntentState, review: ActionReview) -> bool:
+    present = bool(review.action.intent is not None and review.action.intent.strip())
+    if expected == "present":
+        return present
+    if expected == "absent":
+        return not present
+    if not present:
+        return False
+    return review.intent_alignment == expected
 
 
 def _repo_scope(review: ActionReview) -> RepoScope:

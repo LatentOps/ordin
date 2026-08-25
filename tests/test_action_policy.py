@@ -199,9 +199,7 @@ def test_policy_parser_rejects_unknown_fields_and_duplicate_rule_ids():
         "schema_version": "ordin.policy_set.v1",
         "policy_id": "test",
         "version": "1",
-        "rules": [
-            {"id": "one", "decision": "warn", "when": {"not_a_selector": True}}
-        ],
+        "rules": [{"id": "one", "decision": "warn", "when": {"not_a_selector": True}}],
     }
     with pytest.raises(ValueError, match="unsupported fields"):
         ActionPolicySet.from_dict(payload)
