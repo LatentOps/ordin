@@ -62,28 +62,36 @@ jobs:
           /tmp/ordin-release/bin/ordin doctor
           /tmp/ordin-release/bin/ordin make file runnable --limit 1 --json
           /tmp/ordin-release/bin/python -c "from ordin import Ordin; assert Ordin().review('git status --short').allowed"
-      - name: Upload release artifacts
+      - name: Upload validated artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ordin-release-dist
           path: dist/*
           if-no-files-found: error
 
-  publish-pypi:
-    name: Publish to PyPI
+  publish-github:
+    name: Publish GitHub Release
     needs: build
-    if: github.event_name == 'push' && vars.PYPI_PUBLISH == 'true'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/ordin
     permissions:
-      id-token: write
+      contents: write
     steps:
       - name: Download validated release artifacts
         uses: actions/download-artifact@v4
         with:
           name: ordin-release-dist
           path: dist
-      - name: Publish with PyPI Trusted Publishing
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Create immutable GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists; refusing to replace published assets" >&2
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "Ordin $GITHUB_REF_NAME" \
+            --generate-notes
