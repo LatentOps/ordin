@@ -1,0 +1,18 @@
+{
+  "schema_version": "ordin.action_envelope.v1",
+  "action_id": "example-shell-action",
+  "kind": "shell",
+  "operation": "execute",
+  "parameters": {
+    "command": "git status --short"
+  },
+  "intent": "inspect repository state",
+  "context": {
+    "cwd": "/workspace/repo",
+    "shell": "bash",
+    "euid": 1000,
+    "interactive": false,
+    "repo_root": "/workspace/repo",
+    "agent": "example-agent"
+  }
+}
