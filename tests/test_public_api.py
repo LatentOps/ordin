@@ -26,6 +26,13 @@ def test_public_api_search_check_and_review():
     assert gate.allows(review) is False
 
 
+def test_intent_mismatch_cannot_downgrade_uncertain_review():
+    review = Ordin().review("mystery-command", intent="list files")
+    assert review.intent_alignment == "mismatch"
+    assert review.uncertain is True
+    assert review.risk == "medium"
+
+
 def test_public_api_uses_default_context_and_trace():
     context = ExecutionContext(
         cwd="/workspace/repo",
