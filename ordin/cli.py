@@ -496,15 +496,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command_name == "policy":
         if args.policy_command == "validate":
             try:
-                compiled = load_action_policy(args.path)
+                compiled_policy = load_action_policy(args.path)
             except ValueError as exc:
                 return _policy_error(exc, as_json=args.json)
             payload = {
-                "schema_version": compiled.policy.schema_version,
-                "policy_id": compiled.policy.policy_id,
-                "version": compiled.policy.version,
-                "digest": compiled.digest,
-                "rule_count": len(compiled.policy.rules),
+                "schema_version": compiled_policy.policy.schema_version,
+                "policy_id": compiled_policy.policy.policy_id,
+                "version": compiled_policy.policy.version,
+                "digest": compiled_policy.digest,
+                "rule_count": len(compiled_policy.policy.rules),
             }
             if args.json:
                 print(json.dumps(payload, indent=2))
@@ -518,14 +518,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command_name == "temporal":
         if args.temporal_command == "validate":
             try:
-                compiled = load_temporal_policy(args.path)
+                compiled_temporal = load_temporal_policy(args.path)
             except ValueError as exc:
                 return _temporal_policy_error(exc, as_json=args.json)
             payload = {
-                "schema_version": compiled.policy.schema_version,
-                "policy_id": compiled.policy.policy_id,
-                "version": compiled.policy.version,
-                "rule_count": len(compiled.policy.rules),
+                "schema_version": compiled_temporal.policy.schema_version,
+                "policy_id": compiled_temporal.policy.policy_id,
+                "version": compiled_temporal.policy.version,
+                "rule_count": len(compiled_temporal.policy.rules),
             }
             if args.json:
                 print(json.dumps(payload, indent=2))
