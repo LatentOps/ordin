@@ -1,0 +1,108 @@
+name: release-ordin-v0.1.0
+
+on:
+  push:
+    branches:
+      - release-v0.1.0
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      TARGET_SHA: 3715f68dc759f80ab0ae30f503029ba43c70b8c5
+      RELEASE_TAG: v0.1.0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Verify release target and version
+        run: |
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          python - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          import ordin
+
+          project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+          assert project["project"]["name"] == "ordin"
+          assert project["project"]["version"] == "0.1.0"
+          assert ordin.__version__ == "0.1.0"
+          print("validated Ordin 0.1.0 metadata")
+          PY
+      - name: Run release quality gate
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev]"
+          ruff check ordin tests
+          ruff format --check ordin tests
+          mypy ordin/entrypoint.py ordin/context.py ordin/trace.py ordin/enforcement.py ordin/availability.py
+          pytest -q
+          python -m ordin doctor
+      - name: Build and validate distributions
+        run: |
+          rm -rf dist build
+          python -m build
+          python -m twine check dist/*
+      - name: Smoke-test built wheel
+        run: |
+          python -m venv /tmp/ordin-v010
+          /tmp/ordin-v010/bin/python -m pip install --upgrade pip
+          /tmp/ordin-v010/bin/python -m pip install dist/*.whl
+          /tmp/ordin-v010/bin/ordin --help >/tmp/ordin-help.txt
+          /tmp/ordin-v010/bin/ordin doctor
+          /tmp/ordin-v010/bin/ordin make file runnable --limit 1 --json >/tmp/ordin-search.json
+      - name: Write release notes
+        run: |
+          cat > /tmp/ordin-v0.1.0-notes.md <<'EOF'
+          # Ordin v0.1.0
+
+          First public release of Ordin, a local command intelligence and pre-execution safety engine for humans and AI agents.
+
+          ## Highlights
+
+          - Natural-language Linux command discovery with deterministic BM25 ranking.
+          - Typed command/effect graph with command, subcommand, flag, resource, privilege, and safer-alternative relationships.
+          - Shell-aware review for compound commands, pipelines, nested shells, substitutions, and sensitive redirection.
+          - Semantic analyzers for filesystem, Git, network, Docker, and package-manager actions.
+          - Context-aware review using working directory, repository boundary, privilege level, shell, and agent identity.
+          - Trace-aware review for multi-action risk patterns such as secret read to network upload and download to permission change to execution.
+          - Four explicit decisions: `allow`, `warn`, `ask`, and `block`.
+          - JSON schemas and machine-readable review requests/results for agent runtimes.
+          - Explicit Bash and Zsh integration with the `orun` reviewed-execution helper.
+          - Modular Git and Docker command packs.
+          - Optional local semantic reranking while the default install remains dependency-light and offline-first.
+          - CI coverage across Python 3.10 through 3.13, Debian 12, and Fedora 42.
+
+          ## Install from this release
+
+          Download the wheel attached to this release and run:
+
+          ```bash
+          python -m pip install ordin-0.1.0-py3-none-any.whl
+          ordin doctor
+          ```
+
+          PyPI publishing is handled separately through the repository's Trusted Publishing configuration.
+          EOF
+      - name: Create GitHub release and tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$RELEASE_TAG already exists; refusing to overwrite it" >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$TARGET_SHA" \
+            --title "Ordin v0.1.0" \
+            --notes-file /tmp/ordin-v0.1.0-notes.md \
+            dist/*
