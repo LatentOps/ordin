@@ -1,0 +1,48 @@
+name: public-api-migration
+
+on:
+  push:
+    branches:
+      - public-python-api
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: public-python-api
+      - name: Centralize decision semantics in risk engine
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("ordin/risk.py")
+          text = path.read_text(encoding="utf-8")
+          text = text.replace(
+              "from .graph import EffectEvidence, effects_for_tokens\n",
+              "from .graph import EffectEvidence, effects_for_tokens\n"
+              "from .policy import DECISION_ORDER, Decision, DecisionResultMixin\n",
+          )
+          old_order = '''DECISION_ORDER = {
+              "allow": 1,
+              "ask": 2,
+              "warn": 3,
+              "block": 4,
+          }
+          '''
+          text = text.replace(old_order, "")
+          text = text.replace("class RiskReview:\n    decision: str\n", "class RiskReview(DecisionResultMixin):\n    decision: Decision\n")
+          text = text.replace("def decision_for_risk(risk: str) -> str:\n", "def decision_for_risk(risk: str) -> Decision:\n")
+          path.write_text(text, encoding="utf-8")
+      - name: Commit risk policy migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ordin/risk.py
+          git commit -m "Centralize decision ordering in risk engine"
+          git push origin HEAD:public-python-api
