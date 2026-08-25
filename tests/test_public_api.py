@@ -26,11 +26,12 @@ def test_public_api_search_check_and_review():
     assert gate.allows(review) is False
 
 
-def test_intent_mismatch_cannot_downgrade_uncertain_review():
+def test_intent_mismatch_preserves_warning_precedence():
     review = Ordin().review("mystery-command", intent="list files")
     assert review.intent_alignment == "mismatch"
-    assert review.uncertain is True
+    assert review.warned is True
     assert review.risk == "medium"
+    assert any("not classified" in reason for reason in review.reasons)
 
 
 def test_public_api_uses_default_context_and_trace():
