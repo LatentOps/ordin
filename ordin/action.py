@@ -207,9 +207,11 @@ class ActionReview(DecisionResultMixin):
     adapter: str | None
     intent_alignment: str = "not_applicable"
     trajectory_categories: list[str] = field(default_factory=list)
+    policy: dict[str, str] | None = None
+    policy_matches: list[dict[str, Any]] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "schema_version": ACTION_REVIEW_SCHEMA_VERSION,
             "action": self.action.as_dict(),
             "decision": self.decision,
@@ -222,6 +224,11 @@ class ActionReview(DecisionResultMixin):
             "intent_alignment": self.intent_alignment,
             "trajectory_categories": list(self.trajectory_categories),
         }
+        if self.policy is not None:
+            payload["policy"] = dict(self.policy)
+        if self.policy_matches:
+            payload["policy_matches"] = [dict(item) for item in self.policy_matches]
+        return payload
 
 
 def _resources_from_semantics(
