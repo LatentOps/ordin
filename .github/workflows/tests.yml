@@ -62,7 +62,13 @@ jobs:
               Path(".github/workflows/tests.yml"),
               Path(".github/workflows/release.yml"),
           ]
-          forbidden = ("commandgraph", "CommandGraph", "COMMANDGRAPH", "cmdgraph", "command-graph")
+          forbidden = (
+              "command" + "graph",
+              "Command" + "Graph",
+              "COMMAND" + "GRAPH",
+              "cmd" + "graph",
+              "command" + "-graph",
+          )
           suffixes = {".py", ".md", ".toml", ".json", ".jsonl", ".yml", ".yaml", ".txt"}
           failures = []
           for root in roots:
