@@ -2,18 +2,14 @@
 
 Ordin is distributed as the Python package `ordin` and installs one canonical console command: `ordin`.
 
-## Recommended CLI installation
+## Current public release
 
-Use an isolated tool environment:
+Ordin v0.1.0 is published as a GitHub release. PyPI publishing is not enabled yet.
 
-```bash
-pipx install ordin
-```
-
-or:
+Install the validated v0.1.0 wheel directly:
 
 ```bash
-uv tool install ordin
+python -m pip install https://github.com/LatentOps/ordin/releases/download/v0.1.0/ordin-0.1.0-py3-none-any.whl
 ```
 
 Then verify the installation:
@@ -24,25 +20,23 @@ ordin doctor
 ordin make file runnable
 ```
 
-A normal Python environment can use:
-
-```bash
-python -m pip install ordin
-```
+The release also includes a source distribution for environments that prefer to build locally.
 
 ## Optional semantic reranking
 
-The deterministic search and safety paths have no ML runtime dependency. Local semantic reranking is optional:
+The deterministic search and safety paths have no ML runtime dependency. Until the optional extra is published through PyPI, install semantic support from a checkout:
 
 ```bash
-python -m pip install "ordin[semantic]"
+git clone https://github.com/LatentOps/ordin.git
+cd ordin
+python -m pip install ".[semantic]"
 ```
 
 A semantic model must be supplied from an explicit local path. Ordin does not automatically download one.
 
 ## Install from source
 
-For an unreleased checkout:
+For the current development tree:
 
 ```bash
 git clone https://github.com/LatentOps/ordin.git
