@@ -14,6 +14,7 @@ available under `schemas/`; installed packages carry the same files under
 - `review-request.v1.schema.json`
 - `action-envelope.v1.schema.json`
 - `action-review.v1.schema.json`
+- `policy-set.v1.schema.json`
 - `action-trace.v1.schema.json`
 - `risk-rules.v1.schema.json`
 - `effect-catalog.v1.schema.json`
@@ -31,19 +32,24 @@ or reinterpreting an existing field requires a new schema version.
 Command cards remain `ordin.command_card.v1`; the typed effect metadata
 added to cards is additive. Command review requests use
 `ordin.review_request.v1`. Generic actions use `ordin.action_envelope.v1` and
-return `ordin.action_review.v1`. Pack manifests use `ordin.command_pack.v1`,
-while `ordin packs --json` returns `ordin.pack_list.v1`.
+return `ordin.action_review.v1`. Declarative policies use
+`ordin.policy_set.v1`. Pack manifests use `ordin.command_pack.v1`, while
+`ordin packs --json` returns `ordin.pack_list.v1`.
 
 The generic action schema deliberately permits future action-kind identifiers.
 Schema acceptance does not imply semantic confidence: if Ordin has no deterministic
 adapter for an accepted kind/operation, review returns `ask` rather than `allow`.
+
+Policy provenance is additive on `ordin.action_review.v1`: the `policy` and
+`policy_matches` fields are emitted only when an explicit policy is evaluated.
+Unconfigured action reviews therefore retain their original serialized shape.
 
 ## Doctor validation
 
 `ordin doctor` validates repository/package metadata in layers:
 
 1. schema files are present and declare Draft 2020-12;
-2. command cards, risk rules, effect catalogs, and pack manifests satisfy their schemas;
+2. command cards, risk rules, effect catalogs, pack manifests, and public policy schemas satisfy their contracts;
 3. risk rule regexes compile, rule IDs are unique, and risk values are valid;
 4. command templates use known slot names and valid `safe_defaults`;
 5. command-pack files exist, use safe relative paths, and reference the expected analyzer bindings;
@@ -53,8 +59,8 @@ adapter for an accepted kind/operation, review returns `ask` rather than `allow`
 
 The runtime validator is intentionally dependency-free. It implements only the
 JSON Schema keywords used by the checked-in contracts, including bounded string,
-array, and object sizes where the runtime consumes untrusted action payloads.
-The schemas themselves remain standard Draft 2020-12 documents that external
-tooling can validate with full JSON Schema implementations.
+array, and object sizes where the runtime consumes untrusted action and policy
+payloads. The schemas themselves remain standard Draft 2020-12 documents that
+external tooling can validate with full JSON Schema implementations.
 
 Any validation error makes `doctor` return a non-zero exit status.

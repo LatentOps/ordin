@@ -33,6 +33,7 @@ SCHEMA_FILES = {
     "review_result": "review-result.v1.schema.json",
     "action_envelope": "action-envelope.v1.schema.json",
     "action_review": "action-review.v1.schema.json",
+    "policy_set": "policy-set.v1.schema.json",
     "review_request": "review-request.v1.schema.json",
     "risk_rules": "risk-rules.v1.schema.json",
     "effect_catalog": "effect-catalog.v1.schema.json",

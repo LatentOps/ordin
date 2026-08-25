@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from .action import ActionEnvelope, ActionReview, review_action
+from .action_policy import ActionPolicySet, CompiledActionPolicySet
 from .context import ExecutionContext, ReviewRequest
 from .policy import ReviewPolicy
 from .review import CommandReview, review_command
@@ -24,6 +25,15 @@ class Ordin:
     context: ExecutionContext | None = None
     trace: ActionTrace | None = None
     policy: ReviewPolicy = field(default_factory=ReviewPolicy)
+    action_policy: ActionPolicySet | CompiledActionPolicySet | None = None
+
+    def __post_init__(self) -> None:
+        if isinstance(self.action_policy, ActionPolicySet):
+            object.__setattr__(self, "action_policy", self.action_policy.compile())
+        elif self.action_policy is not None and not isinstance(
+            self.action_policy, CompiledActionPolicySet
+        ):
+            raise ValueError("action_policy must be an ActionPolicySet, compiled policy, or null")
 
     def search(self, query: str, *, limit: int = 5) -> list[SearchResult]:
         if not isinstance(query, str) or not query.strip():
@@ -81,7 +91,11 @@ class Ordin:
                 context=self.context,
                 action_id=parsed.action_id,
             )
-        return review_action(parsed)
+        result = review_action(parsed)
+        compiled_policy = self.action_policy
+        if isinstance(compiled_policy, CompiledActionPolicySet):
+            result = compiled_policy.apply(result)
+        return result
 
     def allows(self, review: RiskReview | CommandReview | ActionReview) -> bool:
         return self.policy.allows(review)

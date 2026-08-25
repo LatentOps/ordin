@@ -15,6 +15,7 @@ EXPLICIT_COMMANDS = {
     "check",
     "review",
     "action",
+    "policy",
     "doctor",
     "index",
 }

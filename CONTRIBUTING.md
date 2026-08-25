@@ -1,7 +1,7 @@
 # Contributing to Ordin
 
 Ordin is an open-source LatentOps project for local, intent-aware
-Linux command discovery and safety review. Contributions should keep the
+command discovery and pre-execution safety review. Contributions should keep the
 project local-first, explainable, and useful without cloud services.
 
 ## Development setup
@@ -37,9 +37,58 @@ Before opening a pull request:
 - Run `pre-commit run --all-files`.
 - Run `pytest -q`.
 - Keep core behavior offline by default.
-- Do not add telemetry, command upload, shell history upload, or required remote services.
+- Do not add telemetry, command upload, shell history upload, action upload, or required remote services.
 - Keep dependencies small and justify any new dependency in the pull request.
-- Preserve stable schema versions for search, risk review, command review, man indexes, and typed graph exports.
+- Preserve stable schema versions for public search, command review, generic action review, policy, indexing, and graph contracts.
+- Never add an execution side effect to review APIs. Ordin reviews caller-owned actions; the caller owns execution.
+
+## Generic action adapters
+
+Generic action adapters are part of Ordin's trusted safety boundary.
+
+New adapters must:
+
+- derive semantics from deterministic parsing or curated Ordin metadata rather than trusting caller-provided risk/effect labels;
+- return `ask` when they cannot establish enough semantics to classify an action safely;
+- reuse the shared effect vocabulary and expose structured resources separately;
+- keep all inputs bounded and schema validated;
+- avoid network access, hosted inference, plugin loading, or action execution;
+- preserve an equivalent or stronger safety outcome for actions that can already be expressed through an existing adapter;
+- include offline tests for safe, risky, malformed, unknown, and installed-package behavior;
+- document the public action kind, operations, effects, resources, and conservative fallback behavior.
+
+See `docs/action-review.md` for the extension contract.
+
+## Declarative action policies
+
+Policy changes need the same level of review as safety-engine changes.
+
+The core policy language is intentionally data-only. Policy contributions must not add:
+
+- arbitrary Python or callback execution;
+- shell evaluation;
+- embedded expression languages;
+- unbounded regular-expression policy programs;
+- automatic remote policy fetching;
+- hidden global or home-directory policy discovery.
+
+Policy rules may only preserve or strengthen the execution requirement from the
+core review. They must never downgrade an existing `warn`, `ask`, or `block`.
+Conflict resolution uses the execution enforcement order `allow < warn < ask < block`.
+
+Changes to policy selectors or semantics must include:
+
+- public JSON Schema updates with source/package parity;
+- parser and invalid-input tests;
+- conflict and monotonicity tests;
+- context-missing tests where applicable;
+- CLI/Python tests and installed-wheel coverage for public behavior;
+- documentation describing the selector and its fail-closed behavior.
+
+Keep policy files explicit. Ordin should not silently load a policy unless the caller
+configured it or supplied a policy path.
+
+See `docs/policies.md`.
 
 ## Command Cards
 
@@ -124,10 +173,10 @@ command semantics; risk rules remain useful for exact dangerous combinations,
 critical path patterns, shell composition, and other cases that require more
 specific matching.
 
-False-safe behavior is the highest-priority bug class. If a command can cause
+False-safe behavior is the highest-priority bug class. If an action can cause
 data loss, expose secrets, broaden permissions, terminate processes, install
 untrusted code, or mutate infrastructure, prefer warning over silence. If the
-command is not classified well enough to establish safety, prefer `ask` over
+action is not classified well enough to establish safety, prefer `ask` over
 silently treating it as low risk.
 
 ## Man-Page Indexing
@@ -143,11 +192,12 @@ local man-db tools on the test machine.
 
 ## Pull Request Checklist
 
-- Scope is focused and unrelated cleanup is avoided.
+- Scope is focused and unrelated cleanup is avoided unless it removes dead code exposed by the change.
 - `pre-commit run --all-files` passes.
 - Tests pass.
 - `python -m ordin doctor` passes.
 - New JSON output keeps a schema version.
 - Effect references and typed graph relationships validate.
-- Command cards and risk rules are conservative.
-- Documentation is updated when CLI behavior, graph semantics, or contributor requirements change.
+- Generic adapters and policy changes fail closed rather than assuming unknown behavior is safe.
+- Policy rules cannot weaken stronger core findings.
+- Documentation is updated when CLI behavior, schemas, safety semantics, or contributor requirements change.

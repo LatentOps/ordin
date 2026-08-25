@@ -1,0 +1,28 @@
+{
+  "schema_version": "ordin.policy_set.v1",
+  "policy_id": "example-agent-policy",
+  "version": "1",
+  "rules": [
+    {
+      "id": "approve-destructive-shell",
+      "decision": "ask",
+      "when": {
+        "kinds": ["shell"],
+        "effects_any": [
+          "filesystem.delete",
+          "filesystem.recursive_delete",
+          "git.history_rewrite"
+        ]
+      },
+      "reason": "destructive shell actions require explicit approval"
+    },
+    {
+      "id": "block-critical-actions",
+      "decision": "block",
+      "when": {
+        "risks": ["critical"]
+      },
+      "reason": "critical actions are disabled by this policy"
+    }
+  ]
+}

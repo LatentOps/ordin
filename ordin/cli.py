@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Sequence
 
 from .action import ActionEnvelope, review_action
+from .action_policy import load_action_policy
 from .context import ExecutionContext, ReviewRequest
 from .data import data_health, find_command
 from .enforcement import enforcement_exit_code
@@ -206,6 +207,14 @@ def _input_error(message: str, as_json: bool) -> int:
     return 2
 
 
+def _policy_error(exc: ValueError, as_json: bool) -> int:
+    if as_json:
+        print(json.dumps({"error": "invalid_policy", "message": str(exc)}, indent=2))
+    else:
+        print(f"invalid policy: {exc}")
+    return 2
+
+
 def _context_error(exc: ValueError, as_json: bool) -> int:
     if as_json:
         print(json.dumps({"error": "invalid_context", "message": str(exc)}, indent=2))
@@ -321,7 +330,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Read an ordin.action_envelope.v1 object from stdin.",
     )
     action_parser.add_argument("--json", action="store_true")
+    action_parser.add_argument(
+        "--policy",
+        help="Explicit local ordin.policy_set.v1 JSON file to apply.",
+    )
     _add_enforcement_arguments(action_parser)
+
+    policy_parser = subparsers.add_parser(
+        "policy",
+        help="Validate local declarative action policies.",
+    )
+    policy_subparsers = policy_parser.add_subparsers(dest="policy_command", required=True)
+    policy_validate_parser = policy_subparsers.add_parser(
+        "validate", help="Validate and compile a local policy file."
+    )
+    policy_validate_parser.add_argument("path")
+    policy_validate_parser.add_argument("--json", action="store_true")
 
     doctor_parser = subparsers.add_parser("doctor", help="Check local Ordin data.")
     doctor_parser.add_argument("--json", action="store_true")
@@ -417,24 +441,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"safer_next_step: {command_review.safer_next_step}")
         return _review_exit(args, command_review.decision)
 
-    if args.command_name == "action":
-        try:
-            action = _read_stdin_action_envelope()
-        except ValueError as exc:
-            return _input_error(str(exc), as_json=args.json)
-        action_review = review_action(action)
-        if args.json:
-            print(json.dumps(action_review.as_dict(), indent=2))
-        else:
-            print(f"decision: {action_review.decision}")
-            print(f"risk: {action_review.risk}")
-            for reason in action_review.reasons:
-                print(f"- {reason}")
-            if action_review.effects:
-                print("effects: " + ", ".join(action_review.effects))
-            if action_review.safer_next_step:
-                print(f"safer_next_step: {action_review.safer_next_step}")
-        return _review_exit(args, action_review.decision)
+    if args.command_name == "policy":
+        if args.policy_command == "validate":
+            try:
+                compiled = load_action_policy(args.path)
+            except ValueError as exc:
+                return _policy_error(exc, as_json=args.json)
+            payload = {
+                "schema_version": compiled.policy.schema_version,
+                "policy_id": compiled.policy.policy_id,
+                "version": compiled.policy.version,
+                "digest": compiled.digest,
+                "rule_count": len(compiled.policy.rules),
+            }
+            if args.json:
+                print(json.dumps(payload, indent=2))
+            else:
+                print(f"policy_id: {payload['policy_id']}")
+                print(f"version: {payload['version']}")
+                print(f"digest: {payload['digest']}")
+                print(f"rules: {payload['rule_count']}")
+            return 0
 
     if args.command_name == "action":
         try:
@@ -442,6 +469,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         except ValueError as exc:
             return _input_error(str(exc), as_json=args.json)
         action_review = review_action(action)
+        if args.policy:
+            try:
+                action_policy = load_action_policy(args.policy)
+            except ValueError as exc:
+                return _policy_error(exc, as_json=args.json)
+            action_review = action_policy.apply(action_review)
         if args.json:
             print(json.dumps(action_review.as_dict(), indent=2))
         else:
@@ -451,6 +484,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"- {reason}")
             if action_review.effects:
                 print("effects: " + ", ".join(action_review.effects))
+            if action_review.policy_matches:
+                print(
+                    "policy_matches: "
+                    + ", ".join(item["rule_id"] for item in action_review.policy_matches)
+                )
             if action_review.safer_next_step:
                 print(f"safer_next_step: {action_review.safer_next_step}")
         return _review_exit(args, action_review.decision)

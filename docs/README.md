@@ -7,6 +7,7 @@ Start with what you are trying to do. The implementation details are linked afte
 - [Installation](installation.md)
 - [Bare intent CLI](bare-intent-cli.md)
 - [Generic action review](action-review.md)
+- [Declarative action policies](policies.md)
 - [Interactive shell integration](shell-integration.md)
 - [Enforcement and exit codes](enforcement.md)
 
@@ -16,6 +17,7 @@ Typical commands:
 ordin what is using port 3000
 ordin check "git reset --hard HEAD~1"
 cat action.json | ordin action --stdin --json
+ordin policy validate examples/policy.json
 source <(ordin shell-init bash)
 orun 'git status --short'
 ```
@@ -24,6 +26,7 @@ orun 'git status --short'
 
 - [Python API](python-api.md)
 - [Generic action review](action-review.md)
+- [Declarative action policies](policies.md)
 - [Schema contracts](schema-contracts.md)
 - [Context-aware review](context-aware-review.md)
 - [Trace-aware review](trace-aware-review.md)
@@ -34,6 +37,7 @@ The Python API reviews actions but never executes them.
 
 - [Agent runtime integration](agent-integration.md)
 - [Generic action review](action-review.md)
+- [Declarative action policies](policies.md)
 - [Python API](python-api.md)
 - [Trace-aware review](trace-aware-review.md)
 - [Enforcement and exit codes](enforcement.md)
@@ -50,6 +54,7 @@ Ordin does not become the agent framework, shell executor, sandbox, or approval 
 
 - [Architecture](architecture.md)
 - [Generic action review](action-review.md)
+- [Declarative action policies](policies.md)
 - [Typed effect graph](effect-graph.md)
 - [Semantic analyzers](semantic-analyzers.md)
 - [Context-aware review](context-aware-review.md)
@@ -67,6 +72,7 @@ Ordin does not become the agent framework, shell executor, sandbox, or approval 
 
 - [Development workflow](development-workflow.md)
 - [Generic action review and adapter contract](action-review.md)
+- [Declarative action policies](policies.md)
 - [Command packs](command-packs.md)
 - [Schema contracts](schema-contracts.md)
 - [Releasing Ordin](releasing.md)
@@ -81,4 +87,4 @@ pre-commit run --all-files
 pytest -q
 ```
 
-The core design rule across safety layers is conservative composition: richer semantic, contextual, or trajectory evidence must not erase a known stronger risk finding. Execution policy is applied separately by the caller or shell integration.
+The core design rule across safety layers is conservative composition: richer semantic, contextual, trajectory, or caller-owned policy evidence must not erase a known stronger safety requirement. Execution policy is applied separately by the caller or shell integration.
