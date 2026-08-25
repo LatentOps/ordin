@@ -53,6 +53,7 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
     assert "command" in help_result.stdout.lower()
     assert "safety" in help_result.stdout.lower()
     assert "action" in help_result.stdout.lower()
+    assert "policy" in help_result.stdout.lower()
 
     doctor = subprocess.run(
         [str(script), "doctor", "--json"],
@@ -63,7 +64,7 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
     )
     health = json.loads(doctor.stdout)
     assert health["effect_count"] >= 20
-    assert health["schema_count"] >= 10
+    assert health["schema_count"] >= 11
     assert health["schema_errors"] == []
     assert health["risk_rule_errors"] == []
     assert health["template_errors"] == []
@@ -93,17 +94,20 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
             str(python),
             "-c",
             (
-                "from ordin import ActionEnvelope, AgentGate, Ordin, ReviewPolicy; "
-                "ordin = Ordin(policy=ReviewPolicy(fail_on='warn')); "
+                "from ordin import ActionEnvelope, ActionPolicyCondition, ActionPolicyRule, "
+                "ActionPolicySet, AgentGate, Ordin, ReviewPolicy; "
+                "policy = ActionPolicySet(policy_id='wheel-policy', version='1', rules=("
+                "ActionPolicyRule(id='approve-shell', decision='ask', "
+                "when=ActionPolicyCondition(kinds=('shell',))),)); "
+                "ordin = Ordin(policy=ReviewPolicy(fail_on='warn'), action_policy=policy); "
                 "review = ordin.review('git status --short'); "
                 "assert review.allowed; "
-                "assert ordin.allows(review); "
                 "action = ActionEnvelope.shell('git status --short'); "
                 "action_review = ordin.review_action(action); "
-                "assert action_review.allowed; "
-                "assert action_review.adapter == 'shell'; "
-                "assert ordin.allows(action_review); "
-                "result = AgentGate(ordin).evaluate('git status --short'); "
+                "assert action_review.uncertain; "
+                "assert action_review.policy_matches[0]['rule_id'] == 'approve-shell'; "
+                "assert not ordin.allows(action_review); "
+                "result = AgentGate().evaluate('git status --short'); "
                 "assert result.may_execute"
             ),
         ],
