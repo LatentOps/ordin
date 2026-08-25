@@ -28,6 +28,7 @@ repos:
           ordin/action.py
           ordin/action_policy.py
           ordin/api.py
+          ordin/execution.py
           ordin/semantics.py
           ordin/temporal.py
           ordin/tool_calls.py
