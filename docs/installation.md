@@ -54,16 +54,22 @@ For development:
 
 ```bash
 python -m pip install -e ".[dev]"
+pre-commit install
 ```
 
-Run the local validation gate with:
+Run the shared local/CI quality gate with:
 
 ```bash
-ruff check ordin tests
-ruff format --check ordin tests
-pytest -q
-python -m ordin doctor
+pre-commit run --all-files
 ```
+
+Run the full behavioral test suite separately:
+
+```bash
+pytest -q
+```
+
+The pre-commit gate covers Ruff lint and formatting, staged mypy checks, Python compilation, `ordin doctor`, and repository namespace integrity. CI executes the same pre-commit configuration before its Python-version, package, and Linux compatibility jobs.
 
 ## Supported Python and Linux validation
 

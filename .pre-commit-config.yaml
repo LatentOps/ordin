@@ -1,0 +1,55 @@
+minimum_pre_commit_version: "3.7.0"
+fail_fast: false
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-lint
+        name: Ruff lint
+        entry: python -m ruff check ordin tests scripts
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: ruff-format
+        name: Ruff format check
+        entry: python -m ruff format --check ordin tests scripts
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: mypy-boundaries
+        name: Mypy typed boundaries
+        entry: >-
+          python -m mypy
+          ordin/api.py
+          ordin/policy.py
+          ordin/entrypoint.py
+          ordin/context.py
+          ordin/trace.py
+          ordin/enforcement.py
+          ordin/availability.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: compile
+        name: Compile Python sources
+        entry: python -m compileall -q ordin scripts
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: ordin-doctor
+        name: Validate Ordin data and graph
+        entry: python -m ordin doctor
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: ordin-namespace
+        name: Enforce Ordin namespace
+        entry: python scripts/check_namespace.py
+        language: system
+        pass_filenames: false
+        always_run: true

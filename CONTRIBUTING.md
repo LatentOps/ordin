@@ -4,12 +4,38 @@ Ordin is an open-source LatentOps project for local, intent-aware
 Linux command discovery and safety review. Contributions should keep the
 project local-first, explainable, and useful without cloud services.
 
+## Development setup
+
+Install the project and repository tooling into a development environment:
+
+```bash
+python -m pip install -e ".[dev]"
+pre-commit install
+```
+
+Run the same local quality and integrity gate used by CI:
+
+```bash
+pre-commit run --all-files
+```
+
+The hooks run Ruff lint and format checks, staged mypy checks for typed API
+boundaries, Python compilation, `ordin doctor`, and the Ordin namespace guard.
+The hooks use the development dependencies declared in `pyproject.toml`, so
+local tooling and CI do not maintain separate tool-version configurations.
+
+The full test suite remains a separate required gate:
+
+```bash
+pytest -q
+```
+
 ## Requirements
 
 Before opening a pull request:
 
+- Run `pre-commit run --all-files`.
 - Run `pytest -q`.
-- Run `python -m ordin doctor`.
 - Keep core behavior offline by default.
 - Do not add telemetry, command upload, shell history upload, or required remote services.
 - Keep dependencies small and justify any new dependency in the pull request.
@@ -118,6 +144,7 @@ local man-db tools on the test machine.
 ## Pull Request Checklist
 
 - Scope is focused and unrelated cleanup is avoided.
+- `pre-commit run --all-files` passes.
 - Tests pass.
 - `python -m ordin doctor` passes.
 - New JSON output keeps a schema version.
