@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/ordin/policy-set.v1.schema.json",
+  "title": "Ordin Policy Set v1",
+  "type": "object",
+  "required": ["schema_version", "policy_id", "version", "rules"],
+  "properties": {
+    "schema_version": {"const": "ordin.policy_set.v1"},
+    "policy_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "version": {"type": "string", "minLength": 1, "maxLength": 64},
+    "rules": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "required": ["id", "decision", "when"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1, "maxLength": 128},
+          "decision": {"enum": ["allow", "warn", "ask", "block"]},
+          "when": {
+            "type": "object",
+            "properties": {
+              "kinds": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 32768}},
+              "operations": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 32768}},
+              "effects_any": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 32768}},
+              "effects_all": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 32768}},
+              "resources_any": {
+                "type": "array",
+                "maxItems": 128,
+                "items": {
+                  "type": "object",
+                  "required": ["type"],
+                  "properties": {
+                    "type": {"type": "string", "minLength": 1, "maxLength": 32768},
+                    "value": {"type": "string", "minLength": 1, "maxLength": 32768},
+                    "match": {"enum": ["exact", "prefix"]}
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "risks": {"type": "array", "maxItems": 128, "items": {"enum": ["unknown", "low", "medium", "high", "critical"]}},
+              "decisions": {"type": "array", "maxItems": 128, "items": {"enum": ["allow", "warn", "ask", "block"]}},
+              "agents": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 32768}},
+              "cwd_prefixes": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 32768}},
+              "repo_scope": {"enum": ["inside", "outside", "unknown"]},
+              "privileged": {"type": "boolean"},
+              "intent": {"enum": ["present", "absent", "aligned", "mismatch", "not_applicable"]},
+              "trajectory_any": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 32768}}
+            },
+            "additionalProperties": false
+          },
+          "reason": {"type": "string", "minLength": 1, "maxLength": 32768},
+          "safer_next_step": {"type": "string", "minLength": 1, "maxLength": 32768},
+          "enabled": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
