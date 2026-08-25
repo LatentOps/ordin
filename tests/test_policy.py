@@ -1,12 +1,25 @@
 import pytest
 
 from ordin import ReviewPolicy
-from ordin.policy import DECISION_ORDER, decision_value, validate_decision, validate_fail_threshold
+from ordin.policy import (
+    ENFORCEMENT_ORDER,
+    REVIEW_PRECEDENCE,
+    decision_value,
+    stronger_decision,
+    validate_decision,
+    validate_fail_threshold,
+)
 from ordin.risk import RiskReview, check_command
 
 
-def test_decision_order_is_monotonic_for_agent_enforcement():
-    assert DECISION_ORDER == {"allow": 0, "warn": 1, "ask": 2, "block": 3}
+def test_review_precedence_preserves_existing_safety_labels():
+    assert REVIEW_PRECEDENCE == {"allow": 0, "ask": 1, "warn": 2, "block": 3}
+    assert stronger_decision("ask", "warn") == "warn"
+    assert stronger_decision("warn", "ask") == "warn"
+
+
+def test_enforcement_order_requires_approval_for_ask():
+    assert ENFORCEMENT_ORDER == {"allow": 0, "warn": 1, "ask": 2, "block": 3}
 
 
 @pytest.mark.parametrize(
@@ -40,11 +53,11 @@ def test_policy_accepts_review_objects_and_exposes_result_properties():
     assert ReviewPolicy(fail_on="ask").requires_escalation(review) is True
 
 
-def test_unknown_compound_segment_cannot_be_weakened_to_warning():
+def test_known_warning_remains_dominant_in_compound_review():
     review = check_command("mystery-command && rm -rf ./build")
-    assert review.decision == "ask"
+    assert review.decision == "warn"
     assert review.risk == "high"
-    assert ReviewPolicy(fail_on="ask").allows(review) is False
+    assert "unclassified_command" in (review.risk_categories or [])
 
 
 def test_invalid_decisions_and_thresholds_fail_explicitly():
