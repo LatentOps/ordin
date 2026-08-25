@@ -6,16 +6,30 @@ Ordin is a local command-intelligence and pre-execution safety engine for develo
 
 Core search and safety review are local-first. Ordin does not require a cloud service, upload command history, or execute agent actions on its own.
 
-## Install v0.1.0
+## Install
 
-The first public release is available from GitHub Releases. PyPI publishing is not enabled yet.
+Ordin is distributed directly through GitHub for now.
+
+Install the current stable release from its immutable `v0.1.0` tag:
 
 ```bash
-python -m pip install https://github.com/LatentOps/ordin/releases/download/v0.1.0/ordin-0.1.0-py3-none-any.whl
+python -m pip install "git+https://github.com/LatentOps/ordin.git@v0.1.0"
 ordin doctor
 ```
 
-For an unreleased checkout:
+You can also install the validated wheel attached to the GitHub release:
+
+```bash
+python -m pip install https://github.com/LatentOps/ordin/releases/download/v0.1.0/ordin-0.1.0-py3-none-any.whl
+```
+
+Install the current development tree directly from the repository:
+
+```bash
+python -m pip install "git+https://github.com/LatentOps/ordin.git"
+```
+
+Or clone it:
 
 ```bash
 git clone https://github.com/LatentOps/ordin.git
@@ -190,8 +204,12 @@ ordin packs
 
 An optional local semantic reranker can reorder only a bounded deterministic candidate set. It is not part of the default dependency set and Ordin does not automatically download a model.
 
+Install semantic support from a repository checkout:
+
 ```bash
-python -m pip install "ordin[semantic]"
+git clone https://github.com/LatentOps/ordin.git
+cd ordin
+python -m pip install ".[semantic]"
 ```
 
 See [Deterministic ranking](docs/deterministic-ranking.md), [Availability and platforms](docs/availability-and-platforms.md), and [Semantic reranking](docs/semantic-reranking.md).
@@ -272,6 +290,8 @@ Ordin intentionally does not:
 ## Release
 
 Current public release: [Ordin v0.1.0](https://github.com/LatentOps/ordin/releases/tag/v0.1.0).
+
+Future version tags are validated and published as GitHub Releases with wheel and source-distribution assets.
 
 ## License
 

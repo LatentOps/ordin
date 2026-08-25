@@ -1,12 +1,16 @@
 # Installation
 
-Ordin is distributed as the Python package `ordin` and installs one canonical console command: `ordin`.
+Ordin is distributed directly from GitHub for now and installs one canonical console command: `ordin`.
 
-## Current public release
+## Install the current stable release
 
-Ordin v0.1.0 is published as a GitHub release. PyPI publishing is not enabled yet.
+The current stable release is `v0.1.0`. Install it directly from the immutable Git tag:
 
-Install the validated v0.1.0 wheel directly:
+```bash
+python -m pip install "git+https://github.com/LatentOps/ordin.git@v0.1.0"
+```
+
+You can also install the validated wheel attached to the GitHub release:
 
 ```bash
 python -m pip install https://github.com/LatentOps/ordin/releases/download/v0.1.0/ordin-0.1.0-py3-none-any.whl
@@ -22,9 +26,27 @@ ordin make file runnable
 
 The release also includes a source distribution for environments that prefer to build locally.
 
+## Install the current development tree
+
+`main` is development code and currently identifies itself as `0.2.0.dev0`.
+
+Install it directly from GitHub:
+
+```bash
+python -m pip install "git+https://github.com/LatentOps/ordin.git"
+```
+
+Or clone the repository:
+
+```bash
+git clone https://github.com/LatentOps/ordin.git
+cd ordin
+python -m pip install .
+```
+
 ## Optional semantic reranking
 
-The deterministic search and safety paths have no ML runtime dependency. Until the optional extra is published through PyPI, install semantic support from a checkout:
+The deterministic search and safety paths have no ML runtime dependency. For semantic support, install from a checkout with the optional extra:
 
 ```bash
 git clone https://github.com/LatentOps/ordin.git
@@ -34,19 +56,11 @@ python -m pip install ".[semantic]"
 
 A semantic model must be supplied from an explicit local path. Ordin does not automatically download one.
 
-## Install from source
-
-For the current development tree:
+## Development setup
 
 ```bash
 git clone https://github.com/LatentOps/ordin.git
 cd ordin
-python -m pip install .
-```
-
-For development:
-
-```bash
 python -m pip install -e ".[dev]"
 pre-commit install
 ```

@@ -1,6 +1,8 @@
 # Releasing Ordin
 
-GitHub Releases currently publishes the validated Ordin artifacts. PyPI Trusted Publishing is prepared but should remain disabled until the `ordin` project and trust relationship are configured.
+Ordin releases are distributed through GitHub for now. A release consists of an immutable version tag plus validated wheel and source-distribution assets attached to the corresponding GitHub Release.
+
+No package-index account, publishing token, or external registry is required.
 
 ## Version lifecycle
 
@@ -11,10 +13,11 @@ The expected lifecycle is:
 1. normal development uses the next PEP 440 development version, such as `0.2.0.dev0`;
 2. a release preparation PR changes both version declarations to the exact final version, such as `0.2.0`;
 3. the full merge gate passes and the version PR is merged to `main`;
-4. the matching `v0.2.0` tag is created and the release workflow validates/builds that exact commit;
-5. immediately after the release, `main` advances to the next unique development version, such as `0.3.0.dev0`.
+4. the matching `v0.2.0` tag is created;
+5. the release workflow validates, builds, smoke-tests, and attaches the exact artifacts to a GitHub Release;
+6. immediately after the release, `main` advances to the next unique development version, such as `0.3.0.dev0`.
 
-A published version must never be reused for different source contents, even if the earlier artifact was only attached to GitHub and not uploaded to PyPI.
+A published version must never be reused for different source contents.
 
 Update the version in both:
 
@@ -22,21 +25,6 @@ Update the version in both:
 - `ordin/__init__.py` -> `__version__`
 
 Tests require the installed distribution metadata and runtime version to match.
-
-## One-time PyPI setup
-
-Before enabling PyPI publishing:
-
-1. Create or claim the `ordin` project on PyPI through its first trusted-publisher release setup.
-2. Configure a PyPI Trusted Publisher for this GitHub repository:
-   - owner: `LatentOps`
-   - repository: `ordin`
-   - workflow: `release.yml`
-   - environment: `pypi`
-3. Create a protected GitHub environment named `pypi` if release approvals are desired.
-4. Set the repository Actions variable `PYPI_PUBLISH` to `true` only after the trusted-publisher relationship is configured.
-
-No long-lived PyPI API token is required by the workflow.
 
 ## Preparing a final release
 
@@ -65,14 +53,32 @@ The release workflow refuses a tag that does not exactly equal `v<project.versio
 Every `v*` tag:
 
 1. validates version/tag consistency;
-2. builds wheel and sdist;
+2. builds wheel and source distribution;
 3. runs Twine metadata validation;
 4. installs the built wheel into a fresh virtual environment;
-5. runs installed `ordin doctor` and a bare-intent smoke test;
-6. uploads the distributions as a GitHub Actions artifact;
-7. publishes the exact validated artifacts to PyPI only when `PYPI_PUBLISH=true`.
+5. runs installed `ordin doctor`, natural-language search, and public Python API smoke checks;
+6. uploads the validated distributions as a workflow artifact;
+7. creates the matching GitHub Release and attaches the exact validated wheel and source distribution.
 
-`workflow_dispatch` can exercise the build/validation pipeline without publishing.
+The workflow refuses to replace an already-existing GitHub Release under the same tag. Published release assets are treated as immutable.
+
+`workflow_dispatch` can exercise build and validation without creating a release.
+
+## Installing releases
+
+Users can install a stable release directly from its Git tag:
+
+```bash
+python -m pip install "git+https://github.com/LatentOps/ordin.git@v0.1.0"
+```
+
+They can also install the wheel attached to the GitHub Release.
+
+For the current development tree:
+
+```bash
+python -m pip install "git+https://github.com/LatentOps/ordin.git"
+```
 
 ## After publishing
 
@@ -80,4 +86,4 @@ Treat the released tag and artifacts as immutable. Do not replace assets with di
 
 ## Failure policy
 
-Do not publish artifacts from a failed build by hand. Fix the source or release configuration, rerun the merge gate, and use a new version if an artifact with the previous version was already published externally.
+Do not publish artifacts from a failed build by hand. Fix the source or release configuration, rerun the merge gate, and use a new version if an artifact with the previous version was already published.
