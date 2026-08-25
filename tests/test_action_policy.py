@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from ordin import ActionEnvelope, ActionReview, ExecutionContext
+from ordin import ActionEnvelope, ActionResource, ActionReview, ExecutionContext, Ordin
 from ordin.action_policy import (
     ActionPolicyCondition,
     ActionPolicyRule,
@@ -131,9 +131,7 @@ def test_resource_matching_supports_exact_and_prefix_only():
         )
     )
 
-    result = policy.apply(
-        _review(resources=(__import__("ordin").ActionResource("path", "/workspace/repo/build"),))
-    )
+    result = policy.apply(_review(resources=(ActionResource("path", "/workspace/repo/build"),)))
     assert result.decision == "ask"
 
     with pytest.raises(ValueError, match="unsupported resource match mode"):
@@ -166,19 +164,34 @@ def test_context_agent_repo_privilege_intent_and_trajectory_conditions():
     assert policy.apply(review).decision == "block"
 
 
-def test_unknown_privilege_does_not_match_non_privileged_selector():
+def test_unknown_privilege_does_not_match_root_or_non_root_selector():
+    for privileged in (False, True):
+        policy = _policy(
+            ActionPolicyRule(
+                id=f"privileged-{privileged}",
+                decision="block",
+                when=ActionPolicyCondition(privileged=privileged),
+            )
+        )
+
+        result = policy.apply(_review(context=ExecutionContext(euid=None)))
+
+        assert result.decision == "allow"
+        assert result.policy_matches == []
+
+
+def test_intent_present_matches_even_when_alignment_is_available():
     policy = _policy(
         ActionPolicyRule(
-            id="non-root-only",
-            decision="block",
-            when=ActionPolicyCondition(privileged=False),
+            id="intent-present",
+            decision="ask",
+            when=ActionPolicyCondition(intent="present"),
         )
     )
 
-    result = policy.apply(_review(context=ExecutionContext(euid=None)))
+    result = policy.apply(_review(intent="inspect files", intent_alignment="aligned"))
 
-    assert result.decision == "allow"
-    assert result.policy_matches == []
+    assert result.decision == "ask"
 
 
 def test_policy_parser_rejects_unknown_fields_and_duplicate_rule_ids():
@@ -214,6 +227,29 @@ def test_policy_compile_is_cached_and_digest_is_stable():
     assert policy.compile() is policy.compile()
     assert policy.digest == ActionPolicySet.from_dict(policy.as_dict()).digest
     assert len(policy.digest) == 64
+
+
+def test_ordin_compiles_and_reuses_action_policy():
+    policy = ActionPolicySet(
+        policy_id="test",
+        version="1",
+        rules=(
+            ActionPolicyRule(
+                id="approve-shell",
+                decision="ask",
+                when=ActionPolicyCondition(kinds=("shell",)),
+            ),
+        ),
+    )
+    ordin = Ordin(action_policy=policy)
+
+    first = ordin.review_action(ActionEnvelope.shell("git status --short"))
+    second = ordin.review_action(ActionEnvelope.shell("git status --short"))
+
+    assert first.decision == "ask"
+    assert second.decision == "ask"
+    assert first.policy == second.policy
+    assert first.policy_matches[0]["rule_id"] == "approve-shell"
 
 
 def test_load_policy_validates_schema_and_compiles(tmp_path):
