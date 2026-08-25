@@ -1,0 +1,43 @@
+name: one-off generic action CLI fix
+
+on:
+  push:
+    branches:
+      - generic-action-review
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: generic-action-review
+      - name: Fix generated CLI line
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("ordin/cli.py")
+          text = path.read_text(encoding="utf-8")
+          old = '                print(f"effects: {", ".join(action_review.effects)}")\n'
+          new = '                print("effects: " + ", ".join(action_review.effects))\n'
+          if new not in text:
+              if old not in text:
+                  raise SystemExit("expected malformed action effects line not found")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+      - name: Commit fix
+        run: |
+          if git diff --quiet; then
+            echo "No fix required"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ordin/cli.py
+          git commit -m "Fix generic action CLI rendering"
+          git push origin HEAD:generic-action-review
