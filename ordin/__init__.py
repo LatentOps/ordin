@@ -12,6 +12,7 @@ ACTION_REVIEW_SCHEMA_VERSION = "ordin.action_review.v1"
 ACTION_TRACE_SCHEMA_VERSION = "ordin.action_trace.v1"
 POLICY_SET_SCHEMA_VERSION = "ordin.policy_set.v1"
 TEMPORAL_POLICY_SET_SCHEMA_VERSION = "ordin.temporal_policy_set.v1"
+TOOL_SEMANTICS_SCHEMA_VERSION = "ordin.tool_semantics.v1"
 RISK_RULES_SCHEMA_VERSION = "ordin.risk_rules.v1"
 MAN_INDEX_SCHEMA_VERSION = "ordin.man_index.v1"
 EFFECT_CATALOG_SCHEMA_VERSION = "ordin.effect_catalog.v1"
@@ -47,6 +48,13 @@ from .temporal import (
     default_temporal_policy,
     load_temporal_policy,
 )
+from .tool_calls import (
+    CompiledToolSemanticsRegistry,
+    ToolResourceBinding,
+    ToolSemanticRule,
+    ToolSemanticsRegistry,
+    load_tool_semantics,
+)
 from .trace import ActionTrace, TraceAction
 
 __all__ = [
@@ -69,6 +77,7 @@ __all__ = [
     "CommandReview",
     "CompiledActionPolicySet",
     "CompiledTemporalPolicySet",
+    "CompiledToolSemanticsRegistry",
     "Decision",
     "EFFECT_CATALOG_SCHEMA_VERSION",
     "EFFECT_GRAPH_SCHEMA_VERSION",
@@ -93,15 +102,20 @@ __all__ = [
     "SEARCH_SCHEMA_VERSION",
     "SearchResult",
     "TEMPORAL_POLICY_SET_SCHEMA_VERSION",
+    "TOOL_SEMANTICS_SCHEMA_VERSION",
     "TemporalActionEvidence",
     "TemporalPolicySet",
     "TemporalPredicate",
     "TemporalRule",
     "ToolCallAdapter",
+    "ToolResourceBinding",
+    "ToolSemanticRule",
+    "ToolSemanticsRegistry",
     "TraceAction",
     "__version__",
     "default_temporal_policy",
     "load_action_policy",
     "load_temporal_policy",
+    "load_tool_semantics",
     "review_action",
 ]

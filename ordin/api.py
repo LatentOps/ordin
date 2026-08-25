@@ -12,6 +12,7 @@ from .risk import RiskReview, check_command
 from .schema import validate_named_schema
 from .search import SearchResult, search
 from .temporal import CompiledTemporalPolicySet, TemporalPolicySet
+from .tool_calls import CompiledToolSemanticsRegistry, ToolSemanticsRegistry
 from .trace import ActionTrace
 
 
@@ -28,6 +29,7 @@ class Ordin:
     policy: ReviewPolicy = field(default_factory=ReviewPolicy)
     action_policy: ActionPolicySet | CompiledActionPolicySet | None = None
     temporal_policy: TemporalPolicySet | CompiledTemporalPolicySet | None = None
+    tool_semantics: ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.action_policy, ActionPolicySet):
@@ -43,6 +45,14 @@ class Ordin:
         ):
             raise ValueError(
                 "temporal_policy must be a TemporalPolicySet, compiled policy, or null"
+            )
+        if isinstance(self.tool_semantics, ToolSemanticsRegistry):
+            object.__setattr__(self, "tool_semantics", self.tool_semantics.compile())
+        elif self.tool_semantics is not None and not isinstance(
+            self.tool_semantics, CompiledToolSemanticsRegistry
+        ):
+            raise ValueError(
+                "tool_semantics must be a ToolSemanticsRegistry, compiled registry, or null"
             )
 
     def search(self, query: str, *, limit: int = 5) -> list[SearchResult]:
@@ -105,10 +115,16 @@ class Ordin:
             )
         parsed_history = self._parse_history(history)
         temporal = self.temporal_policy
+        tool_semantics = self.tool_semantics
         result = review_action(
             parsed,
             history=parsed_history,
             temporal_policy=(temporal if isinstance(temporal, CompiledTemporalPolicySet) else None),
+            tool_semantics=(
+                tool_semantics
+                if isinstance(tool_semantics, CompiledToolSemanticsRegistry)
+                else None
+            ),
         )
         compiled_policy = self.action_policy
         if isinstance(compiled_policy, CompiledActionPolicySet):

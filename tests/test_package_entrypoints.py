@@ -64,7 +64,7 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
     health = json.loads(doctor.stdout)
     assert health["effect_count"] >= 20
     assert health["temporal_rule_count"] == 4
-    assert health["schema_count"] >= 13
+    assert health["schema_count"] >= 14
     assert health["schema_errors"] == []
     assert health["risk_rule_errors"] == []
     assert health["template_errors"] == []
@@ -96,7 +96,8 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
             (
                 "from ordin import ActionEnvelope, ActionHistory, ActionPolicyCondition, "
                 "ActionPolicyRule, ActionPolicySet, AgentGate, MCPAdapter, Ordin, "
-                "ReviewPolicy, ToolCallAdapter; "
+                "ReviewPolicy, ToolCallAdapter, ToolResourceBinding, ToolSemanticRule, "
+                "ToolSemanticsRegistry; "
                 "policy = ActionPolicySet(policy_id='wheel-policy', version='1', rules=("
                 "ActionPolicyRule(id='approve-shell', decision='ask', "
                 "when=ActionPolicyCondition(kinds=('shell',))),)); "
@@ -119,7 +120,15 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
                 "tool = ToolCallAdapter(runtime='wheel-agent'); "
                 "assert gate.evaluate_tool(tool, 'unknown', {}).requires_approval; "
                 "mcp = MCPAdapter(server='wheel-shell', shell_tools=frozenset({'run'})); "
-                "assert gate.evaluate_mcp(mcp, 'run', {'command': 'git status --short'}).may_execute"
+                "assert gate.evaluate_mcp(mcp, 'run', {'command': 'git status --short'}).may_execute; "
+                "registry = ToolSemanticsRegistry(registry_id='wheel-tools', version='1', rules=("
+                "ToolSemanticRule(id='read', kind='mcp', server='filesystem-local', "
+                "tool='read_file', effects=('filesystem.read',), resources=("
+                "ToolResourceBinding(argument='path', type='path'),)),)); "
+                "tool_gate = AgentGate(Ordin(tool_semantics=registry)); "
+                "fs = MCPAdapter(server='filesystem-local'); "
+                "trusted = tool_gate.evaluate_mcp(fs, 'read_file', {'path': 'README.md'}); "
+                "assert trusted.may_execute and trusted.review.effects == ['filesystem.read']"
             ),
         ],
         check=True,

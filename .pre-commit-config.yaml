@@ -30,6 +30,7 @@ repos:
           ordin/api.py
           ordin/semantics.py
           ordin/temporal.py
+          ordin/tool_calls.py
           ordin/policy.py
           ordin/entrypoint.py
           ordin/context.py
