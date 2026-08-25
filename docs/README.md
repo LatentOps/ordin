@@ -67,6 +67,13 @@ Ordin does not become the agent framework, shell executor, sandbox, MCP transpor
 - [Context-aware review](context-aware-review.md)
 - [Trace-aware review](trace-aware-review.md)
 
+## I want to evaluate Ordin
+
+- [Safety benchmark and adversarial fuzzing](safety-benchmark.md)
+- [Search quality benchmark](search-quality-benchmark.md)
+
+The safety benchmark has separate hard regression gates for false allows, critical misses, false blocks, and weakened adversarial equivalents.
+
 ## I want to understand command discovery
 
 - [Search quality benchmark](search-quality-benchmark.md)
@@ -78,6 +85,7 @@ Ordin does not become the agent framework, shell executor, sandbox, MCP transpor
 ## I want to extend or contribute to Ordin
 
 - [Development workflow](development-workflow.md)
+- [Safety benchmark and adversarial fuzzing](safety-benchmark.md)
 - [Generic action review and adapter contract](action-review.md)
 - [Tool and MCP adapters](tool-and-mcp-adapters.md)
 - [Declarative action policies](policies.md)
