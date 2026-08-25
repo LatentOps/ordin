@@ -1,163 +1,105 @@
 # Ordin architecture
 
-Ordin is a local command-intelligence and pre-execution safety engine. Discovery and safety share the same curated command semantics, but they remain separate stages so ranking cannot silently become policy and policy cannot fabricate commands.
+Ordin is a local action-intelligence and pre-execution safety engine. Command discovery and action safety share curated semantics, but ranking, semantic evidence, temporal reasoning, and caller policy remain separate stages so one layer cannot silently fabricate authority for another.
 
 ## End-to-end pipeline
 
 ```text
-                          +----------------------+
-natural-language intent ->| deterministic search |-> command candidates
-                          +----------+-----------+
-                                     |
-command text ------------------------+
-                                     v
-                           shell parsing
-                                     |
-                                     v
-                    executable / action normalization
-                                     |
-                  +------------------+------------------+
-                  |                                     |
-                  v                                     v
-          semantic analyzers                    typed effect graph
-                  |                                     |
-                  +------------------+------------------+
-                                     |
-                                     v
-                         structured safety evidence
-                                     |
-                     +---------------+---------------+
-                     |               |               |
-                  context        risk rules        trace
-                     |               |               |
-                     +---------------+---------------+
-                                     |
-                                     v
-                              policy merge
-                                     |
-                                     v
-                         allow / warn / ask / block
+natural-language intent -> deterministic search -> command candidates
+
+proposed action
+      |
+      v
+structural parsing / adapter normalization
+      |
+      v
+semantic analyzers + typed effects + resources
+      |
+      v
+single-action safety review
+      |
+      +--> execution context
+      +--> exact risk rules
+      +--> bounded action history
+      |        |
+      |        v
+      |   temporal state machines
+      |        |
+      +--------+
+      |
+      v
+caller-owned declarative policy
+      |
+      v
+allow / warn / ask / block
 ```
 
-The system is deterministic by default and requires no hosted service.
+The deterministic core requires no hosted service.
 
 ## 1. Command intelligence
 
-Search maps user intent to known command metadata. The default ranker combines:
+Search maps user intent to known command metadata using BM25-style lexical retrieval plus intent, aliases, templates, local executable availability, and Linux distribution compatibility. Optional local semantic reranking can reorder only a bounded deterministic candidate set and cannot bypass safety review.
 
-- BM25-style lexical retrieval;
-- intent, alias, and command-name signals;
-- template/slot metadata;
-- local executable availability;
-- Linux distribution compatibility.
+## 2. Action normalization
 
-An optional local semantic reranker can reorder only a bounded deterministic candidate set. It cannot bypass the deterministic retrieval path or safety review.
+Shell actions are parsed structurally instead of treating the full string as one regex target. Generic action envelopes let future adapters represent file, network, MCP, database, and tool actions without pretending they are shell commands.
 
-## 2. Shell structure
+Adapters may produce confident semantics only when deterministic logic or curated metadata establishes them. Unsupported action semantics remain `ask`.
 
-Safety review starts from shell structure rather than treating the full string as one regex target. The parser identifies compound segments, pipelines, substitutions, grouped commands, common wrappers, redirections, and nested shell payloads such as `bash -c`.
+## 3. Semantic evidence
 
-Each executable action is reviewed independently and the overall result conservatively preserves the strongest finding.
-
-## 3. Semantic analyzers
-
-High-value command families have dedicated analyzers for argument-sensitive behavior. They convert concrete invocation details into structured effects and resources, for example:
+Dedicated analyzers and the typed graph produce reusable effects and resources, for example:
 
 ```text
 rm -rf ./build
   -> filesystem.delete
   -> filesystem.recursive_delete
-  -> path:./build
-
-git push --force-with-lease
-  -> git.remote_write
-  -> git.history_rewrite
+  -> path:/workspace/repo/build
 
 curl --data-binary @payload.json https://example.com
   -> network.upload
 ```
 
-The generic typed resolver remains a fallback for commands without a dedicated analyzer.
+Effects describe what happens; resources describe what is targeted. Policy decisions are applied later.
 
-## 4. Typed effect graph
+## 4. Context-aware review
 
-Curated command cards can express:
+Callers may provide working directory, shell, effective UID, interactive state, repository root, and agent/runtime identity. Missing context stays unknown rather than being inferred as benign.
 
-```text
-intent -> command
-command -> subcommand
-command/subcommand -> flag
-command/subcommand/flag -> effect
-effect -> resource
-command -> safer alternative
-command -> required privilege
-```
+## 5. Bounded temporal review
 
-Effects are shared semantic vocabulary, not policy decisions. The effect catalog attaches reusable risk metadata and safer next steps to those semantics.
+Generic callers can provide up to 32 prior `ActionEnvelope` values through `ActionHistory`. Legacy command `ActionTrace` is retained as a compatibility surface and is normalized through the same temporal engine.
 
-The graph is built in memory. Ordin does not require a graph database.
+Multi-action behavior is described by `ordin.temporal_policy_set.v1` data and compiled into deterministic bounded state machines. The default rules preserve the original trajectory detections:
 
-## 5. Context-aware review
+- secret read -> network upload
+- download -> permission change -> execute
+- repeated destructive actions
+- repeated privilege escalation
 
-A review request may include explicit local execution context:
+A temporal rule matches only when its final step is satisfied by the current action. A sequence that occurred entirely in old history therefore does not automatically contaminate an unrelated new action.
 
-- working directory;
-- shell;
-- effective user ID;
-- interactive/non-interactive mode;
-- repository root;
-- agent/runtime identity.
+The temporal engine is bounded by 32 prior actions, 128 rules, eight steps per rule, 64 signals per step, and at most 32 live states per rule. Temporal evidence can only preserve or strengthen the current review.
 
-Context is caller-supplied or locally derived by integrations. Core review does not collect remote environment data.
+## 6. Declarative caller policy
 
-## 6. Trace-aware review
+`ordin.policy_set.v1` applies caller-owned constraints over normalized action kind, operation, effects, resources, context, agent identity, intent state, risk, decision, and temporal categories.
 
-For agent runtimes, a bounded action trace can capture recent commands. Ordin re-evaluates prior command text through the same local semantic machinery rather than trusting caller-provided risk labels.
+The policy language is data-only and explicit. It has no callbacks, shell execution, expression language, hidden discovery, or remote fetching. Policy conflict resolution uses execution order `allow < warn < ask < block` and cannot downgrade a stronger core safety requirement.
 
-Trajectory rules currently cover patterns such as:
-
-- secret read -> network upload;
-- download -> permission change -> execute;
-- repeated destructive actions;
-- repeated privilege escalation.
-
-Trace evidence is monotonic: it can elevate the current decision but cannot weaken a stronger single-command finding.
-
-## 7. Policy merge
-
-Evidence sources are intentionally compositional:
-
-1. shell structure;
-2. semantic analyzers;
-3. typed effects;
-4. exact risk rules;
-5. execution context;
-6. recent action trajectory;
-7. coarse command defaults only where richer semantics are unavailable.
-
-The output is one of `allow`, `warn`, `ask`, or `block`. Unknown or insufficiently classified commands use `ask` rather than silently becoming low risk.
-
-## 8. Interfaces
+## 7. Interfaces
 
 The same engine is exposed through:
 
-- `ordin` CLI;
-- Python modules;
-- versioned JSON review requests/results;
-- opt-in Bash/Zsh integration;
-- command/effect graph export;
-- modular command packs.
+- `ordin` CLI
+- Python API
+- versioned JSON action/review/history/policy schemas
+- Bash/Zsh shell integration
+- `AgentGate`
+- typed graph export and command packs
 
-Public machine payloads use the `ordin.*.v1` schema namespace.
+Core review APIs never execute the reviewed action.
 
 ## Project boundaries
 
-Ordin deliberately does not provide:
-
-- remote command execution;
-- automatic shell-history upload;
-- required cloud inference;
-- free-form shell-program generation;
-- centralized enterprise account/governance services.
-
-Those systems can call Ordin as a local action-intelligence and safety primitive instead of being embedded into the core package.
+Ordin deliberately does not provide remote command execution, automatic history upload, required cloud inference, arbitrary shell generation, hidden policy synchronization, or a centralized enterprise control plane. External runtimes can use Ordin as a local decision primitive while retaining ownership of execution, sandboxing, approval, and persistence.
