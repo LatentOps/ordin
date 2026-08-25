@@ -84,6 +84,52 @@ review = gate.review(
 
 Trace-aware review remains bounded and local. Ordin re-evaluates prior command text instead of trusting caller-provided risk labels.
 
+## Generic actions, capabilities, and observations
+
+Generic action review returns a deterministic advisory capability profile when Ordin can derive one from typed effects/resources.
+
+```python
+from ordin import ActionEnvelope, Ordin
+
+review = Ordin().review_action(
+    ActionEnvelope.shell("rm -rf ./build")
+)
+
+print(review.capabilities.filesystem)
+print(review.capabilities.process_execution)
+```
+
+A caller-owned runtime may also explicitly supply observations about prior actions:
+
+```python
+from ordin import (
+    ActionEnvelope,
+    ActionHistory,
+    ActionObservation,
+    ObservationHistory,
+    Ordin,
+)
+
+prior = ActionEnvelope.shell(
+    "git status --short",
+    action_id="step-1",
+)
+
+review = Ordin().review_action(
+    ActionEnvelope.shell("git log -1 --oneline"),
+    history=ActionHistory(actions=(prior,)),
+    observations=ObservationHistory(
+        observations=(
+            ActionObservation(action_id="step-1", exit_code=0),
+        )
+    ),
+)
+```
+
+Observation evidence is caller supplied and additive. It may strengthen later temporal review but cannot erase a dangerous effect Ordin predicted earlier. Every observation must match exactly one prior `action_id`.
+
+See [Execution capability profiles and observations](execution-evidence.md) for the trust model and machine contracts.
+
 ## Versioned request objects
 
 ```python
@@ -111,6 +157,8 @@ review = Ordin().review_request(
 )
 ```
 
+`Ordin.review_action()` similarly accepts schema-valid mappings for generic action history and observation history.
+
 ## Search and check
 
 ```python
@@ -122,4 +170,4 @@ matches = gate.search("what is using port 3000", limit=3)
 risk = gate.check("git reset --hard HEAD~1")
 ```
 
-The public API uses the same search, semantic analyzers, effect graph, risk rules, context logic, and trace evaluator as the CLI. There is no separate SDK policy implementation to drift from command-line behavior.
+The public API uses the same search, semantic analyzers, effect graph, risk rules, context logic, trace evaluator, temporal engine, and trusted tool semantics as the CLI. There is no separate SDK policy implementation to drift from command-line behavior.
