@@ -59,11 +59,20 @@ def analyzer_pack_bindings() -> dict[str, str | None]:
     return {executable: registration.pack for executable, registration in sorted(_REGISTRY.items())}
 
 
+from . import aws as _aws  # noqa: E402,F401
+from . import azure as _azure  # noqa: E402,F401
+from . import database as _database  # noqa: E402,F401
 from . import docker as _docker  # noqa: E402,F401
 from . import filesystem as _filesystem  # noqa: E402,F401
+from . import gcloud as _gcloud  # noqa: E402,F401
 from . import git as _git  # noqa: E402,F401
+from . import github as _github  # noqa: E402,F401
+from . import kubernetes as _kubernetes  # noqa: E402,F401
 from . import network as _network  # noqa: E402,F401
 from . import packages as _packages  # noqa: E402,F401
+from . import remote as _remote  # noqa: E402,F401
+from . import systemd as _systemd  # noqa: E402,F401
+from . import terraform as _terraform  # noqa: E402,F401
 
 __all__ = [
     "SemanticAnalysis",

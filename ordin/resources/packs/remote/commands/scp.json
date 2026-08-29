@@ -1,0 +1,12 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "scp",
+  "summary": "Copy files between local and remote systems over SSH.",
+  "aliases": ["secure copy", "remote file copy"],
+  "intents": ["copy file to remote server", "download file from remote server"],
+  "default_risk": "medium",
+  "risk_tags": ["network", "data_transfer"],
+  "effects": [{"effect": "network.connect", "resource": "remote.host"}],
+  "examples": [{"command": "scp example-host:/tmp/report.txt .", "explanation": "Download a known file from a remote host."}],
+  "templates": [{"command": "scp example-host:/tmp/report.txt .", "description": "Download a known remote file."}]
+}

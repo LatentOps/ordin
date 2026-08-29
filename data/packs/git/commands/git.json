@@ -3,7 +3,7 @@
   "command": "git",
   "summary": "Track source code history and collaborate through repositories.",
   "aliases": ["version control", "repository", "commit"],
-  "intents": ["commit changes", "see changed files", "push branch", "revert code", "inspect history"],
+  "intents": ["commit changes", "see changed files", "inspect repository state", "push branch", "revert code", "inspect history"],
   "default_risk": "medium",
   "risk_tags": ["source_control", "history_rewrite"],
   "subcommands": {

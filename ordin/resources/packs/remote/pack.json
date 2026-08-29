@@ -1,0 +1,11 @@
+{
+  "schema_version": "ordin.command_pack.v1",
+  "name": "remote",
+  "version": "1.0.0",
+  "description": "SSH, SCP, and rsync remote connection and transfer semantics.",
+  "enabled_by_default": true,
+  "commands": ["commands/ssh.json", "commands/scp.json", "commands/rsync.json"],
+  "risk_rules": [],
+  "effect_catalogs": ["effects.json"],
+  "analyzers": ["ssh", "scp", "rsync"]
+}

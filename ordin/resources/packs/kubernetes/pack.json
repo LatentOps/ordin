@@ -1,0 +1,11 @@
+{
+  "schema_version": "ordin.command_pack.v1",
+  "name": "kubernetes",
+  "version": "1.0.0",
+  "description": "Kubernetes and kubectl infrastructure semantics.",
+  "enabled_by_default": true,
+  "commands": ["commands/kubectl.json"],
+  "risk_rules": [],
+  "effect_catalogs": ["effects.json"],
+  "analyzers": ["kubectl"]
+}

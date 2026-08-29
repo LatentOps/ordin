@@ -1,0 +1,22 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "systemctl",
+  "summary": "Inspect and control systemd services and system state.",
+  "aliases": ["systemd", "service manager", "linux service"],
+  "intents": ["check systemd service status", "start systemd service", "restart systemd service", "stop systemd service", "reboot system"],
+  "default_risk": "medium",
+  "risk_tags": ["service_control", "system_configuration", "power"],
+  "subcommands": {
+    "status": {"effects": [{"effect": "service.read", "resource": "service.unit"}]},
+    "show": {"effects": [{"effect": "service.read", "resource": "service.unit"}]},
+    "start": {"effects": [{"effect": "service.control", "resource": "service.unit"}]},
+    "stop": {"effects": [{"effect": "service.control", "resource": "service.unit"}]},
+    "restart": {"effects": [{"effect": "service.control", "resource": "service.unit"}]},
+    "enable": {"effects": [{"effect": "system.configuration_write", "resource": "service.unit"}]},
+    "disable": {"effects": [{"effect": "system.configuration_write", "resource": "service.unit"}]},
+    "reboot": {"effects": [{"effect": "system.power_change", "resource": "system"}]},
+    "poweroff": {"effects": [{"effect": "system.power_change", "resource": "system"}]}
+  },
+  "examples": [{"command": "systemctl status sshd", "explanation": "Inspect a service before changing it."}],
+  "templates": [{"command": "systemctl list-units --type=service --state=running", "description": "List running services."}]
+}

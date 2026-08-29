@@ -1,0 +1,20 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "gh",
+  "summary": "Inspect and manage GitHub repositories, pull requests, releases, and secrets.",
+  "aliases": ["github cli", "github repository", "pull request"],
+  "intents": ["inspect github pull requests", "view github repository", "create github issue", "delete github repository", "manage github secrets"],
+  "default_risk": "medium",
+  "risk_tags": ["remote_write", "identity", "secret", "source_control"],
+  "subcommands": {
+    "repo view": {"effects": [{"effect": "infrastructure.read", "resource": "github.repository"}]},
+    "repo delete": {"effects": [{"effect": "infrastructure.delete", "resource": "github.repository"}]},
+    "pr list": {"effects": [{"effect": "infrastructure.read", "resource": "github.pull_request"}]},
+    "pr create": {"effects": [{"effect": "infrastructure.write", "resource": "github.pull_request"}]},
+    "pr merge": {"effects": [{"effect": "infrastructure.write", "resource": "github.pull_request"}]},
+    "auth token": {"effects": [{"effect": "secret.read", "resource": "github.credential"}]},
+    "secret set": {"effects": [{"effect": "secret.write", "resource": "github.secret"}]}
+  },
+  "examples": [{"command": "gh pr list", "explanation": "List pull requests without changing repository state."}],
+  "templates": [{"command": "gh repo view", "description": "Inspect the current GitHub repository."}]
+}

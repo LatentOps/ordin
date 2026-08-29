@@ -1,0 +1,12 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "journalctl",
+  "summary": "Read and maintain the systemd journal.",
+  "aliases": ["systemd journal", "service logs", "journal logs"],
+  "intents": ["inspect systemd logs", "read service journal", "vacuum systemd journal"],
+  "default_risk": "medium",
+  "risk_tags": ["service_read", "cleanup"],
+  "effects": [{"effect": "service.read", "resource": "system-journal"}],
+  "examples": [{"command": "journalctl -n 50", "explanation": "Inspect the most recent journal entries."}],
+  "templates": [{"command": "journalctl -n 50", "description": "Inspect recent system journal entries."}]
+}

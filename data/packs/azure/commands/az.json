@@ -1,0 +1,18 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "az",
+  "summary": "Inspect and manage Microsoft Azure resources through the Azure CLI.",
+  "aliases": ["azure cli", "microsoft azure", "cloud"],
+  "intents": ["list azure resource groups", "inspect azure resources", "delete azure resource group", "manage azure key vault secret", "manage azure roles"],
+  "default_risk": "medium",
+  "risk_tags": ["cloud", "infrastructure", "identity", "secret", "data_transfer"],
+  "subcommands": {
+    "group list": {"effects": [{"effect": "infrastructure.read", "resource": "azure.resource_group"}]},
+    "group delete": {"effects": [{"effect": "infrastructure.delete", "resource": "azure.resource_group"}]},
+    "keyvault secret show": {"effects": [{"effect": "secret.read", "resource": "azure.secret"}]},
+    "keyvault secret set": {"effects": [{"effect": "secret.write", "resource": "azure.secret"}]},
+    "role assignment create": {"effects": [{"effect": "identity.permission_change", "resource": "azure.role"}]}
+  },
+  "examples": [{"command": "az account show", "explanation": "Inspect the active Azure subscription and identity."}],
+  "templates": [{"command": "az account show", "description": "Inspect the active Azure context before remote changes."}]
+}

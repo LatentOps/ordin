@@ -1,0 +1,11 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "rsync",
+  "summary": "Synchronize files locally or with a remote system.",
+  "aliases": ["remote sync", "file synchronization"],
+  "intents": ["sync files to remote server", "download directory from remote server", "remote synchronization copy", "compare synchronized files"],
+  "default_risk": "medium",
+  "risk_tags": ["network", "data_transfer", "delete"],
+  "examples": [{"command": "rsync -navi ./data/ example-host:/srv/data/", "explanation": "Dry run a remote synchronization and show planned changes."}],
+  "templates": [{"command": "rsync -navi ./data/ example-host:/srv/data/", "description": "Preview a remote synchronization."}]
+}

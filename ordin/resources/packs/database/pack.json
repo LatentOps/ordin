@@ -1,0 +1,11 @@
+{
+  "schema_version": "ordin.command_pack.v1",
+  "name": "database",
+  "version": "1.0.0",
+  "description": "Database CLI query, mutation, and privilege semantics.",
+  "enabled_by_default": true,
+  "commands": ["commands/psql.json", "commands/mysql.json", "commands/sqlite3.json"],
+  "risk_rules": [],
+  "effect_catalogs": ["effects.json"],
+  "analyzers": ["psql", "mysql", "mariadb", "sqlite3", "mongosh", "redis-cli"]
+}

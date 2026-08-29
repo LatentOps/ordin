@@ -1,0 +1,17 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "tofu",
+  "summary": "Plan and manage declarative infrastructure with OpenTofu.",
+  "aliases": ["opentofu", "open tofu", "iac"],
+  "intents": ["preview opentofu infrastructure changes", "inspect opentofu state", "apply opentofu changes", "destroy opentofu infrastructure"],
+  "default_risk": "medium",
+  "risk_tags": ["infrastructure", "iac", "remote_write"],
+  "subcommands": {
+    "plan": {"effects": [{"effect": "infrastructure.read", "resource": "terraform.state"}]},
+    "show": {"effects": [{"effect": "infrastructure.read", "resource": "terraform.state"}]},
+    "apply": {"effects": [{"effect": "infrastructure.write", "resource": "terraform.state"}]},
+    "destroy": {"effects": [{"effect": "infrastructure.delete", "resource": "terraform.state"}]}
+  },
+  "examples": [{"command": "tofu plan", "explanation": "Preview OpenTofu infrastructure changes."}],
+  "templates": [{"command": "tofu plan", "description": "Preview planned OpenTofu changes."}]
+}

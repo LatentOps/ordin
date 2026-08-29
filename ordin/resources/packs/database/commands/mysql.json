@@ -1,0 +1,11 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "mysql",
+  "summary": "Query and administer MySQL databases.",
+  "aliases": ["mysql database", "database cli", "sql"],
+  "intents": ["query mysql database", "inspect mysql schema", "update mysql data", "delete mysql data"],
+  "default_risk": "medium",
+  "risk_tags": ["database", "data_mutation", "credentials"],
+  "examples": [{"command": "mysql --help", "explanation": "Inspect mysql command options without connecting to or changing a database."}],
+  "templates": [{"command": "mysql --help", "description": "Inspect mysql usage."}]
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "psql",
+  "summary": "Query and administer PostgreSQL databases.",
+  "aliases": ["postgresql", "database cli", "sql"],
+  "intents": ["query postgresql database", "inspect postgresql schema", "update postgresql data", "delete postgresql data"],
+  "default_risk": "medium",
+  "risk_tags": ["database", "data_mutation", "credentials"],
+  "examples": [{"command": "psql --help", "explanation": "Inspect psql command options without connecting to or changing a database."}],
+  "templates": [{"command": "psql --help", "description": "Inspect psql usage."}]
+}

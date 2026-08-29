@@ -1,0 +1,11 @@
+{
+  "schema_version": "ordin.command_pack.v1",
+  "name": "terraform",
+  "version": "1.0.0",
+  "description": "Terraform and OpenTofu infrastructure-as-code semantics.",
+  "enabled_by_default": true,
+  "commands": ["commands/terraform.json", "commands/tofu.json"],
+  "risk_rules": [],
+  "effect_catalogs": ["effects.json"],
+  "analyzers": ["terraform", "tofu"]
+}

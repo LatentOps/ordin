@@ -1,7 +1,7 @@
 # Command packs
 
 Ordin can load domain-specific command knowledge as versioned local
-packs. Packs keep command cards, dedicated risk rules, and analyzer bindings
+packs. Packs keep command cards, dedicated risk rules, effect catalogs, and analyzer bindings
 outside the core command directory while reusing the shared typed effect
 vocabulary and review policy.
 
@@ -90,6 +90,40 @@ Pack selection affects the runtime as one unit. If the Git pack is disabled:
 This avoids the misleading state where metadata looks disabled while hidden
 pack-specific policy remains active.
 
+## Infrastructure and remote-action packs
+
+Ordin ships focused packs for the high-value operational domains where command names alone
+are not enough to review an action safely:
+
+| Pack | Commands/analyzers | Representative semantics |
+| --- | --- | --- |
+| `kubernetes` | `kubectl` | resource reads, apply/patch/create, delete, exec, copy, secret output |
+| `terraform` | `terraform`, `tofu` | plan/state reads, apply/import, destroy/state removal, provider download |
+| `remote` | `ssh`, `scp`, `rsync` | remote connection, remote execution, upload/download, delete synchronization |
+| `systemd` | `systemctl`, `journalctl` | service inspection/control, configuration changes, journal cleanup, power state |
+| `github` | `gh` | repository/PR reads and writes, API mutation, secrets, auth, downloads/uploads |
+| `database` | `psql`, `mysql`, `mariadb`, `sqlite3`, `mongosh`, `redis-cli` | query reads, data/schema writes, destructive queries, permission changes |
+| `aws` | `aws` | infrastructure reads/writes/deletes, IAM, secrets, S3 transfer, Lambda invoke |
+| `gcloud` | `gcloud` | infrastructure reads/writes/deletes, IAM, secrets, Cloud Storage transfer |
+| `azure` | `az` | infrastructure reads/writes/deletes, roles, Key Vault secrets, Blob transfer |
+
+These packs use the existing `ORDIN_PACKS` selection mechanism and are enabled by default.
+Each carries the same versioned shared domain-effect vocabulary so any pack remains
+independently selectable. Shared effects include infrastructure read/write/delete, remote
+execution, service control, database read/write/delete, identity permission changes, secret
+writes, and system power changes. Existing core effects such as `network.upload`,
+`network.download`, `network.connect`, `secret.read`, `filesystem.write`, and
+`confirmation.bypass` are reused instead of duplicated.
+
+Dedicated analyzers are limited to argument-sensitive behavior. For example, `ssh host`
+is a low-risk remote connection while `ssh host command` produces `remote.execute`;
+`aws s3 cp` distinguishes upload from download; SQL/Redis command text distinguishes
+reads from mutations; and cloud identity or secret operations emit structured effects
+that generic policy and temporal rules can match.
+
+All semantics are computed from local command text. Tests do not require cloud credentials,
+a cluster, a database server, network access, or the corresponding CLI binaries.
+
 ## Validation
 
 `ordin doctor` validates all discovered built-in packs, including packs
@@ -104,8 +138,8 @@ that are not currently enabled:
 - duplicate commands/rules across core and packs;
 - source/package resource parity.
 
-Git and Docker are the first two built-in packs and serve as reference
-implementations for future Kubernetes, cloud CLI, and database packs.
+Git and Docker remain compact reference packs. The infrastructure packs extend the same
+contract without adding remote discovery, credential access, or network-dependent validation.
 
 ## Contribution rules
 

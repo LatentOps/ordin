@@ -1,0 +1,19 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "terraform",
+  "summary": "Plan and manage declarative infrastructure.",
+  "aliases": ["terraform infrastructure", "iac"],
+  "intents": ["preview terraform infrastructure changes", "inspect terraform state", "apply terraform changes", "destroy terraform infrastructure"],
+  "default_risk": "medium",
+  "risk_tags": ["infrastructure", "iac", "remote_write"],
+  "subcommands": {
+    "plan": {"effects": [{"effect": "infrastructure.read", "resource": "terraform.state"}]},
+    "show": {"effects": [{"effect": "infrastructure.read", "resource": "terraform.state"}]},
+    "apply": {"effects": [{"effect": "infrastructure.write", "resource": "terraform.state"}]},
+    "destroy": {"effects": [{"effect": "infrastructure.delete", "resource": "terraform.state"}]},
+    "state list": {"effects": [{"effect": "infrastructure.read", "resource": "terraform.state"}]},
+    "state rm": {"effects": [{"effect": "infrastructure.delete", "resource": "terraform.state"}]}
+  },
+  "examples": [{"command": "terraform plan", "explanation": "Preview infrastructure changes without applying them."}],
+  "templates": [{"command": "terraform plan", "description": "Preview planned infrastructure changes."}]
+}
