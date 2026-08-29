@@ -130,6 +130,41 @@ Observation evidence is caller supplied and additive. It may strengthen later te
 
 See [Execution capability profiles and observations](execution-evidence.md) for the trust model and machine contracts.
 
+## Decision provenance and local audit
+
+Every `Ordin.review_action()` result includes structured decision provenance:
+
+```python
+from ordin import ActionEnvelope, Ordin
+
+review = Ordin().review_action(ActionEnvelope.shell("git status --short"))
+
+print(review.provenance.final_decision)
+for record in review.provenance.records:
+    print(record.source, record.code, record.rule_id, record.effect)
+```
+
+The provenance records are generated from the same structured semantic, risk, temporal, and policy results used to make the decision. They are not reconstructed from prose after the review.
+
+Audit persistence is opt-in:
+
+```python
+from ordin import ActionEnvelope, JsonlAuditSink, Ordin, verify_audit_jsonl
+
+sink = JsonlAuditSink("ordin-audit.jsonl", hash_chain=True)
+gate = Ordin(audit=sink)
+gate.review_action(ActionEnvelope.shell("git status --short"))
+
+assert verify_audit_jsonl(
+    "ordin-audit.jsonl",
+    require_hash_chain=True,
+).ok
+```
+
+Without `audit=...`, Ordin performs no audit writes. The default sink stores an action digest and redacted provenance rather than raw action parameters or raw resource values.
+
+See [Decision provenance and local audit evidence](audit-and-provenance.md) for privacy controls, hash-chain behavior, and limitations.
+
 ## Versioned request objects
 
 ```python
@@ -170,4 +205,4 @@ matches = gate.search("what is using port 3000", limit=3)
 risk = gate.check("git reset --hard HEAD~1")
 ```
 
-The public API uses the same search, semantic analyzers, effect graph, risk rules, context logic, trace evaluator, temporal engine, and trusted tool semantics as the CLI. There is no separate SDK policy implementation to drift from command-line behavior.
+The public API uses the same search, semantic analyzers, effect graph, risk rules, context logic, trace evaluator, temporal engine, trusted tool semantics, provenance, and optional local audit sink as the generic review path. There is no separate SDK policy implementation to drift from command-line behavior.

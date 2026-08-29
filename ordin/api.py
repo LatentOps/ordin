@@ -5,6 +5,7 @@ from typing import Any, Mapping
 
 from .action import ActionEnvelope, ActionHistory, ActionReview, review_action
 from .action_policy import ActionPolicySet, CompiledActionPolicySet
+from .audit import AuditSink
 from .context import ExecutionContext, ReviewRequest
 from .execution import ObservationHistory
 from .policy import ReviewPolicy
@@ -21,8 +22,8 @@ from .trace import ActionTrace
 class Ordin:
     """Stable library entry point for command discovery and pre-execution review.
 
-    Ordin is intentionally side-effect free: these methods search and review
-    actions but never execute shell commands or generic actions.
+    Ordin never executes shell commands or generic actions. Review is read-only
+    unless the caller explicitly configures a local audit sink.
     """
 
     context: ExecutionContext | None = None
@@ -31,6 +32,7 @@ class Ordin:
     action_policy: ActionPolicySet | CompiledActionPolicySet | None = None
     temporal_policy: TemporalPolicySet | CompiledTemporalPolicySet | None = None
     tool_semantics: ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None = None
+    audit: AuditSink | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.action_policy, ActionPolicySet):
@@ -55,6 +57,8 @@ class Ordin:
             raise ValueError(
                 "tool_semantics must be a ToolSemanticsRegistry, compiled registry, or null"
             )
+        if self.audit is not None and not callable(getattr(self.audit, "record", None)):
+            raise ValueError("audit must provide a callable record(review) method or be null")
 
     def search(self, query: str, *, limit: int = 5) -> list[SearchResult]:
         if not isinstance(query, str) or not query.strip():
@@ -133,6 +137,8 @@ class Ordin:
         compiled_policy = self.action_policy
         if isinstance(compiled_policy, CompiledActionPolicySet):
             result = compiled_policy.apply(result)
+        if self.audit is not None:
+            self.audit.record(result)
         return result
 
     def allows(self, review: RiskReview | CommandReview | ActionReview) -> bool:

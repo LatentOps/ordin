@@ -11,6 +11,7 @@ from typing import Any, Literal, Mapping, Sequence, cast
 
 from .action import ActionResource, ActionReview
 from .policy import Decision, ENFORCEMENT_ORDER, validate_decision
+from .provenance import ProvenanceRecord
 
 
 POLICY_SCHEMA_VERSION = "ordin.policy_set.v1"
@@ -386,7 +387,22 @@ class CompiledActionPolicySet:
 
     def apply(self, review: ActionReview) -> ActionReview:
         evaluation = self.evaluate(review)
+        policy_metadata = {
+            "policy_id": evaluation.policy_id,
+            "policy_version": evaluation.policy_version,
+            "policy_digest": evaluation.policy_digest,
+        }
         if not evaluation.matches:
+            provenance = review.provenance
+            if provenance is not None:
+                provenance = provenance.append(
+                    ProvenanceRecord(
+                        source="action_policy",
+                        kind="finding",
+                        code="policy.no-match",
+                        metadata=policy_metadata,
+                    )
+                )
             return replace(
                 review,
                 policy={
@@ -395,6 +411,7 @@ class CompiledActionPolicySet:
                     "digest": evaluation.policy_digest,
                 },
                 policy_matches=[],
+                provenance=provenance,
             )
 
         final_decision = review.decision
@@ -421,6 +438,39 @@ class CompiledActionPolicySet:
             if dominant is not None:
                 safer_next_step = dominant.safer_next_step
 
+        provenance = review.provenance
+        if provenance is not None:
+            policy_records = [
+                ProvenanceRecord(
+                    source="action_policy",
+                    kind="rule",
+                    code="policy.match",
+                    summary=match.reason,
+                    decision=match.decision,
+                    rule_id=match.rule_id,
+                    metadata=policy_metadata,
+                )
+                for match in evaluation.matches
+            ]
+            policy_records.append(
+                ProvenanceRecord(
+                    source="decision",
+                    kind="merge",
+                    code="decision.policy-merge",
+                    decision=final_decision,
+                    risk=review.risk,
+                    metadata={
+                        "previous_decision": review.decision,
+                        **policy_metadata,
+                    },
+                )
+            )
+            provenance = provenance.append(
+                *policy_records,
+                final_decision=final_decision,
+                final_risk=review.risk,
+            )
+
         return replace(
             review,
             decision=final_decision,
@@ -432,6 +482,7 @@ class CompiledActionPolicySet:
                 "digest": evaluation.policy_digest,
             },
             policy_matches=[match.as_dict() for match in evaluation.matches],
+            provenance=provenance,
         )
 
 

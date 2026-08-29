@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from functools import lru_cache
@@ -251,6 +252,11 @@ class TemporalPolicySet:
             "version": self.version,
             "rules": [rule.as_dict() for rule in self.rules],
         }
+
+    @property
+    def digest(self) -> str:
+        canonical = json.dumps(self.as_dict(), sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
     def compile(self) -> "CompiledTemporalPolicySet":
         return compile_temporal_policy(self)

@@ -3,7 +3,20 @@
   "$id": "https://latentops.dev/schemas/ordin/action-review.v1.schema.json",
   "title": "Ordin Action Review v1",
   "type": "object",
-  "required": ["schema_version", "action", "decision", "risk", "reasons", "safer_next_step", "effects", "resources", "adapter", "capabilities", "intent_alignment", "trajectory_categories"],
+  "required": [
+    "schema_version",
+    "action",
+    "decision",
+    "risk",
+    "reasons",
+    "safer_next_step",
+    "effects",
+    "resources",
+    "adapter",
+    "capabilities",
+    "intent_alignment",
+    "trajectory_categories"
+  ],
   "properties": {
     "schema_version": {"const": "ordin.action_review.v1"},
     "action": {
@@ -55,17 +68,9 @@
       "properties": {
         "schema_version": {"const": "ordin.execution_capabilities.v1"},
         "filesystem": {"enum": ["none", "read", "write", "unknown"]},
-        "filesystem_scopes": {
-          "type": "array",
-          "maxItems": 128,
-          "items": {"type": "string", "minLength": 1, "maxLength": 32768}
-        },
+        "filesystem_scopes": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 32768}},
         "network": {"enum": ["none", "read", "write", "unknown"]},
-        "network_scopes": {
-          "type": "array",
-          "maxItems": 128,
-          "items": {"type": "string", "minLength": 1, "maxLength": 32768}
-        },
+        "network_scopes": {"type": "array", "maxItems": 128, "items": {"type": "string", "minLength": 1, "maxLength": 32768}},
         "privilege_escalation": {"type": ["boolean", "null"]},
         "process_execution": {"type": ["boolean", "null"]}
       },
@@ -97,6 +102,48 @@
         },
         "additionalProperties": false
       }
+    },
+    "provenance": {
+      "type": ["object", "null"],
+      "required": ["schema_version", "records", "final_decision", "final_risk"],
+      "properties": {
+        "schema_version": {"const": "ordin.provenance.v1"},
+        "records": {
+          "type": "array",
+          "maxItems": 512,
+          "items": {
+            "type": "object",
+            "required": ["source", "kind", "code", "summary", "decision", "risk", "effect", "resource", "rule_id", "action_id", "category", "matched_indices", "metadata"],
+            "properties": {
+              "source": {"enum": ["adapter", "semantic", "risk_rule", "context", "intent", "observation", "temporal_policy", "action_policy", "decision"]},
+              "kind": {"enum": ["finding", "effect", "resource", "rule", "observation", "merge"]},
+              "code": {"type": "string", "minLength": 1, "maxLength": 256},
+              "summary": {"type": ["string", "null"], "maxLength": 32768},
+              "decision": {"enum": ["allow", "warn", "ask", "block", null]},
+              "risk": {"enum": ["unknown", "low", "medium", "high", "critical", null]},
+              "effect": {"type": ["string", "null"], "maxLength": 32768},
+              "resource": {
+                "type": ["object", "null"],
+                "required": ["type", "value"],
+                "properties": {
+                  "type": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_.-]*$"},
+                  "value": {"type": "string", "minLength": 1, "maxLength": 32768}
+                },
+                "additionalProperties": false
+              },
+              "rule_id": {"type": ["string", "null"], "maxLength": 32768},
+              "action_id": {"type": ["string", "null"], "maxLength": 32768},
+              "category": {"type": ["string", "null"], "maxLength": 32768},
+              "matched_indices": {"type": "array", "maxItems": 32, "items": {"type": "integer", "minimum": 0}},
+              "metadata": {"type": "object", "maxProperties": 64, "additionalProperties": {"type": ["string", "integer", "boolean", "null"]}}
+            },
+            "additionalProperties": false
+          }
+        },
+        "final_decision": {"enum": ["allow", "warn", "ask", "block"]},
+        "final_risk": {"enum": ["unknown", "low", "medium", "high", "critical"]}
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

@@ -12,6 +12,8 @@ ACTION_REVIEW_SCHEMA_VERSION = "ordin.action_review.v1"
 ACTION_OBSERVATION_SCHEMA_VERSION = "ordin.action_observation.v1"
 OBSERVATION_HISTORY_SCHEMA_VERSION = "ordin.observation_history.v1"
 EXECUTION_CAPABILITIES_SCHEMA_VERSION = "ordin.execution_capabilities.v1"
+PROVENANCE_SCHEMA_VERSION = "ordin.provenance.v1"
+AUDIT_EVENT_SCHEMA_VERSION = "ordin.audit_event.v1"
 ACTION_TRACE_SCHEMA_VERSION = "ordin.action_trace.v1"
 POLICY_SET_SCHEMA_VERSION = "ordin.policy_set.v1"
 TEMPORAL_POLICY_SET_SCHEMA_VERSION = "ordin.temporal_policy_set.v1"
@@ -37,6 +39,7 @@ from .action_policy import (
 from .adapters import MCPAdapter, ToolCallAdapter
 from .agent import AgentDecision, AgentDisposition, AgentGate, AgentReview
 from .api import Ordin
+from .audit import AuditEvent, AuditSink, AuditVerification, JsonlAuditSink, verify_audit_jsonl
 from .context import ExecutionContext, ReviewRequest
 from .execution import (
     ActionObservation,
@@ -46,6 +49,7 @@ from .execution import (
     derive_capabilities,
 )
 from .policy import Decision, FailThreshold, ReviewPolicy
+from .provenance import DecisionProvenance, ProvenanceRecord, ProvenanceResource
 from .review import CommandReview
 from .risk import RiskReview
 from .search import SearchResult
@@ -73,7 +77,9 @@ __all__ = [
     "ACTION_OBSERVATION_SCHEMA_VERSION",
     "ACTION_REVIEW_SCHEMA_VERSION",
     "ACTION_TRACE_SCHEMA_VERSION",
+    "AUDIT_EVENT_SCHEMA_VERSION",
     "EXECUTION_CAPABILITIES_SCHEMA_VERSION",
+    "PROVENANCE_SCHEMA_VERSION",
     "OBSERVATION_HISTORY_SCHEMA_VERSION",
     "ActionEnvelope",
     "ActionHistory",
@@ -84,6 +90,9 @@ __all__ = [
     "ActionResource",
     "ActionReview",
     "ActionTrace",
+    "AuditEvent",
+    "AuditSink",
+    "AuditVerification",
     "AgentDecision",
     "AgentDisposition",
     "AgentGate",
@@ -93,11 +102,13 @@ __all__ = [
     "CompiledTemporalPolicySet",
     "CompiledToolSemanticsRegistry",
     "Decision",
+    "DecisionProvenance",
     "EFFECT_CATALOG_SCHEMA_VERSION",
     "EFFECT_GRAPH_SCHEMA_VERSION",
     "ExecutionCapabilityProfile",
     "ExecutionContext",
     "FailThreshold",
+    "JsonlAuditSink",
     "MAN_INDEX_SCHEMA_VERSION",
     "MCPAdapter",
     "ObservationHistory",
@@ -109,6 +120,8 @@ __all__ = [
     "PolicyEvaluation",
     "PolicyMatch",
     "PolicyResourceMatcher",
+    "ProvenanceRecord",
+    "ProvenanceResource",
     "REVIEW_REQUEST_SCHEMA_VERSION",
     "REVIEW_SCHEMA_VERSION",
     "RISK_RULES_SCHEMA_VERSION",
@@ -136,4 +149,5 @@ __all__ = [
     "load_temporal_policy",
     "load_tool_semantics",
     "review_action",
+    "verify_audit_jsonl",
 ]

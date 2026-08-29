@@ -37,6 +37,8 @@ SCHEMA_FILES = {
     "execution_capabilities": "execution-capabilities.v1.schema.json",
     "action_observation": "action-observation.v1.schema.json",
     "observation_history": "observation-history.v1.schema.json",
+    "provenance": "provenance.v1.schema.json",
+    "audit_event": "audit-event.v1.schema.json",
     "policy_set": "policy-set.v1.schema.json",
     "temporal_policy_set": "temporal-policy-set.v1.schema.json",
     "tool_semantics": "tool-semantics.v1.schema.json",
