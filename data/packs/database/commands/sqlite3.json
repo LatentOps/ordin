@@ -1,0 +1,11 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "sqlite3",
+  "summary": "Query and administer SQLite databases.",
+  "aliases": ["sqlite database", "database cli", "sql"],
+  "intents": ["query sqlite database", "inspect sqlite schema", "update sqlite data", "delete sqlite data"],
+  "default_risk": "medium",
+  "risk_tags": ["database", "data_mutation", "credentials"],
+  "examples": [{"command": "sqlite3 --help", "explanation": "Inspect sqlite3 command options without changing a database."}],
+  "templates": [{"command": "sqlite3 --help", "description": "Inspect sqlite3 usage."}]
+}

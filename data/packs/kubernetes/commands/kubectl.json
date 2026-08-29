@@ -1,0 +1,21 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "kubectl",
+  "summary": "Inspect and manage Kubernetes cluster resources.",
+  "aliases": ["kubernetes", "k8s", "cluster"],
+  "intents": ["inspect kubernetes pods", "view kubernetes resources", "apply kubernetes manifests", "delete kubernetes resources", "run command in kubernetes pod"],
+  "default_risk": "medium",
+  "risk_tags": ["infrastructure", "remote_write", "remote_execution"],
+  "subcommands": {
+    "get": {"effects": [{"effect": "infrastructure.read", "resource": "kubernetes.resource"}]},
+    "describe": {"effects": [{"effect": "infrastructure.read", "resource": "kubernetes.resource"}]},
+    "apply": {"effects": [{"effect": "infrastructure.write", "resource": "kubernetes.resource"}]},
+    "create": {"effects": [{"effect": "infrastructure.write", "resource": "kubernetes.resource"}]},
+    "patch": {"effects": [{"effect": "infrastructure.write", "resource": "kubernetes.resource"}]},
+    "delete": {"effects": [{"effect": "infrastructure.delete", "resource": "kubernetes.resource"}]},
+    "exec": {"effects": [{"effect": "remote.execute", "resource": "kubernetes.pod"}]},
+    "cp": {"effects": [{"effect": "network.connect", "resource": "kubernetes.pod"}]}
+  },
+  "examples": [{"command": "kubectl get pods", "explanation": "List pods in the current namespace."}],
+  "templates": [{"command": "kubectl get pods", "description": "Inspect pods before making cluster changes."}]
+}

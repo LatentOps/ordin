@@ -1,0 +1,11 @@
+{
+  "schema_version": "ordin.command_pack.v1",
+  "name": "gcloud",
+  "version": "1.0.0",
+  "description": "Google Cloud CLI infrastructure, identity, secret, and transfer semantics.",
+  "enabled_by_default": true,
+  "commands": ["commands/gcloud.json"],
+  "risk_rules": [],
+  "effect_catalogs": ["effects.json"],
+  "analyzers": ["gcloud"]
+}

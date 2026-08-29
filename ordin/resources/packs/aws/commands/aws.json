@@ -1,0 +1,19 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "aws",
+  "summary": "Inspect and manage AWS resources through the AWS CLI.",
+  "aliases": ["aws cli", "amazon web services", "cloud"],
+  "intents": ["list aws resources", "inspect aws ec2 instances", "upload object to aws s3", "terminate aws instance", "read aws secret"],
+  "default_risk": "medium",
+  "risk_tags": ["cloud", "infrastructure", "identity", "secret", "data_transfer"],
+  "subcommands": {
+    "s3 ls": {"effects": [{"effect": "infrastructure.read", "resource": "aws.s3"}]},
+    "s3 rm": {"effects": [{"effect": "infrastructure.delete", "resource": "aws.s3"}]},
+    "ec2 describe-instances": {"effects": [{"effect": "infrastructure.read", "resource": "aws.ec2"}]},
+    "ec2 terminate-instances": {"effects": [{"effect": "infrastructure.delete", "resource": "aws.ec2"}]},
+    "secretsmanager get-secret-value": {"effects": [{"effect": "secret.read", "resource": "aws.secret"}]},
+    "iam create-role": {"effects": [{"effect": "identity.permission_change", "resource": "aws.iam"}]}
+  },
+  "examples": [{"command": "aws sts get-caller-identity", "explanation": "Inspect the active AWS identity."}],
+  "templates": [{"command": "aws sts get-caller-identity", "description": "Inspect the active AWS identity before remote changes."}]
+}

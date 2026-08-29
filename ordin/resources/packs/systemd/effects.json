@@ -1,0 +1,17 @@
+{
+  "effects": {
+    "database.delete": {"category": "database_delete", "description": "Deletes database data, objects, or namespaces.", "reason": "can delete database data or objects", "risk": "high", "safer_next_step": "Inspect the exact database objects and take a recoverable backup before deletion."},
+    "database.read": {"category": "database_read", "description": "Reads database data or metadata.", "reason": "reads database data or metadata", "risk": "low"},
+    "database.write": {"category": "database_write", "description": "Creates or modifies database data or schema.", "reason": "can modify database data or schema", "risk": "high", "safer_next_step": "Review the query and target database before applying the write."},
+    "identity.permission_change": {"category": "identity_permission_change", "description": "Changes identities, roles, access grants, or authorization policy.", "reason": "can change identities or authorization policy", "risk": "high", "safer_next_step": "Inspect the current principal, policy, and exact permission delta before changing access."},
+    "infrastructure.delete": {"category": "infrastructure_delete", "description": "Deletes infrastructure or remote service resources.", "reason": "can delete infrastructure or remote service resources", "risk": "high", "safer_next_step": "List the exact remote resources and confirm recovery options before deletion."},
+    "infrastructure.read": {"category": "infrastructure_read", "description": "Reads infrastructure or remote service state.", "reason": "reads infrastructure or remote service state", "risk": "low"},
+    "infrastructure.write": {"category": "infrastructure_write", "description": "Creates or changes infrastructure or remote service state.", "reason": "can change infrastructure or remote service state", "risk": "high", "safer_next_step": "Inspect current state and preview the intended change before applying it."},
+    "remote.execute": {"category": "remote_execution", "description": "Executes a command or workload on a remote system.", "reason": "executes a command or workload on a remote system", "risk": "high", "safer_next_step": "Confirm the remote target and inspect the exact command before execution."},
+    "secret.write": {"category": "secret_write", "description": "Creates or changes secret or credential material.", "reason": "can create or change secret material", "risk": "high", "safer_next_step": "Confirm the secret destination and avoid exposing the value in command history or logs."},
+    "service.control": {"category": "service_control", "description": "Starts, stops, restarts, or changes service runtime state.", "reason": "can change service runtime state", "risk": "high", "safer_next_step": "Inspect service status and dependencies before changing runtime state."},
+    "service.read": {"category": "service_read", "description": "Reads service or journal state.", "reason": "reads service or journal state", "risk": "low"},
+    "system.power_change": {"category": "system_power_change", "description": "Changes whole-system power or sleep state.", "reason": "can reboot, power off, halt, or suspend the system", "risk": "critical", "safer_next_step": "Confirm active workloads and recovery access before changing system power state."}
+  },
+  "schema_version": "ordin.effect_catalog.v1"
+}

@@ -1,0 +1,11 @@
+{
+  "schema_version": "ordin.command_pack.v1",
+  "name": "github",
+  "version": "1.0.0",
+  "description": "GitHub CLI remote repository, identity, and secret semantics.",
+  "enabled_by_default": true,
+  "commands": ["commands/gh.json"],
+  "risk_rules": [],
+  "effect_catalogs": ["effects.json"],
+  "analyzers": ["gh"]
+}

@@ -1,0 +1,12 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "ssh",
+  "summary": "Connect to a remote system and optionally run a command.",
+  "aliases": ["secure shell", "remote shell", "remote server"],
+  "intents": ["connect to a remote server with ssh", "run a command on remote server", "inspect remote host"],
+  "default_risk": "medium",
+  "risk_tags": ["network", "remote_execution"],
+  "effects": [{"effect": "network.connect", "resource": "remote.host"}],
+  "examples": [{"command": "ssh example-host", "explanation": "Open an interactive SSH session to a known host."}],
+  "templates": [{"command": "ssh example-host", "description": "Connect to a known remote host."}]
+}

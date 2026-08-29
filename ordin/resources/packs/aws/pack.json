@@ -1,0 +1,11 @@
+{
+  "schema_version": "ordin.command_pack.v1",
+  "name": "aws",
+  "version": "1.0.0",
+  "description": "AWS CLI infrastructure, identity, secret, and transfer semantics.",
+  "enabled_by_default": true,
+  "commands": ["commands/aws.json"],
+  "risk_rules": [],
+  "effect_catalogs": ["effects.json"],
+  "analyzers": ["aws"]
+}

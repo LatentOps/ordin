@@ -1,0 +1,17 @@
+{
+  "schema_version": "ordin.command_card.v1",
+  "command": "gcloud",
+  "summary": "Inspect and manage Google Cloud resources through the gcloud CLI.",
+  "aliases": ["google cloud cli", "gcp", "google cloud"],
+  "intents": ["list gcloud compute instances", "inspect google cloud resources", "delete gcloud instance", "access google cloud secret", "manage gcloud iam"],
+  "default_risk": "medium",
+  "risk_tags": ["cloud", "infrastructure", "identity", "secret", "data_transfer"],
+  "subcommands": {
+    "compute instances list": {"effects": [{"effect": "infrastructure.read", "resource": "gcloud.compute"}]},
+    "compute instances delete": {"effects": [{"effect": "infrastructure.delete", "resource": "gcloud.compute"}]},
+    "secrets versions access": {"effects": [{"effect": "secret.read", "resource": "gcloud.secret"}]},
+    "storage cp": {"effects": [{"effect": "network.connect", "resource": "gcloud.storage"}]}
+  },
+  "examples": [{"command": "gcloud config list", "explanation": "Inspect the active gcloud configuration."}],
+  "templates": [{"command": "gcloud config list", "description": "Inspect gcloud configuration before remote changes."}]
+}
