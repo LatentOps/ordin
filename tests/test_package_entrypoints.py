@@ -64,7 +64,7 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
     health = json.loads(doctor.stdout)
     assert health["effect_count"] >= 20
     assert health["temporal_rule_count"] == 4
-    assert health["schema_count"] >= 17
+    assert health["schema_count"] >= 21
     assert health["schema_errors"] == []
     assert health["risk_rule_errors"] == []
     assert health["template_errors"] == []
@@ -96,8 +96,9 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
             (
                 "from ordin import ActionEnvelope, ActionHistory, ActionObservation, "
                 "ActionPolicyCondition, ActionPolicyRule, ActionPolicySet, AgentGate, "
-                "MCPAdapter, ObservationHistory, Ordin, ReviewPolicy, ToolCallAdapter, "
-                "ToolResourceBinding, ToolSemanticRule, ToolSemanticsRegistry; "
+                "JsonlAuditSink, MCPAdapter, ObservationHistory, Ordin, ReviewPolicy, "
+                "ToolCallAdapter, ToolResourceBinding, ToolSemanticRule, ToolSemanticsRegistry, "
+                "verify_audit_jsonl; "
                 "policy = ActionPolicySet(policy_id='wheel-policy', version='1', rules=("
                 "ActionPolicyRule(id='approve-shell', decision='ask', "
                 "when=ActionPolicyCondition(kinds=('shell',))),)); "
@@ -108,6 +109,8 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
                 "assert action_review.uncertain; "
                 "assert action_review.capabilities is not None; "
                 "assert action_review.capabilities.process_execution; "
+                "assert action_review.provenance is not None; "
+                "assert action_review.provenance.final_decision == action_review.decision; "
                 "assert action_review.policy_matches[0]['rule_id'] == 'approve-shell'; "
                 "assert not ordin.allows(action_review); "
                 "plain = Ordin(); "
@@ -138,7 +141,12 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
                 "ActionObservation(action_id='wheel-observed', exit_code=0),)); "
                 "observed_review = plain.review_action(ActionEnvelope.shell('git log -1 --oneline'), "
                 "history=observed_history, observations=observations); "
-                "assert observed_review.capabilities.process_execution"
+                "assert observed_review.capabilities.process_execution; "
+                "audit_path = 'wheel-audit.jsonl'; "
+                "audited = Ordin(audit=JsonlAuditSink(audit_path, hash_chain=True, fsync=False)); "
+                "audited.review_action(ActionEnvelope.shell('git status --short')); "
+                "assert verify_audit_jsonl(audit_path, require_hash_chain=True).ok; "
+                "__import__('pathlib').Path(audit_path).unlink()"
             ),
         ],
         check=True,

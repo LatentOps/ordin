@@ -196,6 +196,8 @@ The result uses four review decisions:
 
 Agent integrations can then apply a separate `ReviewPolicy` to decide what proceeds automatically and what requires escalation.
 
+Generic action reviews also expose deterministic execution-capability recommendations and structured decision provenance. Callers may optionally attach a local redacted JSONL audit sink; audit persistence is disabled by default and Ordin never uploads the evidence. See [Execution capability profiles and observations](docs/execution-evidence.md) and [Decision provenance and local audit evidence](docs/audit-and-provenance.md).
+
 ## Machine-readable review
 
 Non-Python runtimes can send versioned requests through stdin:
@@ -265,6 +267,7 @@ See [Effect graph](docs/effect-graph.md) and [Schema contracts](docs/schema-cont
 | gate an AI agent | [Agent runtime integration](docs/agent-integration.md) |
 | enable reviewed shell execution | [Shell integration](docs/shell-integration.md) |
 | understand safety behavior | [Architecture](docs/architecture.md), [Context-aware review](docs/context-aware-review.md), [Trace-aware review](docs/trace-aware-review.md) |
+| inspect provenance or keep a local audit trail | [Decision provenance and local audit evidence](docs/audit-and-provenance.md) |
 | extend command knowledge | [Command packs](docs/command-packs.md), [Semantic analyzers](docs/semantic-analyzers.md), [Effect graph](docs/effect-graph.md) |
 | contribute | [Contributing](CONTRIBUTING.md), [Development workflow](docs/development-workflow.md) |
 

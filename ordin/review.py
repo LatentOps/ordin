@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from . import REVIEW_SCHEMA_VERSION
 from .context import ExecutionContext
 from .policy import Decision, DecisionResultMixin, stronger_decision
-from .risk import check_command, decision_for_risk, max_risk
+from .risk import RiskReview, check_command, decision_for_risk, max_risk
 from .search import SearchResult, search
 from .shell import executable_name
 from .trace import ActionTrace
@@ -85,8 +85,10 @@ def review_command(
     intent: str | None = None,
     context: ExecutionContext | None = None,
     trace: ActionTrace | None = None,
+    *,
+    _risk_review: RiskReview | None = None,
 ) -> CommandReview:
-    risk = check_command(command, context=context)
+    risk = _risk_review or check_command(command, context=context)
     related = search(intent or command, limit=3)
     related_commands = [item.command for item in related]
     intent_alignment, alignment_reasons = warn_for_intent_mismatch(

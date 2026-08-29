@@ -1,0 +1,299 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/ordin/audit-event.v1.schema.json",
+  "title": "Ordin Local Audit Event v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "timestamp",
+    "ordin_version",
+    "action_digest",
+    "action_kind",
+    "operation",
+    "decision",
+    "risk",
+    "policy",
+    "provenance",
+    "previous_hash",
+    "event_hash"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.audit_event.v1"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "ordin_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "action_digest": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "action_kind": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "operation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "decision": {
+      "enum": [
+        "allow",
+        "warn",
+        "ask",
+        "block"
+      ]
+    },
+    "risk": {
+      "enum": [
+        "unknown",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "policy": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "policy_id",
+        "version",
+        "digest"
+      ],
+      "properties": {
+        "policy_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "digest": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64
+        }
+      },
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "records",
+        "final_decision",
+        "final_risk"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "ordin.provenance.v1"
+        },
+        "records": {
+          "type": "array",
+          "maxItems": 512,
+          "items": {
+            "type": "object",
+            "required": [
+              "source",
+              "kind",
+              "code",
+              "summary",
+              "decision",
+              "risk",
+              "effect",
+              "resource",
+              "rule_id",
+              "action_id",
+              "category",
+              "matched_indices",
+              "metadata"
+            ],
+            "properties": {
+              "source": {
+                "enum": [
+                  "adapter",
+                  "semantic",
+                  "risk_rule",
+                  "context",
+                  "intent",
+                  "observation",
+                  "temporal_policy",
+                  "action_policy",
+                  "decision"
+                ]
+              },
+              "kind": {
+                "enum": [
+                  "finding",
+                  "effect",
+                  "resource",
+                  "rule",
+                  "observation",
+                  "merge"
+                ]
+              },
+              "code": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "summary": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 32768
+              },
+              "decision": {
+                "enum": [
+                  "allow",
+                  "warn",
+                  "ask",
+                  "block",
+                  null
+                ]
+              },
+              "risk": {
+                "enum": [
+                  "unknown",
+                  "low",
+                  "medium",
+                  "high",
+                  "critical",
+                  null
+                ]
+              },
+              "effect": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 32768
+              },
+              "resource": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "required": [
+                  "type",
+                  "value"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9_.-]*$"
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32768
+                  }
+                },
+                "additionalProperties": false
+              },
+              "rule_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 32768
+              },
+              "action_id": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 32768
+              },
+              "category": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 32768
+              },
+              "matched_indices": {
+                "type": "array",
+                "maxItems": 32,
+                "items": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "metadata": {
+                "type": "object",
+                "maxProperties": 64,
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "integer",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "final_decision": {
+          "enum": [
+            "allow",
+            "warn",
+            "ask",
+            "block"
+          ]
+        },
+        "final_risk": {
+          "enum": [
+            "unknown",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "previous_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "event_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

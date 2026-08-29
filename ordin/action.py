@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from . import (
     ACTION_ENVELOPE_SCHEMA_VERSION,
@@ -16,9 +16,11 @@ from .execution import (
     ObservationHistory,
     derive_capabilities,
 )
+from .graph import EffectEvidence
 from .policy import Decision, DecisionResultMixin, stronger_decision
+from .provenance import DecisionProvenance, ProvenanceRecord, ProvenanceResource
 from .review import review_command
-from .risk import decision_for_risk, max_risk
+from .risk import RiskReview, check_command, decision_for_risk, max_risk
 from .semantics import semantic_evidence_for_command
 
 if TYPE_CHECKING:
@@ -267,6 +269,7 @@ class ActionReview(DecisionResultMixin):
     resources: list[ActionResource]
     adapter: str | None
     capabilities: ExecutionCapabilityProfile | None = None
+    provenance: DecisionProvenance | None = None
     intent_alignment: str = "not_applicable"
     trajectory_categories: list[str] = field(default_factory=list)
     policy: dict[str, str] | None = None
@@ -284,6 +287,7 @@ class ActionReview(DecisionResultMixin):
             "resources": [resource.as_dict() for resource in self.resources],
             "adapter": self.adapter,
             "capabilities": self.capabilities.as_dict() if self.capabilities else None,
+            "provenance": self.provenance.as_dict() if self.provenance else None,
             "intent_alignment": self.intent_alignment,
             "trajectory_categories": list(self.trajectory_categories),
         }
@@ -315,13 +319,178 @@ def _resources_from_semantics(
     return resources
 
 
-def _with_capabilities(review: ActionReview) -> ActionReview:
-    if review.capabilities is not None:
+CONTEXT_PROVENANCE_CATEGORIES = frozenset(
+    ("root_filesystem_mutation", "outside_repo_mutation", "elevated_context")
+)
+
+
+def _provenance_resource(raw: str | None) -> ProvenanceResource | None:
+    if not raw:
+        return None
+    resource_type, separator, value = raw.partition(":")
+    if not separator or not resource_type or not value:
+        return ProvenanceResource(type="unknown", value=raw)
+    resource_type = resource_type.lower().replace("_", "-")
+    if ACTION_KIND_PATTERN.fullmatch(resource_type) is None:
+        resource_type = "unknown"
+        value = raw
+    return ProvenanceResource(type=resource_type, value=value)
+
+
+def _base_provenance(
+    review: ActionReview,
+    *,
+    semantic_evidence: Sequence[EffectEvidence] = (),
+    risk_review: RiskReview | None = None,
+) -> DecisionProvenance:
+    adapter_rule_id = (
+        review.adapter.removeprefix("tool-semantics:")
+        if review.adapter and review.adapter.startswith("tool-semantics:")
+        else None
+    )
+    records: list[ProvenanceRecord] = [
+        ProvenanceRecord(
+            source="adapter",
+            kind="rule" if adapter_rule_id else "finding",
+            code="adapter.classification",
+            summary=(
+                f'classified by adapter "{review.adapter}"'
+                if review.adapter
+                else "no deterministic semantic adapter classified the action"
+            ),
+            decision=review.decision,
+            risk=review.risk,
+            rule_id=adapter_rule_id,
+            action_id=review.action.action_id,
+            metadata={"adapter": review.adapter or "none"},
+        )
+    ]
+
+    represented_effects: set[str] = set()
+    represented_resources: set[tuple[str, str]] = set()
+    for item in semantic_evidence:
+        provenance_resource = _provenance_resource(item.resource)
+        represented_effects.add(item.effect)
+        if provenance_resource is not None:
+            represented_resources.add((provenance_resource.type, provenance_resource.value))
+        records.append(
+            ProvenanceRecord(
+                source="semantic",
+                kind="effect",
+                code="semantic.effect",
+                summary=item.reason,
+                risk=item.risk,
+                effect=item.effect,
+                resource=provenance_resource,
+                category=item.category,
+                metadata={"semantic_source": item.source},
+            )
+        )
+
+    for effect in review.effects:
+        if effect not in represented_effects:
+            records.append(
+                ProvenanceRecord(
+                    source="semantic",
+                    kind="effect",
+                    code="semantic.effect",
+                    effect=effect,
+                    metadata={"semantic_source": review.adapter or "action-review"},
+                )
+            )
+    for action_resource in review.resources:
+        key = (action_resource.type, action_resource.value)
+        if key not in represented_resources:
+            records.append(
+                ProvenanceRecord(
+                    source="semantic",
+                    kind="resource",
+                    code="semantic.resource",
+                    resource=ProvenanceResource(
+                        type=action_resource.type,
+                        value=action_resource.value,
+                    ),
+                    metadata={"semantic_source": review.adapter or "action-review"},
+                )
+            )
+
+    if risk_review is not None:
+        for rule_id in risk_review.matched_rules or []:
+            records.append(
+                ProvenanceRecord(
+                    source="risk_rule",
+                    kind="rule",
+                    code="risk-rule.match",
+                    rule_id=rule_id,
+                )
+            )
+        for category in risk_review.risk_categories or []:
+            if category in CONTEXT_PROVENANCE_CATEGORIES:
+                records.append(
+                    ProvenanceRecord(
+                        source="context",
+                        kind="finding",
+                        code=f"context.{category}",
+                        category=category,
+                    )
+                )
+
+    if review.intent_alignment == "mismatch":
+        records.append(
+            ProvenanceRecord(
+                source="intent",
+                kind="finding",
+                code="intent.mismatch",
+                summary="the proposed action does not align with the supplied intent",
+                decision="warn",
+                risk="medium",
+            )
+        )
+
+    records.append(
+        ProvenanceRecord(
+            source="decision",
+            kind="merge",
+            code="decision.base",
+            decision=review.decision,
+            risk=review.risk,
+        )
+    )
+    return DecisionProvenance(
+        records=tuple(records),
+        final_decision=review.decision,
+        final_risk=review.risk,
+    )
+
+
+def _with_base_provenance(
+    review: ActionReview,
+    *,
+    semantic_evidence: Sequence[EffectEvidence] = (),
+    risk_review: RiskReview | None = None,
+) -> ActionReview:
+    if review.provenance is not None:
         return review
     return replace(
         review,
-        capabilities=derive_capabilities(review.action.kind, review.effects, review.resources),
+        provenance=_base_provenance(
+            review,
+            semantic_evidence=semantic_evidence,
+            risk_review=risk_review,
+        ),
     )
+
+
+def _with_capabilities(review: ActionReview) -> ActionReview:
+    updated = review
+    if updated.capabilities is None:
+        updated = replace(
+            updated,
+            capabilities=derive_capabilities(
+                updated.action.kind, updated.effects, updated.resources
+            ),
+        )
+    return _with_base_provenance(updated)
 
 
 def _review_action_base(
@@ -339,37 +508,45 @@ def _review_action_base(
     if action.kind == "shell" and action.operation == "execute":
         command = action.parameters.get("command")
         if not isinstance(command, str) or not command.strip():
-            return ActionReview(
-                action=action,
-                decision="block",
-                risk="critical",
-                reasons=["shell.execute action requires non-empty parameters.command"],
-                safer_next_step="Provide the exact command text before review.",
-                effects=[],
-                resources=[],
-                adapter="shell",
-                capabilities=derive_capabilities("shell", (), ()),
+            return _with_base_provenance(
+                ActionReview(
+                    action=action,
+                    decision="block",
+                    risk="critical",
+                    reasons=["shell.execute action requires non-empty parameters.command"],
+                    safer_next_step="Provide the exact command text before review.",
+                    effects=[],
+                    resources=[],
+                    adapter="shell",
+                    capabilities=derive_capabilities("shell", (), ()),
+                )
             )
+        risk_review = check_command(command, context=action.context)
         command_review = review_command(
             command,
             intent=action.intent,
             context=action.context,
+            _risk_review=risk_review,
         )
         semantics = semantic_evidence_for_command(command, context=action.context)
         effects = list(semantics.effects)
         resources = _resources_from_semantics(command, action.context)
-        return ActionReview(
-            action=action,
-            decision=command_review.decision,
-            risk=command_review.risk,
-            reasons=list(command_review.reasons),
-            safer_next_step=command_review.safer_next_step,
-            effects=effects,
-            resources=resources,
-            adapter="shell",
-            capabilities=derive_capabilities(action.kind, effects, resources),
-            intent_alignment=command_review.intent_alignment,
-            trajectory_categories=list(command_review.trajectory_categories or []),
+        return _with_base_provenance(
+            ActionReview(
+                action=action,
+                decision=command_review.decision,
+                risk=command_review.risk,
+                reasons=list(command_review.reasons),
+                safer_next_step=command_review.safer_next_step,
+                effects=effects,
+                resources=resources,
+                adapter="shell",
+                capabilities=derive_capabilities(action.kind, effects, resources),
+                intent_alignment=command_review.intent_alignment,
+                trajectory_categories=list(command_review.trajectory_categories or []),
+            ),
+            semantic_evidence=semantics.evidence,
+            risk_review=risk_review,
         )
 
     known_kind = action.kind in KNOWN_ACTION_KINDS
@@ -378,18 +555,20 @@ def _review_action_base(
         reason = f'no semantic adapter is registered for action "{scope}"'
     else:
         reason = f'action kind "{action.kind}" is not classified by Ordin'
-    return ActionReview(
-        action=action,
-        decision="ask",
-        risk="unknown",
-        reasons=[reason],
-        safer_next_step=(
-            "Require explicit review or add a deterministic semantic adapter before execution."
-        ),
-        effects=[],
-        resources=[],
-        adapter=None,
-        capabilities=derive_capabilities(action.kind, (), ()),
+    return _with_base_provenance(
+        ActionReview(
+            action=action,
+            decision="ask",
+            risk="unknown",
+            reasons=[reason],
+            safer_next_step=(
+                "Require explicit review or add a deterministic semantic adapter before execution."
+            ),
+            effects=[],
+            resources=[],
+            adapter=None,
+            capabilities=derive_capabilities(action.kind, (), ()),
+        )
     )
 
 
@@ -460,6 +639,60 @@ def _observations_for_history(
     return result
 
 
+def _with_observation_provenance(
+    review: ActionReview,
+    history: ActionHistory | None,
+    observation_map: Mapping[str, ActionObservation],
+) -> ActionReview:
+    if not observation_map or history is None:
+        return review
+    provenance = review.provenance or _base_provenance(review)
+    records: list[ProvenanceRecord] = []
+    for index, prior in enumerate(history.actions):
+        if prior.action_id is None:
+            continue
+        observation = observation_map.get(prior.action_id)
+        if observation is None:
+            continue
+        records.append(
+            ProvenanceRecord(
+                source="observation",
+                kind="observation",
+                code="observation.record",
+                action_id=observation.action_id,
+                metadata={
+                    "history_index": index,
+                    "exit_code": observation.exit_code,
+                },
+            )
+        )
+        for effect in observation.effects:
+            records.append(
+                ProvenanceRecord(
+                    source="observation",
+                    kind="effect",
+                    code="observation.effect",
+                    effect=effect,
+                    action_id=observation.action_id,
+                    metadata={"history_index": index},
+                )
+            )
+        for resource in observation.resources:
+            records.append(
+                ProvenanceRecord(
+                    source="observation",
+                    kind="resource",
+                    code="observation.resource",
+                    resource=ProvenanceResource(type=resource.type, value=resource.value),
+                    action_id=observation.action_id,
+                    metadata={"history_index": index},
+                )
+            )
+    if not records:
+        return review
+    return replace(review, provenance=provenance.append(*records))
+
+
 def review_action(
     action: ActionEnvelope,
     *,
@@ -472,6 +705,7 @@ def review_action(
 
     base = _review_action_base(action, tool_semantics=tool_semantics)
     observation_map = _observations_for_history(history, observations)
+    base = _with_observation_provenance(base, history, observation_map)
     if history is None or not history.actions:
         return base
 
@@ -498,8 +732,24 @@ def review_action(
         tool_semantics=tool_semantics,
     )
     evaluation = compiled.evaluate(prior, current)
+    provenance = base.provenance or _base_provenance(base)
+    temporal_metadata = {
+        "policy_id": compiled.policy.policy_id,
+        "policy_version": compiled.policy.version,
+        "policy_digest": compiled.policy.digest,
+    }
     if not evaluation.matches:
-        return base
+        return replace(
+            base,
+            provenance=provenance.append(
+                ProvenanceRecord(
+                    source="temporal_policy",
+                    kind="finding",
+                    code="temporal.no-match",
+                    metadata=temporal_metadata,
+                )
+            ),
+        )
 
     review_risk = base.risk
     decision = base.decision
@@ -523,6 +773,35 @@ def review_action(
     categories = sorted(
         set(base.trajectory_categories).union(match.category for match in evaluation.matches)
     )
+    temporal_records = [
+        ProvenanceRecord(
+            source="temporal_policy",
+            kind="rule",
+            code="temporal.match",
+            summary=match.reason,
+            decision=decision_for_risk(match.risk),
+            risk=match.risk,
+            rule_id=match.rule_id,
+            category=match.category,
+            matched_indices=match.matched_indices,
+            metadata=temporal_metadata,
+        )
+        for match in evaluation.matches
+    ]
+    temporal_records.append(
+        ProvenanceRecord(
+            source="decision",
+            kind="merge",
+            code="decision.temporal-merge",
+            decision=decision,
+            risk=review_risk,
+            metadata={
+                "previous_decision": base.decision,
+                "previous_risk": base.risk,
+                **temporal_metadata,
+            },
+        )
+    )
     return replace(
         base,
         decision=decision,
@@ -530,4 +809,9 @@ def review_action(
         reasons=reasons,
         safer_next_step=safer_next_step,
         trajectory_categories=categories,
+        provenance=provenance.append(
+            *temporal_records,
+            final_decision=decision,
+            final_risk=review_risk,
+        ),
     )
