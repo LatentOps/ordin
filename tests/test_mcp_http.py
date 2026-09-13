@@ -5,6 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -55,18 +56,18 @@ def _running(server):
 
 
 @contextmanager
-def _upstream(mode="json"):
+def _upstream(mode="json", *, redirect="http://127.0.0.1:1/never"):
     state = {
         "calls": [],
         "headers": [],
         "notifications": [],
-        "counter": 0,
         "mode": mode,
         "resume": None,
-        "redirect": "http://127.0.0.1:1/never",
         "contracts": [_contract()],
     }
     lock = threading.Lock()
+    counter = 0
+    issued_sessions = set()
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -75,11 +76,20 @@ def _upstream(mode="json"):
             pass
 
         def send_body(self, payload, *, status=200, session=None, sse=False, priming_only=False):
+            response_session = None
+            if session is not None:
+                with lock:
+                    response_session = next(
+                        (issued for issued in issued_sessions if issued == session), None
+                    )
+                if response_session is None:
+                    self.empty(400)
+                    return
             raw = json.dumps(payload).encode()
             self.send_response(status)
             self.send_header("Connection", "close")
-            if session:
-                self.send_header("MCP-Session-Id", session)
+            if response_session is not None:
+                self.send_header("MCP-Session-Id", response_session)
             if sse:
                 self.send_header("Content-Type", "text/event-stream")
                 self.send_header("Transfer-Encoding", "chunked")
@@ -112,6 +122,7 @@ def _upstream(mode="json"):
             self.close_connection = True
 
         def do_POST(self):
+            nonlocal counter
             message = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             with lock:
                 state["headers"].append(dict(self.headers))
@@ -119,8 +130,10 @@ def _upstream(mode="json"):
             session = self.headers.get("MCP-Session-Id")
             if method == "initialize":
                 with lock:
-                    state["counter"] += 1
-                    session = None if mode == "stateless" else f"upstream-{state['counter']}"
+                    counter += 1
+                    session = None if mode == "stateless" else f"upstream-{counter}"
+                    if session is not None:
+                        issued_sessions.add(session)
                 result = {
                     "protocolVersion": MCP_HTTP_PROTOCOL,
                     "capabilities": {"tools": {}, "tasks": {}},
@@ -149,7 +162,7 @@ def _upstream(mode="json"):
                     return
                 if mode == "redirect":
                     self.send_response(307)
-                    self.send_header("Location", state["redirect"])
+                    self.send_header("Location", redirect)
                     self.send_header("Content-Length", "0")
                     self.end_headers()
                     return
@@ -286,6 +299,35 @@ def test_json_sse_and_stateless_upstreams_preserve_gate_decisions(mode):
         assert len(state["calls"]) == 1
         assert server._sessions[token].reviewer.pending_count == 0
         assert server._sessions[token].reviewer.context.cwd is None
+
+
+@pytest.mark.parametrize("supplied", ["unknown-session", "upstream-1\r\n\tX-Injected: yes"])
+def test_upstream_fixture_never_reflects_unissued_or_folded_session_ids(supplied):
+    with _upstream() as (url, _):
+        connection = http.client.HTTPConnection(urlsplit(url).netloc, timeout=5)
+        try:
+            connection.request(
+                "POST",
+                "/mcp",
+                body=json.dumps({"id": 1, "method": "initialize"}),
+                headers={"Content-Type": "application/json"},
+            )
+            initialized = connection.getresponse()
+            assert initialized.getheader("MCP-Session-Id") == "upstream-1"
+            initialized.read()
+            connection.request(
+                "POST",
+                "/mcp",
+                body=json.dumps({"id": 2, "method": "tools/list"}),
+                headers={"MCP-Session-Id": supplied, "Content-Type": "application/json"},
+            )
+            rejected = connection.getresponse()
+            assert rejected.status == 400
+            assert rejected.getheader("MCP-Session-Id") is None
+            assert rejected.getheader("X-Injected") is None
+            assert rejected.read() == b""
+        finally:
+            connection.close()
 
 
 def test_contract_pinning_applies_to_http_discovery_and_drift():
@@ -449,11 +491,10 @@ def test_redirect_and_upstream_error_bodies_never_leak_authorization():
 
 def test_redirect_destination_receives_no_request_or_credentials():
     with (
-        _upstream("redirect") as (url, state),
         _upstream() as (destination, target),
+        _upstream("redirect", redirect=destination) as (url, state),
         _proxy(url, auth=True) as server,
     ):
-        state["redirect"] = destination
         auth = {"Authorization": "Bearer synthetic-credential"}
         token = _initialize(server, headers=auth)
         assert _request(server, _call(), token=token, headers=auth)[0] == 502
