@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+<title id="title">Ordin</title>
+<g fill="none" stroke="#D0A1FE">
+  <circle cx="128" cy="128" r="95" stroke-opacity=".16" stroke-width="17"/>
+  <circle cx="128" cy="128" r="95" stroke-width="17" stroke-linecap="round" stroke-dasharray="515 700" transform="rotate(-36 128 128)"/>
+  <path d="M99 96L134 128L99 160M146 160H180" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>

@@ -1,6 +1,12 @@
-# Ordin
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/ordin-logo-dark.svg">
+    <img src="docs/assets/brand/ordin-logo-light.svg" alt="Ordin" width="360">
+  </picture>
+</h1>
 
-Review commands and tool calls before running them.
+<p align="center"><strong>Review commands and tool calls before running them.</strong></p>
+<p align="center">An open-source project by <a href="https://latentops.space/">LatentOps</a>.</p>
 
 `main` now develops `0.4.0.dev0`. Install the immutable `v0.3.0` tag for the
 current stable release; new development features are labeled separately.
