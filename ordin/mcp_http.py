@@ -520,9 +520,10 @@ class _MCPHTTPHandler(BaseHTTPRequestHandler):
             raise HTTPBoundaryError(403, "host_not_allowed")
         origin = self._header("Origin", 1024)
         origins = {f"http://{value}" for value in hosts} | set(self.server.config.allowed_origins)
-        if origin is not None and origin not in origins:
+        # Emit the exact server-owned allowlist entry, never the request header.
+        self._cors_origin = next((allowed for allowed in origins if allowed == origin), None)
+        if origin is not None and self._cors_origin is None:
             raise HTTPBoundaryError(403, "origin_not_allowed")
-        self._cors_origin = origin
         auth = self._header("Authorization")
         if auth is not None and not self.server.config.forward_authorization:
             raise HTTPBoundaryError(403, "authorization_forwarding_disabled")

@@ -557,6 +557,26 @@ def test_public_listener_and_credential_url_require_explicit_safe_configuration(
         MCPHTTPConfig("fixture", "http://127.0.0.1/mcp", allowed_origins=frozenset({"*"}))
 
 
+def test_folded_origin_is_rejected_without_reflection_or_upstream_contact():
+    with _upstream() as (url, state), _proxy(url) as server:
+        connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+        try:
+            connection.putrequest("OPTIONS", "/mcp")
+            connection.putheader(
+                "Origin", f"http://127.0.0.1:{server.server_port}", "X-Injected: yes"
+            )
+            connection.putheader("Access-Control-Request-Method", "POST")
+            connection.endheaders()
+            response = connection.getresponse()
+            assert response.status == 400
+            assert response.getheader("Access-Control-Allow-Origin") is None
+            assert response.getheader("X-Injected") is None
+            assert b"X-Injected" not in response.read()
+            assert state["headers"] == []
+        finally:
+            connection.close()
+
+
 def test_expired_and_full_session_state_fails_conservatively():
     with pytest.raises(ValueError, match="HTTPS"):
         MCPHTTPConfig("fixture", "http://remote.example/mcp")
