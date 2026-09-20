@@ -369,11 +369,14 @@ def apply(settings: dict[str, Any], root: Path) -> dict[str, Any]:
             directory.mkdir(mode=0o700, parents=True, exist_ok=True)
             _guard(directory, root, private=True)
         created = []
+        operations = {Path(change["path"]): change["operation"] for change in preview["changes"]}
         try:
             for path, content in planned_files(settings, root).items():
-                if not path.exists():
+                if operations[path] == "create":
                     _write_new(path, content, root)
                     created.append((path, content))
+                elif _read(path, root) != content:
+                    raise SetupError("owned_configuration_changed_during_setup")
         except (OSError, ValueError):
             for path, content in reversed(created):
                 if path.exists() and _read(path, root) == content:

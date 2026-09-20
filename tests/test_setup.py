@@ -109,6 +109,54 @@ def test_interrupted_setup_can_complete_without_overwriting_an_owned_file(tmp_pa
     assert status(root, "cursor")["configured"]
 
 
+@pytest.mark.parametrize("matching", [False, True])
+def test_setup_rejects_a_file_created_after_the_plan(tmp_path, monkeypatch, matching):
+    import ordin.setup as setup
+
+    root = tmp_path.resolve()
+    options = settings("cursor")
+    target = root / TARGETS["cursor"]
+    concurrent = config_content(options, root) if matching else b'{"foreign":true}\n'
+    original = setup._write_new
+
+    def publish_then_create_host_file(path, content, active_root):
+        original(path, content, active_root)
+        if path.name == "cursor.json":
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(concurrent)
+
+    monkeypatch.setattr(setup, "_write_new", publish_then_create_host_file)
+    with pytest.raises(FileExistsError):
+        apply(options, root)
+    assert target.read_bytes() == concurrent
+    assert not (root / ".ordin/setup/cursor.json").exists()
+    assert not (root / ".ordin/setup/.lock").exists()
+
+
+def test_idempotent_setup_detects_an_edit_after_the_plan(tmp_path, monkeypatch):
+    import ordin.setup as setup
+
+    root = tmp_path.resolve()
+    options = settings("cursor")
+    apply(options, root)
+    target = root / TARGETS["cursor"]
+    receipt = root / ".ordin/setup/cursor.json"
+    before = receipt.read_bytes()
+    original = setup.plan
+
+    def plan_then_edit(settings, active_root):
+        result = original(settings, active_root)
+        if (root / ".ordin/setup/.lock").exists():
+            target.write_bytes(b'{"foreign":true}\n')
+        return result
+
+    monkeypatch.setattr(setup, "plan", plan_then_edit)
+    with pytest.raises(SetupError, match="changed"):
+        apply(options, root)
+    assert target.read_bytes() == b'{"foreign":true}\n'
+    assert receipt.read_bytes() == before
+
+
 def test_lock_and_escaping_paths_refuse_mutation(tmp_path):
     root = tmp_path.resolve()
     with pytest.raises(SetupError):
