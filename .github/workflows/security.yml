@@ -2,7 +2,7 @@ name: security
 
 on:
   push:
-    branches: [main]
+    branches: [main, "fix/**"]
   pull_request:
     branches: [main]
   schedule:
@@ -34,7 +34,7 @@ jobs:
 
   dependency-review:
     name: Dependency review
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -45,6 +45,8 @@ jobs:
           fail-on-severity: moderate
           fail-on-scopes: runtime, development, unknown
           comment-summary-in-pr: never
+          base-ref: main
+          head-ref: ${{ github.sha }}
 
   workflow-security:
     name: Workflow security
