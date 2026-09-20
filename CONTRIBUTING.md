@@ -34,6 +34,13 @@ The full test suite remains a separate required gate:
 pytest -q
 ```
 
+For fixes, push a `fix/` branch to run the full platform, quality, safety, and
+security checks before opening a pull request. Dependency review compares that
+branch with `main`. Run release-artifact acceptance on the same commit with
+`gh workflow run release.yml --ref fix/your-branch`, then wait for those checks
+to pass before opening the PR. PR checks run again against its merge candidate;
+merge only after every required check passes.
+
 ## Requirements
 
 Before opening a pull request:
