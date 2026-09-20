@@ -92,6 +92,40 @@ def test_invalid_observation_evidence_keeps_request_reserved():
     assert proxy.observe_server_message(response) is None
 
 
+@pytest.mark.parametrize(
+    "error",
+    [
+        None,
+        "private error",
+        [],
+        {},
+        {"code": True, "message": "private error"},
+        {"code": "-32000", "message": "private error"},
+        {"code": -32000},
+        {"code": -32000, "message": None},
+    ],
+)
+def test_malformed_error_keeps_request_and_evidence_unchanged(tmp_path, error):
+    from ordin.trace_capture import attach_trace, read_capture
+
+    capture = tmp_path / "capture.db"
+    ordin, recorder = attach_trace(
+        Ordin(tool_semantics=_read_semantics()), capture, integration="mcp-proxy"
+    )
+    proxy = MCPStdioSafetyProxy(server_id="fixture", gate=AgentGate(ordin), trace=recorder)
+    original = proxy.process_client_message(_call())
+    before = proxy.session.snapshot()
+    with pytest.raises(ValueError, match="error"):
+        proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "error": error})
+    assert proxy.pending_count == 1
+    assert proxy.session.snapshot() == before
+    assert [event["event"] for event in read_capture(capture)["events"]] == ["review"]
+    assert not proxy.process_client_message(_call()).forward
+    observation = proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {}})
+    assert observation.action_id == original.action_id
+    assert proxy.pending_count == 0
+
+
 def test_failed_trace_write_does_not_consume_response(tmp_path, monkeypatch):
     from ordin.trace_capture import attach_trace, read_capture
 

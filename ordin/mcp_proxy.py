@@ -411,6 +411,14 @@ class MCPStdioSafetyProxy:
         status: str
         result_type: str | None = None
         if "error" in message:
+            error = message["error"]
+            if (
+                not isinstance(error, Mapping)
+                or isinstance(error.get("code"), bool)
+                or not isinstance(error.get("code"), int)
+                or not isinstance(error.get("message"), str)
+            ):
+                raise ValueError("MCP error requires an integer code and text message")
             exit_code = None
             status = "protocol_error"
         else:
