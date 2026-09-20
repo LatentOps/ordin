@@ -150,10 +150,17 @@ class IntegrationSession:
             return oldest is not None and oldest in action_ids
 
     def evaluate(
-        self, action: ActionEnvelope, *, contract_check: MCPContractCheck | None = None
+        self,
+        action: ActionEnvelope,
+        *,
+        contract_check: MCPContractCheck | None = None,
+        approval_supported: bool = True,
     ) -> AgentDecision:
+        """Keep the core decision, recording denials from hosts without approval."""
         with self._lock:
             self.require_identity(self.identity)
+            if not isinstance(approval_supported, bool):
+                raise ValueError("approval_supported must be boolean")
             if not action.action_id:
                 raise ValueError("session actions require an action_id")
             if any(prior.action_id == action.action_id for prior in self._actions):
@@ -172,7 +179,7 @@ class IntegrationSession:
             ids = {item.action_id for item in actions}
             observations = {key: value for key, value in self._observations.items() if key in ids}
             denied = self._denied.intersection(ids)
-            if decision.denied:
+            if decision.denied or (decision.requires_approval and not approval_supported):
                 denied.add(action.action_id)
             snapshot = self._snapshot(actions, observations, denied, self._sequence + 1)
             self._bounded(snapshot)

@@ -247,7 +247,11 @@ class CodexIntegration:
 
     def review_pre_tool(self, payload: Mapping[str, Any]) -> AgentDecision:
         action = self.adapt(payload)
-        return self.session.evaluate(action) if self.session else self.gate.evaluate_action(action)
+        return (
+            self.session.evaluate(action, approval_supported=False)
+            if self.session
+            else self.gate.evaluate_action(action)
+        )
 
     def pre_tool_output(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         try:
