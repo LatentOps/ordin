@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 
 
-PORT_RE = re.compile(r"\b(?:port\s*)?([1-9][0-9]{1,4})\b", re.IGNORECASE)
+PORT_RE = re.compile(r"\b(?:port\s*)?([1-9][0-9]{0,4})\b", re.IGNORECASE)
 PATH_RE = re.compile(r"(?:^|\s)((?:\.{1,2}|~|/)[^\s]+|[A-Za-z0-9_.-]+\.[A-Za-z0-9_.-]+)")
 QUOTED_RE = re.compile(r"['\"]([^'\"]+)['\"]")
 WILDCARD_RE = re.compile(r"\b([\w.-]*[*?][\w.*?-]*)\b")

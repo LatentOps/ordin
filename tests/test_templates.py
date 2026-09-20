@@ -1,3 +1,5 @@
+import pytest
+
 from ordin.slots import extract_slots
 from ordin.templates import render_template, suggest_commands
 
@@ -13,6 +15,16 @@ def test_extracts_url_slot():
     slots = extract_slots("check endpoint https://example.com/health")
     assert slots["url"] == "https://example.com/health"
     assert slots["host"] == "example.com"
+
+
+@pytest.mark.parametrize("port", ["1", "7", "9", "10", "3000", "65535"])
+def test_extracts_all_valid_port_widths(port):
+    assert extract_slots(f"what is using port {port}")["port"] == port
+
+
+@pytest.mark.parametrize("port", ["0", "65536", "999999"])
+def test_out_of_range_ports_do_not_produce_a_port_slot(port):
+    assert "port" not in extract_slots(f"what is using port {port}")
 
 
 def test_renders_template_when_slots_exist():

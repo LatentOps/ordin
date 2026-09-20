@@ -17,6 +17,12 @@ def test_port_query_finds_inspection_tools():
     assert lsof.suggested_commands[0]["command"] == "lsof -i :3000"
 
 
+def test_single_digit_port_query_preserves_the_requested_port():
+    results = search("what is using port 9", limit=3)
+    lsof = next(result for result in results if result.command == "lsof")
+    assert lsof.suggested_commands[0]["command"] == "lsof -i :9"
+
+
 def test_disk_usage_query_finds_du():
     results = search("show biggest folders", limit=1)
     assert results[0].command == "du"
