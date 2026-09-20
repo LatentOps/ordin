@@ -34,6 +34,18 @@ def test_find_named_query_suggests_find_template():
     assert results[0].suggested_commands[0]["command"] == 'find ./src -name "*.py"'
 
 
+def test_find_query_preserves_unquoted_leading_wildcard():
+    results = search("find files matching *.log in ./src", limit=1)
+    assert results[0].command == "find"
+    assert results[0].suggested_commands[0]["command"] == 'find ./src -name "*.log"'
+
+
+def test_find_named_query_preserves_unquoted_trailing_wildcard():
+    results = search("find files named report* in ./src", limit=1)
+    assert results[0].command == "find"
+    assert results[0].suggested_commands[0]["command"] == 'find ./src -name "report*"'
+
+
 def test_package_query_finds_package_managers():
     commands = [result.command for result in search("install package requests", limit=5)]
     assert "pip" in commands
