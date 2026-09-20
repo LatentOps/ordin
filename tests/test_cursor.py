@@ -162,6 +162,34 @@ def test_permission_denial_is_not_execution_evidence():
     assert integration.session.snapshot()["observations"]["observations"] == []
 
 
+@pytest.mark.parametrize("result", ["private output", [{"text": "private output"}], None, 0, True])
+def test_json_result_values_link_without_inventing_exit_status(tmp_path, result):
+    adapter = build_cursor_integration(trace_path=tmp_path / "trace.db")
+    message = payload("Read", {"path": "/workspace/note"})
+    adapter = replace(adapter, session=IntegrationSession(_identity(message), adapter.gate))
+    assert adapter.review_pre_tool(message).may_execute
+    observation = adapter.observation_from_hook(
+        {**message, "hook_event_name": "postToolUse", "tool_output": json.dumps(result)}
+    )
+    assert observation.exit_code is None
+    assert observation.metadata["status"] == "reported"
+    assert (
+        adapter.session.snapshot()["observations"]["observations"][0]["action_id"]
+        == observation.action_id
+    )
+    capture = read_capture(tmp_path / "trace.db")
+    assert [event["event"] for event in capture["events"]] == ["review", "observation"]
+    assert "private output" not in json.dumps(capture)
+
+
+@pytest.mark.parametrize("result", ["not JSON", '{"exitCode":0,"exitCode":1}', "NaN", "[1e999]"])
+def test_invalid_result_json_cannot_supply_execution_status(result):
+    with pytest.raises(ValueError):
+        CursorIntegration().observation_from_hook(
+            {**payload(), "hook_event_name": "postToolUse", "tool_output": result}
+        )
+
+
 def test_repeated_destructive_proposals_use_shared_temporal_history():
     adapter = CursorIntegration()
     message = payload(arguments={"command": "rm /tmp/old"})

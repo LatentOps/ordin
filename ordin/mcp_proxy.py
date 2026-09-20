@@ -605,7 +605,7 @@ def _finite_json_number(text: str) -> float:
     return number
 
 
-def _validate_json_depth(payload: Mapping[str, Any]) -> None:
+def _validate_json_depth(payload: Any) -> None:
     pending: list[tuple[Any, int]] = [(payload, 0)]
     while pending:
         value, depth = pending.pop()
@@ -617,7 +617,8 @@ def _validate_json_depth(payload: Mapping[str, Any]) -> None:
         pending.extend((child, depth + 1) for child in children)
 
 
-def _parse_jsonrpc_line(line: bytes) -> Mapping[str, Any]:
+def _parse_json_value(line: bytes) -> Any:
+    """Parse strict JSON; transport envelopes impose object shape separately."""
     try:
         text = line.decode("utf-8")
     except UnicodeDecodeError as exc:
@@ -633,9 +634,14 @@ def _parse_jsonrpc_line(line: bytes) -> Mapping[str, Any]:
         raise ValueError(f"invalid MCP JSON at line {exc.lineno} column {exc.colno}") from exc
     except RecursionError as exc:
         raise ValueError("MCP JSON nesting is too deep") from exc
+    _validate_json_depth(payload)
+    return payload
+
+
+def _parse_jsonrpc_line(line: bytes) -> Mapping[str, Any]:
+    payload = _parse_json_value(line)
     if not isinstance(payload, Mapping):
         raise ValueError("MCP stdio requires one JSON-RPC object per line")
-    _validate_json_depth(payload)
     return payload
 
 
