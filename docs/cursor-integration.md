@@ -56,6 +56,11 @@ boundary. Command/MCP arguments are needed in memory for review; ordinary audit
 and capture stay redacted. Email, transcript path, agent messages, file contents,
 and full tool output are not copied into action evidence.
 
+Post-tool results may be JSON objects, arrays, strings, numbers, booleans, or null.
+Only an object's explicit integer `exitCode` supplies exit status; other valid
+results retain unknown status. Invalid JSON, duplicate object members, nonfinite
+numbers, and excessive nesting are rejected without recording execution evidence.
+
 ## MCP identity
 
 Generic hooks require an operator-reviewed alias mapping. Review the exact

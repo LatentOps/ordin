@@ -20,7 +20,7 @@ from .api import Ordin
 from .audit import JsonlAuditSink
 from .context import ExecutionContext
 from .execution import ActionObservation
-from .mcp_proxy import _parse_jsonrpc_line
+from .mcp_proxy import _parse_json_value, _parse_jsonrpc_line
 from .policy import ReviewPolicy, validate_fail_threshold
 from .session import IntegrationSession, SessionIdentity, SqliteSessionStore
 from .tool_calls import (
@@ -252,8 +252,8 @@ class CursorIntegration:
             output = payload.get("tool_output")
             if not isinstance(output, str):
                 raise ValueError("Cursor tool_output must be JSON-encoded text")
-            value = _parse_jsonrpc_line(output.encode())
-            candidate = value.get("exitCode")
+            value = _parse_json_value(output.encode())
+            candidate = value.get("exitCode") if isinstance(value, Mapping) else None
             if candidate is not None:
                 if isinstance(candidate, bool) or not isinstance(candidate, int):
                     raise ValueError("Cursor exitCode must be integer")
