@@ -21,6 +21,13 @@ an error. An evicted action's observation is evicted at the same time. A detache
 bundled schema. `restore()` rejects identity, policy, semantics, or Ordin-version
 mismatches. The configuration digest includes the default temporal policy.
 
+Codex and Cursor map escalations to a native hook denial. Their sessions retain
+that denial and reject later execution observations even when trace capture is
+disabled. A host that supports approval, such as Claude Code, can still record a
+trusted post-action event following an escalation. Embedders can select the
+former behavior with `session.evaluate(action, approval_supported=False)`; this
+changes observation admission, not the returned core review or disposition.
+
 `reset()` removes all temporal influence. `end()` clears and closes the session.
 The host must finish or cancel outstanding execution before resetting and must
 not reuse action correlation IDs across a reset. A session identifier is supplied

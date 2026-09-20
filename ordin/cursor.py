@@ -211,7 +211,7 @@ class CursorIntegration:
             self.session.require_identity(_identity(payload))
             if self.session.gate is not self.gate:
                 raise ValueError("Cursor integration must use its session gate")
-            return self.session.evaluate(self.adapt(payload))
+            return self.session.evaluate(self.adapt(payload), approval_supported=False)
         return self.gate.evaluate_action(self.adapt(payload))
 
     def pre_tool_output(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -322,7 +322,7 @@ class CursorIntegration:
             self.session.require_identity(identity)
             if self.session.gate is not self.gate:
                 raise ValueError("Cursor integration must use its session gate")
-            return self.session.evaluate(action)
+            return self.session.evaluate(action, approval_supported=False)
         return self.gate.evaluate_action(action)
 
 

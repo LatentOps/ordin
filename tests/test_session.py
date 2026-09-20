@@ -17,6 +17,8 @@ from ordin.claude_code import (
     main as hook_main,
 )
 from ordin.mcp_proxy import BLOCKED_CODE, MCPStdioSafetyProxy
+from ordin.codex import build_codex_integration
+from ordin.cursor import build_cursor_integration, _identity as cursor_identity
 from ordin.schema import validate_named_schema
 from ordin.session import IntegrationSession, SessionIdentity, SqliteSessionStore
 
@@ -158,6 +160,61 @@ def test_session_rejects_duplicates_denied_observations_and_ended_reuse():
     session.end()
     with pytest.raises(ValueError, match="ended"):
         session.evaluate(_shell(action_id="new"))
+
+
+@pytest.mark.parametrize("runtime", ["codex", "cursor"])
+@pytest.mark.parametrize("command", ["rm /tmp/example", "future_command"])
+def test_native_hook_denials_survive_storage_and_reject_post_evidence(tmp_path, runtime, command):
+    adapter = build_codex_integration() if runtime == "codex" else build_cursor_integration()
+    pre = {**_payload(command), "turn_id": "turn"}
+    if runtime == "cursor":
+        pre.update(
+            hook_event_name="preToolUse",
+            tool_name="Shell",
+            conversation_id="s",
+            generation_id="turn",
+            cursor_version="1.7.2",
+        )
+    identity = SessionIdentity("codex", "s") if runtime == "codex" else cursor_identity(pre)
+    store = SqliteSessionStore(tmp_path / "state.db")
+    with store.transaction(identity, adapter.gate, create=True) as session:
+        active = replace(adapter, session=session)
+        output = active.pre_tool_output(pre)
+        permission = (
+            output["hookSpecificOutput"]["permissionDecision"]
+            if runtime == "codex"
+            else output["permission"]
+        )
+        assert permission == "deny"
+    with store.transaction(identity, adapter.gate) as session:
+        active = replace(adapter, session=session)
+        before = session.snapshot()
+        post = {
+            **pre,
+            "hook_event_name": "PostToolUse" if runtime == "codex" else "postToolUse",
+            "tool_response": {"exit_code": 0},
+            "tool_output": '{"exitCode":0}',
+        }
+        with pytest.raises(ValueError, match="denied action"):
+            active.observation_from_hook(post)
+        assert session.snapshot() == before
+
+
+def test_claude_approval_flow_can_still_record_an_escalated_action():
+    adapter = _claude()
+    pre = _payload("rm /tmp/example")
+    assert adapter.pre_tool_output(pre)["hookSpecificOutput"]["permissionDecision"] == "ask"
+    observation = adapter.observation_from_hook({**pre, "hook_event_name": "PostToolUse"})
+    assert observation.action_id == adapter.session.snapshot()["history"]["actions"][0]["action_id"]
+
+
+def test_host_without_approval_can_observe_a_policy_permitted_warning():
+    gate = AgentGate(Ordin(policy=ReviewPolicy(fail_on="block")))
+    session = IntegrationSession(SessionIdentity("test", "s"), gate)
+    decision = session.evaluate(_shell("rm /tmp/example"), approval_supported=False)
+    assert decision.review.decision == "warn" and decision.may_execute
+    session.observe(ActionObservation(action_id="action-1", exit_code=0))
+    assert len(session.snapshot()["observations"]["observations"]) == 1
 
 
 def test_store_missing_config_mismatch_and_corruption_fail_closed(tmp_path):
