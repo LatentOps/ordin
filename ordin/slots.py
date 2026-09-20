@@ -6,7 +6,7 @@ import re
 PORT_RE = re.compile(r"\b(?:port\s*)?([1-9][0-9]{0,4})\b", re.IGNORECASE)
 PATH_RE = re.compile(r"(?:^|\s)((?:\.{1,2}|~|/)[^\s]+|[A-Za-z0-9_.-]+\.[A-Za-z0-9_.-]+)")
 QUOTED_RE = re.compile(r"['\"]([^'\"]+)['\"]")
-WILDCARD_RE = re.compile(r"\b([\w.-]*[*?][\w.*?-]*)\b")
+WILDCARD_RE = re.compile(r"(?<!\S)([\w.-]*[*?][\w.*?-]*)(?!\S)")
 URL_RE = re.compile(r"\bhttps?://[^\s]+", re.IGNORECASE)
 HOST_RE = re.compile(
     r"\b(?:host|domain|server|endpoint)\s+([A-Za-z0-9.-]+\.[A-Za-z]{2,})\b", re.IGNORECASE
@@ -41,7 +41,7 @@ def extract_slots(text: str) -> dict[str, str]:
         slots["pattern"] = quoted.group(1)
 
     wildcard = WILDCARD_RE.search(text)
-    if wildcard:
+    if wildcard and "pattern" not in slots:
         slots["pattern"] = wildcard.group(1)
 
     path_match = PATH_RE.search(text)

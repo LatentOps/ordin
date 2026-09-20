@@ -27,6 +27,20 @@ def test_out_of_range_ports_do_not_produce_a_port_slot(port):
     assert "port" not in extract_slots(f"what is using port {port}")
 
 
+@pytest.mark.parametrize("pattern", ["*.log", "report*", "?config", "config?", "*", "?", "a*.txt"])
+def test_preserves_complete_filename_globs(pattern):
+    assert extract_slots(f"find files matching {pattern} in ./src")["pattern"] == pattern
+
+
+def test_quoted_pattern_is_not_replaced_by_a_partial_glob():
+    query = 'find files matching "error a*.log archived" in ./src'
+    assert extract_slots(query)["pattern"] == "error a*.log archived"
+
+
+def test_does_not_treat_a_url_query_as_a_filename_glob():
+    assert "pattern" not in extract_slots("check endpoint https://example.com/health?verbose=true")
+
+
 def test_renders_template_when_slots_exist():
     command = render_template("lsof -i :{port}", {"port": "3000"})
     assert command == "lsof -i :3000"
