@@ -30,6 +30,11 @@ tool names. Protect the profile and review artifact; this is context authority,
 not cryptographic authentication or kernel measurement. Conflicting facts remain
 diagnostic, and deployment facts never erase unknown action semantics.
 
+Pass an explicit profile as `Ordin(runtime_requirements=profile)` to retain it
+across gate/session reviews. Session configuration digests include the profile;
+changing deployment requirements prevents restoring old reporting state under
+the new configuration. Default profile-free v1 behavior remains compatible.
+
 `RuntimeCapabilityContract` (`ordin.runtime_capability.v1`) describes the minimum
 runtime capabilities established by a supplied `ActionReview`. It is separate
 from `ActionReview.v1` and the existing coarse `ExecutionCapabilityProfile`.

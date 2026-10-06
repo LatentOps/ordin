@@ -113,16 +113,17 @@ def configuration_digest(gate: AgentGate) -> str:
     action_policy: Any = getattr(ordin.action_policy, "policy", ordin.action_policy)
     temporal_policy: Any = getattr(temporal, "policy", temporal)
     registry: Any = getattr(semantics, "registry", semantics)
-    return _digest(
-        {
-            "ordin_version": __version__,
-            "fail_on": ordin.policy.fail_on,
-            "context": ordin.context.as_dict() if ordin.context is not None else None,
-            "policy": action_policy.as_dict() if action_policy is not None else None,
-            "temporal": temporal_policy.as_dict(),
-            "semantics": registry.as_dict() if registry is not None else None,
-        }
-    )
+    configuration = {
+        "ordin_version": __version__,
+        "fail_on": ordin.policy.fail_on,
+        "context": ordin.context.as_dict() if ordin.context is not None else None,
+        "policy": action_policy.as_dict() if action_policy is not None else None,
+        "temporal": temporal_policy.as_dict(),
+        "semantics": registry.as_dict() if registry is not None else None,
+    }
+    if ordin.runtime_requirements is not None:
+        configuration["runtime_requirements"] = ordin.runtime_requirements.as_dict()
+    return _digest(configuration)
 
 
 class IntegrationSession:

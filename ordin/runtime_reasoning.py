@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from typing import Mapping
+from urllib.parse import urlsplit
 
 from ._runtime_json import digest
 from .action import ActionHistory, ActionReview
@@ -75,24 +76,80 @@ def with_runtime_provenance(
     return replace(review, provenance=review.provenance.append(*records))
 
 
+def _request_key(host, port, path) -> tuple[str, ...] | None:
+    if (
+        not isinstance(host, str)
+        or not host
+        or type(port) is not int
+        or not 1 <= port <= 65535
+        or not isinstance(path, str)
+        or not path.startswith("/")
+        or any(c in path for c in "%?#")
+        or "//" in path
+        or any(part in {".", ".."} for part in path.split("/"))
+    ):
+        return None
+    return ("request", host.lower(), str(port), path)
+
+
+def _resource_keys(resources) -> set[tuple[str, ...]]:
+    keys: set[tuple[str, ...]] = {(r.type, r.value) for r in resources}
+    for resource in resources:
+        if resource.type not in {"url", "endpoint"}:
+            continue
+        try:
+            url = urlsplit(resource.value)
+            if (
+                url.scheme not in {"https", "http"}
+                or url.username
+                or url.password
+                or url.query
+                or url.fragment
+            ):
+                continue
+            port = url.port or (443 if url.scheme == "https" else 80)
+            key = _request_key(url.hostname, port, url.path or "/")
+            if key is not None:
+                keys.add(key)
+        except ValueError:
+            pass
+    return keys
+
+
+def _observed_keys(observation: RuntimeObservation) -> set[tuple[str, ...]]:
+    keys = _resource_keys(observation.resources)
+    if observation.enforcement_point == "network" and observation.operation == "http.request":
+        key = _request_key(
+            observation.metadata.get("host"),
+            observation.metadata.get("port"),
+            observation.metadata.get("path"),
+        )
+        if key is not None:
+            previous = {k for k in keys if k[0] == "request"}
+            if previous and key not in previous:
+                return set()  # Contradictory targets cannot establish a retry.
+            keys.add(key)
+    return keys
+
+
 def current_runtime_signals(
     review: ActionReview,
     observations: Mapping[str, tuple[RuntimeObservation, ...]],
 ) -> frozenset[str]:
-    targets = {(r.type, r.value) for r in review.resources}
+    targets = _resource_keys(review.resources)
     matches = [
         o
         for group in observations.values()
         for o in group
         if o.trust == "backend_enforced"
         and o.outcome == "denied"
-        and any((r.type, r.value) in targets for r in o.resources)
+        and bool(_observed_keys(o).intersection(targets))
     ]
     signals = set()
-    denied_counts: dict[tuple[str, str], int] = {}
+    denied_counts: dict[tuple[str, ...], int] = {}
     for observation in matches:
         if observation.reason_code == "policy_denied":
-            for key in {(r.type, r.value) for r in observation.resources}.intersection(targets):
+            for key in _observed_keys(observation).intersection(targets):
                 denied_counts[key] = denied_counts.get(key, 0) + 1
     if any(count >= 2 for count in denied_counts.values()):
         signals.add("signal:runtime-boundary-retry")

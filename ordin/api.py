@@ -17,6 +17,7 @@ from .search import SearchResult, search
 from .temporal import CompiledTemporalPolicySet, TemporalPolicySet
 from .tool_calls import CompiledToolSemanticsRegistry, ToolSemanticsRegistry
 from .trace import ActionTrace
+from .runtime_requirements import RuntimeRequirementProfile
 
 if TYPE_CHECKING:
     from .runtime_observation import RuntimeObservationHistory, RuntimeReviewBinding
@@ -37,8 +38,13 @@ class Ordin:
     temporal_policy: TemporalPolicySet | CompiledTemporalPolicySet | None = None
     tool_semantics: ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None = None
     audit: AuditSink | None = None
+    runtime_requirements: RuntimeRequirementProfile | None = None
 
     def __post_init__(self) -> None:
+        if self.runtime_requirements is not None and not isinstance(
+            self.runtime_requirements, RuntimeRequirementProfile
+        ):
+            raise ValueError("runtime requirements must be an explicit host profile or null")
         if isinstance(self.action_policy, ActionPolicySet):
             object.__setattr__(self, "action_policy", self.action_policy.compile())
         elif self.action_policy is not None and not isinstance(
@@ -173,6 +179,8 @@ class Ordin:
                     )
                 ),
             )
+        if self.runtime_requirements is not None:
+            result = self.runtime_requirements.declare(result)
         if self.audit is not None:
             self.audit.record(result)
         return result
