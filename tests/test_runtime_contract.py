@@ -105,6 +105,42 @@ def test_network_access_does_not_invent_protocol_or_method(effect, access):
     assert c.unknowns and c.grant_state == "diagnostic"
 
 
+@pytest.mark.parametrize(
+    "url,valid",
+    [
+        ("https://api.example.com/a", True),
+        ("http://api.example.com/a", True),
+        ("https://user@api.example.com/a", False),
+        ("https://user:pass@api.example.com/a", False),
+        ("https://@api.example.com/a", False),
+        ("https://:@api.example.com/a", False),
+        ("https://api.example.com/a?x=1", False),
+        ("https://api.example.com/a#fragment", False),
+        ("https://api.example.com:443/a", True),
+        ("https://api.example.com:99999/a", False),
+        ("https://api.example.com:0/a", False),
+    ],
+)
+def test_url_authority_consistency_preserves_diagnostic_derivation(url, valid):
+    from ordin.runtime_requests import request_endpoint
+
+    contract = derive_runtime_capability_contract(
+        Ordin().review_action(ActionEnvelope.shell("curl --disable --request GET " + url))
+    )
+    assert (request_endpoint(url) is not None) is valid
+    if valid:
+        assert contract.network[0].host == "api.example.com"
+        assert contract.network[0].port == (80 if url.startswith("http:") else 443)
+        assert contract.network[0].protocol == "rest"
+    else:
+        assert all(n.host is None and n.port is None for n in contract.network)
+        assert contract.grant_state == "diagnostic"
+        assert any(
+            u.reason_code == "runtime_contract_malformed_resource" for u in contract.unknowns
+        )
+        assert url not in json.dumps(contract.as_dict())
+
+
 def test_process_execution_without_arbitrary_child_permission():
     c = derive_runtime_capability_contract(reviewed("code.execute"))
     assert c.process.execution is True

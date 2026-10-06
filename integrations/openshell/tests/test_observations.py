@@ -87,6 +87,43 @@ def test_queries_headers_bodies_commands_and_unmapped_secrets_are_never_retained
         RuntimeObservation.from_dict(result.observation.as_dict())
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://api.example.com/a",
+        "http://api.example.com/a",
+        "https://user@api.example.com/a",
+        "https://user:pass@api.example.com/a",
+        "https://@api.example.com/a",
+        "https://:@api.example.com/a",
+        "https://api.example.com/a?x=1",
+        "https://api.example.com/a#fragment",
+        "https://api.example.com:443/a",
+        "https://api.example.com:99999/a",
+    ],
+)
+def test_full_url_in_structured_path_never_becomes_trusted_endpoint_authority(url, tmp_path):
+    # This field accepts relative request targets only, not full URLs.
+    event = event_fixture()
+    event["http_request"]["url"]["path"] = url
+    contract, source = supported_contract(), source_context()
+    store = CorrelationStore(tmp_path / "bindings.db")
+    original = event_fixture()
+    register_event(store, original, contract, source)
+    result = ingest_openshell_event(
+        event, contract=contract, source=source, store=store, now_ms=2000
+    )
+    assert result.status == "rejected" and result.reason_code == "openshell_event_path_invalid"
+    assert result.event is None and result.observation is None
+    assert url not in json.dumps(result.as_dict())
+    assert (
+        ingest_openshell_event(
+            original, contract=contract, source=source, store=store, now_ms=2000
+        ).status
+        == "accepted"
+    )
+
+
 def test_explicit_private_event_binding_and_session_source_are_required(tmp_path):
     event, contract, source = event_fixture(), supported_contract(), source_context()
     assert ingest_openshell_event(event).status == "uncorrelated"

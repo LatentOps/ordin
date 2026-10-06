@@ -255,6 +255,16 @@ def test_credentials_are_not_copied_into_mcp_configuration(tmp_path, change):
         plan(settings("mcp", **change), tmp_path.resolve())
 
 
+@pytest.mark.parametrize("userinfo", ["@", ":@", "user@", "user:PRIVATE_VALUE@"])
+def test_mcp_http_setup_rejects_present_userinfo_with_generic_diagnostics(tmp_path, userinfo):
+    with pytest.raises(SetupError, match="credential_url_requires_manual_configuration") as error:
+        plan(
+            settings("mcp-http", upstream="https://" + userinfo + "api.example.com/mcp"),
+            tmp_path.resolve(),
+        )
+    assert "PRIVATE_VALUE" not in str(error.value)
+
+
 def test_main_cli_discovers_setup_and_machine_readable_preview(tmp_path, capsys):
     assert (
         ordin_main(["setup", "cursor", "--root", str(tmp_path.resolve()), "--dry-run", "--json"])
