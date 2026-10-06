@@ -107,6 +107,26 @@ The sink opens the configured file in append mode, writes one canonical JSON obj
 
 A `JsonlAuditSink` instance serializes its own writes with a local lock. Applications that need coordinated multi-process writers should provide that coordination outside Ordin rather than assuming the in-process lock is a distributed lock.
 
+## Runtime linkage and privacy
+
+Runtime capability contracts bind the canonical action digest to a
+content-derived contract ID and retain the original semantic provenance digest.
+Optional OpenShell plans retain contract and canonical policy digests. Prover
+results retain exact input-byte digests, coverage, and counterexamples;
+canonical policy digests and file-byte digests identify different representations.
+Private event bindings retain the original action/contract/session/sandbox/policy
+and the event digest, without command parameters or raw events.
+
+Accepted runtime observations add `runtime.observation.accepted` provenance to
+later reviews, including observation/event/policy digests and trust/outcome.
+The existing hash-chained audit sink records those reviews with its normal
+privacy defaults. Strong evidence does not remove predicted dangerous effects.
+Shadow reports retain digest linkage and mismatch codes while omitting plaintext
+resource values and action parameters. An event-to-policy binding is a claim
+through the trusted collector; it is not proof of active runtime policy or
+successful action execution. See [runtime evidence](runtime-evidence.md) and
+[OpenShell integration](openshell-integration.md).
+
 ## Schemas
 
 The machine contracts are:

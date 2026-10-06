@@ -100,6 +100,41 @@ The same engine is exposed through:
 
 Core review APIs never execute the reviewed action.
 
+## Runtime capabilities and enforcement plane
+
+The additive runtime path preserves the review plane:
+
+```text
+ActionReview -> RuntimeCapabilityContract -> caller-owned capability boundary
+                                          -> optional OpenShell policy compiler/prover
+external enforcement runtime -> trusted collector -> RuntimeObservation
+                                                  -> IntegrationSession -> later review
+```
+
+The immutable contract binds minimum predicted authority to the canonical
+action digest and a content-derived contract ID. Core derives contracts and
+checks boundaries without execution or live filesystem/network inspection.
+Unknown semantics remain explicit. A blocked decision cannot grant authority;
+ask/warn retains human approval requirements. Existing v1 reviews, coarse
+capability profiles, tool/MCP identity, intent, trajectory, and caller policy
+remain separate and compatible.
+
+The optional package translates only representable contracts into policy data.
+Unsupported or inconclusive mappings produce no enforceable plan; narrow
+request permissions never become raw TCP. The standalone prover checks backend
+policy authority and coverage separately from Ordin's semantic boundary checker.
+These artifacts remain advisory until the external runtime applies a policy.
+
+A host-owned collector authenticates its event channel and explicitly binds
+events to the action/contract/session/sandbox/policy. Accepted evidence is
+additive and can strengthen later temporal review. It never erases predicted
+danger. `caller_asserted`, `backend_observed`, and `backend_enforced` describe
+the reporting trust boundary, not remote attestation. Local shadow reports
+compare supplied facts without installing policy or executing an action.
+See [runtime capabilities](runtime-capabilities.md), [runtime evidence](runtime-evidence.md),
+[capability boundaries](runtime-boundaries.md), and
+[OpenShell integration](openshell-integration.md).
+
 ## Project boundaries
 
 Ordin deliberately does not provide remote command execution, automatic history upload, required cloud inference, arbitrary shell generation, hidden policy synchronization, or a centralized enterprise control plane. External runtimes can use Ordin as a local decision primitive while retaining ownership of execution, sandboxing, approval, and persistence.
