@@ -5,11 +5,19 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from ordin._runtime_json import digest, thaw
+from ordin._runtime_json import MAX_RUNTIME_ITEMS, digest, thaw
 from ordin.enforcement_backend import BackendValidationResult, CompilationResult, EnforcementPlan
 from ordin.runtime_contract import RuntimeCapabilityContract, _safe_path
 
-from .model import PUBLIC_IPV4_RANGES, READ_METHODS, exact_host, exact_request_path, policy_errors
+from .model import (
+    PUBLIC_IPV4_RANGES,
+    READ_METHODS,
+    HTTP_METHODS,
+    MAX_PROCESS_IDENTITY,
+    exact_host,
+    exact_request_path,
+    policy_errors,
+)
 
 OpenShellCompilationResult = CompilationResult
 
@@ -35,8 +43,9 @@ def compile_openshell_policy(
         unsupported.add("privilege.escalation")
     if (
         process_identity is None
+        or not isinstance(process_identity, (tuple, list))
         or len(process_identity) != 2
-        or any(type(v) is not int or v <= 0 for v in process_identity)
+        or any(type(v) is not int or not 1 <= v <= MAX_PROCESS_IDENTITY for v in process_identity)
     ):
         unsupported.add("process.identity")
     elif (
@@ -50,6 +59,61 @@ def compile_openshell_policy(
         unsupported.add("process.spawn_children")
     if contract.tools:
         unsupported.add("tools.request_identity")
+    if resource_kinds is not None and (
+        not isinstance(resource_kinds, Mapping)
+        or len(resource_kinds) > MAX_RUNTIME_ITEMS
+        or any(
+            not isinstance(k, str)
+            or not _safe_path(k)
+            or not isinstance(v, str)
+            or v not in {"file", "directory"}
+            for k, v in resource_kinds.items()
+        )
+    ):
+        # Operator configuration is still schema-bound. Never copy arbitrary
+        # metadata (including accidentally supplied secrets) into a plan.
+        return CompilationResult(
+            "unsupported",
+            "openshell",
+            "openshell_operator_configuration_invalid",
+            unsupported_fields=("config.resource_kinds",),
+        )
+    if credential_providers is not None:
+        if (
+            not isinstance(credential_providers, Mapping)
+            or len(credential_providers) > MAX_RUNTIME_ITEMS
+        ):
+            return CompilationResult(
+                "unsupported",
+                "openshell",
+                "credential_binding_unknown",
+                unsupported_fields=("config.credential_providers",),
+            )
+        for configured_provider in credential_providers.values():
+            if (
+                not isinstance(configured_provider, Mapping)
+                or set(configured_provider) != {"provider", "host", "port", "methods", "paths"}
+                or not isinstance(configured_provider.get("provider"), str)
+                or not configured_provider["provider"]
+                or not exact_host(configured_provider.get("host"))
+                or type(configured_provider.get("port")) is not int
+                or not 1 <= configured_provider["port"] <= 65535
+                or not isinstance(configured_provider.get("methods"), (list, tuple))
+                or not 1 <= len(configured_provider["methods"]) <= 32
+                or any(
+                    not isinstance(m, str) or m not in HTTP_METHODS
+                    for m in configured_provider["methods"]
+                )
+                or not isinstance(configured_provider.get("paths"), (list, tuple))
+                or not 1 <= len(configured_provider["paths"]) <= MAX_RUNTIME_ITEMS
+                or any(not exact_request_path(p) for p in configured_provider["paths"])
+            ):
+                return CompilationResult(
+                    "unsupported",
+                    "openshell",
+                    "credential_binding_unknown",
+                    unsupported_fields=("config.credential_providers",),
+                )
     paths: dict[tuple[str, str], set[str]] = {}
     for filesystem_capability in contract.filesystem:
         if (

@@ -111,7 +111,8 @@ def parse_prover_json(
         return failure("openshell_prover_compatibility")
     state = data["result"]
     if (
-        state not in EXIT_CODES
+        not isinstance(state, str)
+        or state not in EXIT_CODES
         or type(data["exit_code"]) is not int
         or data["exit_code"] != EXIT_CODES[state]
         or returncode != data["exit_code"]

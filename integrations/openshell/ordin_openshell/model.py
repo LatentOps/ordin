@@ -11,6 +11,7 @@ from ordin.runtime_contract import _safe_path
 
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 HTTP_METHODS = READ_METHODS | {"POST", "PUT", "PATCH", "DELETE", "CONNECT", "TRACE"}
+MAX_PROCESS_IDENTITY = 0xFFFF_FFFE
 
 
 def public_ipv4_ranges() -> list[str]:
@@ -108,7 +109,10 @@ def policy_errors(policy: Mapping[str, Any]) -> tuple[str, ...]:
     if not isinstance(process, Mapping) or set(process) != {"run_as_user", "run_as_group"}:
         errors.append("process.shape")
     elif any(
-        not isinstance(process[n], str) or not process[n].isdigit() or int(process[n]) <= 0
+        not isinstance(process[n], str)
+        or not process[n].isascii()
+        or not process[n].isdigit()
+        or not 1 <= int(process[n]) <= MAX_PROCESS_IDENTITY
         for n in process
     ):
         errors.append("process.non_root_identity")

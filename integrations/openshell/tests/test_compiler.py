@@ -256,3 +256,29 @@ def test_compiler_has_no_io_or_subprocess_effects(monkeypatch):
     monkeypatch.setattr(subprocess, "run", forbidden)
     monkeypatch.setattr(socket, "getaddrinfo", forbidden)
     assert compile(contract).status == "success"
+
+
+def test_operator_metadata_cannot_smuggle_secret_values_into_a_successful_plan():
+    secret = "NEVER_PERSIST_OPERATOR_SECRET"
+    result = compile(resource_kinds={"/repo/file": "file", "token": secret})
+    assert result.status == "unsupported" and result.plan is None
+    assert secret not in json.dumps(result.as_dict())
+    result = compile(resource_kinds={"/repo/file": secret})
+    assert result.status == "unsupported" and result.plan is None
+    providers = {
+        "unused-binding": {
+            "provider": "operator",
+            "host": "api.github.com",
+            "port": 443,
+            "methods": None,
+            "paths": ["/a"],
+        }
+    }
+    result = compile(credential_providers=providers)
+    assert result.status == "unsupported" and result.plan is None
+
+
+@pytest.mark.parametrize("identity", [(0, 1000), (True, 1000), (2**32 - 1, 1000), (2**64, 1000)])
+def test_process_identity_must_be_representable_by_the_actual_runtime(identity):
+    result = compile_openshell_policy(supported_contract(), process_identity=identity)
+    assert result.status == "unsupported" and result.plan is None
