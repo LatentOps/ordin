@@ -26,6 +26,7 @@ from ordin.graph import build_effect_graph
 from ordin.mcp_contracts import MCPContractLock
 from ordin.packs import pack_list_payload
 from ordin.runtime_contract import derive_runtime_capability_contract
+from ordin._runtime_schemas import SHADOW_METRICS, SHADOW_OUTCOMES
 from ordin.runtime_boundary import RuntimeCapabilityBoundary
 from ordin.capability_delta import CapabilityDeltaProposal
 from ordin.runtime_observation import (
@@ -68,6 +69,14 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
         },
     }
     samples = {
+        "runtime_shadow_report": {
+            "schema_version": "ordin.runtime_shadow_report.v1",
+            "backend": "fixture",
+            "mode": "shadow",
+            "actions": [],
+            "metrics": dict.fromkeys(SHADOW_METRICS["properties"], 0),
+            "boundary_outcomes": dict.fromkeys(SHADOW_OUTCOMES["properties"], 0),
+        },
         "runtime_capability_boundary": RuntimeCapabilityBoundary("fixture-boundary").as_dict(),
         "capability_delta_proposal": CapabilityDeltaProposal(
             "contract-action",
@@ -238,6 +247,7 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
         "runtime_session",
         "runtime_capability_boundary",
         "capability_delta_proposal",
+        "runtime_shadow_report",
     }
     for module, names in manifest["module_contracts"].items():
         assert all(hasattr(import_module(module), name) for name in names), module

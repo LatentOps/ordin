@@ -283,3 +283,100 @@ SCHEMAS["capability_delta_proposal"] = {
     "title": "Ordin capability delta proposal v1",
     **DELTA,
 }
+
+SHADOW_METRICS = obj(
+    {
+        name: {"type": "integer", "minimum": 0}
+        for name in (
+            "actions_reviewed",
+            "contracts_generated",
+            "contracts_fully_representable",
+            "contracts_unsupported",
+            "runtime_events_correlated",
+            "correlation_mismatches",
+            "observed_but_unpredicted_capabilities",
+            "predicted_but_unused_capabilities",
+            "would_deny_events",
+            "compiler_widening_failures",
+        )
+    }
+)
+SHADOW_OUTCOMES = obj(
+    {
+        name: {"type": "integer", "minimum": 0}
+        for name in (
+            "within_boundary",
+            "exceeds_boundary",
+            "unsupported",
+            "inconclusive",
+        )
+    }
+)
+SHADOW_EVENT = obj(
+    {
+        "observation_digest": DIGEST,
+        "event_digest": {**DIGEST, "type": ["string", "null"]},
+        "outcome": enum("allowed", "denied", "failed", "completed", "unknown"),
+        "prediction": enum("predicted", "unpredicted", "inconclusive"),
+        "policy_match": enum("within_policy", "outside_policy", "inconclusive"),
+        "reason_code": IDENTIFIER,
+    }
+)
+SHADOW_ACTION = obj(
+    {
+        "action_digest": DIGEST,
+        "contract_id": text(67, pattern="^rc:[a-f0-9]{64}$"),
+        "contract_digest": DIGEST,
+        "review_decision": enum("allow", "warn", "ask", "block"),
+        "risk": enum("low", "medium", "high", "critical", "unknown"),
+        "policy_digest": {**DIGEST, "type": ["string", "null"]},
+        "compilation_status": enum("success", "unsupported", "inconclusive"),
+        "unsupported_fields": array(text(128)),
+        "boundary_result": enum(
+            "within_boundary", "exceeds_boundary", "unsupported", "inconclusive"
+        ),
+        "boundary_digest": DIGEST,
+        "boundary_coverage": obj(
+            {
+                name: {"type": "boolean"}
+                for name in (
+                    "filesystem",
+                    "network",
+                    "tools",
+                    "process",
+                    "privilege",
+                    "credentials",
+                )
+            }
+        ),
+        "mismatches": array(
+            enum(
+                "predicted_but_not_observed",
+                "observed_but_not_predicted",
+                "compiler_widening_detected",
+                "runtime_denial_expected",
+                "runtime_denial_unexpected",
+                "unrepresentable_capability",
+                "action_correlation_mismatch",
+                "runtime_event_inconclusive",
+            ),
+            8,
+        ),
+        "events": array(SHADOW_EVENT),
+    }
+)
+SCHEMAS["runtime_shadow_report"] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://latentops.space/ordin/schemas/runtime-shadow-report.v1.schema.json",
+    "title": "Ordin runtime shadow report v1",
+    **obj(
+        {
+            "schema_version": {"const": "ordin.runtime_shadow_report.v1"},
+            "backend": IDENTIFIER,
+            "mode": {"const": "shadow"},
+            "metrics": SHADOW_METRICS,
+            "boundary_outcomes": SHADOW_OUTCOMES,
+            "actions": array(SHADOW_ACTION),
+        }
+    ),
+}
