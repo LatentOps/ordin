@@ -349,6 +349,24 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
                 filesystem.add(FilesystemCapability(access, resource.value, scope))
     net_effects = {v for v in effects if v.startswith("network.")}
     net_resources = [v for v in review.resources if v.type in {"host", "url", "endpoint"}]
+    mcp_urls = set()
+    if review.action.kind == "mcp" and review.adapter and review.effects and review.provenance:
+        from .action import ActionResource
+
+        for record in review.provenance.records:
+            if (
+                record.source == "context"
+                and record.code == "runtime.requirement.mcp_endpoint"
+                and record.resource
+                and record.metadata.get("profile_digest")
+                and record.metadata.get("server") == review.action.parameters.get("server")
+            ):
+                mcp_urls.add(record.resource.value)
+        net_resources.extend(
+            ActionResource("url", url)
+            for url in sorted(mcp_urls)
+            if not any(r.value == url for r in net_resources)
+        )
     request = _literal_http_request(review)
     if net_effects:
         access = "write" if "network.upload" in effects else "read"
@@ -406,6 +424,24 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
                 if _safe_path(path) and not any(c in path for c in "%?#"):
                     network.add(
                         NetworkCapability(host, port, "rest", access, (request[0],), (path,))
+                    )
+                    continue
+            if host is not None and (
+                review.adapter == "network.graphql" or resource.value in mcp_urls
+            ):
+                from .runtime_requests import request_endpoint
+
+                concrete = request_endpoint(resource.value)
+                if concrete is not None:
+                    network.add(
+                        NetworkCapability(
+                            host,
+                            port,
+                            "graphql" if review.adapter == "network.graphql" else "mcp",
+                            access,
+                            ("POST",),
+                            (concrete[2],),
+                        )
                     )
                     continue
             # Host/URL evidence alone does not establish REST or an HTTP method.
@@ -515,6 +551,15 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
                 value = record.metadata.get("spawn_children")
                 if type(value) is bool:
                     child_requirements.add(value)
+            elif (
+                record.code == "runtime.requirement.client"
+                and record.resource is not None
+                and review.action.kind != "shell"
+            ):
+                path = record.resource.value
+                if _safe_path(path):
+                    process_execution = True
+                    executables = tuple(sorted(set((*executables, path))))
         executables = tuple(bindings.get(value, value) for value in executables)
         if len(child_requirements) > 1:
             unknown(
@@ -530,7 +575,20 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
         decision=review.decision,
         risk=review.risk,
         filesystem=tuple(sorted(filesystem, key=lambda v: (v.access, v.path or "", v.scope))),
-        network=tuple(sorted(network, key=lambda v: (v.host or "", v.port or 0, v.access))),
+        network=tuple(
+            sorted(
+                network,
+                key=lambda v: (
+                    v.host or "",
+                    v.port or 0,
+                    v.access,
+                    v.protocol,
+                    v.methods,
+                    v.paths,
+                    v.tool_identity or "",
+                ),
+            )
+        ),
         tools=tuple(tools),
         process=ProcessCapability(
             process_execution if review.adapter is not None else None, executables, spawn_children

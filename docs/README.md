@@ -34,6 +34,8 @@ orun 'git status --short'
 - [Generic action review](action-review.md)
 - [Execution capability profiles and observations](execution-evidence.md)
 - [Versioned runtime capabilities](runtime-capabilities.md)
+- [GraphQL/MCP request contracts and boundaries](runtime-requests.md)
+- [Optional OCSF finding export](ocsf-export.md)
 - [Trusted runtime evidence and correlation](runtime-evidence.md)
 - [Capability boundary verification](runtime-boundaries.md)
 - [Minimal denial proposals](capability-proposals.md)

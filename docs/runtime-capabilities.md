@@ -90,3 +90,9 @@ JSON schemas and the in-memory validation definitions are checked for parity.
 authorization or enforcement. A backend must still compile without widening,
 validate policy, verify its boundary, and require approval where applicable.
 Existing core review, adapters, and capability-profile behavior are unchanged.
+
+Named flat `network.graphql.request` actions and trusted MCP transport/client
+declarations have additive deterministic semantics. Their richer operation,
+field, method, tool and version restrictions live in a separate
+[request contract](runtime-requests.md). Base v1 serialization is unchanged;
+compilation of these protocols requires that additional bound artifact.

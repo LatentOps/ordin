@@ -18,6 +18,7 @@ from ordin._runtime_json import MAX_RUNTIME_BYTES, canonical_json, digest, freez
 from ordin.enforcement_backend import EnforcementPlan
 from ordin.runtime_boundary import RuntimeCapabilityBoundary, verify_runtime_capability
 from ordin.runtime_observation import RuntimeEvidenceSource
+from ordin.runtime_requests import RuntimeRequestBoundary, verify_runtime_request_capability
 
 from .backend_cli import OpenShellCLI, OpenShellCommandError, identifier
 from .compiler import OpenShellBackend
@@ -27,7 +28,7 @@ from .prover import MODELED_DOMAINS, verify_with_openshell_prover
 
 def canonical_runtime_policy(value: Mapping[str, Any]) -> dict[str, Any]:
     """Account only for known, authority-neutral OpenShell serialization defaults."""
-    data = thaw(freeze(value))
+    data = thaw(freeze(value, max_depth=12))
     if not isinstance(data, dict):
         raise ValueError("openshell_policy_shape")
     if data.get("network_middlewares") == {}:
@@ -64,6 +65,25 @@ def canonical_runtime_policy(value: Mapping[str, Any]) -> dict[str, Any]:
             ):
                 if endpoint.get(name) is False:
                     endpoint.pop(name)
+            if endpoint.get("protocol") == "mcp":
+                for entry in endpoint.get("rules", []):
+                    allow = entry.get("allow", {})
+                    if isinstance(allow, dict) and "tool" in allow and "params" not in allow:
+                        allow["params"] = {"name": allow.pop("tool")}
+                    matcher = allow.get("params", {}).get("name")
+                    if (
+                        isinstance(matcher, dict)
+                        and matcher.get("any") == []
+                        and isinstance(matcher.get("glob"), str)
+                    ):
+                        matcher.pop("any")
+                    if (
+                        isinstance(matcher, dict)
+                        and matcher.get("glob") == ""
+                        and isinstance(matcher.get("any"), list)
+                        and matcher["any"]
+                    ):
+                        matcher.pop("glob")
     if policy_errors(data):
         raise ValueError("openshell_policy_unsupported")
     return data
@@ -81,7 +101,7 @@ class RuntimePolicySnapshot:
     policy: Mapping[str, Any]
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "policy", freeze(self.policy))
+        object.__setattr__(self, "policy", freeze(self.policy, max_depth=12))
 
     @property
     def policy_digest(self) -> str:
@@ -244,6 +264,7 @@ def prepare_openshell_apply(
     backend_boundary_policy: Mapping[str, Any] | None = None,
     prover_executable: str = "openshell-prover",
     timeout: float = 30,
+    request_boundary: RuntimeRequestBoundary | None = None,
 ) -> PolicyApplyPreparation:
     """Read/validate/prove only. A successful preparation still requires host approval."""
     identifier(sandbox)
@@ -267,6 +288,18 @@ def prepare_openshell_apply(
     steps.append({"step": "backend_validation", **validated.as_dict()})
     if not validated.ok or validated.policy_digest != plan.policy_digest:
         return result("unsupported", "openshell_apply_validation_failed")
+    if any(n.protocol in {"mcp", "graphql"} for n in plan.contract.network):
+        if backend.request_contract is None or request_boundary is None:
+            return result("unsupported", "runtime_request_boundary_required")
+        requests_verified = verify_runtime_request_capability(
+            backend.request_contract, request_boundary
+        )
+        requests_report = requests_verified.as_dict()
+        counter = requests_report.pop("counterexample")
+        requests_report["counterexample_digest"] = digest(counter) if counter is not None else None
+        steps.append({"step": "request_boundary", **requests_report})
+        if not requests_verified.ok:
+            return result(requests_verified.result, requests_verified.reason_code)
     if capability_boundary is not None:
         verified = verify_runtime_capability(plan.contract, capability_boundary)
         report = verified.as_dict()
@@ -277,7 +310,9 @@ def prepare_openshell_apply(
             return result(verified.result, verified.reason_code)
     if backend_boundary_policy is not None:
         try:
-            boundary_bytes = (canonical_json(freeze(backend_boundary_policy)) + "\n").encode()
+            boundary_bytes = (
+                canonical_json(freeze(backend_boundary_policy, max_depth=12)) + "\n"
+            ).encode()
             if len(boundary_bytes) > MAX_RUNTIME_BYTES:
                 raise ValueError("openshell_boundary_size")
             with tempfile.TemporaryDirectory(prefix="ordin-apply-proof-") as directory:
@@ -362,6 +397,7 @@ def apply_openshell_policy(
     prover_executable: str = "openshell-prover",
     timeout: float = 30,
     audit: Any = None,
+    request_boundary: RuntimeRequestBoundary | None = None,
 ) -> PolicyApplyResult:
     """Explicit host operation: re-prepare, check exact approval, set once, read back.
 
@@ -378,6 +414,7 @@ def apply_openshell_policy(
         backend_boundary_policy=backend_boundary_policy,
         prover_executable=prover_executable,
         timeout=timeout,
+        request_boundary=request_boundary,
     )
     if prepared.status != "requires_approval":
         return PolicyApplyResult(prepared.status, prepared.reason_code, prepared)

@@ -513,6 +513,34 @@ def _review_action_base(
 ) -> ActionReview:
     """Review one action without applying temporal history."""
 
+    if action.kind == "network" and action.operation == "graphql.request":
+        from .runtime_requests import graphql_operation, request_endpoint
+
+        operation = graphql_operation(action.parameters.get("query"))
+        endpoint = request_endpoint(action.parameters.get("url"))
+        if (
+            set(action.parameters) == {"url", "query"}
+            and operation is not None
+            and endpoint is not None
+        ):
+            reading = operation[0] == "query"
+            effects = ["network.download" if reading else "network.upload"]
+            resources = [ActionResource("url", action.parameters["url"])]
+            resources.extend(ActionResource("graphql_field", value) for value in operation[2])
+            return _with_base_provenance(
+                ActionReview(
+                    action=action,
+                    decision="allow" if reading else "warn",
+                    risk="low" if reading else "medium",
+                    reasons=["Named GraphQL operation with explicit root-field scope."],
+                    safer_next_step=None,
+                    effects=effects,
+                    resources=resources,
+                    adapter="network.graphql",
+                    capabilities=derive_capabilities(action.kind, effects, resources),
+                )
+            )
+
     if action.kind in {"tool", "mcp"} and action.operation == "call" and tool_semantics is not None:
         from .tool_calls import review_tool_action
 

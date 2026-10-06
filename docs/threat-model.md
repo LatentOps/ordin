@@ -117,3 +117,21 @@ checks version/tag/source equality, verifies the remote tag again before
 publication, and refuses to replace an existing release. Maintainers still
 must protect tags/accounts and review dependency updates. See
 [releasing](releasing.md) for verification commands and the SBOM's scope.
+
+## Protocol request scope and exported findings
+
+GraphQL operation/field and MCP method/tool/version permissions use a separate
+action-bound request artifact. Nested selectors, variables and argument
+constraints must not disappear when the backend cannot enforce them. A request
+boundary checks transport and high-level scope independently; protocol apply
+requires that boundary and exact host approval. The pinned standalone prover
+does not cover GraphQL/MCP, so configured backend proof refuses application.
+Logical MCP server identity depends on protected host transport declarations
+and existing semantic/contract pinning, not a name substring or remote
+attestation. Generic HTTP events do not establish high-level request fields.
+
+Optional OCSF Detection Findings retain digests and fixed machine categories,
+omitting commands, arguments, human reasons, resource identities and raw
+payloads. They report local decisions and diagnostics; they cannot be restored
+as backend-enforced runtime observations or authorize an action. The local
+hash-chained audit remains the explanation/integrity record.

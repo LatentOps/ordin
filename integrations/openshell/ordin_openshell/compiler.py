@@ -8,6 +8,7 @@ from typing import Any, Mapping
 from ordin._runtime_json import MAX_RUNTIME_ITEMS, digest, thaw
 from ordin.enforcement_backend import BackendValidationResult, CompilationResult, EnforcementPlan
 from ordin.runtime_contract import RuntimeCapabilityContract, _safe_path
+from ordin.runtime_requests import RuntimeRequestContract, request_contract_errors
 
 from .model import (
     PUBLIC_IPV4_RANGES,
@@ -30,6 +31,7 @@ def compile_openshell_policy(
     resource_kinds: Mapping[str, str] | None = None,
     credential_providers: Mapping[str, Mapping[str, Any]] | None = None,
     mode: str = "enforce",
+    request_contract: RuntimeRequestContract | None = None,
 ) -> CompilationResult:
     if not isinstance(contract, RuntimeCapabilityContract):
         raise ValueError("compiler requires a runtime capability contract")
@@ -57,7 +59,21 @@ def compile_openshell_policy(
         contract.process.execution and contract.process.spawn_children is not True
     ):
         unsupported.add("process.spawn_children")
-    if contract.tools:
+    if request_contract is not None and (
+        not isinstance(request_contract, RuntimeRequestContract)
+        or request_contract.capability != contract
+    ):
+        return CompilationResult(
+            "unsupported",
+            "openshell",
+            "runtime_request_contract_mismatch",
+            unsupported_fields=("requests.contract",),
+        )
+    if request_contract is not None:
+        unsupported.update(request_contract_errors(request_contract))
+        if contract.credentials and any(n.protocol in {"mcp", "graphql"} for n in contract.network):
+            unsupported.add("credentials.request_protocol_unrepresentable")
+    if contract.tools and request_contract is None:
         unsupported.add("tools.request_identity")
     if resource_kinds is not None and (
         not isinstance(resource_kinds, Mapping)
@@ -154,6 +170,68 @@ def compile_openshell_policy(
         unsupported.add("network.binary_identity")
     rules: dict[str, Any] = {}
     for index, capability in enumerate(contract.network):
+        if capability.protocol in {"graphql", "mcp"} and request_contract is not None:
+            selected = [
+                r
+                for r in request_contract.requests
+                if r.protocol == capability.protocol
+                and r.host == capability.host
+                and r.port == capability.port
+                and capability.paths == (r.path,)
+            ]
+            if (
+                not selected
+                or not exact_host(capability.host)
+                or type(capability.port) is not int
+                or capability.methods != ("POST",)
+                or capability.access not in {"read", "write"}
+            ):
+                unsupported.add("network.request_scope")
+                continue
+            protocol_endpoint: dict[str, Any] = {
+                "host": capability.host,
+                "port": capability.port,
+                "path": capability.paths[0],
+                "protocol": capability.protocol,
+                "enforcement": "enforce",
+                "allowed_ips": list(PUBLIC_IPV4_RANGES),
+                "rules": [],
+            }
+            if capability.protocol == "graphql":
+                protocol_endpoint["rules"] = [
+                    {
+                        "allow": {
+                            "operation_type": r.operation_type,
+                            "operation_name": r.operation_name,
+                            "fields": list(r.fields),
+                        }
+                    }
+                    for r in selected
+                ]
+            else:
+                versions = {r.versions for r in selected}
+                if len(versions) != 1:
+                    unsupported.add("network.mcp_version_conflict")
+                    continue
+                protocol_endpoint["mcp"] = {
+                    "strict_tool_names": True,
+                    "allow_all_known_mcp_methods": False,
+                    "versions": list(selected[0].versions),
+                }
+                protocol_endpoint["rules"] = [
+                    {
+                        "allow": {
+                            "method": r.method,
+                            **({"params": {"name": {"any": [r.tool]}}} if r.tool else {}),
+                        }
+                    }
+                    for r in selected
+                ]
+            rules[f"ordin_action_{contract.action_digest[:12]}_{index}"] = {
+                "endpoints": [protocol_endpoint],
+                "binaries": [{"path": p} for p in executables],
+            }
+            continue
         if capability.protocol != "rest" or capability.tool_identity is not None:
             unsupported.add("network.protocol")
             continue
@@ -253,6 +331,14 @@ def compile_openshell_policy(
             "source_provenance_digest": contract.source.get("provenance_digest"),
             "resource_kinds": dict(resource_kinds or {}),
             "credential_binding_ids": [c.binding for c in contract.credentials],
+            **(
+                {
+                    "request_contract": request_contract.as_dict(),
+                    "request_contract_digest": request_contract.digest,
+                }
+                if request_contract
+                else {}
+            ),
         },
     )
     return CompilationResult("success", "openshell", "openshell_compiler_complete", plan=plan)
@@ -264,6 +350,7 @@ class OpenShellBackend:
     resource_kinds: Mapping[str, str] = field(default_factory=dict)
     credential_providers: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     mode: str = "enforce"
+    request_contract: RuntimeRequestContract | None = None
 
     @property
     def name(self) -> str:
@@ -276,6 +363,7 @@ class OpenShellBackend:
             resource_kinds=self.resource_kinds,
             credential_providers=self.credential_providers,
             mode=self.mode,
+            request_contract=self.request_contract,
         )
 
     def validate(self, plan: EnforcementPlan) -> BackendValidationResult:
@@ -291,11 +379,13 @@ class OpenShellBackend:
                 resource_kinds=self.resource_kinds,
                 credential_providers=self.credential_providers,
                 mode=self.mode,
+                request_contract=self.request_contract,
             )
             if (
                 rebuilt.status != "success"
                 or rebuilt.plan is None
                 or rebuilt.plan.policy_digest != plan.policy_digest
+                or rebuilt.plan.metadata != plan.metadata
             ):
                 fields = ("policy.contract_authority_mismatch",)
         return BackendValidationResult(

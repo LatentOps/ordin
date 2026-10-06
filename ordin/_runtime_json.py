@@ -22,19 +22,21 @@ def thaw(value: Any) -> Any:
     return value
 
 
-def freeze(value: Any, *, depth: int = 0) -> Any:
-    if depth > MAX_RUNTIME_DEPTH:
+def freeze(value: Any, *, depth: int = 0, max_depth: int = MAX_RUNTIME_DEPTH) -> Any:
+    if depth > max_depth:
         raise ValueError("runtime JSON nesting limit exceeded")
     if isinstance(value, Mapping):
         if len(value) > MAX_RUNTIME_ITEMS:
             raise ValueError("runtime JSON property limit exceeded")
         if any(not isinstance(k, str) or not k or len(k) > 128 for k in value):
             raise ValueError("runtime JSON requires bounded text keys")
-        return MappingProxyType({k: freeze(v, depth=depth + 1) for k, v in value.items()})
+        return MappingProxyType(
+            {k: freeze(v, depth=depth + 1, max_depth=max_depth) for k, v in value.items()}
+        )
     if isinstance(value, (tuple, list)):
         if len(value) > MAX_RUNTIME_ITEMS:
             raise ValueError("runtime JSON collection limit exceeded")
-        return tuple(freeze(v, depth=depth + 1) for v in value)
+        return tuple(freeze(v, depth=depth + 1, max_depth=max_depth) for v in value)
     if isinstance(value, str):
         if len(value) > MAX_RUNTIME_TEXT or any(ord(c) < 32 for c in value):
             raise ValueError("runtime JSON contains oversized text or control characters")

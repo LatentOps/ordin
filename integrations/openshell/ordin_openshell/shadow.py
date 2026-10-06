@@ -7,9 +7,18 @@ from typing import Any, Mapping, Sequence
 
 from ordin._runtime_json import digest, freeze, thaw, validate
 from ordin.enforcement_backend import EnforcementPlan
-from ordin.runtime_boundary import RuntimeCapabilityBoundary, verify_runtime_capability
+from ordin.runtime_boundary import (
+    RuntimeCapabilityBoundary,
+    CapabilityVerificationResult,
+    verify_runtime_capability,
+)
 from ordin.runtime_contract import RuntimeCapabilityContract
 from ordin.runtime_observation import RuntimeEvidenceSource, RuntimeObservation
+from ordin.runtime_requests import (
+    RuntimeRequestBoundary,
+    RequestVerificationResult,
+    verify_runtime_request_capability,
+)
 
 from .compiler import OpenShellBackend
 from .model import READ_METHODS
@@ -36,6 +45,7 @@ class ShadowCase:
     observations: tuple[RuntimeObservation, ...] = ()
     source: RuntimeEvidenceSource | None = None
     backend: OpenShellBackend = field(default_factory=lambda: OpenShellBackend(mode="shadow"))
+    request_boundary: RuntimeRequestBoundary | None = None
 
 
 @dataclass(frozen=True)
@@ -147,10 +157,23 @@ def policy_request_match(plan: EnforcementPlan, observation: RuntimeObservation)
     host, port = fields.get("host"), fields.get("port")
     if host is None or port is None:
         return "inconclusive"
+    if any(
+        endpoint["host"] == host
+        and endpoint["port"] == port
+        and endpoint["protocol"] != "rest"
+        and endpoint.get("path") == fields.get("path")
+        for rule in plan.policy["network_policies"].values()
+        for endpoint in rule["endpoints"]
+    ):
+        # HTTP metadata does not establish GraphQL operations or MCP methods/tools.
+        return "inconclusive"
     uncertain = False
     for rule in plan.policy["network_policies"].values():
         for endpoint in rule["endpoints"]:
             if endpoint["host"] != host or endpoint["port"] != port:
+                continue
+            if endpoint["protocol"] != "rest":
+                uncertain = True
                 continue
             method, path = fields.get("method"), fields.get("path")
             if method is None or path is None:
@@ -223,7 +246,17 @@ def build_shadow_report(cases: Sequence[ShadowCase]) -> ShadowReport:
         metrics["actions_reviewed"] += 1
         metrics["contracts_generated"] += 1
         compiled = case.backend.compile(contract)
-        verification = verify_runtime_capability(contract, case.boundary)
+        verification: CapabilityVerificationResult | RequestVerificationResult
+        if (
+            case.backend.request_contract is not None
+            and case.request_boundary is not None
+            and case.backend.request_contract.capability == contract
+        ):
+            verification = verify_runtime_request_capability(
+                case.backend.request_contract, case.request_boundary
+            )
+        else:
+            verification = verify_runtime_capability(contract, case.boundary)
         outcomes[verification.result] += 1
         categories: set[str] = set()
         plan = compiled.plan
@@ -317,7 +350,18 @@ def build_shadow_report(cases: Sequence[ShadowCase]) -> ShadowReport:
                 "unsupported_fields": list(compiled.unsupported_fields),
                 "boundary_result": verification.result,
                 "boundary_digest": verification.boundary_digest,
-                "boundary_coverage": thaw(verification.coverage),
+                "boundary_coverage": {
+                    d: verification.coverage[d]
+                    and (verification.coverage.get("requests", True) if d == "network" else True)
+                    for d in (
+                        "filesystem",
+                        "network",
+                        "tools",
+                        "process",
+                        "privilege",
+                        "credentials",
+                    )
+                },
                 "mismatches": sorted(categories),
                 "events": events,
             }

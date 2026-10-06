@@ -32,7 +32,7 @@ provenance. The trusted operator supplies a non-root UID/GID and any exact file
 object classifications or credential-provider references. These configuration
 facts do not come from tool arguments. No credential values are accepted.
 
-Compilation currently supports exact public IPv4 host/port REST endpoints,
+Base capability compilation supports exact public IPv4 host/port REST endpoints,
 exact HTTP method/path rules, absolute binary identities, and filesystem rights
 that match OpenShell's actual enforcement primitives. A hostname receives
 explicit public IPv4 ranges, excluding private, loopback, link-local, shared,
@@ -41,6 +41,14 @@ outside this compiler subset. Missing request semantics, private endpoints,
 wildcards, encoded paths, MCP/GraphQL/JSON-RPC/WebSocket/TCP, ambiguous objects,
 privilege escalation, and unsupported child-process restrictions produce no
 enforceable plan. Specific REST/tool capabilities never fall back to raw TCP.
+
+The additive [request contract](runtime-requests.md) supports exact GraphQL
+operation/root-field and MCP method/tool/version restrictions through
+`compile-requests`, with mandatory request-boundary checks before apply.
+These scopes are not inferred from a base v1 artifact alone. OpenShell 0.1.2's
+standalone prover still refuses these protocols; configured backend proof
+continues to fail closed. The optional [OCSF exporter](ocsf-export.md) reports
+Ordin findings without replacing its provenance/audit model.
 
 OpenShell's read-only Landlock primitive grants read and execution; read-write
 grants additional path rights including deletion. An Ordin read-only semantic

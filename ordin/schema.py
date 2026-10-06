@@ -27,6 +27,8 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "runtime_request_contract": "runtime-request-contract.v1.schema.json",
+    "runtime_request_boundary": "runtime-request-boundary.v1.schema.json",
     "runtime_shadow_report": "runtime-shadow-report.v1.schema.json",
     "capability_delta_proposal": "capability-delta-proposal.v1.schema.json",
     "runtime_capability_boundary": "runtime-capability-boundary.v1.schema.json",

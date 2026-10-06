@@ -33,7 +33,9 @@ class EnforcementPlan:
             raise ValueError("enforcement plan mode must be shadow or enforce")
         if not isinstance(self.policy, Mapping) or not isinstance(self.metadata, Mapping):
             raise ValueError("enforcement policy and metadata require objects")
-        object.__setattr__(self, "policy", freeze(self.policy))
+        # Protocol matchers add a bounded nested selector array. Capability and
+        # metadata contracts retain the original ten-level default.
+        object.__setattr__(self, "policy", freeze(self.policy, max_depth=12))
         object.__setattr__(self, "metadata", freeze(self.metadata))
         if self.mode == "enforce" and self.contract.grant_state == "diagnostic":
             raise ValueError("blocked or uncertain contracts cannot form enforceable plans")

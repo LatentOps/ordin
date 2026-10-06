@@ -130,6 +130,37 @@ SHAPES = {
     "unknown": UNKNOWN,
 }
 
+PROTOCOL_REQUEST = obj(
+    {
+        "protocol": enum("graphql", "mcp"),
+        "host": {**HOST, "type": "string"},
+        "port": {**PORT, "type": "integer"},
+        "path": text(),
+        "operation_type": {"type": ["string", "null"], "enum": ["query", "mutation", None]},
+        "operation_name": text(128, nullable=True),
+        "fields": array(text(128)),
+        "server": text(256, nullable=True),
+        "method": text(128, nullable=True),
+        "tool": text(128, nullable=True),
+        "versions": array(enum("2025-03-26", "2025-06-18", "2025-11-25"), 3),
+        "requires_argument_constraints": {"type": "boolean"},
+    }
+)
+SHAPES["protocol_request"] = PROTOCOL_REQUEST
+SCHEMAS["runtime_request_contract"] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://latentops.space/ordin/schemas/runtime-request-contract.v1.schema.json",
+    "title": "Ordin action-bound request restrictions v1",
+    **obj(
+        {
+            "schema_version": {"const": "ordin.runtime_request_contract.v1"},
+            "capability": CAPABILITY,
+            "requests": array(PROTOCOL_REQUEST),
+            "request_contract_id": text(67, pattern="^rq:[a-f0-9]{64}$"),
+        }
+    ),
+}
+
 RESOURCE = obj({"type": text(64, pattern="^[a-z][a-z0-9_.-]*$"), "value": text()})
 SOURCE_CONTEXT = obj(
     {
@@ -253,6 +284,18 @@ SCHEMAS["runtime_capability_boundary"] = {
     "$id": "https://latentops.space/ordin/schemas/runtime-capability-boundary.v1.schema.json",
     "title": "Ordin runtime capability boundary v1",
     **BOUNDARY,
+}
+SCHEMAS["runtime_request_boundary"] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://latentops.space/ordin/schemas/runtime-request-boundary.v1.schema.json",
+    "title": "Ordin request restrictions boundary v1",
+    **obj(
+        {
+            "schema_version": {"const": "ordin.runtime_request_boundary.v1"},
+            "boundary": BOUNDARY,
+            "requests": array(PROTOCOL_REQUEST),
+        }
+    ),
 }
 DELTA_VERIFICATION = obj(
     {
