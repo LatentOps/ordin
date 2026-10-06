@@ -5,9 +5,9 @@ the optional OpenShell adapter, evidence return, proposals, shadow evaluation,
 explicit apply, documentation, adversaries, performance, and packaging. A unit
 fixture is not recorded as actual kernel enforcement.
 
-The implementation source through `ae3038ae7f3bb16e5727b59abedd22564df5397c` was
+The implementation source through `8dc27db112af6347a42f8184d2a4468324f8a4c8` was
 validated from working-file snapshot
-`cccd17da40e6c36e625990218d85864a7a1db79b02c285807ad34af2a52bf1f5`.
+`9dca50a6c212f33716d3536094b221d234b07641202225b44fb76900fd0c5c67`.
 Subsequent acceptance-document edits do not change the runtime implementation.
 Core version remains `0.4.0.dev0`, with zero required runtime dependencies;
 the separately packaged integration is `0.1.0`.
@@ -69,7 +69,7 @@ python -m ordin doctor
 python -m pre_commit run --all-files --show-diff-on-failure
 ```
 
-Results: **1,084 passed, 11 skipped in 149.22 seconds**; doctor **36 schemas,
+Results: **1,086 passed, 11 skipped in 172.11 seconds**; doctor **36 schemas,
 zero errors**; all seven hooks passed (lint, format, typed boundaries, compile,
 doctor, namespace and workflow security). The 11 shell skips comprise nine
 unavailable Zsh fixtures and two ZLE cases intentionally inapplicable to Bash;
@@ -90,6 +90,9 @@ python scripts/run_runtime_enforcement_corpus.py --json-out runtime-enforcement-
 
 The six runtime assertions and all 13 corpus cases passed. Network events used
 actual runtime-owned OCSF logs and exact protected local bindings. The backend
+report records a separate backend-observed GET allowance and backend-enforced
+denial for each POST/unrelated-host probe; a generic failed connection alone
+does not satisfy the enforcement assertions. The backend
 lacks a native filesystem OCSF class; the explicit host-controlled filesystem
 probe is accurately labeled `backend_observed`, with later-review provenance.
 Its exact Python invocation is reviewed before execution and receives the
@@ -101,6 +104,47 @@ The VM's guest kernel was **6.12.76**, with pinned OpenShell CLI/gateway/driver/
 supervisor/prover **0.1.2**. The WSL host kernel **5.15.167.4** failed Docker
 startup closed for missing required Landlock rights. That failed attempt was
 not counted as positive enforcement and its hard requirements were not relaxed.
+
+## Installed distributions and release gates
+
+The [acceptance JSON](reports/runtime-enforcement-acceptance.json) records the
+exact implementation revision, source digest, distribution SHA256 values and
+actual installed-workload results. Both core and optional wheels/source
+distributions built with `python -m build --no-isolation --outdir ...`; all four
+passed `python -m twine check ...`. A fresh environment installed the core wheel
+using `python -m pip install --no-index --no-deps ...` and imported Ordin with
+neither YAML nor the integration present. The optional wheel then imported with
+YAML absent. Missing-runtime doctor returned the expected non-success exit 2;
+the installed pinned-runtime doctor returned exit 0, without sandbox mutation.
+
+The native validation root was
+`/var/tmp/ordin-validation/9dca50a6c212f33716d3536094b221d234b07641202225b44fb76900fd0c5c67`.
+With `artifact_root` set to
+`/var/tmp/ordin-runtime-artifacts/9dca50a6c212f33716d3536094b221d234b07641202225b44fb76900fd0c5c67`,
+the installed artifact gate ran:
+
+```sh
+python scripts/run_release_candidate.py \
+    --wheel-python "$artifact_root/wheel-environment/bin/python" \
+    --output "$artifact_root/candidate" \
+    --revision 8dc27db112af6347a42f8184d2a4468324f8a4c8
+python scripts/release_integrity.py create --dist "$artifact_root/core" \
+    --revision 8dc27db112af6347a42f8184d2a4468324f8a4c8 \
+    --tag runtime-validation-8dc27db112af
+python scripts/release_integrity.py verify --dist "$artifact_root/core" \
+    --revision 8dc27db112af6347a42f8184d2a4468324f8a4c8 \
+    --tag runtime-validation-8dc27db112af
+```
+
+All eight candidate workloads passed: safety 34/34, trajectories 11/11 with
+21/21 decision steps, failure regressions 9/9, extended regressions 4/4,
+conformance 37/37, integration 17 workloads with zero errors, runtime 17/17,
+and 14 quickstart checks. Integrity creation and verification passed. The
+validation tag is local report identity; nothing was published.
+
+Task-owned test sandboxes, gateways, image daemon and private containerd were
+stopped after identity checks. Fixture state and evidence were retained; the
+final process inspection found no remaining task-owned runtime services.
 
 ## Practical limits
 

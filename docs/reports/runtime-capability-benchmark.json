@@ -15,21 +15,21 @@
   "latency": {
     "review_only": {
       "samples": 120,
-      "median_ms": 27.591359,
-      "p95_ms": 40.81876494999999,
-      "p99_ms": 47.351925
+      "median_ms": 26.7591245,
+      "p95_ms": 39.173552650000005,
+      "p99_ms": 51.831082380000005
     },
     "review_and_contract": {
       "samples": 120,
-      "median_ms": 28.685195,
-      "p95_ms": 41.31968255,
-      "p99_ms": 66.00852544000001
+      "median_ms": 28.6996435,
+      "p95_ms": 42.2886477,
+      "p99_ms": 50.06135466000001
     },
     "boundary_verification": {
       "samples": 120,
-      "median_ms": 0.2734005,
-      "p95_ms": 0.54593595,
-      "p99_ms": 0.5982190000000002
+      "median_ms": 0.26175000000000004,
+      "p95_ms": 0.5541283999999999,
+      "p99_ms": 3.0398896200000056
     }
   },
   "boundary_outcomes": {
@@ -39,6 +39,6 @@
     "inconclusive": 0
   },
   "scope": "Local review/declared context, contract derivation and intended-boundary checking. No action execution, network requests, or backend enforcement included.",
-  "source_digest": "cccd17da40e6c36e625990218d85864a7a1db79b02c285807ad34af2a52bf1f5",
-  "source_revision": "ae3038ae7f3bb16e5727b59abedd22564df5397c"
+  "source_digest": "9dca50a6c212f33716d3536094b221d234b07641202225b44fb76900fd0c5c67",
+  "source_revision": "8dc27db112af6347a42f8184d2a4468324f8a4c8"
 }
