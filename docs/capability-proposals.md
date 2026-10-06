@@ -13,6 +13,14 @@ Strong denial/source files must be explicit private host-owned evidence;
 ordinary agent JSON cannot self-declare backend enforcement. The original
 review's decision and uncertainty remain authoritative.
 
+The optional `propose_openshell_delta` helper in `ordin_openshell.deltas` retains
+the narrow core delta while constructing a whole backend candidate with the
+reviewed startup requirements. It checks the candidate capability boundary,
+compilation/validation, and configured standalone-prover result/input digests.
+Every verification step and its coverage is retained. Unsupported, inconclusive,
+exceeding, or mismatched proof results reject the candidate. Successful proof
+still returns `requires_approval`; this helper never approves, applies, or retries.
+
 `propose_capability_delta(review, contract, denial, boundary, backend=...)`
 returns an immutable `CapabilityDeltaProposal` (`ordin.capability_delta_proposal.v1`).
 It never approves a change, applies policy, executes an action, or retries it.
