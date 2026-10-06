@@ -1,0 +1,24 @@
+{
+  "class_uid": 4002,
+  "category_uid": 4,
+  "activity_id": 99,
+  "type_uid": 400299,
+  "time": 1500,
+  "action_id": 2,
+  "action": "Denied",
+  "disposition_id": 2,
+  "disposition": "Blocked",
+  "metadata": {
+    "version": "1.8.0",
+    "uid": "synthetic-http-denial-1",
+    "product": {"name": "OpenShell Sandbox Supervisor", "vendor_name": "OpenShell", "version": "0.1.2"}
+  },
+  "container": {"uid": "sandbox-abc123", "name": "fixture"},
+  "http_request": {
+    "http_method": "POST",
+    "url": {"scheme": "http", "hostname": "api.github.com", "path": "/repos/LatentOps/ordin/issues/37", "port": 443}
+  },
+  "dst_endpoint": {"domain": "api.github.com", "port": 443},
+  "actor": {"process": {"name": "/usr/bin/curl", "pid": 88}},
+  "firewall_rule": {"name": "rest_api", "type": "l7"}
+}
