@@ -20,6 +20,10 @@ The actual probes established:
 - The host-controlled filesystem probe entered a separate session as
   `backend_observed`. The pinned backend lacks a native filesystem OCSF class;
   this does not claim one or label the host probe cryptographic attestation.
+  The read-only `cat` baseline and negative Python probe are distinct reviewed
+  invocations; the denial binds the exact executed Python argv and its original
+  contract. Python code semantics remain explicitly unknown. The controlled
+  fixture does not convert that diagnostic contract into a grant.
 - Effective policy, loaded revision, and workload admission agreed; canonical
   policy digest matched the compiled contract without added authority.
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import subprocess
 import sys
 import time
@@ -61,6 +62,18 @@ def validate_demo_fixtures(policy, filesystem_policy):
         for p in filesystem_policy["read_write"]
     ):
         raise ValueError("demo_requires_read_only_filesystem_fixture")
+
+
+def probe_identity(metadata):
+    if metadata.get("host") == "example.com" and metadata.get("port") == 443:
+        return "unrelated_host"
+    if (
+        metadata.get("host") != "api.github.com"
+        or metadata.get("port") != 443
+        or metadata.get("path") != "/repos/LatentOps/ordin/issues/37"
+    ):
+        return None
+    return {"GET": "get", "POST": "post"}.get(metadata.get("method"))
 
 
 def run(args):
@@ -134,8 +147,6 @@ def run(args):
     ]
     observed_before = int(time.time() * 1000)
     for name, program in actions:
-        import shlex
-
         action = ActionEnvelope.shell(shlex.join(program), action_id="demo-" + name)
         decision = session.evaluate(action)
         assert action.action_id is not None
@@ -197,6 +208,42 @@ except PermissionError:
  r['protected_write_denied']=True
 print(json.dumps(r))
 """
+    fs_session = IntegrationSession(
+        SessionIdentity("openshell-demo", args.filesystem_sandbox), AgentGate(Ordin())
+    )
+    fs_source = RuntimeEvidenceSource(
+        "openshell",
+        fs_session.runtime_session_digest,
+        fs_snapshot.sandbox_id,
+        fs_snapshot.policy_digest,
+    )
+    fs_session.bind_runtime_source(fs_source)
+    read_program = ["/usr/bin/cat", "/readonly/input.txt"]
+    fs_session.evaluate(ActionEnvelope.shell(shlex.join(read_program), action_id="fs-read"))
+    fs_read = subprocess.run(
+        prefix
+        + [
+            "sandbox",
+            "exec",
+            "--name",
+            args.filesystem_sandbox,
+            "--no-tty",
+            "--no-login-shell",
+            "--timeout",
+            "30",
+            "--",
+            *read_program,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=40,
+        stdin=subprocess.DEVNULL,
+    )
+    probe_program = ["/usr/bin/python3", "-c", fs_code]
+    fs_session.evaluate(
+        ActionEnvelope.shell(shlex.join(probe_program), action_id="fs-negative-probe")
+    )
+    probe_contract = fs_session.runtime_contract("fs-negative-probe")
     response = subprocess.run(
         prefix
         + [
@@ -209,9 +256,7 @@ print(json.dumps(r))
             "--timeout",
             "30",
             "--",
-            "/usr/bin/python3",
-            "-c",
-            fs_code,
+            *probe_program,
         ],
         capture_output=True,
         text=True,
@@ -220,32 +265,22 @@ print(json.dumps(r))
     )
     fs = json.loads(response.stdout) if response.returncode == 0 else {}
     fs_passed = (
-        fs.get("euid") == fs.get("file_uid") == 1000
+        fs_read.returncode == 0
+        and bool(fs_read.stdout)
+        and fs.get("euid") == fs.get("file_uid") == 1000
         and fs.get("mode", 0) & 0o222 != 0
         and fs.get("read_succeeded")
         and fs.get("write_control_succeeded")
         and fs.get("protected_write_denied")
     )
     records.append({"name": "filesystem_positive_controls", "passed": bool(fs_passed), **fs})
-    fs_session = IntegrationSession(
-        SessionIdentity("openshell-demo", args.filesystem_sandbox), AgentGate(Ordin())
-    )
-    fs_source = RuntimeEvidenceSource(
-        "openshell",
-        fs_session.runtime_session_digest,
-        fs_snapshot.sandbox_id,
-        fs_snapshot.policy_digest,
-    )
-    fs_session.bind_runtime_source(fs_source)
-    fs_action = ActionEnvelope.shell("/usr/bin/cat /readonly/input.txt", action_id="fs-read")
-    fs_session.evaluate(fs_action)
     if fs_passed:
         # This reports a trusted host-controlled probe result, not a native
         # filesystem OCSF enforcement event (absent in the pinned backend).
         from ordin import ObservedResource
 
         observation = fs_source.observe(
-            fs_session.runtime_contract("fs-read"),
+            probe_contract,
             observation_id="host-fs-probe",
             trust="backend_observed",
             enforcement_point="filesystem",
@@ -266,6 +301,9 @@ print(json.dumps(r))
                     for r in later.review.provenance.records
                 ),
                 "trust": "backend_observed",
+                "action_digest": probe_contract.action_digest,
+                "contract_id": probe_contract.contract_id,
+                "read_contract_id": fs_session.runtime_contract("fs-read").contract_id,
             }
         )
     # Collect only exact sandbox events from an explicitly supplied trusted log.
@@ -285,24 +323,15 @@ print(json.dumps(r))
                     continue
     correlation = CorrelationStore(args.correlation_db)
     attached = 0
+    correlated: dict[str, list[dict[str, str]]] = {name: [] for name, _ in actions}
     for event in network_events:
-        method = event.get("http_request", {}).get("http_method")
-        host = event.get("dst_endpoint", {}).get("domain")
-        matched_name = (
-            "get"
-            if method == "GET"
-            else "post"
-            if method == "POST"
-            else "unrelated_host"
-            if host == "example.com"
-            else None
-        )
-        if matched_name is None:
-            continue
         try:
             parsed = parse_openshell_event(event)
         except ValueError:
             continue  # Explicitly unsupported DNS/no-port events remain outside action history.
+        matched_name = probe_identity(parsed.metadata)
+        if matched_name is None:
+            continue
         contract = session.runtime_contract("demo-" + matched_name)
         assert contract.action_id is not None
         # Attribution is established by the host's exclusive test workload and
@@ -329,16 +358,27 @@ print(json.dumps(r))
         if result.observation is not None:
             session.observe_runtime(result.observation)
             attached += 1
+            correlated[matched_name].append(
+                {"outcome": result.observation.outcome, "trust": result.observation.trust}
+            )
     later = session.evaluate(ActionEnvelope.shell("git status --short", action_id="after-probes"))
     assert isinstance(later.review, ActionReview) and later.review.provenance is not None
     records.append(
         {
             "name": "network_evidence_return",
-            "passed": attached >= 2
+            "passed": any(e["outcome"] == "allowed" for e in correlated["get"])
+            and all(
+                any(
+                    e["outcome"] == "denied" and e["trust"] == "backend_enforced"
+                    for e in correlated[name]
+                )
+                for name in ("post", "unrelated_host")
+            )
             and any(
                 r.code == "runtime.observation.accepted" for r in later.review.provenance.records
             ),
             "events_attached": attached,
+            "correlated_outcomes": correlated,
         }
     )
     return {
