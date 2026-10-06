@@ -41,6 +41,7 @@ orun 'git status --short'
 - [Optional OpenShell compiler, prover, events, and shadow evaluation](openshell-integration.md)
 - [Runtime capability benchmark and recorded workload](runtime-capability-benchmark.md)
 - [Actual OpenShell runtime demo and evidence](openshell-runtime-demo.md)
+- [Runtime enforcement requirement and invariant audit](runtime-enforcement-acceptance.md)
 - [Runtime enforcement adversarial corpus](runtime-enforcement-corpus.md)
 - [Runtime machine reason codes](runtime-reason-codes.md)
 - [Decision provenance and local audit evidence](audit-and-provenance.md)

@@ -1,0 +1,180 @@
+{
+  "schema_version": "ordin.runtime_enforcement_acceptance.v1",
+  "source_revision": "ae3038ae7f3bb16e5727b59abedd22564df5397c",
+  "source_digest": "cccd17da40e6c36e625990218d85864a7a1db79b02c285807ad34af2a52bf1f5",
+  "environment": {
+    "python": "3.12.3",
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39"
+  },
+  "core_version": "0.4.0.dev0",
+  "integration_version": "0.1.0",
+  "required_core_dependencies": [],
+  "pytest": {
+    "command": "python -m pytest -q",
+    "passed": 1084,
+    "skipped": 11,
+    "seconds": 149.22,
+    "skip_reasons": {
+      "zsh_unavailable": 9,
+      "zle_not_applicable_to_bash": 2
+    }
+  },
+  "doctor": {
+    "command": "python -m ordin doctor",
+    "schemas": 36,
+    "errors": 0,
+    "passed": true
+  },
+  "pre_commit": {
+    "command": "python -m pre_commit run --all-files --show-diff-on-failure",
+    "hooks": 7,
+    "passed": true
+  },
+  "runtime_corpus": {
+    "cases": 13,
+    "passed": 13,
+    "failed": 0
+  },
+  "runtime_demo": {
+    "assertions": 6,
+    "passed": 6,
+    "guest_kernel": "6.12.76",
+    "runtime_version": "0.1.2"
+  },
+  "runtime_apply": {
+    "unapproved": "requires_approval",
+    "approved": "applied",
+    "authority_unchanged": true,
+    "audit_receipts": 2
+  },
+  "packaging": {
+    "core_wheel_and_sdist": true,
+    "optional_wheel_and_sdist": true,
+    "twine": true,
+    "core_import_without_optional_packages": true,
+    "optional_import_without_yaml": true,
+    "missing_runtime_doctor_expected_exit": 2,
+    "pinned_runtime_doctor_exit": 0,
+    "release_integrity_create_and_verify": true,
+    "published": false,
+    "artifacts_sha256": {
+      "ordin-0.4.0.dev0-py3-none-any.whl": "f2c7a0f558da468039d214dc2a0c374f44a73ba49b3c8e2e1d597395e1cf4fdb",
+      "ordin_openshell-0.1.0-py3-none-any.whl": "5cc7589bd2ed2773330b8721beb2302c355ce75bc766f35b12177421c96f89e3",
+      "ordin-0.4.0.dev0.tar.gz": "ec00e73c8c803c9f30bc1b938e94a06094487bbe50880ab10e4ee4935dff01bc",
+      "ordin_openshell-0.1.0.tar.gz": "8bd288833e8a1da57b4d02ebc54f2e4f9d185b3854009cffb3fb0aff9800ef28"
+    }
+  },
+  "installed_candidate": {
+    "passed": true,
+    "steps": [
+      {
+        "elapsed_seconds": 2.772,
+        "exit_code": 0,
+        "name": "safety"
+      },
+      {
+        "elapsed_seconds": 1.368,
+        "exit_code": 0,
+        "name": "trajectories"
+      },
+      {
+        "elapsed_seconds": 1.068,
+        "exit_code": 0,
+        "name": "failure_regressions"
+      },
+      {
+        "elapsed_seconds": 0.365,
+        "exit_code": 0,
+        "name": "extended_regressions"
+      },
+      {
+        "elapsed_seconds": 0.766,
+        "exit_code": 0,
+        "name": "conformance"
+      },
+      {
+        "elapsed_seconds": 22.624,
+        "exit_code": 0,
+        "name": "integration"
+      },
+      {
+        "elapsed_seconds": 42.027,
+        "exit_code": 0,
+        "name": "runtime"
+      },
+      {
+        "elapsed_seconds": 34.204,
+        "exit_code": 0,
+        "name": "quickstarts"
+      }
+    ],
+    "safety": {
+      "cases": 34,
+      "matches": 34,
+      "critical_misses": 0
+    },
+    "trajectories": {
+      "trajectories": 11,
+      "matches": 11,
+      "steps": 21
+    },
+    "failure_regressions": {
+      "cases": 9,
+      "matches": 9
+    },
+    "extended_regressions": {
+      "cases": 4,
+      "passed": 4
+    },
+    "conformance": {
+      "checks": 37,
+      "passed": 37
+    },
+    "integration": {
+      "workloads": 17,
+      "errors": 0,
+      "failure_regression_errors": 0
+    },
+    "runtime": {
+      "passed": 17,
+      "failures": 0
+    },
+    "quickstarts": {
+      "checks": 14,
+      "passed": true
+    }
+  },
+  "cleanup": {
+    "task_owned_only": true,
+    "fixture_state_retained": true,
+    "records": [
+      {
+        "target": "ordin-vm-get-e2e",
+        "operation": "stop",
+        "returncode": 0
+      },
+      {
+        "target": "ordin-vm-fs-e2e",
+        "operation": "stop",
+        "returncode": 0
+      },
+      {
+        "target": "openshell-gateway",
+        "pid": 5621,
+        "stopped": true
+      },
+      {
+        "target": "openshell-gateway",
+        "pid": 3979,
+        "stopped": true
+      },
+      {
+        "target": "dockerd",
+        "pid": 267,
+        "stopped": true
+      }
+    ],
+    "passed": true
+  },
+  "limits": "Finite local acceptance on Python3.12.3/Linux plus VM guest. Not remote attestation or the GitHub multi-platform release CI matrix."
+}

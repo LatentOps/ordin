@@ -21,9 +21,9 @@ unknown semantics as successful verification (90 within, 30 unsupported).
 
 | Stage | Median ms | p95 ms | p99 ms |
 | --- | ---: | ---: | ---: |
-| Review with declared context | 15.972 | 23.268 | 33.427 |
-| Review with context + contract | 17.158 | 29.733 | 36.745 |
-| Intended-boundary verification | 0.169 | 0.330 | 0.569 |
+| Review with declared context | 27.591 | 40.819 | 47.352 |
+| Review with context + contract | 28.685 | 41.320 | 66.009 |
+| Intended-boundary verification | 0.273 | 0.546 | 0.598 |
 
 Measured with Python 3.12.3 on native Linux storage under WSL2 kernel
 5.15.167.4, glibc 2.39, using a native Linux PATH. The JSON records the exact

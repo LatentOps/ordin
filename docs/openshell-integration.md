@@ -234,6 +234,8 @@ Ingest still requires the protected exact event/action binding.
 Doctor checks CLI/prover versions, compiler schema using a read-only prover
 self-check when available, and optional YAML availability. It records tested
 runtime/schema/prover/package versions without sandbox mutation. Missing or
-incompatible installations do not affect core imports or pure APIs. Actual
-runtime end-to-end demonstrations and remaining plan deliverables require
-separate verification; unit response fixtures do not establish kernel controls.
+incompatible installations do not affect core imports or pure APIs. The
+[actual runtime demo](openshell-runtime-demo.md) and
+[requirement/invariant audit](runtime-enforcement-acceptance.md) distinguish
+verified VM enforcement from unit response fixtures and document the remaining
+unsupported classes. Unit response fixtures do not establish kernel controls.
