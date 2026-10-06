@@ -1,5 +1,6 @@
 {
   "schema_version": "ordin.runtime_enforcement_acceptance.v1",
+  "evidence_status": "historical pre-#199 validation; not current HEAD",
   "source_revision": "8dc27db112af6347a42f8184d2a4468324f8a4c8",
   "source_digest": "9dca50a6c212f33716d3536094b221d234b07641202225b44fb76900fd0c5c67",
   "environment": {

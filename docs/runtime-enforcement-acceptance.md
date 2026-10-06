@@ -5,10 +5,12 @@ the optional OpenShell adapter, evidence return, proposals, shadow evaluation,
 explicit apply, documentation, adversaries, performance, and packaging. A unit
 fixture is not recorded as actual kernel enforcement.
 
-The implementation source through `8dc27db112af6347a42f8184d2a4468324f8a4c8` was
-validated from working-file snapshot
+The original pre-`#199` gate below is historical evidence for implementation
+source `8dc27db112af6347a42f8184d2a4468324f8a4c8`, validated from working-file snapshot
 `9dca50a6c212f33716d3536094b221d234b07641202225b44fb76900fd0c5c67`.
-Subsequent acceptance-document edits do not change the runtime implementation.
+It does not establish current-HEAD validation. The [acceptance JSON](reports/runtime-enforcement-acceptance.json)
+records the source revision of its results; regenerate the report pair after
+the final source commit to bind current validation to that exact HEAD.
 Core version remains `0.4.0.dev0`, with zero required runtime dependencies;
 the separately packaged integration is `0.1.0`.
 
@@ -26,15 +28,15 @@ the separately packaged integration is `0.1.0`.
 | 7: structured ingestion (34–36) | [OCSF parser](../integrations/openshell/ordin_openshell/observations.py), [private correlation store](../integrations/openshell/ordin_openshell/correlation.py), [event tests](../integrations/openshell/tests/test_observations.py), [storage tests](../integrations/openshell/tests/test_correlation.py). Exact event/action/contract/session/sandbox/policy binding, bounded SQLite transactions, expiry, duplicate consumption and POSIX mode checks. Uncorrelated events retain a typed backend result and stay outside trajectories. |
 | 8: shadow rollout (37–40) | [Pure shadow evaluation](../integrations/openshell/ordin_openshell/shadow.py), versioned root/package report schema and [tests](../integrations/openshell/tests/test_shadow.py). Required local metrics/mismatch codes, incomplete identity/coverage, no mutation, and [manual promotion gates](openshell-integration.md#shadow-evaluation-and-promotion). Shadow does not switch itself to enforce. |
 | 9: credential scope (41–42) | Opaque contract bindings, independent core boundary checks, exact trusted provider/host/port/method/path configuration, approval requirements and privacy adversaries. Missing credential proof coverage refuses prover-verified application. Runtime/provider ownership of secret values is explicit. |
-| 10: OCSF (43–45) | Structured OCSF 1.8.0 ingest retains source version and event digests alongside unchanged Ordin audit. Header/body/query/command fields are omitted. A separate exporter is optional in the plan and was not added; native ingest and Ordin provenance already provide the required interoperability and explanation layers. |
-| 11: CLI (46–47) | [Core read-only commands](../ordin/runtime_cli.py): derive/validate/verify/propose and observation validation. [Optional CLI](../integrations/openshell/ordin_openshell/cli.py): compile/compile-contract/validate/prove/ingest-event/shadow-report/doctor/apply. [Core](../tests/test_runtime_cli.py) and [optional](../integrations/openshell/tests/test_openshell_cli.py) tests cover JSON/error conventions, privacy, protected inputs and separate explicit management. |
+| 10: OCSF (43–45) | Structured OCSF 1.8.0 ingest retains source version and event digests alongside unchanged Ordin audit. The optional [OCSF 1.8 Detection Finding exporter](ocsf-export.md) uses explicit bounded timestamps, fixed categories, and digest identities. It omits raw commands, arguments, credentials, and payloads, rejects malformed correlation artifacts, and cannot authorize runtime evidence. |
+| 11: CLI (46–47) | [Core read-only commands](../ordin/runtime_cli.py): derive/validate/verify/propose and observation validation. [Optional CLI](../integrations/openshell/ordin_openshell/cli.py) additionally provides derive-requests/compile-requests/verify-requests/export-ocsf beside compile/compile-contract/validate/prove/ingest-event/shadow-report/doctor/apply. CLI tests cover JSON/error conventions, privacy, protected inputs and separate explicit management. |
 | 12: audit/provenance (48–49) | Digest-linked contract/plan/verification/evidence identifiers, default redaction and bounded hash chains. [Apply receipts](../integrations/openshell/ordin_openshell/apply_audit.py) link the original unchanged review. [Actual apply report](reports/openshell-runtime-apply.json) verifies two receipts, named loaded revision/admission, and no workload action executed by apply. |
 | 13: threat model (50) | [Threat model](threat-model.md) addresses compiler widening, evidence spoofing, stale contracts/TOCTOU, effective policy drift, runtime compromise, credential confusion, cross-session contamination, local storage ownership and non-atomic management. No remote-attestation claim. |
 | 14: all test categories (51) | Pure core, compiler golden/negative, installed real prover, structured event/correlation, regression/security and package checks. [Actual VM demo](openshell-runtime-demo.md) establishes exact GET success, POST denial, unrelated-host denial, read-only filesystem positive/negative controls, and evidence returned to later reviews. |
 | 15: adversarial corpus (52) | [13 versioned cases](../benchmarks/runtime_enforcement.json), [evaluator](../integrations/openshell/ordin_openshell/corpus.py), [report](reports/runtime-enforcement-corpus.json). Every named scenario checks a decision/non-success state and specific evidence; no implementation rule is tuned to an ID. |
 | 16: documentation (53–54) | Required capability/evidence/boundary/backend/proposal/OpenShell docs, architecture, threat model, audit, README and docs index updated. Real runtime evidence is linked separately from unit fixtures. |
 | 17: compatibility (55) | Ten additive root exports; all old names and v1 contracts remain. [Frozen-inventory tests](../tests/test_contract_audit.py) preserve the original manifest and explicitly enumerate only additive exports. Runtime deployment profile is an optional final configuration field. |
-| 18: files/schemas/package (56–58) | New core modules and separate integration package follow the planned boundary. Seven additive schemas have root/package parity: capability, observation, observation history, runtime session, boundary, delta proposal and shadow report. Doctor checks 36 total schemas. |
+| 18: files/schemas/package (56–58) | New core modules and separate integration package follow the planned boundary. Nine additive schemas have root/package parity: capability, observation, observation history, runtime session, boundary, delta proposal, shadow report, runtime request contract and runtime request boundary. Current doctor checks 38 total schemas. |
 | 19: release-blocking invariants (59) | Explicit invariant mapping below; exercised by the full passing suite and actual readback/apply controls. |
 | 20: examples (60–62) | [Reproducible non-secret fixtures](../examples/runtime-enforcement/prepare.py) and caller-owned [demo](../scripts/run_openshell_runtime_demo.py). Literal `gh issue view` uses GraphQL and cannot truthfully derive the plan's assumed REST GET; it stays unsupported. The same issue-inspection intent is implemented using an exact public REST request. Modeled versus unmodeled denial paths are tested independently. |
 | 21: performance (63) | [Benchmark](runtime-capability-benchmark.md) measures review/context, review plus derivation and boundary verification, with 120 samples per stage and percentiles. Core derivation is deterministic, bounded and free of subprocess/filesystem/DNS/network calls. No backend execution-latency claim. |
@@ -55,11 +57,11 @@ the separately packaged integration is `0.1.0`.
 | E: no credential values | Contract/observation URL and metadata rejection, compiler operator-secret adversaries, redacted audit, proposals and shadow reports. Runtime-owned credentials never enter Ordin artifacts. |
 | F: action digest mismatch rejects evidence | Core correlation, integration event binding, cross-session/reset, mismatch corpus and persistent-storage tests. |
 | G: REST never becomes raw TCP | Core protocol comparison and compiler parameterized negative tests; exact REST rules in the real VM policy. |
-| H: unknown tool names cannot grant | Exact registered semantics and identity tests; unknown generic tools and unsupported MCP/GraphQL cannot compile. |
+| H: unknown tool names cannot grant | Exact registered semantics and identity tests; unknown generic tools and unmodeled request constraints cannot compile. Scoped MCP needs a protected logical-server/endpoint binding and an exact supported tool/method/version. |
 | I: evidence cannot erase predicted danger | Additive observation normalization and denied-secret/legacy evidence tests preserve predicted effects and strengthen later trajectories. |
 | J: runtime cannot weaken caller policy | Existing ask/block preservation tests, original-review guards, no policy override in derivation, apply or provenance. |
 
-## Actual verification commands
+## Historical pre-`#199` verification commands
 
 On Python 3.12.3, native WSL Linux, from the checksum-verified source snapshot:
 
@@ -105,11 +107,11 @@ supervisor/prover **0.1.2**. The WSL host kernel **5.15.167.4** failed Docker
 startup closed for missing required Landlock rights. That failed attempt was
 not counted as positive enforcement and its hard requirements were not relaxed.
 
-## Installed distributions and release gates
+## Historical installed distributions and release gates
 
-The [acceptance JSON](reports/runtime-enforcement-acceptance.json) records the
-exact implementation revision, source digest, distribution SHA256 values and
-actual installed-workload results. Both core and optional wheels/source
+The original gate recorded the implementation revision, source digest,
+distribution SHA256 values and actual installed-workload results for the
+historical source above. These are not current-HEAD packaging results. Both core and optional wheels/source
 distributions built with `python -m build --no-isolation --outdir ...`; all four
 passed `python -m twine check ...`. A fresh environment installed the core wheel
 using `python -m pip install --no-index --no-deps ...` and imported Ordin with
@@ -148,13 +150,23 @@ final process inspection found no remaining task-owned runtime services.
 
 ## Practical limits
 
-The compiler intentionally supports a conservative subset: exact public IPv4
-REST destinations, unambiguous method/path rules, exact binaries, explicit
-non-root identities and representable filesystem rights. Tool/MCP/GraphQL,
-arbitrary TCP, ambiguous/encoded paths, private destinations, wildcard expansion,
-missing identity and unknown semantics return non-success. Provider references
-are separate from credentials, and missing prover credential coverage refuses
-configured verification.
+The compiler supports exact public IPv4 REST method/path rules, exact binaries,
+explicit non-root identities and representable filesystem rights. A separate
+action-bound [request contract and boundary](runtime-requests.md) supports named
+flat GraphQL query/mutation operations with exact root fields and scoped MCP
+endpoint/logical-server/method/tool/version permissions. Per-protocol verification
+preserves REST, GraphQL and MCP authority independently; raw HTTP cannot borrow
+high-level permissions after transport projection. Opaque boundary identities
+remain unsupported.
+
+GraphQL variables, arguments, aliases, directives, fragments, nested selections,
+subscriptions and batches remain unmodeled. Nonempty MCP arguments requiring
+finer authorization are unsupported, as are wildcard tools/servers, arbitrary
+TCP, unmodeled protocols, ambiguous/encoded paths, private destinations, wildcard
+authority, missing identities and unknown semantics. The pinned standalone
+OpenShell 0.1.2 prover covers TCP/REST, not GraphQL/MCP; configured proof refuses
+unmodeled protocol coverage. Provider references stay separate from credential
+values, and missing credential proof coverage refuses configured verification.
 
 The adapter/runtime and protected host inputs remain trust roots. Hash chains
 do not resist a fully compromised owner; read-before/read-after management is
