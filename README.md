@@ -247,6 +247,9 @@ explains action and context selectors; [temporal policies](docs/temporal-policie
 cover patterns across multiple actions.
 
 Reviews expose structured provenance and advisory execution-capability profiles.
+Ordin can also derive a [versioned runtime capability contract](docs/runtime-capabilities.md).
+The [optional OpenShell integration](docs/openshell-integration.md) compiles supported
+contracts without widening authority and returns correlated runtime evidence.
 Local audit persistence is optional and disabled by default. Read
 [audit and provenance](docs/audit-and-provenance.md) and
 [execution observations](docs/execution-evidence.md) for the evidence contracts

@@ -78,8 +78,30 @@ from .tool_calls import (
 from .trace import ActionTrace, TraceAction
 from .mcp_contracts import MCPContractCheck, MCPContractLock, tool_contract_digest
 from .session import SESSION_SCHEMA_VERSION, IntegrationSession, SessionIdentity, SqliteSessionStore
+from .runtime_contract import RuntimeCapabilityContract, derive_runtime_capability_contract
+from .runtime_observation import (
+    RuntimeObservation,
+    RuntimeObservationHistory,
+    RuntimeEvidenceSource,
+)
+from .runtime_boundary import (
+    RuntimeCapabilityBoundary,
+    CapabilityVerificationResult,
+    verify_runtime_capability,
+)
+from .capability_delta import CapabilityDeltaProposal, propose_capability_delta
 
 __all__ = [
+    "RuntimeCapabilityContract",
+    "derive_runtime_capability_contract",
+    "RuntimeObservation",
+    "RuntimeObservationHistory",
+    "RuntimeEvidenceSource",
+    "RuntimeCapabilityBoundary",
+    "CapabilityVerificationResult",
+    "verify_runtime_capability",
+    "CapabilityDeltaProposal",
+    "propose_capability_delta",
     "MCPContractCheck",
     "MCPContractLock",
     "tool_contract_digest",

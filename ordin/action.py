@@ -19,7 +19,7 @@ from .execution import (
     derive_capabilities,
 )
 from .graph import EffectEvidence
-from .policy import Decision, DecisionResultMixin, stronger_decision
+from .policy import Decision, DecisionResultMixin, ENFORCEMENT_ORDER, stronger_decision
 from .provenance import DecisionProvenance, ProvenanceRecord, ProvenanceResource
 from .review import review_command
 from .risk import RiskReview, check_command, decision_for_risk, max_risk
@@ -27,6 +27,7 @@ from .semantics import semantic_evidence_for_command
 
 if TYPE_CHECKING:
     from .tool_calls import CompiledToolSemanticsRegistry, ToolSemanticsRegistry
+    from .runtime_observation import RuntimeObservation, RuntimeObservationHistory
 
 from .temporal import (
     CompiledTemporalPolicySet,
@@ -589,6 +590,7 @@ def _temporal_evidence_for_action(
     review: ActionReview | None = None,
     *,
     observation: ActionObservation | None = None,
+    runtime_observations: "tuple[RuntimeObservation, ...]" = (),
     tool_semantics: "ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None" = None,
 ) -> TemporalActionEvidence:
     if action.kind == "shell" and action.operation == "execute":
@@ -617,6 +619,12 @@ def _temporal_evidence_for_action(
                 if observation.exit_code == 0
                 else "signal:observed-failure"
             )
+
+    if runtime_observations:
+        from .runtime_observation import runtime_observation_signals
+
+        for item in runtime_observations:
+            signals.update(runtime_observation_signals(item))
 
     return TemporalActionEvidence(
         kind=action.kind,
@@ -710,6 +718,7 @@ def review_action(
     *,
     history: ActionHistory | None = None,
     observations: ObservationHistory | None = None,
+    runtime_observations: "RuntimeObservationHistory | None" = None,
     temporal_policy: TemporalPolicySet | CompiledTemporalPolicySet | None = None,
     tool_semantics: "ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None" = None,
 ) -> ActionReview:
@@ -717,7 +726,14 @@ def review_action(
 
     base = _review_action_base(action, tool_semantics=tool_semantics)
     observation_map = _observations_for_history(history, observations)
+    runtime_map = (
+        runtime_observations.correlate(history) if runtime_observations is not None else {}
+    )
     base = _with_observation_provenance(base, history, observation_map)
+    if runtime_map:
+        from .runtime_reasoning import with_runtime_provenance
+
+        base = with_runtime_provenance(base, history, runtime_map)
     if history is None or not history.actions:
         return base
 
@@ -734,6 +750,7 @@ def review_action(
         _temporal_evidence_for_action(
             item,
             observation=observation_map.get(item.action_id) if item.action_id else None,
+            runtime_observations=runtime_map.get(item.action_id, ()) if item.action_id else (),
             tool_semantics=tool_semantics,
         )
         for item in history.actions
@@ -743,6 +760,12 @@ def review_action(
         review=base,
         tool_semantics=tool_semantics,
     )
+    if runtime_map:
+        from .runtime_reasoning import current_runtime_signals
+
+        current = replace(
+            current, signals=current.signals | current_runtime_signals(base, runtime_map)
+        )
     evaluation = compiled.evaluate(prior, current)
     provenance = base.provenance or _base_provenance(base)
     temporal_metadata = {
@@ -770,7 +793,12 @@ def review_action(
     prior_risk = review_risk
     if evaluation.risk is not None:
         review_risk = max_risk(review_risk, evaluation.risk)
-        decision = stronger_decision(decision, decision_for_risk(evaluation.risk))
+        candidate = decision_for_risk(evaluation.risk)
+        decision = (
+            max((decision, candidate), key=ENFORCEMENT_ORDER.__getitem__)
+            if runtime_map
+            else stronger_decision(decision, candidate)
+        )
     for match in evaluation.matches:
         if match.reason not in reasons:
             reasons.append(match.reason)

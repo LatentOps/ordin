@@ -39,6 +39,26 @@ def _operands(args: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(result)
 
 
+@register("cat")
+def analyze_cat(invocation: Invocation) -> SemanticAnalysis:
+    targets = _operands(invocation.args)
+    findings = tuple(
+        evidence("filesystem.read", "cat input file", path_resource(invocation, target))
+        for target in targets
+        if target != "-"
+    )
+    if not findings:
+        findings = (evidence("filesystem.read", "cat input stream"),)
+    return SemanticAnalysis(
+        command="cat",
+        subcommand=None,
+        flags=tuple(t for t in invocation.args if t.startswith("-")),
+        targets=targets,
+        evidence=unique_evidence(findings),
+        analyzer="cat",
+    )
+
+
 @register("rm")
 def analyze_rm(invocation: Invocation) -> SemanticAnalysis:
     flags = tuple(token for token in invocation.args if token.startswith("-"))

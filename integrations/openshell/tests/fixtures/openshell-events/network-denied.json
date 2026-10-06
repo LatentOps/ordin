@@ -1,0 +1,20 @@
+{
+  "class_uid": 4001,
+  "category_uid": 4,
+  "activity_id": 1,
+  "type_uid": 400101,
+  "time": 1500,
+  "action_id": 2,
+  "action": "Denied",
+  "disposition_id": 2,
+  "disposition": "Blocked",
+  "metadata": {
+    "version": "1.8.0",
+    "uid": "synthetic-connect-denial-1",
+    "product": {"name": "OpenShell Sandbox Supervisor", "vendor_name": "OpenShell", "version": "0.1.2"}
+  },
+  "container": {"uid": "sandbox-abc123", "name": "fixture"},
+  "dst_endpoint": {"domain": "uploads.example.com", "port": 443},
+  "actor": {"process": {"name": "curl", "pid": 88}},
+  "firewall_rule": {"name": "default-egress", "type": "opa"}
+}

@@ -77,7 +77,14 @@ def _non_option_values(
 def analyze_curl(invocation: Invocation) -> SemanticAnalysis:
     flags = tuple(token for token in invocation.args if token.startswith("-"))
     targets = _non_option_values(invocation.args, CURL_VALUE_OPTIONS)
-    findings = [evidence("network.connect", "curl request")]
+    # Keep endpoint evidence in the review plane. Request restrictions are
+    # derived separately and conservatively from the reviewed literal argv.
+    endpoints = tuple(t for t in targets if t.startswith(("https://", "http://")))
+    findings = [
+        evidence("network.connect", "curl request", f"url:{target}") for target in endpoints
+    ]
+    if not findings:
+        findings = [evidence("network.connect", "curl request")]
 
     uploads = flag_present(
         invocation.args,

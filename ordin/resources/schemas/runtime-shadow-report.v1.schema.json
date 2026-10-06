@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.space/ordin/schemas/runtime-shadow-report.v1.schema.json",
+  "title": "Ordin runtime shadow report v1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "ordin.runtime_shadow_report.v1"
+    },
+    "backend": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/@-]*$"
+    },
+    "mode": {
+      "const": "shadow"
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "actions_reviewed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contracts_generated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contracts_fully_representable": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contracts_unsupported": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runtime_events_correlated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "correlation_mismatches": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "observed_but_unpredicted_capabilities": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "predicted_but_unused_capabilities": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "would_deny_events": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "compiler_widening_failures": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "actions_reviewed",
+        "contracts_generated",
+        "contracts_fully_representable",
+        "contracts_unsupported",
+        "runtime_events_correlated",
+        "correlation_mismatches",
+        "observed_but_unpredicted_capabilities",
+        "predicted_but_unused_capabilities",
+        "would_deny_events",
+        "compiler_widening_failures"
+      ],
+      "additionalProperties": false
+    },
+    "boundary_outcomes": {
+      "type": "object",
+      "properties": {
+        "within_boundary": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exceeds_boundary": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unsupported": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "inconclusive": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "within_boundary",
+        "exceeds_boundary",
+        "unsupported",
+        "inconclusive"
+      ],
+      "additionalProperties": false
+    },
+    "actions": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "properties": {
+          "action_digest": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "contract_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 67,
+            "pattern": "^rc:[a-f0-9]{64}$"
+          },
+          "contract_digest": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "review_decision": {
+            "type": "string",
+            "enum": [
+              "allow",
+              "warn",
+              "ask",
+              "block"
+            ]
+          },
+          "risk": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical",
+              "unknown"
+            ]
+          },
+          "policy_digest": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "compilation_status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "unsupported",
+              "inconclusive"
+            ]
+          },
+          "unsupported_fields": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "boundary_result": {
+            "type": "string",
+            "enum": [
+              "within_boundary",
+              "exceeds_boundary",
+              "unsupported",
+              "inconclusive"
+            ]
+          },
+          "boundary_digest": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "boundary_coverage": {
+            "type": "object",
+            "properties": {
+              "filesystem": {
+                "type": "boolean"
+              },
+              "network": {
+                "type": "boolean"
+              },
+              "tools": {
+                "type": "boolean"
+              },
+              "process": {
+                "type": "boolean"
+              },
+              "privilege": {
+                "type": "boolean"
+              },
+              "credentials": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "filesystem",
+              "network",
+              "tools",
+              "process",
+              "privilege",
+              "credentials"
+            ],
+            "additionalProperties": false
+          },
+          "mismatches": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "enum": [
+                "predicted_but_not_observed",
+                "observed_but_not_predicted",
+                "compiler_widening_detected",
+                "runtime_denial_expected",
+                "runtime_denial_unexpected",
+                "unrepresentable_capability",
+                "action_correlation_mismatch",
+                "runtime_event_inconclusive"
+              ]
+            }
+          },
+          "events": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "object",
+              "properties": {
+                "observation_digest": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "event_digest": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "allowed",
+                    "denied",
+                    "failed",
+                    "completed",
+                    "unknown"
+                  ]
+                },
+                "prediction": {
+                  "type": "string",
+                  "enum": [
+                    "predicted",
+                    "unpredicted",
+                    "inconclusive"
+                  ]
+                },
+                "policy_match": {
+                  "type": "string",
+                  "enum": [
+                    "within_policy",
+                    "outside_policy",
+                    "inconclusive"
+                  ]
+                },
+                "reason_code": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/@-]*$"
+                }
+              },
+              "required": [
+                "observation_digest",
+                "event_digest",
+                "outcome",
+                "prediction",
+                "policy_match",
+                "reason_code"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "action_digest",
+          "contract_id",
+          "contract_digest",
+          "review_decision",
+          "risk",
+          "policy_digest",
+          "compilation_status",
+          "unsupported_fields",
+          "boundary_result",
+          "boundary_digest",
+          "boundary_coverage",
+          "mismatches",
+          "events"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "backend",
+    "mode",
+    "metrics",
+    "boundary_outcomes",
+    "actions"
+  ],
+  "additionalProperties": false
+}

@@ -44,6 +44,30 @@ does not establish that all those components were uncompromised.
 | Local audit modification/reordering | **Detects** inconsistent hashes, linkage, ambiguous JSON and incomplete records during verification. Trusted external checkpoints detect loss of the recorded tail. |
 | Whole-file replacement or forged audit history | **Does not solve** an attacker rewriting a complete chain and any colocated checkpoint. No trusted external timestamp or signer is implied. |
 
+## Runtime capability and evidence boundaries
+
+The optional [OpenShell adapter](openshell-integration.md) adds an enforcement
+plane outside core. Capability contracts are advisory until a runtime applies
+them. The core derives and verifies data; it does not start a sandbox, grant
+credentials, run an action, or retry a denied operation.
+
+| Threat | Controls and residual responsibility |
+| --- | --- |
+| Compiler widening | Unsupported/unknown fields produce no enforceable plan. Golden and negative tests cover exact REST rules, binary identity, filesystem primitive rights, wildcard/private expansion, and credential mapping. Plan validation rebuilds from the original contract independently of a backend override. Shadow reports expose widening rejections. Core boundary checks and backend prover coverage answer different questions; both are needed where configured. |
+| Runtime evidence spoofing | Ordinary JSON/direct constructors reject strong trust labels. Only a host-owned `RuntimeEvidenceSource` can report backend evidence. Protect the collector and its backend channel; a product label in JSON is not authentication. Allowed OCSF events stay `backend_observed` because this version does not structurally distinguish audit allows from enforcement allows. |
+| Stale contract / TOCTOU | Canonical action digest and content-derived contract ID detect changed reviewed inputs. Private correlation binds the exact event digest, original action/contract, session, sandbox, and policy. The host still must enforce those identities at execution time; lexical scopes and hashes do not freeze filesystem objects. |
+| Policy drift | Plans/correlation retain canonical policy digests; prover results retain input-byte digests. The explicit applier verifies configured boundaries, binds operator approval to current state, and checks effective policy, loaded revision, sandbox identity, and workload admission. It refuses live startup-policy changes. The host must serialize management: CLI readback is not an atomic server-side CAS and cannot prevent a later trusted update or runtime compromise. |
+| Runtime compromise | Ordin trusts the supervisor/gateway/runtime and the host adapter reporting path. It does not solve compromised enforcement, forged backend output from that trusted path, or an attacker in the trusted Python process. Strong trust labels are not cryptographic remote attestation. |
+| Credential-binding confusion | Credential bindings have independent boundary and destination checks. Host access never discovers or grants a provider. The compiler accepts only explicit provider identities with matching endpoint/method/path restrictions and never accepts secret values. Raw headers, bodies, commands, event messages, and URL queries are excluded from new evidence artifacts. |
+| Cross-session event contamination | Session digest/reset epoch, original action digest, contract ID, sandbox identity, policy digest, bounded expiry, and consumed event identity reject stale/mismatched attachment. The collector must protect sandbox-generation attribution; the adapter never guesses attribution from host/tool names, time, or numeric OCSF action IDs. |
+
+The private correlation SQLite store requires owner-only POSIX files and a
+protected directory, bounds records/database size, and writes atomically.
+Checksums detect corruption, not malicious owner rewriting. Capacity fails
+instead of dropping replay protection. Shadow reports are local projections
+of supplied facts, omit plaintext action/resource/event data, and never promote
+themselves to enforcement. Missing facts remain inconclusive.
+
 ## Local evidence
 
 `JsonlAuditSink(hash_chain=True)` uses a private regular file and an advisory

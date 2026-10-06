@@ -11,12 +11,12 @@ from typing import Iterator, Literal
 
 
 MAX_DATABASE_BYTES = 64 * 1024 * 1024
-_APPLICATION_IDS = {"session": 0x4F524453, "trace": 0x4F524454}
+_APPLICATION_IDS = {"session": 0x4F524453, "trace": 0x4F524454, "runtime": 0x4F524452}
 
 
 @contextmanager
 def private_database(
-    path: str | Path, kind: Literal["session", "trace"], *, readonly: bool = False
+    path: str | Path, kind: Literal["session", "trace", "runtime"], *, readonly: bool = False
 ) -> Iterator[sqlite3.Connection]:
     target = Path(path).absolute()
     if not target.parent.is_dir():

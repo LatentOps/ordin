@@ -1,0 +1,92 @@
+{
+  "schema_version": "ordin.openshell_runtime_demo.v1",
+  "openshell_version": "0.1.2",
+  "runtime": "OpenShell VM driver / KVM",
+  "sandbox_id_digest": "03dcf4cb467f058787a5af4d901e3e0d432b91f2fe489ef21b0e1fe827d2182e",
+  "policy_digest": "bc49a6446212de2b4e88a7acb6e19f9a9a6f3d7523407c8dcd79dc3c5f64410e",
+  "records": [
+    {
+      "name": "get",
+      "passed": true,
+      "caller_exit": 0,
+      "ordin_decision": "allow",
+      "action_digest": "195ddf10a7688a1d5f5a41de6b5b8b0fbc0dbbfd3e44043842a111bcbec1f523",
+      "contract_id": "rc:ebe1b8e3d047c148cb84aeb06b97896455f044feefd3db29958a07c23ea71bfd",
+      "policy_denied": false
+    },
+    {
+      "name": "post",
+      "passed": true,
+      "caller_exit": 0,
+      "ordin_decision": "allow",
+      "action_digest": "023108d4264006d2cf32cdfb10cb4367c949b358ddc1088303dfbd94750bf5df",
+      "contract_id": "rc:6a8cbdaaf1ce9a13a00d04a401ef73545953d3b06fd243e78c493248be4db1a0",
+      "policy_denied": true
+    },
+    {
+      "name": "unrelated_host",
+      "passed": true,
+      "caller_exit": 7,
+      "ordin_decision": "allow",
+      "action_digest": "69c1183df572aaac18800ff63b12bf1d944dce4c9c0554ce3b152bd9b25ea1f8",
+      "contract_id": "rc:9f5ae10232e013a1f7d9c98612a343c96597cf4931703b0710db570e1780eb60",
+      "policy_denied": false
+    },
+    {
+      "name": "filesystem_positive_controls",
+      "passed": true,
+      "euid": 1000,
+      "file_uid": 1000,
+      "mode": 438,
+      "read_succeeded": true,
+      "write_control_succeeded": true,
+      "protected_write_denied": true
+    },
+    {
+      "name": "filesystem_evidence_return",
+      "passed": true,
+      "trust": "backend_observed",
+      "action_digest": "a5e397d69ab7ac2ccec8216c9a5b1763fb2bb1e1c561ffd0c7b1ff9619c55590",
+      "contract_id": "rc:b02dc23d15e58b61b91672a5906b1fee5bf8f66bfca9fea390fe44142f357ccd",
+      "read_contract_id": "rc:52c525df94a22b86ad22b8be2ec220a4898e8561e49e007623313cfaad678d40"
+    },
+    {
+      "name": "network_evidence_return",
+      "passed": true,
+      "events_attached": 3,
+      "correlated_outcomes": {
+        "get": [
+          {
+            "outcome": "allowed",
+            "trust": "backend_observed"
+          }
+        ],
+        "post": [
+          {
+            "outcome": "denied",
+            "trust": "backend_enforced"
+          }
+        ],
+        "unrelated_host": [
+          {
+            "outcome": "denied",
+            "trust": "backend_enforced"
+          }
+        ]
+      }
+    }
+  ],
+  "passed": true,
+  "scope": "Actual caller probes plus verified backend readback and protected local evidence correlation. No credential providers, raw commands, response bodies, or secrets are recorded.",
+  "guest_kernel": "6.12.76",
+  "host_kernel": "5.15.167.4",
+  "runtime_versions": {
+    "openshell": "0.1.2",
+    "gateway": "0.1.2",
+    "vm_driver": "0.1.2",
+    "supervisor": "0.1.2",
+    "prover": "0.1.2",
+    "ordin_openshell": "0.1.0"
+  },
+  "source_revision_before_correlation_fix": "ae3038ae7f3bb16e5727b59abedd22564df5397c"
+}

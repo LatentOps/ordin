@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from .action import ActionEnvelope, ActionHistory, ActionReview, review_action
 from .action_policy import ActionPolicySet, CompiledActionPolicySet
@@ -17,6 +17,10 @@ from .search import SearchResult, search
 from .temporal import CompiledTemporalPolicySet, TemporalPolicySet
 from .tool_calls import CompiledToolSemanticsRegistry, ToolSemanticsRegistry
 from .trace import ActionTrace
+from .runtime_requirements import RuntimeRequirementProfile
+
+if TYPE_CHECKING:
+    from .runtime_observation import RuntimeObservationHistory, RuntimeReviewBinding
 
 
 @dataclass(frozen=True)
@@ -34,8 +38,13 @@ class Ordin:
     temporal_policy: TemporalPolicySet | CompiledTemporalPolicySet | None = None
     tool_semantics: ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None = None
     audit: AuditSink | None = None
+    runtime_requirements: RuntimeRequirementProfile | None = None
 
     def __post_init__(self) -> None:
+        if self.runtime_requirements is not None and not isinstance(
+            self.runtime_requirements, RuntimeRequirementProfile
+        ):
+            raise ValueError("runtime requirements must be an explicit host profile or null")
         if isinstance(self.action_policy, ActionPolicySet):
             object.__setattr__(self, "action_policy", self.action_policy.compile())
         elif self.action_policy is not None and not isinstance(
@@ -110,6 +119,8 @@ class Ordin:
         history: ActionHistory | Mapping[str, Any] | None = None,
         observations: ObservationHistory | Mapping[str, Any] | None = None,
         contract_check: MCPContractCheck | None = None,
+        runtime_observations: "RuntimeObservationHistory | Mapping[str, Any] | None" = None,
+        runtime_binding: "RuntimeReviewBinding | None" = None,
     ) -> ActionReview:
         parsed = self._parse_action(action)
         if parsed.context is None and self.context is not None:
@@ -123,12 +134,23 @@ class Ordin:
             )
         parsed_history = self._parse_history(history)
         parsed_observations = self._parse_observations(observations)
+        from .runtime_observation import RuntimeObservationHistory, RuntimeReviewBinding
+
+        if isinstance(runtime_observations, Mapping):
+            runtime_observations = RuntimeObservationHistory.from_dict(runtime_observations)
+        if runtime_observations is not None and not isinstance(
+            runtime_observations, RuntimeObservationHistory
+        ):
+            raise ValueError("runtime observations require a runtime observation history")
+        if runtime_binding is not None and not isinstance(runtime_binding, RuntimeReviewBinding):
+            raise ValueError("runtime binding requires trusted host review context")
         temporal = self.temporal_policy
         tool_semantics = self.tool_semantics
         result = review_action(
             parsed,
             history=parsed_history,
             observations=parsed_observations,
+            runtime_observations=runtime_observations,
             temporal_policy=(temporal if isinstance(temporal, CompiledTemporalPolicySet) else None),
             tool_semantics=(
                 tool_semantics
@@ -141,6 +163,24 @@ class Ordin:
             result = compiled_policy.apply(result)
         if contract_check is not None:
             result = contract_check.apply(result)
+        if runtime_binding is not None:
+            from dataclasses import replace
+            from .provenance import ProvenanceRecord
+
+            assert result.provenance is not None
+            result = replace(
+                result,
+                provenance=result.provenance.append(
+                    ProvenanceRecord(
+                        source="context",
+                        kind="finding",
+                        code="runtime.session.review",
+                        metadata=runtime_binding.as_dict(),
+                    )
+                ),
+            )
+        if self.runtime_requirements is not None:
+            result = self.runtime_requirements.declare(result)
         if self.audit is not None:
             self.audit.record(result)
         return result

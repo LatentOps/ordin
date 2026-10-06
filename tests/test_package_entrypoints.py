@@ -75,7 +75,7 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
             str(python),
             "-I",
             "-c",
-            "import json,ordin; from importlib.resources import files; from importlib.metadata import distribution; m=json.loads(files('ordin').joinpath('resources/public-surface-0.3.json').read_text()); assert sorted(ordin.__all__)==m['exports']; assert {e.name:e.value for e in distribution('ordin').entry_points}==dict(m['console_scripts'], **{'ordin-cursor-hook':'ordin.cursor:main'})",
+            "import json,ordin; from importlib.resources import files; from importlib.metadata import distribution; m=json.loads(files('ordin').joinpath('resources/public-surface-0.3.json').read_text()); extra={'RuntimeCapabilityContract','derive_runtime_capability_contract','RuntimeObservation','RuntimeObservationHistory','RuntimeEvidenceSource','RuntimeCapabilityBoundary','CapabilityVerificationResult','verify_runtime_capability','CapabilityDeltaProposal','propose_capability_delta'}; assert set(ordin.__all__)==set(m['exports'])|extra; assert {e.name:e.value for e in distribution('ordin').entry_points}==dict(m['console_scripts'], **{'ordin-cursor-hook':'ordin.cursor:main'})",
         ],
         check=True,
         cwd=venv_path,
@@ -114,7 +114,7 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
     )
     health = json.loads(doctor.stdout)
     assert health["effect_count"] >= 20
-    assert health["temporal_rule_count"] == 4
+    assert health["temporal_rule_count"] == 7
     assert health["schema_count"] >= 21
     assert health["schema_errors"] == []
     assert health["risk_rule_errors"] == []

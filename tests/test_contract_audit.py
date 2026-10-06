@@ -25,6 +25,15 @@ from ordin.data import DATA_DIR, load_commands, load_json
 from ordin.graph import build_effect_graph
 from ordin.mcp_contracts import MCPContractLock
 from ordin.packs import pack_list_payload
+from ordin.runtime_contract import derive_runtime_capability_contract
+from ordin._runtime_schemas import SHADOW_METRICS, SHADOW_OUTCOMES
+from ordin.runtime_boundary import RuntimeCapabilityBoundary
+from ordin.capability_delta import CapabilityDeltaProposal
+from ordin.runtime_observation import (
+    RuntimeEvidenceSource,
+    RuntimeObservation,
+    RuntimeObservationHistory,
+)
 from ordin.schema import SCHEMA_FILES, validate_instance, validate_named_schema
 from ordin.session import IntegrationSession, SessionIdentity
 from ordin.temporal import default_temporal_policy, load_temporal_policy
@@ -39,6 +48,12 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     gate = Ordin()
     action = ActionEnvelope.shell("git status --short", action_id="contract-action")
     review = gate.review_action(action)
+    runtime_session = IntegrationSession(SessionIdentity("contract", "runtime"), AgentGate())
+    runtime_session.bind_runtime_source(
+        RuntimeEvidenceSource(
+            "fixture", runtime_session.runtime_session_digest, "fixture-sandbox", "c" * 64
+        )
+    )
     recorder = TraceRecorder(tmp_path / "trace.db", integration="python", session_id="contract")
     recorder.record_review(review)
     event = read_capture(recorder.path)["events"][0]
@@ -54,6 +69,28 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
         },
     }
     samples = {
+        "runtime_shadow_report": {
+            "schema_version": "ordin.runtime_shadow_report.v1",
+            "backend": "fixture",
+            "mode": "shadow",
+            "actions": [],
+            "metrics": dict.fromkeys(SHADOW_METRICS["properties"], 0),
+            "boundary_outcomes": dict.fromkeys(SHADOW_OUTCOMES["properties"], 0),
+        },
+        "runtime_capability_boundary": RuntimeCapabilityBoundary("fixture-boundary").as_dict(),
+        "capability_delta_proposal": CapabilityDeltaProposal(
+            "contract-action",
+            derive_runtime_capability_contract(review).action_digest,
+            derive_runtime_capability_contract(review).contract_id,
+            "fixture-denial",
+            None,
+            "runtime_delta_unmodeled_requirement",
+            status="rejected",
+        ).as_dict(),
+        "runtime_observation": RuntimeObservation("fixture-event", "contract-action").as_dict(),
+        "runtime_observation_history": RuntimeObservationHistory().as_dict(),
+        "runtime_session": runtime_session.runtime_snapshot(),
+        "runtime_capability": derive_runtime_capability_contract(review).as_dict(),
         "cursor_mcp_map": load_json(ROOT / "examples/cursor-mcp-map.json"),
         "action_trace": ActionTrace((TraceAction("git status"),)).as_dict(),
         "action_envelope": action.as_dict(),
@@ -199,9 +236,29 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     from importlib import import_module
 
     manifest = load_json(DATA_DIR / "public-surface-0.3.json")
-    assert sorted(ordin.__all__) == manifest["exports"]
+    assert set(ordin.__all__) == set(manifest["exports"]) | {
+        "RuntimeCapabilityContract",
+        "derive_runtime_capability_contract",
+        "RuntimeObservation",
+        "RuntimeObservationHistory",
+        "RuntimeEvidenceSource",
+        "RuntimeCapabilityBoundary",
+        "CapabilityVerificationResult",
+        "verify_runtime_capability",
+        "CapabilityDeltaProposal",
+        "propose_capability_delta",
+    }
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
-    assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {"cursor_mcp_map"}
+    assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
+        "cursor_mcp_map",
+        "runtime_capability",
+        "runtime_observation",
+        "runtime_observation_history",
+        "runtime_session",
+        "runtime_capability_boundary",
+        "capability_delta_proposal",
+        "runtime_shadow_report",
+    }
     for module, names in manifest["module_contracts"].items():
         assert all(hasattr(import_module(module), name) for name in names), module
