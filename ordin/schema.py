@@ -27,6 +27,8 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "capability_delta_proposal": "capability-delta-proposal.v1.schema.json",
+    "runtime_capability_boundary": "runtime-capability-boundary.v1.schema.json",
     "runtime_session": "runtime-session.v1.schema.json",
     "runtime_observation": "runtime-observation.v1.schema.json",
     "runtime_observation_history": "runtime-observation-history.v1.schema.json",

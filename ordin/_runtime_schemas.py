@@ -233,3 +233,53 @@ SCHEMAS["runtime_session"] = {
     "title": "Ordin runtime session evidence sidecar v1",
     **RUNTIME_SESSION,
 }
+BOUNDARY = obj(
+    {
+        "schema_version": {"const": "ordin.runtime_capability_boundary.v1"},
+        "boundary_id": IDENTIFIER,
+        "filesystem": array(FILESYSTEM),
+        "network": array(NETWORK),
+        "tools": array(TOOL),
+        "process": PROCESS,
+        "privilege": PRIVILEGE,
+        "credentials": array(CREDENTIAL),
+        "filesystem_semantics": enum("exact", "lexical_prefix"),
+        "runtime_filesystem_guarantees": {"type": "boolean"},
+        "allow_any_executable": {"type": "boolean"},
+    }
+)
+SCHEMAS["runtime_capability_boundary"] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://latentops.space/ordin/schemas/runtime-capability-boundary.v1.schema.json",
+    "title": "Ordin runtime capability boundary v1",
+    **BOUNDARY,
+}
+DELTA_VERIFICATION = obj(
+    {
+        "step": IDENTIFIER,
+        "result": text(64),
+        "reason_code": IDENTIFIER,
+        "details": {"type": "object", "maxProperties": 32, "additionalProperties": True},
+    }
+)
+DELTA = obj(
+    {
+        "schema_version": {"const": "ordin.capability_delta_proposal.v1"},
+        "proposal_id": text(67, pattern="^dp:[a-f0-9]{64}$"),
+        "action_id": text(128),
+        "action_digest": DIGEST,
+        "contract_id": text(67, pattern="^rc:[a-f0-9]{64}$"),
+        "denial_observation_id": IDENTIFIER,
+        "requested_delta": {"anyOf": [CAPABILITY, {"type": "null"}]},
+        "reason_code": IDENTIFIER,
+        "verification": array(DELTA_VERIFICATION, 8),
+        "requires_human_approval": {"type": "boolean"},
+        "status": enum("draft", "verified", "requires_approval", "rejected", "approved", "applied"),
+    }
+)
+SCHEMAS["capability_delta_proposal"] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://latentops.space/ordin/schemas/capability-delta-proposal.v1.schema.json",
+    "title": "Ordin capability delta proposal v1",
+    **DELTA,
+}

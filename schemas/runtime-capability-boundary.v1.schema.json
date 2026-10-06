@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.space/ordin/schemas/runtime-capability-boundary.v1.schema.json",
+  "title": "Ordin runtime capability boundary v1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "ordin.runtime_capability_boundary.v1"
+    },
+    "boundary_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/@-]*$"
+    },
+    "filesystem": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "properties": {
+          "access": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write",
+              "delete",
+              "metadata",
+              "execute",
+              "unknown"
+            ]
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "prefix",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "access",
+          "path",
+          "scope"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "network": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9.:-]*$"
+          },
+          "port": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "protocol": {
+            "type": "string",
+            "enum": [
+              "rest",
+              "mcp",
+              "json-rpc",
+              "graphql",
+              "websocket",
+              "tcp",
+              "unknown"
+            ]
+          },
+          "access": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write",
+              "unknown"
+            ]
+          },
+          "methods": {
+            "type": "array",
+            "maxItems": 32,
+            "items": {
+              "type": "string",
+              "enum": [
+                "GET",
+                "HEAD",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "OPTIONS",
+                "CONNECT",
+                "TRACE"
+              ]
+            }
+          },
+          "paths": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            }
+          },
+          "tool_identity": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "host",
+          "port",
+          "protocol",
+          "access",
+          "methods",
+          "paths",
+          "tool_identity"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "tools": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "properties": {
+          "runtime": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "server": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "tool": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "operation": {
+            "const": "call",
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtime",
+          "server",
+          "tool",
+          "operation"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "process": {
+      "type": "object",
+      "properties": {
+        "execution": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "executables": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "spawn_children": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "execution",
+        "executables",
+        "spawn_children"
+      ],
+      "additionalProperties": false
+    },
+    "privilege": {
+      "type": "object",
+      "properties": {
+        "escalation": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "required_euid": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "escalation",
+        "required_euid"
+      ],
+      "additionalProperties": false
+    },
+    "credentials": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "properties": {
+          "binding": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/@-]*$"
+          },
+          "host": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9.:-]*$"
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "binding",
+          "host",
+          "port"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "filesystem_semantics": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "lexical_prefix"
+      ]
+    },
+    "runtime_filesystem_guarantees": {
+      "type": "boolean"
+    },
+    "allow_any_executable": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schema_version",
+    "boundary_id",
+    "filesystem",
+    "network",
+    "tools",
+    "process",
+    "privilege",
+    "credentials",
+    "filesystem_semantics",
+    "runtime_filesystem_guarantees",
+    "allow_any_executable"
+  ],
+  "additionalProperties": false
+}
