@@ -415,6 +415,33 @@ def test_cli_calls_use_literal_argv_and_do_not_leak_backend_diagnostics(monkeypa
     assert calls == [
         ["/trusted/openshell", "--workspace", "default", "--gateway", "local", "--version"]
     ]
+    endpoint_cli = OpenShellCLI(gateway_endpoint="http://127.0.0.1:18780")
+    endpoint_cli.require_compatible()
+    assert calls[-1] == [
+        "/trusted/openshell",
+        "--workspace",
+        "default",
+        "--gateway-endpoint",
+        "http://127.0.0.1:18780",
+        "--version",
+    ]
+    assert endpoint_cli.context["gateway_endpoint"] == "http://127.0.0.1:18780"
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "file:///tmp/gateway",
+        "http://user:secret@example.com",
+        "http://example.com?token=secret",
+        "http://example.com/path",
+        "http://example.com#secret",
+        "http://example.com:65536",
+    ],
+)
+def test_gateway_endpoint_cannot_carry_credentials_or_unmodeled_connection_data(endpoint):
+    with pytest.raises(ValueError):
+        OpenShellCLI(gateway_endpoint=endpoint)
 
 
 @pytest.mark.parametrize(

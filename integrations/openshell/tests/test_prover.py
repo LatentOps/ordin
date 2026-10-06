@@ -100,3 +100,10 @@ def test_real_prover_policy_fixture(tmp_path):
     exceeds = verify_with_openshell_prover(candidate, boundary, executable=executable)
     assert exceeds.result == "exceeds_boundary", exceeds.as_dict()
     assert exceeds.counterexample
+    policy["process"]["run_as_user"] = "nobody"
+    candidate.write_text(json.dumps(policy))
+    unsupported = verify_with_openshell_prover(candidate, boundary, executable=executable)
+    assert unsupported.result == "unsupported" and not unsupported.ok, unsupported.as_dict()
+    candidate.write_text("{malformed")
+    error = verify_with_openshell_prover(candidate, boundary, executable=executable)
+    assert error.result == "error" and not error.ok, error.as_dict()

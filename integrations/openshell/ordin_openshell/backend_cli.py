@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from typing import Any, Sequence
+from urllib.parse import urlsplit
 
 from ordin._runtime_json import MAX_RUNTIME_BYTES, freeze
 
@@ -53,6 +54,7 @@ class OpenShellCLI:
     executable: str = "openshell"
     gateway: str | None = None
     workspace: str = "default"
+    gateway_endpoint: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.executable, str) or not self.executable:
@@ -60,10 +62,28 @@ class OpenShellCLI:
         if self.gateway is not None:
             identifier(self.gateway)
         identifier(self.workspace)
+        if self.gateway_endpoint is not None:
+            parsed = urlsplit(self.gateway_endpoint)
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.query
+                or parsed.fragment
+                or parsed.path not in {"", "/"}
+            ):
+                raise ValueError("openshell_gateway_endpoint_invalid")
+            _ = parsed.port
 
     @property
     def context(self) -> dict[str, str | None]:
-        return {"executable": self.executable, "gateway": self.gateway, "workspace": self.workspace}
+        return {
+            "executable": self.executable,
+            "gateway": self.gateway,
+            "workspace": self.workspace,
+            "gateway_endpoint": self.gateway_endpoint,
+        }
 
     def run(self, arguments: Sequence[str], *, timeout: float = 30) -> str:
         """Run management argv only, with no shell, stdin, or raw diagnostic output."""
@@ -109,6 +129,8 @@ class OpenShellCLI:
         context = ["--workspace", self.workspace]
         if self.gateway is not None:
             context.extend(("--gateway", self.gateway))
+        if self.gateway_endpoint is not None:
+            context.extend(("--gateway-endpoint", self.gateway_endpoint))
         try:
             with tempfile.TemporaryFile() as output:
                 process = subprocess.run(

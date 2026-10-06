@@ -1,0 +1,81 @@
+{
+  "schema_version": "ordin.openshell_actual_apply_test.v1",
+  "passed": true,
+  "approval_actor": "trusted host test fixture under implementation-test authorization",
+  "authority_unchanged": true,
+  "unapproved_status": "requires_approval",
+  "action_executed_by_apply": false,
+  "before_version": 1,
+  "after_version": 2,
+  "result": {
+    "status": "applied",
+    "reason_code": "openshell_policy_applied",
+    "preparation": {
+      "status": "requires_approval",
+      "reason_code": "openshell_apply_requires_approval",
+      "request_id": "pa:cf666ef27470ce178a45d99e9fa1f9f365207ffd69b5ce5c9790b0f5ec9d8079",
+      "action_digest": "8bf12a377e4265f0278c35fb6019266d1ed5d5e25be5c76437fce8a7927df799",
+      "contract_id": "rc:66a09b03e2008b737bb26dacff2b4876f5095ac2f2c9e44a86bb61c21c5b0272",
+      "contract_digest": "20f2050e9178e54d60b33e0b17391d5221fd8e23b4b9e627c7d87b15e0303287",
+      "plan_id": "ep:290e532cbad9390b7fafbecf3835cf3b193fd53398861ce16645468497da5edb",
+      "policy_digest": "75b648df75792fb2d55b07d200b160e106e6155f4d85626ec8266247b97699e9",
+      "policy_bytes_digest": "6344086637562e42a9038835b8b9f18d9ff0defec6c4e5aebf4bc4156dfb799d",
+      "sandbox_id_digest": "ac6579a22caea95ed6bb8c53760d6c2f4fefc74a670b5a4e6ea783e6e1792e5a",
+      "current_policy_digest": "bc49a6446212de2b4e88a7acb6e19f9a9a6f3d7523407c8dcd79dc3c5f64410e",
+      "verification": [
+        {
+          "step": "backend_validation",
+          "status": "success",
+          "backend": "openshell",
+          "policy_digest": "75b648df75792fb2d55b07d200b160e106e6155f4d85626ec8266247b97699e9",
+          "reason_code": "openshell_policy_valid",
+          "reasons": [],
+          "unsupported_fields": []
+        },
+        {
+          "step": "capability_boundary",
+          "result": "within_boundary",
+          "reason_code": "runtime_boundary_within",
+          "contract_digest": "20f2050e9178e54d60b33e0b17391d5221fd8e23b4b9e627c7d87b15e0303287",
+          "boundary_digest": "f92ba25b93607240ca394106a50e373e8ba2fa5435cd213744c09d7f7e24d83f",
+          "coverage": {
+            "filesystem": true,
+            "network": true,
+            "tools": true,
+            "process": true,
+            "privilege": true,
+            "credentials": true
+          },
+          "unsupported_fields": [],
+          "counterexample_digest": null
+        },
+        {
+          "step": "openshell_prover",
+          "result": "within_boundary",
+          "reason_code": "openshell_prover_within_boundary",
+          "coverage": {
+            "domains": [
+              "filesystem",
+              "network_l4",
+              "network_rest",
+              "process",
+              "landlock"
+            ]
+          },
+          "candidate_digest": "6344086637562e42a9038835b8b9f18d9ff0defec6c4e5aebf4bc4156dfb799d",
+          "boundary_digest": "5309b9b2fe79c23b592ad1e8482fa839400c71f4c2a6ff53bbc27c1f2cc6a23b",
+          "prover_version": "0.1.2",
+          "unsupported_domains": [],
+          "counterexample_digest": null
+        }
+      ]
+    },
+    "mutation_attempted": true,
+    "active_policy_digest": "75b648df75792fb2d55b07d200b160e106e6155f4d85626ec8266247b97699e9"
+  },
+  "audit": {
+    "ok": true,
+    "events": 2,
+    "last_hash": "d2ec85ab5aa1557ecbfab5af3eea961fd4f7ba14da575c710a24e956353b11f5"
+  }
+}

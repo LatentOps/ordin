@@ -104,6 +104,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply.add_argument("--openshell", default="openshell")
     apply.add_argument("--prover", default="openshell-prover")
     apply.add_argument("--gateway")
+    apply.add_argument("--gateway-endpoint")
     apply.add_argument("--workspace", default="default")
     apply.add_argument("--timeout", type=float, default=30)
     apply.add_argument("--audit", help="Explicit private hash-chained operator receipt file")
@@ -207,7 +208,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     backend=backend,
                     sandbox=args.sandbox,
                     approval_request_id=args.approve_request,
-                    cli=OpenShellCLI(args.openshell, args.gateway, args.workspace),
+                    cli=OpenShellCLI(
+                        args.openshell, args.gateway, args.workspace, args.gateway_endpoint
+                    ),
                     capability_boundary=boundary,
                     backend_boundary_policy=backend_boundary,
                     prover_executable=args.prover,
