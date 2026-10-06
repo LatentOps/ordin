@@ -282,3 +282,10 @@ def test_operator_metadata_cannot_smuggle_secret_values_into_a_successful_plan()
 def test_process_identity_must_be_representable_by_the_actual_runtime(identity):
     result = compile_openshell_policy(supported_contract(), process_identity=identity)
     assert result.status == "unsupported" and result.plan is None
+
+
+@pytest.mark.parametrize("identity", [(1000,), [1000], 1000, "1000", {"uid": 1000}])
+def test_malformed_process_identity_returns_diagnostic_without_indexing(identity):
+    result = compile_openshell_policy(supported_contract(), process_identity=identity)
+    assert result.status == "unsupported" and result.plan is None
+    assert "process.identity" in result.unsupported_fields

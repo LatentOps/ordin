@@ -121,3 +121,9 @@ def test_export_timestamp_is_explicit_bounded_and_never_read_from_a_clock(time_m
     review = Ordin().review_action(ActionEnvelope.shell("rm -rf /"))
     with pytest.raises(ValueError):
         export_review_findings(review, time_ms=time_ms)
+
+
+@pytest.mark.parametrize("result", [None, [], {}, {"status": []}, {"status": {}}])
+def test_malformed_correlation_artifacts_raise_a_typed_validation_error(result):
+    with pytest.raises(ValueError, match="ocsf_export_correlation_invalid"):
+        export_correlation_findings(result, time_ms=1)

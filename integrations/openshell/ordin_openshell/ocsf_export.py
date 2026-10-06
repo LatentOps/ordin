@@ -163,6 +163,12 @@ def export_correlation_findings(
 ) -> tuple[dict[str, Any], ...]:
     _time(time_ms)
     # Use only status plus an integrity digest. Payloads/reasons are never echoed.
+    if (
+        not isinstance(result, Mapping)
+        or not isinstance(result.get("status"), str)
+        or result["status"] not in {"accepted", "rejected", "uncorrelated"}
+    ):
+        raise ValueError("ocsf_export_correlation_invalid")
     freeze(result)
     if result.get("status") not in {"rejected", "uncorrelated"}:
         return ()

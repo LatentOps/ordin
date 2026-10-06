@@ -16,6 +16,7 @@ from ordin.runtime_requests import (
     derive_runtime_request_contract,
     verify_runtime_request_capability,
     graphql_operation,
+    request_endpoint,
 )
 from ordin.runtime_boundary import RuntimeCapabilityBoundary
 from ordin.tool_calls import ToolSemanticRule, ToolSemanticsRegistry
@@ -339,3 +340,102 @@ def test_mismatched_boundary_protocol_and_opaque_identity_fail_closed():
         OpenShellBackend((1000, 1000), request_contract=altered).compile(opaque).status
         == "unsupported"
     )
+
+
+@pytest.mark.parametrize(
+    "factory",
+    [
+        graphql_contract,
+        mcp_contract,
+        pytest.param(
+            lambda: graphql_contract("mutation DeleteStatus { deleteStatus }"),
+            id="graphql_mutation",
+        ),
+    ],
+)
+def test_raw_http_cannot_borrow_protocol_request_authority(factory):
+    _, request = factory()
+    raw = RuntimeRequestContract(
+        replace(
+            request.capability,
+            contract_id="",
+            tools=(),
+            network=tuple(replace(n, protocol="rest") for n in request.capability.network),
+        ),
+        (),
+    )
+    if raw.capability.network[0].access == "write":
+        assert OpenShellBackend((1000, 1000)).compile(raw.capability).status == "success"
+    assert (
+        verify_runtime_request_capability(raw, request_boundary(request)).result
+        == "exceeds_boundary"
+    )
+    # Explicit HTTP authority remains usable, including beside protocol restrictions.
+    maximum = request_boundary(request)
+    explicit = replace(
+        maximum,
+        boundary=replace(
+            maximum.boundary, network=maximum.boundary.network + raw.capability.network
+        ),
+    )
+    assert verify_runtime_request_capability(raw, explicit).ok
+    mixed = replace(
+        request,
+        capability=replace(
+            request.capability,
+            contract_id="",
+            network=request.capability.network + raw.capability.network,
+        ),
+        request_contract_id="",
+    )
+    assert verify_runtime_request_capability(mixed, maximum).result == "exceeds_boundary"
+
+
+@pytest.mark.parametrize("factory", [graphql_contract, mcp_contract])
+def test_opaque_boundary_tool_identity_is_never_discarded(factory):
+    _, request = factory()
+    maximum = request_boundary(request)
+    restricted = replace(
+        maximum,
+        boundary=replace(
+            maximum.boundary,
+            network=tuple(replace(n, tool_identity="opaque") for n in maximum.boundary.network),
+        ),
+    )
+    result = verify_runtime_request_capability(request, restricted)
+    assert result.result == "unsupported" and not result.ok
+
+
+@pytest.mark.parametrize("authority", ["@api.example.com", ":@api.example.com"])
+def test_request_endpoints_reject_even_empty_userinfo(authority):
+    assert request_endpoint("https://" + authority + "/graphql") is None
+
+
+@pytest.mark.parametrize("protocol", [[], {}, ["rest"]])
+def test_malformed_policy_protocol_is_a_validation_error(protocol):
+    _, request = graphql_contract()
+    plan = OpenShellBackend((1000, 1000), request_contract=request).compile(request.capability).plan
+    policy = plan.as_dict()["policy"]
+    endpoint = next(iter(policy["network_policies"].values()))["endpoints"][0]
+    endpoint["protocol"] = protocol
+    assert "network_policies.request_inspection" in policy_errors(policy)
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [None, [], {"allow": None}, {"allow": []}, {"allow": {"params": None}}],
+)
+def test_malformed_mcp_readback_returns_unsupported_before_apply(entry):
+    _, request = mcp_contract()
+    backend = OpenShellBackend((1000, 1000), request_contract=request)
+    plan = backend.compile(request.capability).plan
+    policy = plan.as_dict()["policy"]
+    next(iter(policy["network_policies"].values()))["endpoints"][0]["rules"] = [entry]
+    with pytest.raises(ValueError, match="openshell_policy"):
+        canonical_runtime_policy(policy)
+    cli = FakeCLI(plan)
+    cli.policy = policy
+    result = prepare_openshell_apply(
+        plan, backend=backend, sandbox="demo", cli=cli, request_boundary=request_boundary(request)
+    )
+    assert result.status == "unsupported" and cli.set_calls == 0
