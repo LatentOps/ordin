@@ -1,0 +1,43 @@
+{
+  "schema_version": "ordin.runtime_capability_benchmark.v1",
+  "workload": [
+    "git status --short",
+    "curl --disable --request GET https://api.github.com/rate_limit",
+    "rm /repo/scratch.txt",
+    "mystery-command"
+  ],
+  "repetitions": 30,
+  "warmup_per_workload": 3,
+  "environment": {
+    "python": "3.12.3",
+    "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39"
+  },
+  "latency": {
+    "review_only": {
+      "samples": 120,
+      "median_ms": 15.971529499999999,
+      "p95_ms": 23.267981999999996,
+      "p99_ms": 33.4269398
+    },
+    "review_and_contract": {
+      "samples": 120,
+      "median_ms": 17.1580075,
+      "p95_ms": 29.733131799999995,
+      "p99_ms": 36.745097640000004
+    },
+    "boundary_verification": {
+      "samples": 120,
+      "median_ms": 0.1686175,
+      "p95_ms": 0.33047384999999996,
+      "p99_ms": 0.5694802700000001
+    }
+  },
+  "boundary_outcomes": {
+    "within_boundary": 90,
+    "exceeds_boundary": 0,
+    "unsupported": 30,
+    "inconclusive": 0
+  },
+  "scope": "Local review/declared context, contract derivation and intended-boundary checking. No action execution, network requests, or backend enforcement included.",
+  "source_digest": "e3e2e2a4d6b30f7267eb0ff96d7761a053a20921757b112b4ce7998a5c73adc0"
+}

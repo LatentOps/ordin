@@ -39,6 +39,7 @@ orun 'git status --short'
 - [Minimal denial proposals](capability-proposals.md)
 - [Backend protocol](enforcement-backends.md)
 - [Optional OpenShell compiler, prover, events, and shadow evaluation](openshell-integration.md)
+- [Runtime capability benchmark and recorded workload](runtime-capability-benchmark.md)
 - [Decision provenance and local audit evidence](audit-and-provenance.md)
 - [Tool and MCP adapters](tool-and-mcp-adapters.md)
 - [Declarative action policies](policies.md)
