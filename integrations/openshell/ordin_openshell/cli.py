@@ -6,10 +6,12 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 from ordin._runtime_json import MAX_RUNTIME_BYTES, digest
 from ordin.runtime_boundary import RuntimeCapabilityBoundary
+from ordin.runtime_boundary import CapabilityVerificationResult
+from ordin.enforcement_backend import CompilationResult
 from ordin.runtime_codec import (
     action_review_from_dict,
     read_runtime_json,
@@ -17,6 +19,13 @@ from ordin.runtime_codec import (
 )
 from ordin.runtime_contract import RuntimeCapabilityContract, derive_runtime_capability_contract
 from ordin.runtime_observation import RuntimeEvidenceSource
+from ordin.runtime_requests import (
+    RuntimeRequestContract,
+    RuntimeRequestBoundary,
+    derive_runtime_request_contract,
+    verify_runtime_request_capability,
+    RequestVerificationResult,
+)
 
 from .apply import apply_openshell_policy
 from .apply_audit import PolicyApplyAudit
@@ -28,6 +37,12 @@ from .model import parse_policy, serialize_policy
 from .observations import ingest_openshell_event
 from .prover import verify_with_openshell_prover
 from .shadow import ShadowCase, build_shadow_report
+from .ocsf_export import (
+    export_review_findings,
+    export_boundary_findings,
+    export_compiler_findings,
+    export_correlation_findings,
+)
 
 
 def read_text(path: str) -> str:
@@ -47,10 +62,24 @@ def _backend(args, *, mode="enforce") -> OpenShellBackend:
         config.get("resource_kinds", {}),
         config.get("credential_providers", {}),
         mode=mode,
+        request_contract=RuntimeRequestContract.from_dict(read_runtime_json(args.request_contract))
+        if getattr(args, "request_contract", None)
+        else None,
     )
 
 
 def _contract(args) -> RuntimeCapabilityContract:
+    if getattr(args, "request_contract", None):
+        request_capability = RuntimeRequestContract.from_dict(
+            read_runtime_json(args.request_contract)
+        ).capability
+        if (
+            getattr(args, "command", None) == "apply"
+            and RuntimeCapabilityContract.from_dict(read_runtime_json(args.contract))
+            != request_capability
+        ):
+            raise ValueError("runtime_request_contract_mismatch")
+        return request_capability
     if getattr(args, "review", None):
         return derive_runtime_capability_contract(
             action_review_from_dict(read_runtime_json(args.review))
@@ -63,7 +92,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         prog="ordin-openshell", description="Explicit Ordin OpenShell integration"
     )
     commands = parser.add_subparsers(dest="command", required=True)
-    for command, input_kind in (("compile", "review"), ("compile-contract", "contract")):
+    derive_requests = commands.add_parser("derive-requests")
+    derive_requests.add_argument("--review", required=True)
+    verify_requests = commands.add_parser("verify-requests")
+    verify_requests.add_argument("--request-contract", required=True)
+    verify_requests.add_argument("--request-boundary", required=True)
+    export = commands.add_parser("export-ocsf")
+    export.add_argument("--review")
+    export.add_argument("--boundary-result")
+    export.add_argument("--compilation-result")
+    export.add_argument("--correlation-result")
+    export.add_argument("--time-ms", required=True, type=int)
+    for command, input_kind in (
+        ("compile", "review"),
+        ("compile-contract", "contract"),
+        ("compile-requests", "request-contract"),
+    ):
         compile_parser = commands.add_parser(command)
         compile_parser.add_argument("--" + input_kind, required=True)
         compile_parser.add_argument("--output")
@@ -97,6 +141,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply.add_argument("--gid", type=int, required=True)
     apply.add_argument("--operator-config")
     apply.add_argument("--capability-boundary")
+    apply.add_argument("--request-contract")
+    apply.add_argument("--request-boundary")
     apply.add_argument("--require-verified-boundary")
     apply.add_argument(
         "--approve-request", help="Exact digest-bound request ID approved by the operator"
@@ -110,7 +156,73 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply.add_argument("--audit", help="Explicit private hash-chained operator receipt file")
     args = parser.parse_args(argv)
     try:
-        if args.command == "validate":
+        if args.command == "derive-requests":
+            output = derive_runtime_request_contract(
+                action_review_from_dict(read_runtime_json(args.review))
+            ).as_dict()
+            code = 0
+        elif args.command == "verify-requests":
+            verified_requests = verify_runtime_request_capability(
+                RuntimeRequestContract.from_dict(read_runtime_json(args.request_contract)),
+                RuntimeRequestBoundary.from_dict(read_runtime_json(args.request_boundary)),
+            )
+            output, code = verified_requests.as_dict(), 0 if verified_requests.ok else 2
+        elif args.command == "export-ocsf":
+            findings: list[dict[str, Any]] = []
+            if not any(
+                (
+                    args.review,
+                    args.boundary_result,
+                    args.compilation_result,
+                    args.correlation_result,
+                )
+            ):
+                raise ValueError("ocsf_export_input_invalid")
+            if args.review:
+                findings.extend(
+                    export_review_findings(
+                        action_review_from_dict(read_runtime_json(args.review)),
+                        time_ms=args.time_ms,
+                    )
+                )
+            if args.boundary_result:
+                artifact = read_runtime_json(args.boundary_result)
+                boundary_model = (
+                    RequestVerificationResult
+                    if "requests" in artifact["coverage"]
+                    else CapabilityVerificationResult
+                )
+                boundary_result = boundary_model(
+                    artifact["result"],
+                    artifact["reason_code"],
+                    artifact["contract_digest"],
+                    artifact["boundary_digest"],
+                    artifact["coverage"],
+                    artifact.get("counterexample"),
+                    tuple(artifact.get("unsupported_fields", ())),
+                )
+                findings.extend(export_boundary_findings(boundary_result, time_ms=args.time_ms))
+            if args.compilation_result:
+                artifact = read_runtime_json(args.compilation_result)
+                if artifact["status"] not in {"success", "unsupported", "inconclusive"}:
+                    raise ValueError("ocsf_export_compilation_invalid")
+                if artifact["status"] != "success":
+                    compiled_result = CompilationResult(
+                        artifact["status"],
+                        artifact["backend"],
+                        artifact["reason_code"],
+                        tuple(artifact.get("reasons", ())),
+                        tuple(artifact.get("unsupported_fields", ())),
+                    )
+                    findings.extend(export_compiler_findings(compiled_result, time_ms=args.time_ms))
+            if args.correlation_result:
+                findings.extend(
+                    export_correlation_findings(
+                        read_runtime_json(args.correlation_result), time_ms=args.time_ms
+                    )
+                )
+            output, code = {"ocsf_version": "1.8.0", "events": list(findings)}, 0
+        elif args.command == "validate":
             policy = parse_policy(read_text(args.policy))
             output = {
                 "status": "success",
@@ -153,13 +265,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise ValueError("openshell_shadow_input_invalid")
             cases = []
             for case in data["cases"]:
-                if not isinstance(case, dict) or set(case) != {
+                required_case = {
                     "contract",
                     "boundary",
                     "observations",
                     "source",
                     "operator",
-                }:
+                }
+                if (
+                    not isinstance(case, dict)
+                    or not required_case.issubset(case)
+                    or set(case) - (required_case | {"request_contract", "request_boundary"})
+                ):
                     raise ValueError("openshell_shadow_input_invalid")
                 source = RuntimeEvidenceSource(**case["source"])
                 operator = case["operator"]
@@ -170,6 +287,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     operator["resource_kinds"],
                     operator["credential_providers"],
                     mode="shadow",
+                    request_contract=RuntimeRequestContract.from_dict(case["request_contract"])
+                    if case.get("request_contract")
+                    else None,
                 )
                 cases.append(
                     ShadowCase(
@@ -178,6 +298,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         tuple(source.restore_trusted(o) for o in case["observations"]),
                         source,
                         backend,
+                        RuntimeRequestBoundary.from_dict(case["request_boundary"])
+                        if case.get("request_boundary")
+                        else None,
                     )
                 )
             output, code = build_shadow_report(tuple(cases)).as_dict(), 0
@@ -216,6 +339,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                     prover_executable=args.prover,
                     timeout=args.timeout,
                     audit=PolicyApplyAudit(args.audit) if args.audit else None,
+                    request_boundary=RuntimeRequestBoundary.from_dict(
+                        read_runtime_json(args.request_boundary)
+                    )
+                    if args.request_boundary
+                    else None,
                 )
                 output = {
                     **applied.as_dict(),

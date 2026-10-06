@@ -1,0 +1,56 @@
+{
+  "runtime_version": "0.1.2",
+  "probe_kind": "request-enforcement-only; public HTTP echo, no application GraphQL/MCP execution claim",
+  "records": [
+    {
+      "protocol": "graphql",
+      "case": "allowed-query",
+      "passed": true,
+      "policy_digest": "2d8be042e36e4afef31be4a141dbb4a8998feb468ab2ccadc6a4df1ee11a85bb",
+      "request_contract_digest": "1e522eab8ad580efd436d72a10edec1841d9d82eecf04796735184288538398e"
+    },
+    {
+      "protocol": "graphql",
+      "case": "denied-mutation",
+      "passed": true,
+      "policy_digest": "2d8be042e36e4afef31be4a141dbb4a8998feb468ab2ccadc6a4df1ee11a85bb",
+      "request_contract_digest": "1e522eab8ad580efd436d72a10edec1841d9d82eecf04796735184288538398e"
+    },
+    {
+      "protocol": "graphql",
+      "case": "denied-field",
+      "passed": true,
+      "policy_digest": "2d8be042e36e4afef31be4a141dbb4a8998feb468ab2ccadc6a4df1ee11a85bb",
+      "request_contract_digest": "1e522eab8ad580efd436d72a10edec1841d9d82eecf04796735184288538398e"
+    },
+    {
+      "protocol": "graphql",
+      "case": "denied-name",
+      "passed": true,
+      "policy_digest": "2d8be042e36e4afef31be4a141dbb4a8998feb468ab2ccadc6a4df1ee11a85bb",
+      "request_contract_digest": "1e522eab8ad580efd436d72a10edec1841d9d82eecf04796735184288538398e"
+    },
+    {
+      "protocol": "mcp",
+      "case": "allowed-tool",
+      "passed": true,
+      "policy_digest": "14daaa82700957d59cb59b218e90009a8225db5798304cf162f09f0e2dacd908",
+      "request_contract_digest": "8186985474f41194e80ec76b412e4c08d9a44df9bda1972b9d3b5b0ec34c2a08"
+    },
+    {
+      "protocol": "mcp",
+      "case": "denied-tool",
+      "passed": true,
+      "policy_digest": "14daaa82700957d59cb59b218e90009a8225db5798304cf162f09f0e2dacd908",
+      "request_contract_digest": "8186985474f41194e80ec76b412e4c08d9a44df9bda1972b9d3b5b0ec34c2a08"
+    },
+    {
+      "protocol": "mcp",
+      "case": "denied-method",
+      "passed": true,
+      "policy_digest": "14daaa82700957d59cb59b218e90009a8225db5798304cf162f09f0e2dacd908",
+      "request_contract_digest": "8186985474f41194e80ec76b412e4c08d9a44df9bda1972b9d3b5b0ec34c2a08"
+    }
+  ],
+  "passed": true
+}

@@ -41,7 +41,7 @@ def load_json(text: str) -> dict[str, Any]:
 
     try:
         data = json.loads(text, object_pairs_hook=unique)
-        freeze(data)
+        freeze(data, max_depth=14)  # Management JSON wraps nested policy selectors.
         if not isinstance(data, dict):
             raise ValueError("openshell_json_object_required")
     except (TypeError, RecursionError):

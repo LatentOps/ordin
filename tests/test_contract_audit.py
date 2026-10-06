@@ -68,7 +68,15 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
             if key not in {"capture_provenance", "capture_integration", "capture_policy"}
         },
     }
+    from ordin.runtime_requests import RuntimeRequestContract, RuntimeRequestBoundary
+
     samples = {
+        "runtime_request_contract": RuntimeRequestContract(
+            derive_runtime_capability_contract(review), ()
+        ).as_dict(),
+        "runtime_request_boundary": RuntimeRequestBoundary(
+            RuntimeCapabilityBoundary("request-fixture")
+        ).as_dict(),
         "runtime_shadow_report": {
             "schema_version": "ordin.runtime_shadow_report.v1",
             "backend": "fixture",
@@ -259,6 +267,8 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
         "runtime_capability_boundary",
         "capability_delta_proposal",
         "runtime_shadow_report",
+        "runtime_request_contract",
+        "runtime_request_boundary",
     }
     for module, names in manifest["module_contracts"].items():
         assert all(hasattr(import_module(module), name) for name in names), module

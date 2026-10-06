@@ -22,6 +22,8 @@ class RuntimeRequirementProfile:
     filesystem: tuple[FilesystemCapability, ...] = ()
     executable_bindings: Mapping[str, str] = field(default_factory=dict)
     spawn_children: bool | None = None
+    client_executables: tuple[str, ...] = ()
+    mcp_endpoints: Mapping[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not isinstance(self.profile_id, str) or not 1 <= len(self.profile_id) <= 128:
@@ -38,6 +40,18 @@ class RuntimeRequirementProfile:
         object.__setattr__(self, "executable_bindings", freeze(bindings))
         if self.spawn_children is not None and type(self.spawn_children) is not bool:
             raise ValueError("runtime_requirement_children_invalid")
+        from ._runtime_json import text_tuple
+        from .runtime_requests import request_endpoint
+
+        object.__setattr__(self, "client_executables", text_tuple(self.client_executables))
+        if any(not _safe_path(path) for path in self.client_executables):
+            raise ValueError("runtime_requirement_client_invalid")
+        if not isinstance(self.mcp_endpoints, Mapping) or any(
+            not isinstance(server, str) or not server or request_endpoint(url) is None
+            for server, url in self.mcp_endpoints.items()
+        ):
+            raise ValueError("runtime_requirement_mcp_endpoint_invalid")
+        object.__setattr__(self, "mcp_endpoints", freeze(self.mcp_endpoints))
         if any(
             f.path is None
             or not _safe_path(f.path)
@@ -49,12 +63,17 @@ class RuntimeRequirementProfile:
         freeze(self.as_dict())
 
     def as_dict(self) -> dict:
-        return {
+        result = {
             "profile_id": self.profile_id,
             "filesystem": [f.as_dict() for f in self.filesystem],
             "executable_bindings": thaw(self.executable_bindings),
             "spawn_children": self.spawn_children,
         }
+        if self.client_executables:
+            result["client_executables"] = list(self.client_executables)
+        if self.mcp_endpoints:
+            result["mcp_endpoints"] = thaw(self.mcp_endpoints)
+        return result
 
     @property
     def digest(self) -> str:
@@ -103,4 +122,27 @@ class RuntimeRequirementProfile:
                     metadata={"spawn_children": self.spawn_children, "profile_digest": self.digest},
                 )
             )
+        if review.action.kind != "shell":
+            for path in self.client_executables:
+                records.append(
+                    ProvenanceRecord(
+                        source="context",
+                        kind="resource",
+                        code="runtime.requirement.client",
+                        resource=ProvenanceResource("executable", path),
+                        metadata={"profile_digest": self.digest},
+                    )
+                )
+        if review.action.kind == "mcp":
+            server = review.action.parameters.get("server")
+            if isinstance(server, str) and server in self.mcp_endpoints:
+                records.append(
+                    ProvenanceRecord(
+                        source="context",
+                        kind="resource",
+                        code="runtime.requirement.mcp_endpoint",
+                        resource=ProvenanceResource("url", self.mcp_endpoints[server]),
+                        metadata={"server": server, "profile_digest": self.digest},
+                    )
+                )
         return replace(review, provenance=review.provenance.append(*records))

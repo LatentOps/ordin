@@ -8,6 +8,7 @@ from typing import Any, Mapping
 
 from ordin._runtime_json import MAX_RUNTIME_BYTES, canonical_json, freeze, thaw
 from ordin.runtime_contract import _safe_path
+from ordin.runtime_requests import NAME, TOOL_NAME, MCP_METHODS, MCP_VERSIONS
 
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 HTTP_METHODS = READ_METHODS | {"POST", "PUT", "PATCH", "DELETE", "CONNECT", "TRACE"}
@@ -77,7 +78,7 @@ def policy_errors(policy: Mapping[str, Any]) -> tuple[str, ...]:
     """Validate the supported subset without ignoring any unsupported field."""
     errors = []
     try:
-        freeze(policy)
+        freeze(policy, max_depth=12)
         if len(canonical_json(policy).encode()) > MAX_RUNTIME_BYTES:
             return ("policy.size",)
     except (ValueError, TypeError, RecursionError):
@@ -150,6 +151,8 @@ def policy_errors(policy: Mapping[str, Any]) -> tuple[str, ...]:
                 "rules",
                 "allowed_ips",
                 "credential_binding",
+                "path",
+                "mcp",
             }:
                 errors.append("network_policies.endpoint_shape")
                 continue
@@ -159,9 +162,37 @@ def policy_errors(policy: Mapping[str, Any]) -> tuple[str, ...]:
                 or not 1 <= endpoint["port"] <= 65535
             ):
                 errors.append("network_policies.endpoint_identity")
-            if endpoint.get("protocol") != "rest" or endpoint.get("enforcement") != "enforce":
+            protocol = endpoint.get("protocol")
+            if (
+                protocol not in {"rest", "graphql", "mcp"}
+                or endpoint.get("enforcement") != "enforce"
+            ):
                 errors.append("network_policies.request_inspection")
-            if tuple(endpoint.get("allowed_ips", ())) != PUBLIC_IPV4_RANGES:
+            if protocol != "rest" and not exact_request_path(endpoint.get("path")):
+                errors.append("network_policies.protocol_path")
+            if protocol == "rest" and ("path" in endpoint or "mcp" in endpoint):
+                errors.append("network_policies.rest_protocol_fields")
+            if protocol == "graphql" and "mcp" in endpoint:
+                errors.append("network_policies.mixed_protocol_fields")
+            if protocol == "mcp":
+                options = endpoint.get("mcp")
+                if (
+                    not isinstance(options, Mapping)
+                    or set(options)
+                    != {"strict_tool_names", "allow_all_known_mcp_methods", "versions"}
+                    or options["strict_tool_names"] is not True
+                    or options["allow_all_known_mcp_methods"] is not False
+                    or not isinstance(options["versions"], (list, tuple))
+                    or not options["versions"]
+                    or any(not isinstance(v, str) for v in options["versions"])
+                    or not set(options["versions"]).issubset(MCP_VERSIONS)
+                    or len(set(options["versions"])) != len(options["versions"])
+                ):
+                    errors.append("network_policies.mcp_options")
+            if (
+                not isinstance(endpoint.get("allowed_ips"), (list, tuple))
+                or tuple(endpoint["allowed_ips"]) != PUBLIC_IPV4_RANGES
+            ):
                 errors.append("network_policies.allowed_ips")
             allow = endpoint.get("rules")
             if not isinstance(allow, (list, tuple)) or not allow:
@@ -173,9 +204,52 @@ def policy_errors(policy: Mapping[str, Any]) -> tuple[str, ...]:
                         if isinstance(entry, Mapping) and set(entry) == {"allow"}
                         else None
                     )
-                    if (
+                    if protocol == "graphql":
+                        if (
+                            not isinstance(value, Mapping)
+                            or set(value) != {"operation_type", "operation_name", "fields"}
+                            or not isinstance(value["operation_type"], str)
+                            or value["operation_type"] not in {"query", "mutation"}
+                            or not isinstance(value["operation_name"], str)
+                            or not NAME.fullmatch(value["operation_name"])
+                            or not isinstance(value["fields"], (list, tuple))
+                            or not value["fields"]
+                            or any(
+                                not isinstance(v, str) or not NAME.fullmatch(v)
+                                for v in value["fields"]
+                            )
+                        ):
+                            errors.append("network_policies.graphql_rule_shape")
+                    elif protocol == "mcp":
+                        if (
+                            not isinstance(value, Mapping)
+                            or set(value) - {"method", "params"}
+                            or not isinstance(value.get("method"), str)
+                            or value["method"] not in MCP_METHODS
+                        ):
+                            errors.append("network_policies.mcp_rule_shape")
+                        elif value["method"] == "tools/call":
+                            params = value.get("params")
+                            tool_matcher = (
+                                params.get("name")
+                                if isinstance(params, Mapping) and set(params) == {"name"}
+                                else None
+                            )
+                            if (
+                                not isinstance(tool_matcher, Mapping)
+                                or set(tool_matcher) != {"any"}
+                                or not isinstance(tool_matcher["any"], (list, tuple))
+                                or len(tool_matcher["any"]) != 1
+                                or not isinstance(tool_matcher["any"][0], str)
+                                or not TOOL_NAME.fullmatch(tool_matcher["any"][0])
+                            ):
+                                errors.append("network_policies.mcp_tool_scope")
+                        elif "params" in value:
+                            errors.append("network_policies.mcp_params_unsupported")
+                    elif (
                         not isinstance(value, Mapping)
                         or set(value) != {"method", "path"}
+                        or not isinstance(value["method"], str)
                         or value["method"] not in HTTP_METHODS
                         or not exact_request_path(value["path"])
                     ):
@@ -188,6 +262,22 @@ def policy_errors(policy: Mapping[str, Any]) -> tuple[str, ...]:
                 or not binding["provider"]
             ):
                 errors.append("credential_binding.shape")
+    protocols: dict[tuple[str, int], set[str]] = {}
+    for rule in rules.values():
+        if not isinstance(rule, Mapping) or not isinstance(rule.get("endpoints"), (list, tuple)):
+            continue
+        for endpoint in rule["endpoints"]:
+            if (
+                isinstance(endpoint, Mapping)
+                and isinstance(endpoint.get("host"), str)
+                and type(endpoint.get("port")) is int
+                and isinstance(endpoint.get("protocol"), str)
+            ):
+                protocols.setdefault((endpoint["host"], endpoint["port"]), set()).add(
+                    endpoint["protocol"]
+                )
+    if any("mcp" in values and len(values) > 1 for values in protocols.values()):
+        errors.append("network_policies.mcp_protocol_conflict")
     return tuple(sorted(set(errors)))
 
 
