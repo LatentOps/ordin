@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ordin-openshell"
+version = "0.1.0"
+description = "Explicit OpenShell runtime policy and evidence integration for Ordin."
+requires-python = ">=3.10"
+dependencies = ["ordin>=0.4.0.dev0,<0.5"]
+license = { text = "Apache-2.0" }
+readme = "README.md"
+
+[project.optional-dependencies]
+yaml = ["PyYAML>=6.0.3,<7"]
+
+[project.scripts]
+ordin-openshell = "ordin_openshell.cli:main"
+
+[tool.setuptools]
+packages = ["ordin_openshell"]
