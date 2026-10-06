@@ -236,7 +236,18 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     from importlib import import_module
 
     manifest = load_json(DATA_DIR / "public-surface-0.3.json")
-    assert sorted(ordin.__all__) == manifest["exports"]
+    assert set(ordin.__all__) == set(manifest["exports"]) | {
+        "RuntimeCapabilityContract",
+        "derive_runtime_capability_contract",
+        "RuntimeObservation",
+        "RuntimeObservationHistory",
+        "RuntimeEvidenceSource",
+        "RuntimeCapabilityBoundary",
+        "CapabilityVerificationResult",
+        "verify_runtime_capability",
+        "CapabilityDeltaProposal",
+        "propose_capability_delta",
+    }
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {

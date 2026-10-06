@@ -77,6 +77,8 @@ repos:
           ordin/runtime_boundary.py
           ordin/enforcement_backend.py
           ordin/capability_delta.py
+          ordin/runtime_codec.py
+          ordin/runtime_cli.py
           integrations/openshell/ordin_openshell
         language: system
         pass_filenames: false

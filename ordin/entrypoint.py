@@ -12,6 +12,8 @@ EXPLICIT_COMMANDS = {
     "mcp",
     "semantics",
     "contracts",
+    "capability",
+    "runtime-observation",
     "search",
     "explain",
     "graph",

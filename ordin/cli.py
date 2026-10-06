@@ -315,6 +315,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from .contracts_cli import main as contracts_main
 
         return contracts_main(raw_args[1:])
+    if raw_args and raw_args[0] in {"capability", "runtime-observation"}:
+        from .runtime_cli import main as runtime_main
+
+        return runtime_main(raw_args[1:], observations=raw_args[0] == "runtime-observation")
     parser = argparse.ArgumentParser(
         prog="ordin",
         description="Intent-aware command discovery and safety checks.",
@@ -329,6 +333,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     subparsers.add_parser("mcp", help="Inspect MCP tool contracts without calling tools")
     subparsers.add_parser("semantics", help="Scaffold, validate, and pin reviewed MCP semantics")
     subparsers.add_parser("contracts", help="Validate and compare reviewed MCP contract pins")
+    subparsers.add_parser(
+        "capability", help="Derive, validate, verify and propose runtime capabilities"
+    )
+    subparsers.add_parser(
+        "runtime-observation", help="Validate local runtime evidence without executing actions"
+    )
     subparsers.add_parser(
         "trace", help="Capture, sanitize, replay, and promote local action evidence"
     )
