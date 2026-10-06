@@ -27,6 +27,9 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "runtime_session": "runtime-session.v1.schema.json",
+    "runtime_observation": "runtime-observation.v1.schema.json",
+    "runtime_observation_history": "runtime-observation-history.v1.schema.json",
     "runtime_capability": "runtime-capability.v1.schema.json",
     "cursor_mcp_map": "cursor-mcp-map.v1.schema.json",
     "action_trace": "action-trace.v1.schema.json",

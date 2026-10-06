@@ -1,7 +1,7 @@
 {
   "schema_version": "ordin.temporal_policy_set.v1",
   "policy_id": "ordin-default-temporal",
-  "version": "1",
+  "version": "2",
   "rules": [
     {
       "id": "secret-exfiltration",
@@ -149,6 +149,57 @@
       ],
       "reason": "trajectory repeatedly invokes elevated-privilege actions",
       "safer_next_step": "Confirm why repeated elevation is required and narrow the privileged operation before continuing."
+    },
+    {
+      "id": "runtime-denied-secret-upload",
+      "risk": "high",
+      "category": "trajectory_denied_secret_upload",
+      "within_actions": 32,
+      "pattern": [
+        {
+          "signals_any": [
+            "signal:runtime-denied-secret-access"
+          ]
+        },
+        {
+          "signals_any": [
+            "effect:network.upload",
+            "category:network_upload"
+          ]
+        }
+      ],
+      "reason": "trajectory attempts secret-like access against a runtime boundary before a possible upload",
+      "safer_next_step": "Inspect the denied access and confirm the intended upload without expanding authority."
+    },
+    {
+      "id": "runtime-boundary-retry",
+      "risk": "high",
+      "category": "trajectory_policy_bypass_attempt",
+      "within_actions": 32,
+      "pattern": [
+        {
+          "signals_any": [
+            "signal:runtime-boundary-retry"
+          ]
+        }
+      ],
+      "reason": "repeated attempts target the same resource after backend-enforced policy denials",
+      "safer_next_step": "Review the enforced boundary and the exact required operation before retrying."
+    },
+    {
+      "id": "runtime-privilege-alternative",
+      "risk": "high",
+      "category": "trajectory_privilege_denial_retry",
+      "within_actions": 32,
+      "pattern": [
+        {
+          "signals_any": [
+            "signal:runtime-privilege-alternative"
+          ]
+        }
+      ],
+      "reason": "a mutation targets the same resource after backend-denied privilege escalation",
+      "safer_next_step": "Confirm the required privilege and resource scope before using another execution path."
     }
   ]
 }

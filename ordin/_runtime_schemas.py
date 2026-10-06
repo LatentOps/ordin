@@ -129,3 +129,107 @@ SHAPES = {
     "credential": CREDENTIAL,
     "unknown": UNKNOWN,
 }
+
+RESOURCE = obj({"type": text(64, pattern="^[a-z][a-z0-9_.-]*$"), "value": text()})
+SOURCE_CONTEXT = obj(
+    {
+        "backend": IDENTIFIER,
+        "session_digest": DIGEST,
+        "sandbox_id": IDENTIFIER,
+        "policy_digest": DIGEST,
+    }
+)
+OBSERVATION_METADATA = obj(
+    {
+        "event_digest": DIGEST,
+        "source_schema_version": text(64),
+        "method": enum(
+            "GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "CONNECT", "TRACE"
+        ),
+        "host": {**HOST, "type": "string"},
+        "port": {**PORT, "type": "integer"},
+        "path": text(),
+        "binary": text(),
+        "process_id": {"type": "integer", "minimum": 0},
+        "request_id_digest": DIGEST,
+    },
+    required=[],
+)
+OBSERVATION = obj(
+    {
+        "schema_version": {"const": "ordin.runtime_observation.v1"},
+        "observation_id": IDENTIFIER,
+        "action_id": text(128),
+        "action_digest": {**DIGEST, "type": ["string", "null"]},
+        "contract_id": text(67, nullable=True, pattern="^rc:[a-f0-9]{64}$"),
+        "backend": IDENTIFIER,
+        "trust": enum("caller_asserted", "backend_observed", "backend_enforced"),
+        "enforcement_point": enum(
+            "filesystem", "network", "process", "credential", "tool", "sandbox", "unknown"
+        ),
+        "outcome": enum("allowed", "denied", "failed", "completed", "unknown"),
+        "operation": text(128, pattern="^[a-z][a-z0-9_.-]*$"),
+        "effects": array(text(256, pattern="^[a-z][a-z0-9_.-]*$")),
+        "resources": array(RESOURCE),
+        "reason_code": IDENTIFIER,
+        "metadata": OBSERVATION_METADATA,
+        "session_digest": {**DIGEST, "type": ["string", "null"]},
+        "sandbox_id": {**IDENTIFIER, "type": ["string", "null"]},
+        "policy_digest": {**DIGEST, "type": ["string", "null"]},
+    }
+)
+OBSERVATION_HISTORY = obj(
+    {
+        "schema_version": {"const": "ordin.runtime_observation_history.v1"},
+        "observations": array(OBSERVATION),
+        "contracts": array(CAPABILITY, 32),
+    }
+)
+SCHEMAS.update(
+    {
+        "runtime_observation": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://latentops.space/ordin/schemas/runtime-observation.v1.schema.json",
+            "title": "Ordin runtime observation v1",
+            **OBSERVATION,
+        },
+        "runtime_observation_history": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "$id": "https://latentops.space/ordin/schemas/runtime-observation-history.v1.schema.json",
+            "title": "Ordin runtime observation history v1",
+            **OBSERVATION_HISTORY,
+        },
+    }
+)
+SHAPES["runtime_source_context"] = SOURCE_CONTEXT
+SHAPES["runtime_review_binding"] = obj(
+    {
+        "session_digest": DIGEST,
+        "sequence": {"type": "integer", "minimum": 1},
+        "epoch": {"type": "integer", "minimum": 0},
+    }
+)
+RUNTIME_SESSION = obj(
+    {
+        "schema_version": {"const": "ordin.runtime_session.v1"},
+        "identity_key": DIGEST,
+        "configuration_digest": DIGEST,
+        "sequence": {"type": "integer", "minimum": 0},
+        "epoch": {"type": "integer", "minimum": 0},
+        "sources": array(SOURCE_CONTEXT),
+        "current_source": {**DIGEST, "type": ["string", "null"]},
+        "bindings": array(
+            obj(
+                {"contract_id": text(67, pattern="^rc:[a-f0-9]{64}$"), "source_keys": array(DIGEST)}
+            ),
+            32,
+        ),
+        "history": OBSERVATION_HISTORY,
+    }
+)
+SCHEMAS["runtime_session"] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://latentops.space/ordin/schemas/runtime-session.v1.schema.json",
+    "title": "Ordin runtime session evidence sidecar v1",
+    **RUNTIME_SESSION,
+}

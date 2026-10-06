@@ -26,6 +26,11 @@ from ordin.graph import build_effect_graph
 from ordin.mcp_contracts import MCPContractLock
 from ordin.packs import pack_list_payload
 from ordin.runtime_contract import derive_runtime_capability_contract
+from ordin.runtime_observation import (
+    RuntimeEvidenceSource,
+    RuntimeObservation,
+    RuntimeObservationHistory,
+)
 from ordin.schema import SCHEMA_FILES, validate_instance, validate_named_schema
 from ordin.session import IntegrationSession, SessionIdentity
 from ordin.temporal import default_temporal_policy, load_temporal_policy
@@ -40,6 +45,12 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     gate = Ordin()
     action = ActionEnvelope.shell("git status --short", action_id="contract-action")
     review = gate.review_action(action)
+    runtime_session = IntegrationSession(SessionIdentity("contract", "runtime"), AgentGate())
+    runtime_session.bind_runtime_source(
+        RuntimeEvidenceSource(
+            "fixture", runtime_session.runtime_session_digest, "fixture-sandbox", "c" * 64
+        )
+    )
     recorder = TraceRecorder(tmp_path / "trace.db", integration="python", session_id="contract")
     recorder.record_review(review)
     event = read_capture(recorder.path)["events"][0]
@@ -55,6 +66,9 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
         },
     }
     samples = {
+        "runtime_observation": RuntimeObservation("fixture-event", "contract-action").as_dict(),
+        "runtime_observation_history": RuntimeObservationHistory().as_dict(),
+        "runtime_session": runtime_session.runtime_snapshot(),
         "runtime_capability": derive_runtime_capability_contract(review).as_dict(),
         "cursor_mcp_map": load_json(ROOT / "examples/cursor-mcp-map.json"),
         "action_trace": ActionTrace((TraceAction("git status"),)).as_dict(),
@@ -207,6 +221,9 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
         "cursor_mcp_map",
         "runtime_capability",
+        "runtime_observation",
+        "runtime_observation_history",
+        "runtime_session",
     }
     for module, names in manifest["module_contracts"].items():
         assert all(hasattr(import_module(module), name) for name in names), module

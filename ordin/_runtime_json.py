@@ -65,7 +65,9 @@ def validate(name: str, payload: Any) -> None:
         raise ValueError("runtime JSON byte limit exceeded")
     errors = validate_instance(thaw(payload), SCHEMAS[name] if name in SCHEMAS else SHAPES[name])
     if errors:
-        raise ValueError(f"invalid {name}: " + "; ".join(errors[:8]))
+        # Validation errors can contain rejected values or property names. Keep
+        # arbitrary input (including accidentally supplied secrets) out of logs.
+        raise ValueError(f"invalid {name}: schema validation failed")
 
 
 def model_tuple(value: Any, model: type) -> tuple:

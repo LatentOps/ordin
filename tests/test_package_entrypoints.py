@@ -114,7 +114,7 @@ def test_package_install_exposes_ordin_cli_graph_data_and_public_api(tmp_path):
     )
     health = json.loads(doctor.stdout)
     assert health["effect_count"] >= 20
-    assert health["temporal_rule_count"] == 4
+    assert health["temporal_rule_count"] == 7
     assert health["schema_count"] >= 21
     assert health["schema_errors"] == []
     assert health["risk_rule_errors"] == []

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, Mapping, TypeAlias
+from typing import TYPE_CHECKING, Any, Literal, Mapping, TypeAlias
 
 from .action import ActionEnvelope, ActionHistory, ActionReview
 from .adapters import MCPAdapter, ToolCallAdapter
@@ -11,6 +11,9 @@ from .execution import ObservationHistory
 from .mcp_contracts import MCPContractCheck
 from .review import CommandReview
 from .trace import ActionTrace
+
+if TYPE_CHECKING:
+    from .runtime_observation import RuntimeObservationHistory, RuntimeReviewBinding
 
 
 AgentDisposition: TypeAlias = Literal["execute", "escalate", "deny"]
@@ -77,6 +80,8 @@ class AgentGate:
         history: ActionHistory | Mapping[str, Any] | None = None,
         observations: ObservationHistory | Mapping[str, Any] | None = None,
         contract_check: MCPContractCheck | None = None,
+        runtime_observations: "RuntimeObservationHistory | Mapping[str, Any] | None" = None,
+        runtime_binding: "RuntimeReviewBinding | None" = None,
     ) -> AgentDecision:
         """Review a generic action through the same Ordin policy boundary."""
 
@@ -85,6 +90,8 @@ class AgentGate:
             history=history,
             observations=observations,
             contract_check=contract_check,
+            runtime_observations=runtime_observations,
+            runtime_binding=runtime_binding,
         )
         return AgentDecision(
             disposition=self._disposition(review),

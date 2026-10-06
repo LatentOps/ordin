@@ -14,12 +14,21 @@ from typing import Any, Iterable, Iterator, Mapping
 
 from . import __version__
 from ._private_storage import MAX_DATABASE_BYTES, private_database
-from .action import MAX_ACTION_HISTORY, ActionEnvelope, ActionHistory
+from .action import MAX_ACTION_HISTORY, ActionEnvelope, ActionHistory, ActionReview
 from .agent import AgentDecision, AgentGate
 from .execution import ActionObservation, ObservationHistory
 from .mcp_contracts import MCPContractCheck
 from .schema import validate_named_schema
 from .temporal import default_temporal_policy
+from .runtime_contract import RuntimeCapabilityContract, derive_runtime_capability_contract
+from .runtime_observation import (
+    RuntimeCorrelationError,
+    RuntimeEvidenceSource,
+    RuntimeObservation,
+    RuntimeObservationHistory,
+    RuntimeReviewBinding,
+)
+from ._runtime_json import validate as validate_runtime
 
 
 SESSION_SCHEMA_VERSION = "ordin.integration_session.v1"
@@ -134,6 +143,211 @@ class IntegrationSession:
         self._sequence = 0
         self._closed = False
         self._lock = threading.RLock()
+        self._runtime_active = False
+        self._runtime_epoch = 0
+        self._runtime_sources: dict[str, RuntimeEvidenceSource] = {}
+        self._runtime_current: str | None = None
+        self._runtime_history = RuntimeObservationHistory()
+        self._runtime_bindings: dict[str, set[str]] = {}
+
+    @property
+    def runtime_session_digest(self) -> str:
+        return _digest(
+            {
+                "identity": self.identity.key,
+                "configuration": self.config_digest,
+                "epoch": self._runtime_epoch,
+            }
+        )
+
+    def bind_runtime_source(self, source: RuntimeEvidenceSource) -> None:
+        """Explicitly enable host-owned runtime evidence before reviewing actions."""
+        with self._lock:
+            self.require_identity(self.identity)
+            if (
+                not isinstance(source, RuntimeEvidenceSource)
+                or source.session_digest != self.runtime_session_digest
+            ):
+                raise RuntimeCorrelationError("runtime_observation_session_mismatch")
+            if self._actions and not self._runtime_active:
+                raise RuntimeCorrelationError("runtime_observation_unreviewed_history")
+            if self._runtime_sources and any(
+                s.sandbox_id != source.sandbox_id for s in self._runtime_sources.values()
+            ):
+                raise RuntimeCorrelationError("runtime_observation_source_mismatch")
+            proposed = {**self._runtime_sources, source.key: source}
+            if len(proposed) > 128:
+                raise ValueError("runtime source limit exceeded")
+            packet = self._runtime_state()
+            packet.update(
+                sources=[s.as_dict() for _, s in sorted(proposed.items())],
+                current_source=source.key,
+            )
+            validate_runtime("runtime_session", packet)
+            self._runtime_sources = proposed
+            self._runtime_current = source.key
+            self._runtime_active = True
+
+    def runtime_contract(self, action_id: str) -> RuntimeCapabilityContract:
+        with self._lock:
+            self.require_identity(self.identity)
+            for contract in self._runtime_history.contracts:
+                if contract.action_id == action_id:
+                    return contract
+            raise RuntimeCorrelationError("runtime_observation_action_mismatch")
+
+    def bind_runtime_action_source(self, action_id: str, source: RuntimeEvidenceSource) -> None:
+        """Host-authorized reporting scope update after an explicit policy change.
+
+        This never grants or applies policy. The integration must validate/verify
+        the policy and detect active drift. Accepted historical scopes remain.
+        """
+        with self._lock:
+            contract = self.runtime_contract(action_id)
+            old_sources, old_current = self._runtime_sources, self._runtime_current
+            self.bind_runtime_source(source)
+            proposed = {key: set(values) for key, values in self._runtime_bindings.items()}
+            proposed.setdefault(contract.contract_id, set()).add(source.key)
+            try:
+                validate_runtime("runtime_session", self._runtime_state(bindings=proposed))
+            except ValueError:
+                self._runtime_sources, self._runtime_current = old_sources, old_current
+                raise
+            self._runtime_bindings = proposed
+
+    def observe_runtime(self, observation: RuntimeObservation) -> None:
+        with self._lock:
+            self.require_identity(self.identity)
+            if not self._runtime_active or not isinstance(observation, RuntimeObservation):
+                raise RuntimeCorrelationError("runtime_observation_untrusted_source")
+            contract = self.runtime_contract(observation.action_id)
+            if observation.source_key not in self._runtime_bindings.get(
+                contract.contract_id, set()
+            ):
+                raise RuntimeCorrelationError("runtime_observation_source_mismatch")
+            if observation.action_id in self._denied and observation.outcome != "denied":
+                raise RuntimeCorrelationError("runtime_observation_denied_action")
+            proposed = RuntimeObservationHistory(
+                (*self._runtime_history.observations, observation), self._runtime_history.contracts
+            )
+            proposed.correlate(
+                ActionHistory(tuple(self._actions)),
+                session_digest=self.runtime_session_digest,
+                allowed_sources=tuple(self._runtime_sources.values()),
+            )
+            validate_runtime("runtime_session", self._runtime_state(history=proposed))
+            self._runtime_history = proposed
+
+    def _runtime_state(
+        self,
+        *,
+        history: RuntimeObservationHistory | None = None,
+        bindings: dict[str, set[str]] | None = None,
+        sequence: int | None = None,
+    ) -> dict[str, Any]:
+        return {
+            "schema_version": "ordin.runtime_session.v1",
+            "identity_key": self.identity.key,
+            "configuration_digest": self.config_digest,
+            "sequence": self._sequence if sequence is None else sequence,
+            "epoch": self._runtime_epoch,
+            "sources": [s.as_dict() for _, s in sorted(self._runtime_sources.items())],
+            "current_source": self._runtime_current,
+            "bindings": [
+                {"contract_id": key, "source_keys": sorted(values)}
+                for key, values in sorted(
+                    (self._runtime_bindings if bindings is None else bindings).items()
+                )
+            ],
+            "history": (self._runtime_history if history is None else history).as_dict(),
+        }
+
+    def runtime_snapshot(self) -> dict[str, Any] | None:
+        """Separate secret-free sidecar; legacy snapshot/v1 remains unchanged."""
+        with self._lock:
+            self.require_identity(self.identity)
+            if not self._runtime_active:
+                return None
+            result = self._runtime_state()
+            validate_runtime("runtime_session", result)
+            return result
+
+    def snapshot_bundle(self) -> dict[str, Any]:
+        """Explicit private persistence bundle: legacy state plus runtime sidecar.
+
+        Legacy state still contains caller action parameters and has its existing
+        privacy requirements. The runtime sidecar never adds those data.
+        """
+        with self._lock:
+            return {"session": self.snapshot(), "runtime": self.runtime_snapshot()}
+
+    def restore_runtime(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        sources: Iterable[RuntimeEvidenceSource],
+    ) -> None:
+        """Restore only with host-owned source authorizations, never agent JSON."""
+        with self._lock:
+            validate_runtime("runtime_session", payload)
+            if (
+                payload["identity_key"] != self.identity.key
+                or payload["configuration_digest"] != self.config_digest
+            ):
+                raise RuntimeCorrelationError("runtime_observation_session_mismatch")
+            if payload["sequence"] != self._sequence:
+                raise RuntimeCorrelationError("runtime_observation_session_mismatch")
+            contexts = {s.key: s for s in sources}
+            recorded = {_digest(s): s for s in payload["sources"]}
+            # Source fields are ASCII identifiers/digests, so this agrees with
+            # the runtime model's UTF-8 canonical source key.
+            if not set(recorded).issubset(contexts) or any(
+                contexts[k].as_dict() != s for k, s in recorded.items()
+            ):
+                raise RuntimeCorrelationError("runtime_observation_untrusted_source")
+            epoch = payload["epoch"]
+            expected = _digest(
+                {"identity": self.identity.key, "configuration": self.config_digest, "epoch": epoch}
+            )
+            if any(s["session_digest"] != expected for s in recorded.values()):
+                raise RuntimeCorrelationError("runtime_observation_session_mismatch")
+            if len({s["sandbox_id"] for s in recorded.values()}) > 1:
+                raise RuntimeCorrelationError("runtime_observation_source_mismatch")
+            retained = RuntimeObservationHistory.restore_trusted(
+                payload["history"], sources=tuple(contexts.values())
+            )
+            retained.correlate(
+                ActionHistory(tuple(self._actions)),
+                session_digest=expected,
+                allowed_sources=tuple(contexts.values()),
+            )
+            action_map = {a.action_id: a for a in self._actions}
+            from ._runtime_json import digest as action_hash
+
+            for contract in retained.contracts:
+                action = action_map.get(contract.action_id)
+                if action is None or action_hash(action.as_dict()) != contract.action_digest:
+                    raise RuntimeCorrelationError("runtime_observation_action_mismatch")
+            bindings = {b["contract_id"]: set(b["source_keys"]) for b in payload["bindings"]}
+            if len(bindings) != len(payload["bindings"]) or set(bindings) != {
+                c.contract_id for c in retained.contracts
+            }:
+                raise RuntimeCorrelationError("runtime_observation_contract_mismatch")
+            if any(not values or not values.issubset(recorded) for values in bindings.values()):
+                raise RuntimeCorrelationError("runtime_observation_source_mismatch")
+            if payload["current_source"] is not None and payload["current_source"] not in recorded:
+                raise RuntimeCorrelationError("runtime_observation_source_mismatch")
+            for observation in retained.observations:
+                if observation.source_key not in bindings.get(observation.contract_id or "", set()):
+                    raise RuntimeCorrelationError("runtime_observation_source_mismatch")
+                if observation.action_id in self._denied and observation.outcome != "denied":
+                    raise RuntimeCorrelationError("runtime_observation_denied_action")
+            self._runtime_active = True
+            self._runtime_epoch = epoch
+            self._runtime_sources = {k: contexts[k] for k in recorded}
+            self._runtime_current = payload["current_source"]
+            self._runtime_history = retained
+            self._runtime_bindings = bindings
 
     def require_identity(self, identity: SessionIdentity) -> None:
         if identity != self.identity:
@@ -168,13 +382,32 @@ class IntegrationSession:
             # Validate the exact snapshot size before calling an audit sink or
             # changing state. Copying also prevents caller mutation after review.
             proposed = ActionEnvelope.from_dict(_load(_json(action.as_dict())))
-            extra = {"contract_check": contract_check} if contract_check is not None else {}
+            extra: dict[str, Any] = (
+                {"contract_check": contract_check} if contract_check is not None else {}
+            )
+            if self._runtime_active:
+                if self._runtime_current is None:
+                    raise RuntimeCorrelationError("runtime_observation_untrusted_source")
+                self._runtime_history.correlate(
+                    ActionHistory(tuple(self._actions)),
+                    session_digest=self.runtime_session_digest,
+                    allowed_sources=tuple(self._runtime_sources.values()),
+                )
+                extra.update(
+                    runtime_observations=self._runtime_history,
+                    runtime_binding=RuntimeReviewBinding(
+                        self.runtime_session_digest, self._sequence + 1, self._runtime_epoch
+                    ),
+                )
             decision = self.gate.evaluate_action(
                 proposed,
                 history=ActionHistory(tuple(self._actions)),
                 observations=ObservationHistory(tuple(self._observations.values())),
                 **extra,
             )
+            if self._runtime_active:
+                assert isinstance(decision.review, ActionReview)
+                proposed = ActionEnvelope.from_dict(decision.review.action.as_dict())
             actions = (self._actions + [proposed])[-MAX_ACTION_HISTORY:]
             ids = {item.action_id for item in actions}
             observations = {key: value for key, value in self._observations.items() if key in ids}
@@ -183,6 +416,29 @@ class IntegrationSession:
                 denied.add(action.action_id)
             snapshot = self._snapshot(actions, observations, denied, self._sequence + 1)
             self._bounded(snapshot)
+            if self._runtime_active:
+                assert isinstance(decision.review, ActionReview)
+                contract = derive_runtime_capability_contract(decision.review)
+                contracts = tuple(
+                    c for c in self._runtime_history.contracts if c.action_id in ids
+                ) + (contract,)
+                events = tuple(o for o in self._runtime_history.observations if o.action_id in ids)
+                runtime_history = RuntimeObservationHistory(events, contracts)
+                retained_contract_ids = {c.contract_id for c in contracts}
+                bindings = {
+                    key: set(values)
+                    for key, values in self._runtime_bindings.items()
+                    if key in retained_contract_ids
+                }
+                assert self._runtime_current is not None
+                bindings[contract.contract_id] = {self._runtime_current}
+                validate_runtime(
+                    "runtime_session",
+                    self._runtime_state(
+                        history=runtime_history, bindings=bindings, sequence=self._sequence + 1
+                    ),
+                )
+                self._runtime_history, self._runtime_bindings = runtime_history, bindings
             self._actions = actions[:-1] + [ActionEnvelope.from_dict(proposed.as_dict())]
             self._observations, self._denied = observations, denied
             self._sequence += 1
@@ -209,6 +465,12 @@ class IntegrationSession:
             self._actions.clear()
             self._observations.clear()
             self._denied.clear()
+            if self._runtime_active:
+                self._runtime_epoch += 1
+                self._runtime_sources.clear()
+                self._runtime_current = None
+                self._runtime_history = RuntimeObservationHistory()
+                self._runtime_bindings.clear()
             # Preserve monotonic sequence numbering across resets.
 
     def end(self) -> None:
@@ -296,6 +558,9 @@ class SqliteSessionStore:
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS sessions (identity TEXT PRIMARY KEY, snapshot TEXT NOT NULL)"
             )
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS runtime_sessions (identity TEXT PRIMARY KEY, snapshot TEXT NOT NULL)"
+            )
             yield connection
 
     @contextmanager
@@ -306,6 +571,7 @@ class SqliteSessionStore:
         *,
         create: bool = False,
         reset: bool = False,
+        runtime_sources: Iterable[RuntimeEvidenceSource] = (),
     ) -> Iterator[IntegrationSession]:
         with self._connection() as connection:
             row = connection.execute(
@@ -324,11 +590,34 @@ class SqliteSessionStore:
                 if row is None or reset
                 else IntegrationSession.restore(identity, gate, _load(row[0]))
             )
+            runtime_row = connection.execute(
+                "SELECT snapshot FROM runtime_sessions WHERE identity=?", (identity.key,)
+            ).fetchone()
+            if runtime_row is not None:
+                runtime_state = _load(runtime_row[0])
+                if reset:
+                    validate_runtime("runtime_session", runtime_state)
+                    session._runtime_active = True
+                    session._runtime_epoch = runtime_state["epoch"] + 1
+                    session._sequence = max(session._sequence, runtime_state["sequence"])
+                else:
+                    session.restore_runtime(runtime_state, sources=runtime_sources)
             yield session
             if session._closed:
                 connection.execute("DELETE FROM sessions WHERE identity=?", (identity.key,))
+                connection.execute("DELETE FROM runtime_sessions WHERE identity=?", (identity.key,))
             else:
                 connection.execute(
                     "INSERT OR REPLACE INTO sessions VALUES (?, ?)",
                     (identity.key, _json(session.snapshot())),
                 )
+                updated_runtime_state = session.runtime_snapshot()
+                if updated_runtime_state is None:
+                    connection.execute(
+                        "DELETE FROM runtime_sessions WHERE identity=?", (identity.key,)
+                    )
+                else:
+                    connection.execute(
+                        "INSERT OR REPLACE INTO runtime_sessions VALUES (?, ?)",
+                        (identity.key, _json(updated_runtime_state)),
+                    )

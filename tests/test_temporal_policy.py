@@ -28,7 +28,11 @@ def test_default_temporal_policy_is_data_defined_and_preserves_rule_ids():
         "download-permission-execute",
         "repeated-destructive-actions",
         "repeated-privilege-escalation",
+        "runtime-denied-secret-upload",
+        "runtime-boundary-retry",
+        "runtime-privilege-alternative",
     ]
+    assert policy.version == "2"
 
 
 def test_state_machine_requires_sequence_to_complete_on_current_action():
