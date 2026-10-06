@@ -63,18 +63,23 @@ class OpenShellCLI:
             identifier(self.gateway)
         identifier(self.workspace)
         if self.gateway_endpoint is not None:
-            parsed = urlsplit(self.gateway_endpoint)
-            if (
-                parsed.scheme not in {"http", "https"}
-                or not parsed.hostname
-                or parsed.username
-                or parsed.password
-                or parsed.query
-                or parsed.fragment
-                or parsed.path not in {"", "/"}
-            ):
-                raise ValueError("openshell_gateway_endpoint_invalid")
-            _ = parsed.port
+            try:
+                parsed = urlsplit(self.gateway_endpoint)
+                if (
+                    parsed.scheme not in {"http", "https"}
+                    or not parsed.hostname
+                    or parsed.username is not None
+                    or parsed.password is not None
+                    or parsed.query
+                    or parsed.fragment
+                    or parsed.path not in {"", "/"}
+                    or any(ord(c) < 32 for c in self.gateway_endpoint)
+                    or parsed.port is not None
+                    and not 1 <= parsed.port <= 65535
+                ):
+                    raise ValueError("openshell_gateway_endpoint_invalid")
+            except (TypeError, ValueError):
+                raise ValueError("openshell_gateway_endpoint_invalid") from None
 
     @property
     def context(self) -> dict[str, str | None]:

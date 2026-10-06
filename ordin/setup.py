@@ -140,7 +140,7 @@ def validate_settings(settings: dict[str, Any], *, validate_contracts: bool = Tr
             if command or not isinstance(settings["upstream"], str):
                 raise SetupError("http_upstream_required")
             url = urlsplit(settings["upstream"])
-            if url.query or url.fragment or url.username or url.password:
+            if url.query or url.fragment or url.username is not None or url.password is not None:
                 raise SetupError("credential_url_requires_manual_configuration")
             MCPHTTPConfig(settings["server_id"], settings["upstream"], port=settings["port"])
         supplied = [bool(settings[key]) for key in ("semantics", "inventory", "contract_lock")]
