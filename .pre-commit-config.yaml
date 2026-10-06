@@ -72,6 +72,7 @@ repos:
           ordin/_runtime_json.py
           ordin/_runtime_schemas.py
           ordin/runtime_contract.py
+          ordin/runtime_requirements.py
           ordin/runtime_observation.py
           ordin/runtime_reasoning.py
           ordin/runtime_boundary.py

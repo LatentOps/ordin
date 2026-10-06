@@ -253,6 +253,47 @@ def _safe_path(path: str) -> bool:
     )
 
 
+def _literal_http_request(review: ActionReview) -> tuple[str, str] | None:
+    """Only establish a request for a small literal curl subset with curlrc disabled."""
+    if review.action.kind != "shell" or review.adapter is None:
+        return None
+    command = review.action.parameters.get("command")
+    if not isinstance(command, str) or any(c in command for c in "$`\\\n\r"):
+        return None
+    try:
+        segments, operators = split_shell_segments(command)
+    except ValueError:
+        return None
+    if operators or len(segments) != 1 or not segments[0]:
+        return None
+    tokens = segments[0]
+    if (
+        tokens[0].rsplit("/", 1)[-1] != "curl"
+        or len(tokens) < 3
+        or tokens[1] not in {"--disable", "-q"}
+    ):
+        return None
+    method, urls, index = "GET", [], 2
+    while index < len(tokens):
+        token = tokens[index]
+        if token in {"--request", "-X"}:
+            if index + 1 >= len(tokens) or method != "GET":
+                return None
+            method = tokens[index + 1]
+            index += 2
+            continue
+        if token not in {"--silent", "--show-error", "--fail", "--no-progress-meter"}:
+            if not token.startswith(("https://", "http://")):
+                return None
+            urls.append(token)
+        index += 1
+    if len(urls) != 1 or method not in {"GET", "HEAD", "OPTIONS"}:
+        return None  # Mutating methods need separately established semantic write evidence.
+    if not any(r.type == "url" and r.value == urls[0] for r in review.resources):
+        return None
+    return method, urls[0]
+
+
 def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilityContract:
     """Derive only from supplied reviewed evidence; never execute or inspect a host."""
     if not isinstance(review, ActionReview):
@@ -308,6 +349,7 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
                 filesystem.add(FilesystemCapability(access, resource.value, scope))
     net_effects = {v for v in effects if v.startswith("network.")}
     net_resources = [v for v in review.resources if v.type in {"host", "url", "endpoint"}]
+    request = _literal_http_request(review)
     if net_effects:
         access = "write" if "network.upload" in effects else "read"
         if not net_effects.issubset(_NETWORK_EFFECTS):
@@ -358,6 +400,14 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
                     "runtime_contract_malformed_resource",
                     "Endpoint is malformed, ambiguous, or includes sensitive URL components.",
                 )
+            if host is not None and request is not None and resource.value == request[1]:
+                parsed = urlsplit(resource.value)
+                path = parsed.path or "/"
+                if _safe_path(path) and not any(c in path for c in "%?#"):
+                    network.add(
+                        NetworkCapability(host, port, "rest", access, (request[0],), (path,))
+                    )
+                    continue
             # Host/URL evidence alone does not establish REST or an HTTP method.
             network.add(NetworkCapability(host, port, access=access))
             unknown(
@@ -423,6 +473,57 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
             )
     if review.adapter is None:
         escalation = None
+    # Explicit context requirements augment authority without inventing action
+    # effects or erasing any semantic uncertainty. Normal action input cannot
+    # supply provenance records; the host owns review/context artifact integrity.
+    spawn_children = None
+    bindings: dict[str, str] = {}
+    child_requirements: set[bool] = set()
+    if review.provenance is not None:
+        for record in review.provenance.records:
+            if record.source != "context" or not record.metadata.get("profile_digest"):
+                continue
+            if record.code == "runtime.requirement.filesystem" and record.resource is not None:
+                path = record.resource.value
+                if not _safe_path(path):
+                    unknown(
+                        "filesystem",
+                        "runtime_contract_malformed_resource",
+                        "Runtime requirement path is ambiguous.",
+                    )
+                    continue
+                filesystem.add(
+                    FilesystemCapability(
+                        str(record.metadata.get("access")), path, str(record.metadata.get("scope"))
+                    )
+                )
+            elif record.code == "runtime.requirement.executable" and record.resource is not None:
+                logical = record.metadata.get("logical_executable")
+                path = record.resource.value
+                if isinstance(logical, str) and _safe_path(path):
+                    if (logical in bindings and bindings[logical] != path) or (
+                        logical.startswith("/") and logical != path
+                    ):
+                        unknown(
+                            "process",
+                            "runtime_contract_conflicting_requirement",
+                            "Runtime executable bindings conflict with reviewed identity.",
+                        )
+                    else:
+                        bindings[logical] = path
+            elif record.code == "runtime.requirement.children":
+                value = record.metadata.get("spawn_children")
+                if type(value) is bool:
+                    child_requirements.add(value)
+        executables = tuple(bindings.get(value, value) for value in executables)
+        if len(child_requirements) > 1:
+            unknown(
+                "process",
+                "runtime_contract_conflicting_requirement",
+                "Runtime child-process requirements conflict.",
+            )
+        elif child_requirements:
+            spawn_children = next(iter(child_requirements))
     return RuntimeCapabilityContract(
         action_id=review.action.action_id,
         action_digest=action_digest(review),
@@ -432,7 +533,7 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
         network=tuple(sorted(network, key=lambda v: (v.host or "", v.port or 0, v.access))),
         tools=tuple(tools),
         process=ProcessCapability(
-            process_execution if review.adapter is not None else None, executables, None
+            process_execution if review.adapter is not None else None, executables, spawn_children
         ),
         privilege=PrivilegeCapability(escalation),
         unknowns=tuple(sorted(unknowns, key=lambda v: (v.domain, v.reason_code, v.reason))),

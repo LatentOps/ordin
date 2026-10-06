@@ -14,6 +14,22 @@ Review decoding preserves the supplied v1 decision, provenance, and uncertainty;
 it does not re-review the action. Hosts must protect reviewed artifacts, since
 shape validation is not authenticity. Unknown scopes/protocols remain explicit.
 
+Literal, single-request `curl --disable --request GET https://host/path` reviews
+can establish exact REST method/path requirements. Curl configuration,
+redirects, dynamic shell values, multiple destinations, sensitive URL components,
+encoded/ambiguous paths, and unmodeled options remain uncertain. A host resource
+alone never supplies REST semantics.
+
+`RuntimeRequirementProfile` in `ordin.runtime_requirements` lets host code attach
+explicit reviewed deployment requirements through context provenance: loader
+paths, exact binary bindings, and child-process requirements. `profile.declare(review)`
+preserves the original action, semantic effects, resources, decision, and risk.
+Derivation remains pure and reads only that reviewed evidence. Profile facts are
+not discovered from the host, obtained from agent arguments, or inferred from
+tool names. Protect the profile and review artifact; this is context authority,
+not cryptographic authentication or kernel measurement. Conflicting facts remain
+diagnostic, and deployment facts never erase unknown action semantics.
+
 `RuntimeCapabilityContract` (`ordin.runtime_capability.v1`) describes the minimum
 runtime capabilities established by a supplied `ActionReview`. It is separate
 from `ActionReview.v1` and the existing coarse `ExecutionCapabilityProfile`.
