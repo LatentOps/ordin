@@ -27,6 +27,7 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "runtime_capability": "runtime-capability.v1.schema.json",
     "cursor_mcp_map": "cursor-mcp-map.v1.schema.json",
     "action_trace": "action-trace.v1.schema.json",
     "trace_event": "trace-event.v1.schema.json",
@@ -243,6 +244,10 @@ def validate_schema_files() -> list[str]:
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             errors.append(f"schema {filename}: {exc}")
             continue
+        from ._runtime_schemas import SCHEMAS as runtime_schemas
+
+        if name in runtime_schemas and schema != runtime_schemas[name]:
+            errors.append(f"schema {filename}: differs from runtime validation definition")
         if schema.get("$schema") != DRAFT_2020_12:
             errors.append(f"schema {filename}: expected Draft 2020-12 declaration")
         if not isinstance(schema.get("$id"), str) or not schema["$id"]:

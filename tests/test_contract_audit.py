@@ -25,6 +25,7 @@ from ordin.data import DATA_DIR, load_commands, load_json
 from ordin.graph import build_effect_graph
 from ordin.mcp_contracts import MCPContractLock
 from ordin.packs import pack_list_payload
+from ordin.runtime_contract import derive_runtime_capability_contract
 from ordin.schema import SCHEMA_FILES, validate_instance, validate_named_schema
 from ordin.session import IntegrationSession, SessionIdentity
 from ordin.temporal import default_temporal_policy, load_temporal_policy
@@ -54,6 +55,7 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
         },
     }
     samples = {
+        "runtime_capability": derive_runtime_capability_contract(review).as_dict(),
         "cursor_mcp_map": load_json(ROOT / "examples/cursor-mcp-map.json"),
         "action_trace": ActionTrace((TraceAction("git status"),)).as_dict(),
         "action_envelope": action.as_dict(),
@@ -202,6 +204,9 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert sorted(ordin.__all__) == manifest["exports"]
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
-    assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {"cursor_mcp_map"}
+    assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
+        "cursor_mcp_map",
+        "runtime_capability",
+    }
     for module, names in manifest["module_contracts"].items():
         assert all(hasattr(import_module(module), name) for name in names), module
