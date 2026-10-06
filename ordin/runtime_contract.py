@@ -396,7 +396,10 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
                     if (
                         url.scheme in {"http", "https"}
                         and not any(ord(c) < 32 for c in resource.value)
-                        and not (url.username or url.password or url.query or url.fragment)
+                        and url.username is None
+                        and url.password is None
+                        and not url.query
+                        and not url.fragment
                     ):
                         parsed_port = (
                             url.port

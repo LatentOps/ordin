@@ -525,6 +525,70 @@ def test_backend_observed_never_becomes_backend_enforced():
     assert "signal:runtime-enforced" not in signals
 
 
+@pytest.mark.parametrize(
+    "url,valid",
+    [
+        ("https://api.example.com/a", True),
+        ("http://api.example.com/a", True),
+        ("https://user@api.example.com/a", False),
+        ("https://user:pass@api.example.com/a", False),
+        ("https://@api.example.com/a", False),
+        ("https://:@api.example.com/a", False),
+        ("https://api.example.com/a?x=1", False),
+        ("https://api.example.com/a#fragment", False),
+        ("https://api.example.com:443/a", True),
+        ("https://api.example.com:99999/a", False),
+        ("https://api.example.com:0/a", False),
+    ],
+)
+def test_url_authority_consistency_applies_to_asserted_and_trusted_observations(url, valid):
+    _, _, contract, source = fixture()
+    resources = (ObservedResource("url", url),)
+    if valid:
+        assert (
+            RuntimeObservation("url", contract.action_id, resources=resources).resources
+            == resources
+        )
+        assert event(source, contract, resources=resources).trust == "backend_enforced"
+    else:
+        for construct in (
+            lambda: RuntimeObservation("url", contract.action_id, resources=resources),
+            lambda: event(source, contract, resources=resources),
+        ):
+            with pytest.raises(
+                ValueError, match="runtime observation rejects sensitive or ambiguous URLs"
+            ) as error:
+                construct()
+            assert url not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["https://@api.example.com/a", "https://:@api.example.com/a", "https://api.example.com:0/a"],
+)
+def test_malformed_url_cannot_borrow_a_denied_endpoint_for_retry_reasoning(url):
+    from ordin.runtime_reasoning import current_runtime_signals
+
+    ordin, _, contract, source = fixture()
+    observations = {
+        "one": tuple(
+            source.observe(
+                contract,
+                observation_id="denied-" + str(i),
+                trust="backend_enforced",
+                enforcement_point="network",
+                outcome="denied",
+                operation="http.request",
+                reason_code="policy_denied",
+                metadata={"host": "api.example.com", "port": 443, "path": "/a"},
+            )
+            for i in range(2)
+        )
+    }
+    review = ordin.review_action(ActionEnvelope.shell("curl --disable " + url))
+    assert "signal:runtime-boundary-retry" not in current_runtime_signals(review, observations)
+
+
 def test_two_distinct_denied_targets_are_not_repeated_access_to_one_resource():
     from ordin.action import ActionResource
     from ordin.runtime_reasoning import current_runtime_signals

@@ -101,13 +101,14 @@ def _resource_keys(resources) -> set[tuple[str, ...]]:
             url = urlsplit(resource.value)
             if (
                 url.scheme not in {"https", "http"}
-                or url.username
-                or url.password
+                or url.username is not None
+                or url.password is not None
                 or url.query
                 or url.fragment
+                or any(ord(c) < 32 for c in resource.value)
             ):
                 continue
-            port = url.port or (443 if url.scheme == "https" else 80)
+            port = url.port if url.port is not None else (443 if url.scheme == "https" else 80)
             key = _request_key(url.hostname, port, url.path or "/")
             if key is not None:
                 keys.add(key)

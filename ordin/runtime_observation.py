@@ -60,10 +60,14 @@ def _safe_resources(resources: tuple[ObservedResource, ...], metadata: Mapping[s
                 if (
                     url.scheme not in {"https", "http"}
                     or not url.hostname
-                    or (url.username or url.password or url.query or url.fragment)
+                    or url.username is not None
+                    or url.password is not None
+                    or url.query
+                    or url.fragment
                 ):
                     raise ValueError("runtime observation rejects sensitive or ambiguous URLs")
-                _ = url.port
+                if url.port is not None and not 1 <= url.port <= 65535:
+                    raise ValueError("runtime observation rejects sensitive or ambiguous URLs")
             except ValueError:
                 raise ValueError(
                     "runtime observation rejects sensitive or ambiguous URLs"

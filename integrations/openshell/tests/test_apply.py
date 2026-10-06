@@ -437,11 +437,16 @@ def test_cli_calls_use_literal_argv_and_do_not_leak_backend_diagnostics(monkeypa
         "http://example.com/path",
         "http://example.com#secret",
         "http://example.com:65536",
+        "https://@api.example.com/",
+        "https://:@api.example.com/",
+        "https://api.example.com:0/",
+        "https://api.example.com:PRIVATE_PORT_VALUE/",
     ],
 )
 def test_gateway_endpoint_cannot_carry_credentials_or_unmodeled_connection_data(endpoint):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="openshell_gateway_endpoint_invalid") as error:
         OpenShellCLI(gateway_endpoint=endpoint)
+    assert endpoint not in str(error.value) and "PRIVATE_PORT_VALUE" not in str(error.value)
 
 
 @pytest.mark.parametrize(

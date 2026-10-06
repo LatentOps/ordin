@@ -111,8 +111,10 @@ Structured denials become `backend_enforced`. Allowed requests become
 as `Allowed`, with the audit distinction in human prose. The adapter does not
 parse that prose or claim successful completion from permission. It preserves
 only bounded request/process fields, source schema version, and event digest.
-It strips query/fragment data, ignores headers, bodies, command lines, messages,
-and arbitrary unmapped fields, and hashes event identity.
+It strips query/fragment data from relative request targets, ignores headers,
+bodies, command lines, messages, and arbitrary unmapped fields, and hashes event
+identity. The structured path field rejects full URLs, including empty userinfo,
+before correlation; it does not normalize URL authority into a relative path.
 
 `CorrelationBinding` identifies the original action/digest/contract, exact
 `RuntimeEvidenceSource`, event UID digest, event digest, and a bounded lifetime.
