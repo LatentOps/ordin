@@ -70,8 +70,8 @@ def request_endpoint(url: Any) -> tuple[str, int, str] | None:
         if (
             parsed.scheme not in {"http", "https"}
             or not host
-            or parsed.username
-            or parsed.password
+            or parsed.username is not None
+            or parsed.password is not None
             or parsed.query
             or parsed.fragment
         ):
@@ -366,7 +366,16 @@ def request_contract_errors(contract: RuntimeRequestContract) -> tuple[str, ...]
 def verify_runtime_request_capability(
     contract: RuntimeRequestContract, boundary: RuntimeRequestBoundary
 ) -> RequestVerificationResult:
+    if not isinstance(contract, RuntimeRequestContract) or not isinstance(
+        boundary, RuntimeRequestBoundary
+    ):
+        raise ValueError("runtime_request_verification_input_invalid")
     errors = request_contract_errors(contract)
+    if any(
+        n.protocol in {"graphql", "mcp"} and n.tool_identity is not None
+        for n in boundary.boundary.network
+    ):
+        errors += ("requests.boundary_opaque_tool_identity_unrepresentable",)
     for allowed in boundary.requests:
         if not any(
             n.protocol == allowed.protocol
@@ -408,6 +417,31 @@ def verify_runtime_request_capability(
         boundary.boundary, network=tuple(transport(n) for n in boundary.boundary.network)
     )
     core = verify_runtime_capability(candidate, maximum)
+    if core.ok:
+        # Projection preserves request transport but erases protocol identity.
+        # Verify each original protocol against its own grants before accepting
+        # the aggregate result, so raw HTTP cannot borrow GraphQL/MCP authority.
+        for protocol in sorted({n.protocol for n in contract.capability.network}):
+            scoped = verify_runtime_capability(
+                replace(
+                    candidate,
+                    contract_id="",
+                    network=tuple(
+                        transport(n) for n in contract.capability.network if n.protocol == protocol
+                    ),
+                ),
+                replace(
+                    maximum,
+                    network=tuple(
+                        transport(n)
+                        for n in boundary.boundary.network
+                        if n.protocol in {protocol, "tcp"}
+                    ),
+                ),
+            )
+            if not scoped.ok:
+                core = scoped
+                break
     if not core.ok:
         return RequestVerificationResult(
             core.result,

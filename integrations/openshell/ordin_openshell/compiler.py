@@ -50,6 +50,7 @@ def compile_openshell_policy(
         or any(type(v) is not int or not 1 <= v <= MAX_PROCESS_IDENTITY for v in process_identity)
     ):
         unsupported.add("process.identity")
+        process_identity = None
     elif (
         contract.privilege.required_euid is not None
         and process_identity[0] != contract.privilege.required_euid

@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from ordin_openshell.cli import main
 from test_requests import graphql_contract, request_boundary
 
@@ -75,3 +77,15 @@ def test_optional_ocsf_cli_exports_private_free_review_and_correlation_findings(
     assert "PRIVATE-TOKEN" not in output and "private-id" not in output and "rm -rf" not in output
     events = json.loads(output)["events"]
     assert len(events) == 2 and all(e["class_uid"] == 2004 for e in events)
+
+
+@pytest.mark.parametrize("time_ms", ["-1", str(2**54)])
+def test_empty_successful_compilation_export_still_validates_timestamp(tmp_path, capsys, time_ms):
+    from ordin_openshell.compiler import OpenShellBackend
+
+    _, request = graphql_contract()
+    result = OpenShellBackend((1000, 1000), request_contract=request).compile(request.capability)
+    path = tmp_path / "compilation.json"
+    path.write_text(json.dumps(result.as_dict()))
+    assert main(["export-ocsf", "--compilation-result", str(path), "--time-ms", time_ms]) == 2
+    assert json.loads(capsys.readouterr().out)["status"] == "unsupported"

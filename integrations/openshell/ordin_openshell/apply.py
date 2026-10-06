@@ -46,7 +46,10 @@ def canonical_runtime_policy(value: Mapping[str, Any]) -> dict[str, Any]:
             raise ValueError("openshell_policy_shape")
         if rule.get("name") == key:
             rule.pop("name")
-        for endpoint in rule.get("endpoints", []):
+        endpoints = rule.get("endpoints", [])
+        if not isinstance(endpoints, list):
+            raise ValueError("openshell_policy_shape")
+        for endpoint in endpoints:
             if not isinstance(endpoint, dict):
                 raise ValueError("openshell_policy_shape")
             # Proto round trips omit these empty strings/vectors. Any nonempty
@@ -66,11 +69,21 @@ def canonical_runtime_policy(value: Mapping[str, Any]) -> dict[str, Any]:
                 if endpoint.get(name) is False:
                     endpoint.pop(name)
             if endpoint.get("protocol") == "mcp":
-                for entry in endpoint.get("rules", []):
+                entries = endpoint.get("rules", [])
+                if not isinstance(entries, list):
+                    raise ValueError("openshell_policy_shape")
+                for entry in entries:
+                    if not isinstance(entry, dict):
+                        raise ValueError("openshell_policy_shape")
                     allow = entry.get("allow", {})
-                    if isinstance(allow, dict) and "tool" in allow and "params" not in allow:
+                    if not isinstance(allow, dict):
+                        raise ValueError("openshell_policy_shape")
+                    if "tool" in allow and "params" not in allow:
                         allow["params"] = {"name": allow.pop("tool")}
-                    matcher = allow.get("params", {}).get("name")
+                    params = allow.get("params", {})
+                    if not isinstance(params, dict):
+                        raise ValueError("openshell_policy_shape")
+                    matcher = params.get("name")
                     if (
                         isinstance(matcher, dict)
                         and matcher.get("any") == []

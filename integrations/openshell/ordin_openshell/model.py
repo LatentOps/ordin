@@ -164,7 +164,8 @@ def policy_errors(policy: Mapping[str, Any]) -> tuple[str, ...]:
                 errors.append("network_policies.endpoint_identity")
             protocol = endpoint.get("protocol")
             if (
-                protocol not in {"rest", "graphql", "mcp"}
+                not isinstance(protocol, str)
+                or protocol not in {"rest", "graphql", "mcp"}
                 or endpoint.get("enforcement") != "enforce"
             ):
                 errors.append("network_policies.request_inspection")

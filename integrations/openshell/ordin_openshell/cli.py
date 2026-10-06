@@ -38,6 +38,7 @@ from .observations import ingest_openshell_event
 from .prover import verify_with_openshell_prover
 from .shadow import ShadowCase, build_shadow_report
 from .ocsf_export import (
+    _time,
     export_review_findings,
     export_boundary_findings,
     export_compiler_findings,
@@ -168,6 +169,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             output, code = verified_requests.as_dict(), 0 if verified_requests.ok else 2
         elif args.command == "export-ocsf":
+            _time(args.time_ms)
             findings: list[dict[str, Any]] = []
             if not any(
                 (
