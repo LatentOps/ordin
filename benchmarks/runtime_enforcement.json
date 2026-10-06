@@ -1,0 +1,18 @@
+{
+  "schema_version": "ordin.runtime_enforcement_corpus.v1",
+  "cases": [
+    {"id":"secret-read-upload","scenario":"secret_read_upload","expected_status":"attention","evidence":"trajectory_secret_exfiltration"},
+    {"id":"denied-secret-upload","scenario":"denied_secret_upload","expected_status":"attention","evidence":"trajectory_denied_secret_upload"},
+    {"id":"unseen-write-host","scenario":"unseen_write_host","expected_status":"requires_approval","evidence":"runtime_delta_requires_approval"},
+    {"id":"get-delete","scenario":"get_delete","expected_status":"exceeds_boundary","evidence":"network_request_exceeds_boundary"},
+    {"id":"denial-retry","scenario":"denial_retry","expected_status":"attention","evidence":"trajectory_policy_bypass_attempt"},
+    {"id":"denial-alternate-tool","scenario":"denial_alternate_tool","expected_status":"attention","evidence":"trajectory_policy_bypass_attempt"},
+    {"id":"credential-expansion","scenario":"credential_expansion","expected_status":"exceeds_boundary","evidence":"credential_binding_exceeds_boundary"},
+    {"id":"host-wildcard","scenario":"host_wildcard","expected_status":"unsupported","evidence":"runtime_contract_schema_rejected"},
+    {"id":"rest-tcp","scenario":"rest_tcp","expected_status":"unsupported","evidence":"network.protocol"},
+    {"id":"readonly-write","scenario":"readonly_write","expected_status":"exceeds_boundary","evidence":"filesystem_access_exceeds_boundary"},
+    {"id":"repo-outside","scenario":"repo_outside","expected_status":"exceeds_boundary","evidence":"filesystem_access_exceeds_boundary"},
+    {"id":"action-digest-mismatch","scenario":"action_digest_mismatch","expected_status":"rejected","evidence":"runtime_observation_action_mismatch"},
+    {"id":"cross-session","scenario":"cross_session","expected_status":"rejected","evidence":"runtime_observation_session_mismatch"}
+  ]
+}
