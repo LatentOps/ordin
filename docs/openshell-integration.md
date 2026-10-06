@@ -160,7 +160,80 @@ mismatches, boundary verification for every enforceable policy, passing core
 and optional integration/adversarial suites, and manual review of unsupported
 classes. Shadow evaluation never switches to enforcement automatically.
 
-Explicit verified policy apply, active-policy drift readback, full runtime
-end-to-end demonstrations, and compatibility doctor remain implementation work
-in the full runtime-enforcement plan. The compile/evidence/shadow APIs here do
-not claim those runtime guarantees.
+## Explicit verified policy apply
+
+Apply operates on an existing named, ready sandbox. It never starts, recreates,
+deletes, executes, or retries a workload. It validates the plan against its
+contract and runs configured capability-boundary/prover checks. It reads the
+full effective policy, including provider-composed authority, and checks that
+the loaded revision and workload admission agree with the policy hash/revision.
+Unknown effective-policy fields are not filtered away. Filesystem, Landlock,
+and process settings must already equal the plan's startup settings; a live
+network update cannot make new filesystem restrictions physically true.
+
+First obtain a reviewable, non-mutating preparation:
+
+```sh
+ordin-openshell apply --sandbox coding-demo --contract capability.json \
+    --policy policy.json --uid 1000 --gid 1000 \
+    --capability-boundary boundary.json \
+    --require-verified-boundary openshell-boundary.json \
+    --audit private/apply.jsonl
+```
+
+The command prints policy, action, contract, verification, and request digests
+and returns `requires_approval`. After operator review, repeat with
+`--approve-request pa:<exact-request-digest>`. Approval binds the whole plan,
+sandbox identity, current policy/version, connection context, and verification.
+Changed inputs or state need new approval. All initial apply operations require
+explicit host approval; `ask` and `warn` never transition automatically. Protect
+the operator entrypoint and approval input from agents.
+
+The adapter rechecks current state before one `openshell policy set --wait`
+invocation, then rechecks effective policy, loaded revision, sandbox identity,
+and admission. Only matching readback returns `applied` and permits
+`result.evidence_source(session_digest)`. Bind that source to the original
+session/action before attaching events. Timeout, superseding revision, and drift
+return `inconclusive`, indicating whether a mutation was attempted. A timed-out
+update may still load later; the adapter does not retry or roll back.
+
+The host must serialize management and protect CLI/runtime configuration.
+Read-before/read-after checks are not an atomic server-side CAS or remote
+attestation, and a later trusted update or runtime compromise can change policy.
+Required but absent prover domains fail closed. Credential-bearing policies
+request separate credential coverage when prover verification is configured;
+this standalone prover currently lacks that coverage.
+
+`PolicyApplyAudit` writes bounded private, hash-chained operator receipts: a
+durable attempted record before mutation and an outcome afterward. Digests link
+action, contract, plan, policy bytes/mapping, verification/coverage, and active
+policy. Receipts omit commands, event payloads, plaintext resources, and secrets.
+`with_apply_provenance` adds linkage to an unchanged original review for the
+existing Ordin decision audit. Owner-forged history remains outside hash-chain
+guarantees; external checkpoints can detect missing tails.
+
+## CLI commands and compatibility doctor
+
+```sh
+ordin-openshell compile --review review.json --uid 1000 --gid 1000 --output policy.json
+ordin-openshell prove --policy policy.json --boundary openshell-boundary.json
+ordin-openshell ingest-event --event event.json --contract capability.json \
+    --source-context private/source.json --correlation-db private/events.db --now-ms 1791267600000
+ordin-openshell shadow-report --cases private/shadow-cases.json
+ordin-openshell doctor
+```
+
+Review loading preserves the supplied v1 review, provenance, and decision; it
+does not rerun review with different policy/history. Protect artifacts: shape
+validation is not authentication. `--operator-config` accepts a private file
+with only `resource_kinds` and `credential_providers`; unknown fields/values do
+not become plan metadata. Source contexts and shadow cases are explicit private
+host-owned inputs too. POSIX files must be owner-only in protected directories.
+Ingest still requires the protected exact event/action binding.
+
+Doctor checks CLI/prover versions, compiler schema using a read-only prover
+self-check when available, and optional YAML availability. It records tested
+runtime/schema/prover/package versions without sandbox mutation. Missing or
+incompatible installations do not affect core imports or pure APIs. Actual
+runtime end-to-end demonstrations and remaining plan deliverables require
+separate verification; unit response fixtures do not establish kernel controls.

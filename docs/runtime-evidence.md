@@ -1,5 +1,13 @@
 # Runtime observations and trust
 
+`RuntimeObservation`, `RuntimeObservationHistory`, and `RuntimeEvidenceSource`
+are additive root-package exports. `ordin runtime-observation validate file.json`
+accepts ordinary caller-asserted JSON. Strong labels require explicit
+`--trusted-source private/source.json` and a private host-owned observation file.
+This operator restoration path is separate from ordinary action input. Protect
+the source/evidence files and collection channel; owner-only files do not provide
+cryptographic attestation or resist a compromised trusted owner.
+
 `RuntimeObservation` (`ordin.runtime_observation.v1`) adds enforcement evidence
 beside the existing caller-supplied `ActionObservation`. It does not execute
 actions or replace predicted semantics. `RuntimeObservationHistory` retains

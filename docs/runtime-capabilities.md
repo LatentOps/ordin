@@ -1,5 +1,19 @@
 # Runtime capability contracts
 
+The additive `RuntimeCapabilityContract` and
+`derive_runtime_capability_contract` APIs are available from `ordin`.
+
+```sh
+ordin capability derive --review review.json --json
+ordin capability validate capability.json --json
+ordin capability verify capability.json --boundary boundary.json --json
+```
+
+These commands read local artifacts without execution or runtime mutation.
+Review decoding preserves the supplied v1 decision, provenance, and uncertainty;
+it does not re-review the action. Hosts must protect reviewed artifacts, since
+shape validation is not authenticity. Unknown scopes/protocols remain explicit.
+
 `RuntimeCapabilityContract` (`ordin.runtime_capability.v1`) describes the minimum
 runtime capabilities established by a supplied `ActionReview`. It is separate
 from `ActionReview.v1` and the existing coarse `ExecutionCapabilityProfile`.

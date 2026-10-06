@@ -1,5 +1,18 @@
 # Minimal capability proposals
 
+`CapabilityDeltaProposal` and `propose_capability_delta` are additive exports
+from `ordin`. The core command produces data without approval, apply, or retry:
+
+```sh
+ordin capability propose --review review.json --contract capability.json \
+    --denial private/denial.json --boundary boundary.json \
+    --trusted-source private/source.json --json
+```
+
+Strong denial/source files must be explicit private host-owned evidence;
+ordinary agent JSON cannot self-declare backend enforcement. The original
+review's decision and uncertainty remain authoritative.
+
 `propose_capability_delta(review, contract, denial, boundary, backend=...)`
 returns an immutable `CapabilityDeltaProposal` (`ordin.capability_delta_proposal.v1`).
 It never approves a change, applies policy, executes an action, or retries it.
