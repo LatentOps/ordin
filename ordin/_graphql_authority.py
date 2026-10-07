@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any, Mapping
 
+MAX_GRAPHQL_NODES = 4096
+
 _NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 _TOKEN = re.compile(
     r'[ \t\r\n]+|#[^\r\n]*|,|\ufeff|\.\.\.|"""(?:\\"""|(?!(?:""")).)*"""'
@@ -23,7 +25,7 @@ class _Parser:
         position = 0
         while position < len(source):
             match = _TOKEN.match(source, position)
-            if match is None or len(self.tokens) >= 4096:
+            if match is None or len(self.tokens) >= MAX_GRAPHQL_NODES:
                 raise ValueError("graphql_authority_invalid")
             token = match[0]
             if (
@@ -243,7 +245,7 @@ class _Parser:
             nonlocal visits
             for kind, name, children, response, arguments in nodes:
                 visits += 1
-                if visits > 4096 or len(prefix) + len(active) > 32:
+                if visits > MAX_GRAPHQL_NODES or len(prefix) + len(active) > 32:
                     raise ValueError("graphql_authority_invalid")
                 if kind == "field":
                     key = (*response_prefix, response)

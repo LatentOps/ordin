@@ -224,6 +224,8 @@ this standalone prover currently lacks that coverage.
 durable attempted record before mutation and an outcome afterward. Digests link
 action, contract, plan, policy bytes/mapping, verification/coverage, and active
 policy. Receipts omit commands, event payloads, plaintext resources, and secrets.
+Post-mutation validation and I/O failures return non-success and attempt a
+closing outcome receipt; an unavailable audit store remains a reported failure.
 `with_apply_provenance` adds linkage to an unchanged original review for the
 existing Ordin decision audit. Owner-forged history remains outside hash-chain
 guarantees; external checkpoints can detect missing tails.

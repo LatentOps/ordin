@@ -104,6 +104,37 @@ def test_host_approved_private_ranges_and_wildcards_expand_to_exact_action_endpo
     ).enforceable
 
 
+@pytest.mark.parametrize("host", ["8.8.8.8", "fd55::1"])
+@pytest.mark.parametrize("protocol", ["rest", "graphql", "json-rpc"])
+def test_literal_destination_must_be_inside_the_operator_address_scope(host, protocol):
+    url_host = f"[{host}]" if ":" in host else host
+    request = supported_request(
+        "graphql.request" if protocol == "graphql" else "jsonrpc.request",
+        {"query": "{ status }"}
+        if protocol == "graphql"
+        else {"jsonrpc": "2.0", "id": 1, "method": "lookup"},
+        f"https://{url_host}/rpc",
+    )
+    if protocol == "rest":
+        capability = replace(
+            request.capability,
+            contract_id="",
+            network=(NetworkCapability(host, 443, "rest", "read", ("GET",), ("/rpc",)),),
+        )
+        request = replace(request, request_contract_id="", capability=capability, requests=())
+    scope = {"host": host, "port": 443, "protocols": [protocol], "allowed_ips": ["1.1.1.1/32"]}
+    backend = OpenShellBackend((1000, 1000), request_contract=request, network_scopes=(scope,))
+    rejected = backend.compile(request.capability)
+    assert not rejected.enforceable
+    assert "network.allowed_ip_mismatch" in rejected.unsupported_fields
+
+    scope["allowed_ips"] = [host + ("/128" if ":" in host else "/32")]
+    allowed = OpenShellBackend(
+        (1000, 1000), request_contract=request, network_scopes=(scope,)
+    ).compile(request.capability)
+    assert allowed.enforceable, allowed.unsupported_fields
+
+
 @pytest.mark.parametrize(
     "network",
     ["127.0.0.0/8", "169.254.0.0/16", "0.0.0.0/0", "::1/128", "fe80::/10", "::ffff:0:0/96"],
