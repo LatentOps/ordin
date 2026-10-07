@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Mapping
 from urllib.parse import urlsplit
+from ._runtime_url import has_unsafe_authority_characters
 
 from ._runtime_json import digest
 from .action import ActionHistory, ActionReview
@@ -83,6 +84,7 @@ def _request_key(host, port, path) -> tuple[str, ...] | None:
         or type(port) is not int
         or not 1 <= port <= 65535
         or not isinstance(path, str)
+        or has_unsafe_authority_characters(path)
         or not path.startswith("/")
         or any(c in path for c in "%?#")
         or "//" in path
@@ -97,6 +99,8 @@ def _resource_keys(resources) -> set[tuple[str, ...]]:
     for resource in resources:
         if resource.type not in {"url", "endpoint"}:
             continue
+        if has_unsafe_authority_characters(resource.value):
+            continue
         try:
             url = urlsplit(resource.value)
             if (
@@ -105,7 +109,6 @@ def _resource_keys(resources) -> set[tuple[str, ...]]:
                 or url.password is not None
                 or url.query
                 or url.fragment
-                or any(ord(c) < 32 for c in resource.value)
             ):
                 continue
             port = url.port if url.port is not None else (443 if url.scheme == "https" else 80)

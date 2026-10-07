@@ -14,6 +14,7 @@ from typing import Any, Mapping
 from urllib.parse import urlsplit
 
 from ordin._runtime_json import MAX_RUNTIME_BYTES, digest, freeze, thaw
+from ordin._runtime_url import has_unsafe_authority_characters
 from ordin.execution import ObservedResource
 from ordin.runtime_contract import RuntimeCapabilityContract, _safe_path
 from ordin.runtime_observation import (
@@ -215,6 +216,8 @@ def parse_openshell_event(event: str | Mapping[str, Any]) -> ParsedOpenShellEven
                 effects = ("network.download" if method in READ_METHODS else "network.upload",)
                 if url.get("path") is not None:
                     raw_path = _text(url["path"])
+                    if has_unsafe_authority_characters(raw_path):
+                        raise OpenShellEventError("openshell_event_path_invalid")
                     # Remove query/fragment before retaining any request target.
                     parsed = urlsplit(raw_path)
                     if parsed.scheme or parsed.netloc or not parsed.path.startswith("/"):
