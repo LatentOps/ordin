@@ -35,6 +35,8 @@ The limits are 1 MiB raw/framed bytes, 4096 nodes, depth 32, 128 items per JSON
 container, 65536 UTF-8 bytes per string, 1024 number digits and decimal exponent
 magnitude 10000. The domain prefix is outside the framed-byte budget. The v2
 compiler explicitly sets the matching 1 MiB inspection limit.
+Saved GraphQL reviews retain the bounded expanded field inventory when decoded
+for CLI derivation; the separate limit on non-GraphQL resources remains 128.
 
 The optional compiler intersects protocol rules with the commitment. Every
 forwarding path checks POST, absence of URL query delimiters, absence of upgrades,
@@ -55,6 +57,8 @@ matching approval must agree on its address ranges. Private IPv4 and IPv6 ranges
 are supported, while protected metadata, loopback, link-local, unspecified,
 multicast and mapped-address ranges are excluded. Driver host-gateway aliases
 are excluded because their special routing mode bypasses ordinary CIDR checks.
+For every supported protocol, a literal destination must belong to its approved
+address ranges; an excluded literal returns `network.allowed_ip_mismatch`.
 
 `RuntimeRequestBoundaryV2.network_grants` can bound wildcard host authority;
 host-reviewed tool/server patterns are expanded to exact action identities.

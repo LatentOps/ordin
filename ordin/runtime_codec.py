@@ -94,10 +94,17 @@ def action_review_from_dict(payload: Mapping[str, Any]) -> ActionReview:
     """
     if not isinstance(payload, Mapping) or validate_named_schema("action_review", payload):
         raise ValueError("runtime_review_invalid")
+    graphql_fields = 0
+    if payload.get("adapter") == "network.graphql":
+        from ._graphql_authority import MAX_GRAPHQL_NODES
+
+        graphql_fields = sum(r["type"] == "graphql_field" for r in payload["resources"])
+        if graphql_fields > MAX_GRAPHQL_NODES:
+            raise ValueError("runtime_review_collection_size")
     for name, maximum in (
         ("reasons", 512),
         ("effects", 128),
-        ("resources", 128),
+        ("resources", 128 + graphql_fields),
         ("trajectory_categories", 128),
         ("policy_matches", 256),
     ):

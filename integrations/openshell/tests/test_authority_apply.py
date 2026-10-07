@@ -1,11 +1,52 @@
 from test_apply import FakeCLI, boundary_for
 from dataclasses import replace
+import json
 from ordin.runtime_contract import NetworkCapability
 from test_authority_compiler import supported_request
 from ordin.runtime_requests_v2 import RuntimeRequestBoundaryV2
 from ordin_openshell import extension
 from ordin_openshell.apply import apply_openshell_policy, prepare_openshell_apply
 from ordin_openshell.compiler import OpenShellBackend
+from ordin_openshell.apply_audit import PolicyApplyAudit
+
+
+def test_post_mutation_runtime_identity_failure_records_an_inconclusive_receipt(
+    monkeypatch, tmp_path
+):
+    request = supported_request("jsonrpc.request", {"jsonrpc": "2.0", "id": 1, "method": "lookup"})
+    backend = OpenShellBackend((1000, 1000), request_contract=request)
+    plan = backend.compile(request.capability).plan
+    boundary = RuntimeRequestBoundaryV2(boundary_for(request.capability), request.requests)
+    cli = FakeCLI(plan)
+    monkeypatch.setattr(extension, "expected_runtime_identity", lambda: {"source_digest": "a" * 64})
+    original = cli.json
+
+    def attested(arguments, **kwargs):
+        value = original(arguments, **kwargs)
+        if arguments[:2] == ("sandbox", "get"):
+            value["configuration_admission"].update(
+                runtime_extension_id=extension.EXTENSION_ID,
+                runtime_source_digest=("b" if cli.set_calls else "a") * 64,
+                gateway_source_digest="a" * 64,
+                cli_source_digest="a" * 64,
+            )
+        return value
+
+    cli.json = attested
+    options = dict(backend=backend, sandbox="demo", cli=cli, request_boundary=boundary)
+    prepared = prepare_openshell_apply(plan, **options)
+    assert prepared.status == "requires_approval"
+    audit = PolicyApplyAudit(tmp_path / "apply.jsonl")
+    result = apply_openshell_policy(
+        plan, approval_request_id=prepared.request_id, audit=audit, **options
+    )
+    assert result.status == "inconclusive" and result.mutation_attempted
+    assert cli.set_calls == 1
+    assert audit.verify()["events"] == 2
+    assert [json.loads(line)["outcome"] for line in audit.path.read_text().splitlines()] == [
+        "attempted",
+        "inconclusive",
+    ]
 
 
 def test_extended_apply_requires_actual_cli_gateway_and_supervisor_build_identity(monkeypatch):

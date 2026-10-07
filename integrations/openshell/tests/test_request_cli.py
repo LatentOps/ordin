@@ -6,6 +6,69 @@ from ordin_openshell.cli import main
 from test_requests import graphql_contract, request_boundary
 
 
+def test_v2_cli_roundtrips_reviews_with_more_than_128_graphql_field_resources(tmp_path, capsys):
+    from ordin import ActionEnvelope, Ordin
+    from ordin.runtime_codec import action_review_from_dict
+    from ordin.runtime_requests_v2 import derive_runtime_request_contract_v2
+
+    query = "{ " + " ".join(f"f{i} {{ id }}" for i in range(70)) + " }"
+    review = Ordin().review_action(
+        ActionEnvelope(
+            "network",
+            "graphql.request",
+            {"url": "https://api.example.com/graphql", "body": {"query": query}},
+        )
+    )
+    assert len(review.resources) == 141
+    expected = derive_runtime_request_contract_v2(review)
+    assert action_review_from_dict(review.as_dict()) == review
+    path = tmp_path / "review.json"
+    path.write_text(json.dumps(review.as_dict()), encoding="utf-8")
+    assert main(["derive-requests", "--review", str(path)]) == 0
+    assert json.loads(capsys.readouterr().out) == expected.as_dict()
+
+
+def test_extra_graphql_resources_do_not_expand_other_review_resource_limits():
+    from ordin import ActionEnvelope, Ordin
+    from ordin.runtime_codec import action_review_from_dict
+
+    review = (
+        Ordin()
+        .review_action(
+            ActionEnvelope(
+                "network",
+                "graphql.request",
+                {"url": "https://api.example.com/graphql", "query": "{ id }"},
+            )
+        )
+        .as_dict()
+    )
+    review["resources"] = [{"type": "url", "value": "https://api.example.com/graphql"}] * 129
+    with pytest.raises(ValueError, match="runtime_review_collection_size"):
+        action_review_from_dict(review)
+
+
+def test_graphql_review_resource_allowance_is_bounded():
+    from ordin import ActionEnvelope, Ordin
+    from ordin._graphql_authority import MAX_GRAPHQL_NODES
+    from ordin.runtime_codec import action_review_from_dict
+
+    review = (
+        Ordin()
+        .review_action(
+            ActionEnvelope(
+                "network",
+                "graphql.request",
+                {"url": "https://api.example.com/graphql", "query": "{ id }"},
+            )
+        )
+        .as_dict()
+    )
+    review["resources"] = [{"type": "graphql_field", "value": "id"}] * (MAX_GRAPHQL_NODES + 1)
+    with pytest.raises(ValueError, match="runtime_review_collection_size"):
+        action_review_from_dict(review)
+
+
 def test_request_artifact_cli_derives_compiles_validates_and_verifies(tmp_path, capsys):
     review, request = graphql_contract()
     review_file = tmp_path / "review.json"
