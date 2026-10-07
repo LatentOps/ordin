@@ -49,3 +49,7 @@ def test_runtime_build_source_rejects_unaudited_inputs(tmp_path):
     (source / "Cargo.toml").write_text("approved\n")
     with pytest.raises(ValueError, match="pinned upstream revision"):
         module.verify_source(source, {**identity, "upstream_revision": "0" * 40})
+    git("update-index", "--assume-unchanged", "unchanged.rs")
+    (source / "unchanged.rs").write_text("hidden change\n")
+    with pytest.raises(ValueError, match="pinned base"):
+        module.verify_source(source, identity)

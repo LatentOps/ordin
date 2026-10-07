@@ -16,7 +16,9 @@ INTEGRATION = ROOT / "integrations/openshell"
 
 def verify_source(source: Path, identity: dict) -> None:
     def git(*arguments: str) -> str:
-        return subprocess.check_output(["git", "-C", str(source), *arguments], text=True).strip()
+        return subprocess.check_output(
+            ["git", "-C", str(source), *arguments], text=True, encoding="utf-8"
+        ).strip()
 
     if git("rev-parse", "HEAD") != identity["upstream_revision"]:
         raise ValueError("runtime source must use the pinned upstream revision")
@@ -38,6 +40,23 @@ def verify_source(source: Path, identity: dict) -> None:
     )
     if ignored:
         raise ValueError("runtime source contains ignored build inputs")
+    # Verify actual bytes even if index flags conceal worktree changes.
+    for entry in git("ls-tree", "-r", "-z", "HEAD").split("\0"):
+        if not entry:
+            continue
+        metadata, name = entry.split("\t", 1)
+        _, kind, expected_blob = metadata.split()
+        if kind != "blob" or name in identity["files"]:
+            continue
+        path = source / name
+        payload = os.readlink(path).encode() if path.is_symlink() else path.read_bytes()
+        versions = (payload, payload.replace(b"\r\n", b"\n"))
+        if not any(
+            hashlib.sha1(b"blob " + str(len(value)).encode() + b"\0" + value).hexdigest()
+            == expected_blob
+            for value in versions
+        ):
+            raise ValueError("runtime source differs from the pinned base")
     for name, expected in identity["files"].items():
         path = source / name
         if (
