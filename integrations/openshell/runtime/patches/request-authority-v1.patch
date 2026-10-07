@@ -2073,16 +2073,16 @@ index 7705524..9349c20 100644
                      endpoint_id: String::new(),
                      policy_hash: String::new(),
 diff --git a/crates/openshell-supervisor/src/lib.rs b/crates/openshell-supervisor/src/lib.rs
-index fd5ed08..a784671 100644
+index fd5ed08..7584e9b 100644
 --- a/crates/openshell-supervisor/src/lib.rs
 +++ b/crates/openshell-supervisor/src/lib.rs
-@@ -868,6 +868,52 @@ pub async fn run_sandbox(
+@@ -868,6 +868,46 @@ pub async fn run_sandbox(
          (ready, backend_name, ca_file_paths)
      };
  
 +    let properties = &remote_ready.confirmation().properties;
 +    let confirmed_mediation = openshell_core::proto::SandboxConfigurationAdmission {
-+        confirmed_backend: backend_name.to_string(),
++        confirmed_backend: backend_name.clone(),
 +        egress_interception: properties.egress_interception.mechanism.clone(),
 +        request_attribution: properties.request_attribution.mechanism.clone(),
 +        staged_tcp_confirmed: properties.egress_interception.enforced
@@ -2107,29 +2107,23 @@ index fd5ed08..a784671 100644
 +        openshell_endpoint.as_deref(),
 +        sandbox_id.as_deref(),
 +        &loaded_policy_origin,
-+    ) {
-+        if let Some(instance_id) = &revision.admission_instance_id {
-+            let mut admission = confirmed_mediation.clone();
-+            admission.instance_id = instance_id.clone();
-+            admission.state = openshell_core::proto::ConfigurationAdmissionState::Accepted as i32;
-+            admission.policy_version = revision.version;
-+            admission.policy_hash = revision.policy_hash.clone();
-+            admission.config_revision = revision.config_revision;
-+            admission.provider_env_revision = revision.provider_env_revision;
-+            openshell_core::grpc_client::report_sandbox_admission(
-+                endpoint,
-+                id,
-+                instance_id,
-+                admission,
-+            )
++    ) && let Some(instance_id) = &revision.admission_instance_id
++    {
++        let mut admission = confirmed_mediation.clone();
++        admission.instance_id = instance_id.clone();
++        admission.state = openshell_core::proto::ConfigurationAdmissionState::Accepted as i32;
++        admission.policy_version = revision.version;
++        admission.policy_hash = revision.policy_hash.clone();
++        admission.config_revision = revision.config_revision;
++        admission.provider_env_revision = revision.provider_env_revision;
++        openshell_core::grpc_client::report_sandbox_admission(endpoint, id, instance_id, admission)
 +            .await?;
-+        }
 +    }
 +
      let mut networking = Some(
          openshell_supervisor_network::run::run_networking(
              &policy,
-@@ -1025,6 +1071,7 @@ pub async fn run_sandbox(
+@@ -1025,6 +1065,7 @@ pub async fn run_sandbox(
              .and_then(|v| v.parse().ok())
              .unwrap_or(10);
          let poll_ctx = PolicyPollLoopContext {
@@ -2137,7 +2131,7 @@ index fd5ed08..a784671 100644
              endpoint: poll_endpoint,
              sandbox_id: poll_id,
              sandbox: poll_sandbox,
-@@ -2750,6 +2797,17 @@ struct LoadedPolicyRevision {
+@@ -2750,6 +2791,17 @@ struct LoadedPolicyRevision {
      provider_env_revision: u64,
  }
  
@@ -2155,7 +2149,7 @@ index fd5ed08..a784671 100644
  /// Identifies where the policy currently loaded into OPA came from.
  ///
  /// A missing gateway revision means the policy was loaded from the gateway but
-@@ -3295,6 +3353,7 @@ async fn report_initial_policy_failure(
+@@ -3295,6 +3347,7 @@ async fn report_initial_policy_failure(
  /// When the entrypoint PID is available, policy reloads include symlink
  /// resolution for binary paths via the container filesystem.
  struct PolicyPollLoopContext {
@@ -2163,7 +2157,7 @@ index fd5ed08..a784671 100644
      endpoint: String,
      sandbox_id: String,
      /// Canonical sandbox reference used by name-scoped configuration APIs.
-@@ -3736,13 +3795,19 @@ async fn report_runtime_configuration(
+@@ -3736,13 +3789,19 @@ async fn report_runtime_configuration(
                  .build()
          );
      }
@@ -2188,7 +2182,7 @@ index fd5ed08..a784671 100644
      )
      .await
      .is_ok()
-@@ -4198,27 +4263,37 @@ async fn run_policy_poll_loop_with_client<C: PolicyGatewayClient>(
+@@ -4198,27 +4257,37 @@ async fn run_policy_poll_loop_with_client<C: PolicyGatewayClient>(
  
          if policy_runtime_changed {
              let pid = ctx.entrypoint_pid.load(Ordering::Acquire);
@@ -2246,11 +2240,11 @@ index fd5ed08..a784671 100644
  
              match runtime_result {
                  Ok(generation) => {
-@@ -6249,6 +6324,7 @@ network_policies:
+@@ -6249,6 +6318,7 @@ network_policies:
              );
          }
          PolicyPollLoopContext {
-+            confirmed_mediation: Default::default(),
++            confirmed_mediation: openshell_core::proto::SandboxConfigurationAdmission::default(),
              endpoint: String::new(),
              sandbox_id: "sandbox-test".to_string(),
              sandbox: "sandbox-test-name".to_string(),

@@ -30,7 +30,7 @@
     "crates/openshell-supervisor-network/src/policy_local.rs": "5eed4d45aeb28af81457cde1be5e23ae207bb3796695908137404790f1fb4761",
     "crates/openshell-supervisor-network/src/proxy.rs": "b4cda74c6282e8a54d6135a67e4e342aaf6a34b0b95cabbe12711e0546a6036c",
     "crates/openshell-supervisor-network/src/proxy/relay.rs": "afa40d6a033bcec71a60b207c8918b1e0dca8ce646a35aba790228262780409b",
-    "crates/openshell-supervisor/src/lib.rs": "d89654f9960c12b3dbd403fde3dae49b14023d3da6ef699c13806bbe1c654ecc",
+    "crates/openshell-supervisor/src/lib.rs": "64d08b3b184a9ba694e6785c64d1a3c14b7a2c38ade40fd502b4b7e95b1e1ce5",
     "docs/how-it-works/policies/network-rules.mdx": "f1464f46b5a5477209cc2f59b277ef4b3d8b1b7b44e08ad37ff5d5b0c7b20c43",
     "examples/governance-interceptor/Cargo.lock": "167579a951e390a5ad70ca03a742f7b950ab1e3128b2072abe2edcd8ac9b760b",
     "examples/supervisor-middleware-content-guard/Cargo.lock": "2dbe0f713f454505249039b99e976cb07d967fb35454559c8d2a5759d31d8ffc",
@@ -50,8 +50,8 @@
     "sdk/go/proto/optionsv1/options.pb.go": "a9c387751d6a36cd15a164f27b4050622d6c867e719e33f3cab0fdcc62ea052a",
     "sdk/go/proto/sandboxv1/sandbox.pb.go": "abd15abc3103a2c153515f7004f441effea5d26e9cb74bbd39b157a859dce00e"
   },
-  "patch_sha256": "f7c547cda5c4c36c5f48dbb207bb3f47dab7236fe0103c89b81f32202ba0a10c",
+  "patch_sha256": "2aba41d7b15fefa8e5d96c6597671b7a6abb29e17b8306da97e4c2ca155ee0dc",
   "rust_toolchain": "1.95.0",
-  "source_digest": "6baac75719e808be28de163b6aa308d651593db09f35826298f737fc1c7b822a",
+  "source_digest": "0460795c25ace9c53c50fb1688c4d461920e310a31305af34328bf78b83ef037",
   "upstream_revision": "6648bd0c290efbc41ba131ee9831ee45cd431f94"
 }

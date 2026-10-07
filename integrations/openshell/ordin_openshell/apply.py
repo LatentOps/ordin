@@ -308,7 +308,7 @@ def prepare_openshell_apply(
     backend_boundary_policy: Mapping[str, Any] | None = None,
     prover_executable: str = "openshell-prover",
     timeout: float = 30,
-    request_boundary: RuntimeRequestBoundary | None = None,
+    request_boundary: RuntimeRequestBoundary | RuntimeRequestBoundaryV2 | None = None,
 ) -> PolicyApplyPreparation:
     """Read/validate/prove only. A successful preparation still requires host approval."""
     identifier(sandbox)
@@ -346,7 +346,14 @@ def prepare_openshell_apply(
         if not requests_verified.ok:
             return result(requests_verified.result, requests_verified.reason_code)
     if capability_boundary is not None:
-        verified = verify_runtime_capability(plan.contract, capability_boundary)
+        verified = (
+            verify_runtime_request_authority(
+                backend.request_contract,
+                RuntimeRequestBoundaryV2(capability_boundary, backend.request_contract.requests),
+            )
+            if isinstance(backend.request_contract, RuntimeRequestContractV2)
+            else verify_runtime_capability(plan.contract, capability_boundary)
+        )
         report = verified.as_dict()
         counter = report.pop("counterexample")
         report["counterexample_digest"] = digest(counter) if counter is not None else None
@@ -449,7 +456,7 @@ def apply_openshell_policy(
     prover_executable: str = "openshell-prover",
     timeout: float = 30,
     audit: Any = None,
-    request_boundary: RuntimeRequestBoundary | None = None,
+    request_boundary: RuntimeRequestBoundary | RuntimeRequestBoundaryV2 | None = None,
 ) -> PolicyApplyResult:
     """Explicit host operation: re-prepare, check exact approval, set once, read back.
 

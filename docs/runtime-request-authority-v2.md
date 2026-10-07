@@ -77,6 +77,8 @@ confirmed `seccomp-notify` and `seccomp-notify-procfs` mediation. These fields
 are reported after authenticated boundary confirmation; caller JSON does not
 establish the runtime capability. Human approval remains bound to the complete
 preparation digest, and policy readback must match after the single mutation.
+When an additional capability maximum is supplied, the v2 verifier checks it
+independently; the request maximum still constrains the exact payload.
 
 Successful native events carry the matched commitment and workload binary.
 Pass the v2 artifact to ingestion with `--request-contract`: a coarse allow or

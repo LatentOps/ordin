@@ -16,7 +16,12 @@ def test_extended_apply_requires_actual_cli_gateway_and_supervisor_build_identit
     cli = FakeCLI(plan)
     monkeypatch.setattr(extension, "expected_runtime_identity", lambda: {"source_digest": "a" * 64})
     prepared = prepare_openshell_apply(
-        plan, backend=backend, sandbox="demo", cli=cli, request_boundary=boundary
+        plan,
+        backend=backend,
+        sandbox="demo",
+        cli=cli,
+        request_boundary=boundary,
+        capability_boundary=boundary.boundary,
     )
     assert (
         prepared.status == "unsupported"
@@ -38,8 +43,23 @@ def test_extended_apply_requires_actual_cli_gateway_and_supervisor_build_identit
         return value
 
     cli.json = attested
+    too_small = prepare_openshell_apply(
+        plan,
+        backend=backend,
+        sandbox="demo",
+        cli=cli,
+        request_boundary=boundary,
+        capability_boundary=replace(boundary.boundary, network=()),
+    )
+    assert too_small.status == "exceeds_boundary", too_small.reason_code
+    assert cli.set_calls == 0
     prepared = prepare_openshell_apply(
-        plan, backend=backend, sandbox="demo", cli=cli, request_boundary=boundary
+        plan,
+        backend=backend,
+        sandbox="demo",
+        cli=cli,
+        request_boundary=boundary,
+        capability_boundary=boundary.boundary,
     )
     assert prepared.status == "requires_approval", prepared.reason_code
     result = apply_openshell_policy(
@@ -48,6 +68,7 @@ def test_extended_apply_requires_actual_cli_gateway_and_supervisor_build_identit
         sandbox="demo",
         cli=cli,
         request_boundary=boundary,
+        capability_boundary=boundary.boundary,
         approval_request_id=prepared.request_id,
     )
     assert result.status == "applied" and cli.set_calls == 1
