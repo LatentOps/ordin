@@ -161,5 +161,8 @@
       ]
     }
   ],
-  "scope": "Synthetic non-secret policy/evidence adversaries; no backend enforcement claim."
+  "scope": "Synthetic non-secret policy/evidence adversaries; no backend enforcement claim.",
+  "source_revision": "010669336a05187114ef1903bf2f533c9040595a",
+  "source_digest": "ae81269d0e85726a176988418df4cca793f0d240344ac05899511f65ec7fd2e5",
+  "evidence_class": "integration fixture; no kernel/runtime enforcement claim"
 }
