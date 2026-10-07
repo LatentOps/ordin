@@ -21,6 +21,7 @@ from ordin.runtime_requests import (
 )
 
 from .compiler import OpenShellBackend
+from ordin.runtime_requests_v2 import RuntimeRequestContractV2, verify_request_contract
 from .model import READ_METHODS
 
 SHADOW_SCHEMA_VERSION = "ordin.runtime_shadow_report.v1"
@@ -161,6 +162,7 @@ def policy_request_match(plan: EnforcementPlan, observation: RuntimeObservation)
         endpoint["host"] == host
         and endpoint["port"] == port
         and endpoint["protocol"] != "rest"
+        and "request_integrity" not in endpoint
         and endpoint.get("path") == fields.get("path")
         for rule in plan.policy["network_policies"].values()
         for endpoint in rule["endpoints"]
@@ -171,6 +173,31 @@ def policy_request_match(plan: EnforcementPlan, observation: RuntimeObservation)
     for rule in plan.policy["network_policies"].values():
         for endpoint in rule["endpoints"]:
             if endpoint["host"] != host or endpoint["port"] != port:
+                continue
+            integrity = endpoint.get("request_integrity")
+            if integrity is not None:
+                if any(
+                    fields.get(key) is None
+                    for key in (
+                        "protocol",
+                        "request_commitment",
+                        "request_commitment_algorithm",
+                        "method",
+                        "path",
+                        "binary",
+                    )
+                ):
+                    uncertain = True
+                    continue
+                if (
+                    fields["protocol"] == endpoint["protocol"]
+                    and fields["method"] == "POST"
+                    and fields["path"] == endpoint["path"]
+                    and fields["request_commitment_algorithm"] == integrity["algorithm"]
+                    and fields["request_commitment"] in integrity["commitments"]
+                    and any(b["path"] == fields["binary"] for b in rule["binaries"])
+                ):
+                    return "within_policy"
                 continue
             if endpoint["protocol"] != "rest":
                 uncertain = True
@@ -252,7 +279,7 @@ def build_shadow_report(cases: Sequence[ShadowCase]) -> ShadowReport:
             and case.request_boundary is not None
             and case.backend.request_contract.capability == contract
         ):
-            verification = verify_runtime_request_capability(
+            verification = verify_request_contract(
                 case.backend.request_contract, case.request_boundary
             )
         else:
@@ -311,6 +338,31 @@ def build_shadow_report(cases: Sequence[ShadowCase]) -> ShadowReport:
             metrics["runtime_events_correlated"] += 1
             accepted.append(observation)
             predicted = prediction_match(contract, observation)
+            if case.backend.request_contract is not None and observation.metadata.get(
+                "request_commitment"
+            ):
+                authority = case.backend.request_contract
+                if isinstance(authority, RuntimeRequestContractV2):
+                    fields = observation.metadata
+                    predicted = (
+                        "predicted"
+                        if any(
+                            (r.protocol, r.host, r.port, r.path, r.commitment, r.algorithm)
+                            == tuple(
+                                fields.get(key)
+                                for key in (
+                                    "protocol",
+                                    "host",
+                                    "port",
+                                    "path",
+                                    "request_commitment",
+                                    "request_commitment_algorithm",
+                                )
+                            )
+                            for r in authority.requests
+                        )
+                        else "unpredicted"
+                    )
             policy_match = policy_request_match(plan, observation) if plan else "inconclusive"
             if predicted == "unpredicted":
                 metrics["observed_but_unpredicted_capabilities"] += 1

@@ -62,7 +62,13 @@ def _version(executable: str, product: str) -> dict[str, Any]:
 
 
 def openshell_doctor(
-    *, cli_executable: str = "openshell", prover_executable: str = "openshell-prover"
+    *,
+    cli_executable: str = "openshell",
+    prover_executable: str = "openshell-prover",
+    sandbox: str | None = None,
+    gateway: str | None = None,
+    gateway_endpoint: str | None = None,
+    workspace: str = "default",
 ) -> dict[str, Any]:
     cli, prover = (
         _version(cli_executable, "openshell"),
@@ -113,7 +119,36 @@ def openshell_doctor(
                 "reason_code": "openshell_schema_probe_failed",
                 "prover_checked": False,
             }
-    ok = cli["compatible"] and prover["compatible"] and schema["compatible"]
+    from .extension import expected_runtime_identity, require_runtime_identity
+    from .backend_cli import OpenShellCLI, OpenShellCommandError
+
+    extension = {
+        "compatible": False,
+        "checked": False,
+        "reason_code": "openshell_runtime_extension_target_required",
+    }
+    try:
+        expected = expected_runtime_identity()
+        extension["expected_source_digest"] = expected["source_digest"]
+        if sandbox is not None:
+            manager = OpenShellCLI(cli_executable, gateway, workspace, gateway_endpoint)
+            manager.require_compatible()
+            detail = manager.json(("sandbox", "get", sandbox, "--output", "json"))
+            admission = detail.get("configuration_admission", {})
+            if detail.get("phase") != "Ready" or admission.get("state") != "accepted":
+                raise ValueError("openshell_runtime_not_admitted")
+            require_runtime_identity(admission)
+            extension.update(
+                compatible=True, checked=True, reason_code="openshell_runtime_extension_supported"
+            )
+    except (ValueError, OpenShellCommandError) as error:
+        extension.update(checked=sandbox is not None, reason_code=str(error))
+    ok = (
+        cli["compatible"]
+        and prover["compatible"]
+        and schema["compatible"]
+        and (sandbox is None or extension["compatible"])
+    )
     return {
         "status": "success" if ok else "unsupported",
         "sandbox_mutated": False,
@@ -128,5 +163,6 @@ def openshell_doctor(
             "prover": prover,
             "compiler_schema": schema,
             "yaml": {"available": importlib.util.find_spec("yaml") is not None, "required": False},
+            "runtime_extension": extension,
         },
     }

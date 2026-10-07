@@ -10,6 +10,8 @@ from ordin._runtime_json import MAX_RUNTIME_BYTES, canonical_json, freeze, thaw
 from ordin._runtime_url import has_unsafe_authority_characters
 from ordin.runtime_contract import _safe_path
 from ordin.runtime_requests import NAME, TOOL_NAME, MCP_METHODS, MCP_VERSIONS
+from ordin._request_commitment import REQUEST_COMMITMENT_ALGORITHM
+from .address_scope import scoped_host, validate_network_scopes
 
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 HTTP_METHODS = READ_METHODS | {"POST", "PUT", "PATCH", "DELETE", "CONNECT", "TRACE"}
@@ -155,23 +157,32 @@ def policy_errors(policy: Mapping[str, Any]) -> tuple[str, ...]:
                 "credential_binding",
                 "path",
                 "mcp",
+                "request_integrity",
+                "graphql_max_body_bytes",
+                "json_rpc",
             }:
                 errors.append("network_policies.endpoint_shape")
                 continue
             if (
-                not exact_host(endpoint.get("host"))
+                not scoped_host(endpoint.get("host"))
                 or type(endpoint.get("port")) is not int
                 or not 1 <= endpoint["port"] <= 65535
             ):
                 errors.append("network_policies.endpoint_identity")
             protocol = endpoint.get("protocol")
+            if not isinstance(protocol, str):
+                errors.append("network_policies.request_inspection")
+                continue
             if (
                 not isinstance(protocol, str)
-                or protocol not in {"rest", "graphql", "mcp"}
-                or endpoint.get("enforcement") != "enforce"
+                or protocol not in {"rest", "graphql", "mcp", "json-rpc", "tcp"}
+                or protocol != "tcp"
+                and endpoint.get("enforcement") != "enforce"
             ):
                 errors.append("network_policies.request_inspection")
-            if protocol != "rest" and not exact_request_path(endpoint.get("path")):
+            if protocol in {"graphql", "mcp", "json-rpc"} and not exact_request_path(
+                endpoint.get("path")
+            ):
                 errors.append("network_policies.protocol_path")
             if protocol == "rest" and ("path" in endpoint or "mcp" in endpoint):
                 errors.append("network_policies.rest_protocol_fields")
@@ -182,7 +193,15 @@ def policy_errors(policy: Mapping[str, Any]) -> tuple[str, ...]:
                 if (
                     not isinstance(options, Mapping)
                     or set(options)
-                    != {"strict_tool_names", "allow_all_known_mcp_methods", "versions"}
+                    != (
+                        {"strict_tool_names", "allow_all_known_mcp_methods", "versions"}
+                        | ({"max_body_bytes"} if "request_integrity" in endpoint else set())
+                    )
+                    or "max_body_bytes" in options
+                    and (
+                        type(options["max_body_bytes"]) is not int
+                        or options["max_body_bytes"] != 1_048_576
+                    )
                     or options["strict_tool_names"] is not True
                     or options["allow_all_known_mcp_methods"] is not False
                     or not isinstance(options["versions"], (list, tuple))
@@ -192,11 +211,56 @@ def policy_errors(policy: Mapping[str, Any]) -> tuple[str, ...]:
                     or len(set(options["versions"])) != len(options["versions"])
                 ):
                     errors.append("network_policies.mcp_options")
-            if (
-                not isinstance(endpoint.get("allowed_ips"), (list, tuple))
-                or tuple(endpoint["allowed_ips"]) != PUBLIC_IPV4_RANGES
-            ):
+            try:
+                validate_network_scopes(
+                    [
+                        {
+                            "host": endpoint.get("host"),
+                            "port": endpoint.get("port"),
+                            "protocols": [protocol],
+                            "allowed_ips": endpoint.get("allowed_ips"),
+                        }
+                    ]
+                )
+            except (ValueError, TypeError):
                 errors.append("network_policies.allowed_ips")
+            integrity = endpoint.get("request_integrity")
+            if integrity is not None:
+                import re
+
+                if (
+                    protocol not in {"graphql", "mcp", "json-rpc"}
+                    or not isinstance(integrity, Mapping)
+                    or set(integrity) != {"algorithm", "commitments"}
+                    or integrity["algorithm"] != REQUEST_COMMITMENT_ALGORITHM
+                    or not isinstance(integrity["commitments"], (tuple, list))
+                    or not 1 <= len(integrity["commitments"]) <= 128
+                    or any(
+                        not isinstance(c, str) or not re.fullmatch(r"[a-f0-9]{64}", c)
+                        for c in integrity["commitments"]
+                    )
+                    or len(set(integrity["commitments"])) != len(integrity["commitments"])
+                ):
+                    errors.append("network_policies.request_integrity")
+            if protocol == "json-rpc" and integrity is None:
+                errors.append("network_policies.request_integrity_required")
+            if "graphql_max_body_bytes" in endpoint and (
+                protocol != "graphql"
+                or integrity is None
+                or type(endpoint["graphql_max_body_bytes"]) is not int
+                or endpoint["graphql_max_body_bytes"] != 1_048_576
+            ):
+                errors.append("network_policies.body_limit")
+            if "json_rpc" in endpoint and (
+                protocol != "json-rpc"
+                or integrity is None
+                or endpoint["json_rpc"] != {"max_body_bytes": 1_048_576}
+            ):
+                errors.append("network_policies.body_limit")
+            if protocol == "tcp":
+                if set(endpoint) != {"host", "port", "protocol", "allowed_ips"}:
+                    errors.append("network_policies.tcp_fields")
+                continue
             allow = endpoint.get("rules")
             if not isinstance(allow, (list, tuple)) or not allow:
                 errors.append("network_policies.request_rules")
@@ -210,11 +274,25 @@ def policy_errors(policy: Mapping[str, Any]) -> tuple[str, ...]:
                     if protocol == "graphql":
                         if (
                             not isinstance(value, Mapping)
-                            or set(value) != {"operation_type", "operation_name", "fields"}
+                            or set(value)
+                            != (
+                                {"operation_type", "fields"}
+                                | ({"operation_name"} if "operation_name" in value else set())
+                            )
                             or not isinstance(value["operation_type"], str)
-                            or value["operation_type"] not in {"query", "mutation"}
-                            or not isinstance(value["operation_name"], str)
-                            or not NAME.fullmatch(value["operation_name"])
+                            or value["operation_type"]
+                            not in (
+                                {"query", "mutation", "subscription"}
+                                if integrity is not None
+                                else {"query", "mutation"}
+                            )
+                            or "operation_name" not in value
+                            and integrity is None
+                            or "operation_name" in value
+                            and (
+                                not isinstance(value["operation_name"], str)
+                                or not NAME.fullmatch(value["operation_name"])
+                            )
                             or not isinstance(value["fields"], (list, tuple))
                             or not value["fields"]
                             or any(
@@ -223,6 +301,18 @@ def policy_errors(policy: Mapping[str, Any]) -> tuple[str, ...]:
                             )
                         ):
                             errors.append("network_policies.graphql_rule_shape")
+                    elif protocol == "json-rpc":
+                        if (
+                            not isinstance(value, Mapping)
+                            or set(value) != {"method"}
+                            or not isinstance(value["method"], str)
+                            or not 1 <= len(value["method"]) <= 128
+                            or value["method"] != "*"
+                            and any(
+                                ord(c) <= 32 or ord(c) == 127 or c == "*" for c in value["method"]
+                            )
+                        ):
+                            errors.append("network_policies.jsonrpc_rule_shape")
                     elif protocol == "mcp":
                         if (
                             not isinstance(value, Mapping)

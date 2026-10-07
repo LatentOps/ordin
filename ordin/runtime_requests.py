@@ -448,6 +448,7 @@ def derive_runtime_request_contract(review: ActionReview) -> RuntimeRequestContr
                         versions=(version,),
                         requires_argument_constraints=bool(
                             review.action.parameters.get("arguments")
+                            or review.action.parameters.get("params")
                         ),
                     )
                 )

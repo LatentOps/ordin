@@ -19,6 +19,13 @@ from ordin.enforcement_backend import EnforcementPlan
 from ordin.runtime_boundary import RuntimeCapabilityBoundary, verify_runtime_capability
 from ordin.runtime_observation import RuntimeEvidenceSource
 from ordin.runtime_requests import RuntimeRequestBoundary, verify_runtime_request_capability
+from ordin.runtime_requests_v2 import (
+    RuntimeRequestContractV2,
+    RuntimeRequestBoundaryV2,
+    verify_runtime_request_authority,
+    verify_request_contract,
+)
+from .extension import has_tcp_literals, require_runtime_identity
 
 from .backend_cli import OpenShellCLI, OpenShellCommandError, identifier
 from .compiler import OpenShellBackend
@@ -112,9 +119,11 @@ class RuntimePolicySnapshot:
     backend_hash: str
     config_revision: int
     policy: Mapping[str, Any]
+    build_identity: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "policy", freeze(self.policy, max_depth=12))
+        object.__setattr__(self, "build_identity", freeze(self.build_identity))
 
     @property
     def policy_digest(self) -> str:
@@ -130,6 +139,7 @@ class RuntimePolicySnapshot:
             "backend_hash": self.backend_hash,
             "config_revision": self.config_revision,
             "policy_digest": self.policy_digest,
+            **({"build_identity": thaw(self.build_identity)} if self.build_identity else {}),
         }
 
 
@@ -216,7 +226,28 @@ def read_runtime_policy(cli: OpenShellCLI, sandbox: str) -> RuntimePolicySnapsho
             raise
         raise OpenShellCommandError("openshell_policy_readback_unsupported") from None
     return RuntimePolicySnapshot(
-        sandbox, sandbox_id, created_at, cli.workspace, version, backend_hash, revision, policy
+        sandbox,
+        sandbox_id,
+        created_at,
+        cli.workspace,
+        version,
+        backend_hash,
+        revision,
+        policy,
+        {
+            key: admission[key]
+            for key in (
+                "runtime_extension_id",
+                "runtime_source_digest",
+                "gateway_source_digest",
+                "cli_source_digest",
+                "confirmed_backend",
+                "egress_interception",
+                "request_attribution",
+                "staged_tcp_confirmed",
+            )
+            if key in admission
+        },
     )
 
 
@@ -277,7 +308,7 @@ def prepare_openshell_apply(
     backend_boundary_policy: Mapping[str, Any] | None = None,
     prover_executable: str = "openshell-prover",
     timeout: float = 30,
-    request_boundary: RuntimeRequestBoundary | None = None,
+    request_boundary: RuntimeRequestBoundary | RuntimeRequestBoundaryV2 | None = None,
 ) -> PolicyApplyPreparation:
     """Read/validate/prove only. A successful preparation still requires host approval."""
     identifier(sandbox)
@@ -301,12 +332,13 @@ def prepare_openshell_apply(
     steps.append({"step": "backend_validation", **validated.as_dict()})
     if not validated.ok or validated.policy_digest != plan.policy_digest:
         return result("unsupported", "openshell_apply_validation_failed")
-    if any(n.protocol in {"mcp", "graphql"} for n in plan.contract.network):
+    if any(n.protocol in {"mcp", "graphql", "json-rpc"} for n in plan.contract.network):
         if backend.request_contract is None or request_boundary is None:
             return result("unsupported", "runtime_request_boundary_required")
-        requests_verified = verify_runtime_request_capability(
-            backend.request_contract, request_boundary
-        )
+    if request_boundary is not None:
+        if backend.request_contract is None:
+            return result("unsupported", "runtime_request_contract_required")
+        requests_verified = verify_request_contract(backend.request_contract, request_boundary)
         requests_report = requests_verified.as_dict()
         counter = requests_report.pop("counterexample")
         requests_report["counterexample_digest"] = digest(counter) if counter is not None else None
@@ -314,7 +346,14 @@ def prepare_openshell_apply(
         if not requests_verified.ok:
             return result(requests_verified.result, requests_verified.reason_code)
     if capability_boundary is not None:
-        verified = verify_runtime_capability(plan.contract, capability_boundary)
+        verified = (
+            verify_runtime_request_authority(
+                backend.request_contract,
+                RuntimeRequestBoundaryV2(capability_boundary, backend.request_contract.requests),
+            )
+            if isinstance(backend.request_contract, RuntimeRequestContractV2)
+            else verify_runtime_capability(plan.contract, capability_boundary)
+        )
         report = verified.as_dict()
         counter = report.pop("counterexample")
         report["counterexample_digest"] = digest(counter) if counter is not None else None
@@ -364,6 +403,13 @@ def prepare_openshell_apply(
     try:
         cli.require_compatible()
         current = read_runtime_policy(cli, sandbox)
+        if plan.metadata.get("runtime_extension"):
+            try:
+                require_runtime_identity(
+                    current.build_identity, require_staged_tcp=has_tcp_literals(plan.contract)
+                )
+            except ValueError as exc:
+                return result("unsupported", str(exc))
         # Running startup controls cannot be changed by a live network update.
         for section in ("filesystem_policy", "landlock", "process"):
             if current.policy[section] != plan.policy[section]:
@@ -410,7 +456,7 @@ def apply_openshell_policy(
     prover_executable: str = "openshell-prover",
     timeout: float = 30,
     audit: Any = None,
-    request_boundary: RuntimeRequestBoundary | None = None,
+    request_boundary: RuntimeRequestBoundary | RuntimeRequestBoundaryV2 | None = None,
 ) -> PolicyApplyResult:
     """Explicit host operation: re-prepare, check exact approval, set once, read back.
 
@@ -439,6 +485,10 @@ def apply_openshell_policy(
     try:
         # A final read before mutation catches changes during proof/approval.
         before = read_runtime_policy(cli, sandbox)
+        if plan.metadata.get("runtime_extension"):
+            require_runtime_identity(
+                before.build_identity, require_staged_tcp=has_tcp_literals(plan.contract)
+            )
         if before.identity != prepared.current.identity:
             return PolicyApplyResult("inconclusive", "openshell_policy_drift", prepared)
         if audit is not None:
@@ -463,6 +513,10 @@ def apply_openshell_policy(
                     timeout=timeout,
                 )
         active = read_runtime_policy(cli, sandbox)
+        if plan.metadata.get("runtime_extension"):
+            require_runtime_identity(
+                active.build_identity, require_staged_tcp=has_tcp_literals(plan.contract)
+            )
         if (
             active.sandbox_id != before.sandbox_id
             or active.created_at != before.created_at

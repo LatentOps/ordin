@@ -32,22 +32,28 @@ provenance. The trusted operator supplies a non-root UID/GID and any exact file
 object classifications or credential-provider references. These configuration
 facts do not come from tool arguments. No credential values are accepted.
 
-Base capability compilation supports exact public IPv4 host/port REST endpoints,
-exact HTTP method/path rules, absolute binary identities, and filesystem rights
-that match OpenShell's actual enforcement primitives. A hostname receives
-explicit public IPv4 ranges, excluding private, loopback, link-local, shared,
-reserved, and multicast ranges; the compiler performs no DNS lookup. IPv6 is
-outside this compiler subset. Missing request semantics, private endpoints,
-wildcards, encoded paths, MCP/GraphQL/JSON-RPC/WebSocket/TCP, ambiguous objects,
-privilege escalation, and unsupported child-process restrictions produce no
-enforceable plan. Specific REST/tool capabilities never fall back to raw TCP.
+Base capability compilation supports exact REST method/path and executable
+identity, explicit bidirectional TCP authority, and filesystem rights that match
+OpenShell's enforcement primitives. Public IPv4 ranges remain the default.
+Host-owned `network_scopes` can approve bounded private IPv4/IPv6 destinations and
+wildcard host scopes; compilation emits the action's exact endpoint and approved
+address ranges. Protected addresses and driver host-gateway aliases remain excluded.
+Literal TCP additionally requires confirmed staged mediation in the actual runtime.
+Specific request capabilities never fall back to raw TCP.
 
-The additive [request contract](runtime-requests.md) supports exact GraphQL
-operation/root-field and MCP method/tool/version restrictions through
-`compile-requests`, with mandatory request-boundary checks before apply.
-These scopes are not inferred from a base v1 artifact alone. OpenShell 0.1.2's
-standalone prover still refuses these protocols; configured backend proof
-continues to fail closed. The optional [OCSF exporter](ocsf-export.md) reports
+The additive [exact request authority v2](runtime-request-authority-v2.md) covers
+GraphQL operation selection and complete variables/arguments, MCP method/tool/version
+and parameter constraints, and generic JSON-RPC. `derive-requests` defaults to v2;
+`--schema-version 1` retains the [legacy coarse artifact](runtime-requests.md).
+V2 requires the audited local extension against OpenShell source
+`6648bd0c290efbc41ba131ee9831ee45cd431f94`, with matching CLI, gateway and supervisor
+source identities. The VM bundle includes rebuilt guest sandbox and host supervisor.
+
+Protocol and exact argument containment are checked independently and composed
+with the native transport solver. Proof results retain original input hashes,
+projection hashes and explicit protocol/commitment coverage. Legacy v1 protocol
+policies remain unsupported by the standalone transport proof; they must not be
+relabelled as argument proofs. The optional [OCSF exporter](ocsf-export.md) reports
 Ordin findings without replacing its provenance/audit model.
 
 OpenShell's read-only Landlock primitive grants read and execution; read-write

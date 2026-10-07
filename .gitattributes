@@ -1,0 +1,2 @@
+# Unified diff context intentionally contains a space before source indentation.
+integrations/openshell/runtime/patches/*.patch text eol=lf -whitespace

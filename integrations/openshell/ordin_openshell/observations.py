@@ -22,6 +22,8 @@ from ordin.runtime_observation import (
     RuntimeEvidenceSource,
     RuntimeObservation,
 )
+from ordin.runtime_requests_v2 import RuntimeRequestContractV2
+from ordin._request_commitment import REQUEST_COMMITMENT_ALGORITHM
 
 from .correlation import CorrelationStore
 from .model import HTTP_METHODS, READ_METHODS
@@ -187,6 +189,31 @@ def parse_openshell_event(event: str | Mapping[str, Any]) -> ParsedOpenShellEven
             "event_digest": digest(event),
             "source_schema_version": OCSF_VERSION,
         }
+        unmapped = event.get("unmapped", {})
+        if isinstance(unmapped, Mapping) and "request_authority" in unmapped:
+            authority = _object(unmapped["request_authority"])
+            if (
+                set(authority) != {"protocol", "algorithm", "commitment", "enforcement"}
+                or authority["protocol"] not in {"graphql", "mcp", "json-rpc"}
+                or authority["algorithm"] != REQUEST_COMMITMENT_ALGORITHM
+                or not isinstance(authority["commitment"], str)
+                or not re.fullmatch(r"[a-f0-9]{64}", authority["commitment"])
+                or authority["enforcement"] != "enforce"
+                or class_uid != 4002
+                or action != 1
+            ):
+                raise OpenShellEventError("openshell_event_request_authority_invalid")
+            fields.update(
+                {
+                    "protocol": authority["protocol"],
+                    "request_commitment": authority["commitment"],
+                    "request_commitment_algorithm": authority["algorithm"],
+                }
+            )
+            binary = unmapped.get("workload_binary")
+            if not isinstance(binary, str) or not _safe_path(binary):
+                raise OpenShellEventError("openshell_event_request_authority_invalid")
+            fields["binary"] = binary
         resources: tuple[ObservedResource, ...] = ()
         effects: tuple[str, ...] = ()
         rule = _object(event.get("firewall_rule", {}))
@@ -253,6 +280,8 @@ def parse_openshell_event(event: str | Mapping[str, Any]) -> ParsedOpenShellEven
             name = _text(process.get("name"))
             # Upstream may supply a basename. Never invent an absolute binary path.
             if _safe_path(name):
+                if "binary" in fields and fields["binary"] != name:
+                    raise OpenShellEventError("openshell_event_process_conflict")
                 fields["binary"] = name
         return ParsedOpenShellEvent(
             digest(event),
@@ -282,6 +311,7 @@ def ingest_openshell_event(
     source: RuntimeEvidenceSource | None = None,
     store: CorrelationStore | None = None,
     now_ms: int | None = None,
+    request_contract: RuntimeRequestContractV2 | None = None,
 ) -> EventIngestionResult:
     """Accept evidence only with an exact private event/action/source binding."""
     try:
@@ -292,6 +322,33 @@ def ingest_openshell_event(
     if contract is None or source is None or store is None or now_ms is None:
         return EventIngestionResult("uncorrelated", "openshell_event_uncorrelated", parsed)
     try:
+        if request_contract is not None:
+            if (
+                not isinstance(request_contract, RuntimeRequestContractV2)
+                or request_contract.capability != contract
+            ):
+                raise RuntimeCorrelationError("runtime_request_contract_mismatch")
+            if (
+                parsed.enforcement_point == "network"
+                and parsed.class_uid == 4002
+                and parsed.outcome == "allowed"
+                and not any(
+                    (r.protocol, r.host, r.port, r.path, r.commitment, r.algorithm)
+                    == tuple(
+                        parsed.metadata.get(key)
+                        for key in (
+                            "protocol",
+                            "host",
+                            "port",
+                            "path",
+                            "request_commitment",
+                            "request_commitment_algorithm",
+                        )
+                    )
+                    for r in request_contract.requests
+                )
+            ):
+                raise RuntimeCorrelationError("runtime_request_observation_mismatch")
         if source.backend != "openshell" or parsed.sandbox_id != source.sandbox_id:
             raise RuntimeCorrelationError("runtime_observation_source_mismatch")
         binding = store.lookup(parsed.event_id_digest)

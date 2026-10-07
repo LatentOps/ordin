@@ -1,4 +1,11 @@
-# Runtime enforcement final hardening acceptance
+# Runtime enforcement acceptance history
+
+The current implementation uses [v2 request authority](runtime-request-authority-v2.md)
+for complete GraphQL, MCP and generic JSON-RPC request constraints, plus exact
+TCP endpoint authority. This page preserves the earlier milestone evidence and
+its original scope. New acceptance reports are generated locally after merge
+against the exact final HEAD; the earlier results below retain their tested
+revision and do not certify the v2 extension.
 
 This report tests implementation revision `010669336a05187114ef1903bf2f533c9040595a` from an immutable
 Git checkout. Starting HEAD was `925468d7153ef11d966af7706ca1029f44ffcd65`. Source digest is

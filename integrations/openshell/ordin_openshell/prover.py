@@ -167,6 +167,7 @@ def verify_with_openshell_prover(
     executable: str = "openshell-prover",
     timeout: float = 15,
     required_domains: frozenset[str] = MODELED_DOMAINS,
+    _transport_component: bool = False,
 ) -> OpenShellProverResult:
     """Snapshot inputs, invoke the prover only, and retain exact input digests."""
     import hashlib
@@ -184,6 +185,87 @@ def verify_with_openshell_prover(
     except (OSError, ValueError):
         return OpenShellProverResult("error", "openshell_prover_input_invalid")
     c_digest, b_digest = hashlib.sha256(candidate).hexdigest(), hashlib.sha256(boundary).hexdigest()
+    if not _transport_component:
+        from .authority_prover import (
+            check_protocol_containment,
+            project_transport,
+            protocol_domains,
+        )
+        from .model import parse_policy
+
+        try:
+            c_policy, b_policy = (
+                parse_policy(candidate.decode("utf-8")),
+                parse_policy(boundary.decode("utf-8")),
+            )
+            domains = protocol_domains(c_policy) | protocol_domains(b_policy)
+            if domains:
+                state, code = check_protocol_containment(c_policy, b_policy)
+                if state != "within_boundary":
+                    return OpenShellProverResult(
+                        state,
+                        code,
+                        {"domains": []},
+                        candidate_digest=c_digest,
+                        boundary_digest=b_digest,
+                    )
+                with tempfile.TemporaryDirectory(prefix="ordin-authority-proof-") as directory:
+                    paths = [Path(directory) / name for name in ("candidate.json", "boundary.json")]
+                    for path, policy in zip(paths, (c_policy, b_policy)):
+                        path.write_text(
+                            json.dumps(
+                                project_transport(policy), sort_keys=True, separators=(",", ":")
+                            )
+                            + "\n",
+                            encoding="utf-8",
+                        )
+                        path.chmod(0o600)
+                    component = verify_with_openshell_prover(
+                        *paths,
+                        executable=executable,
+                        timeout=timeout,
+                        required_domains=required_domains - domains - {"request_integrity"},
+                        _transport_component=True,
+                    )
+                covered = (
+                    set(component.coverage.get("domains", ()))
+                    | set(domains)
+                    | (
+                        {"request_integrity"}
+                        if domains & {"network_graphql", "network_mcp", "network_json_rpc"}
+                        else set()
+                    )
+                )
+                missing = tuple(sorted(required_domains - covered))
+                return OpenShellProverResult(
+                    "unsupported" if component.ok and missing else component.result,
+                    "openshell_prover_coverage_incomplete"
+                    if component.ok and missing
+                    else "openshell_composed_authority_within"
+                    if component.ok
+                    else component.reason_code,
+                    {
+                        "domains": sorted(covered),
+                        "composition": "ordin.request-authority.v1",
+                        "transport_candidate_digest": component.candidate_digest,
+                        "transport_boundary_digest": component.boundary_digest,
+                    },
+                    component.counterexample,
+                    c_digest,
+                    b_digest,
+                    component.prover_version,
+                    missing,
+                )
+        except (UnicodeError, ValueError, TypeError, KeyError):
+            # Legacy authored policies keep their native parser/prover behavior.
+            # Extended policies must never be projected after failed validation.
+            if b"request_integrity" in candidate or b"request_integrity" in boundary:
+                return OpenShellProverResult(
+                    "unsupported",
+                    "openshell_authority_policy_unsupported",
+                    candidate_digest=c_digest,
+                    boundary_digest=b_digest,
+                )
     try:
         with tempfile.TemporaryDirectory(prefix="ordin-prover-") as directory:
             c_path, b_path = (

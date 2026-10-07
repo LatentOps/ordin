@@ -1,0 +1,3503 @@
+diff --git a/AGENTS.md b/AGENTS.md
+index 0ec8027..ac916b7 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -45,6 +45,7 @@ These pipelines connect skills into end-to-end workflows. Individual skill files
+ | `crates/openshell-sandbox-backend/` | OpenShell sandbox backend | `OpenShellRuntimeBackend` and the authenticated OpenShell Sandbox Protocol shared with `openshell-sandbox` |
+ | `crates/openshell-policy/` | Policy engine | Filesystem, network, and process constraints |
+ | `crates/openshell-policy-schema/` | Authored policy schema | Dependency-light YAML/JSON representation, bounded parsing, and pure authored-language semantics |
++| `crates/openshell-request-integrity/` | Request authority commitments | Bounded exact JSON commitments for the audited Ordin runtime extension |
+ | `crates/openshell-bootstrap/` | Gateway metadata | Gateway registration metadata, auth token storage, mTLS bundle storage |
+ | `crates/openshell-gateway-interceptors/` | Gateway interceptors | Intercepts and transforms configured gRPC requests at the gateway routing boundary |
+ | `crates/openshell-ocsf/` | OCSF logging | OCSF v1.8.0 event types, builders, shorthand/JSONL formatters, tracing layers |
+diff --git a/Cargo.lock b/Cargo.lock
+index c6330b8..312526d 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -4489,6 +4489,7 @@ version = "0.0.0"
+ dependencies = [
+  "miette",
+  "noyalib",
++ "openshell-request-integrity",
+  "serde",
+  "serde_json",
+ ]
+@@ -4537,6 +4538,15 @@ dependencies = [
+  "url",
+ ]
+ 
++[[package]]
++name = "openshell-request-integrity"
++version = "0.0.0"
++dependencies = [
++ "serde",
++ "serde_json",
++ "sha2 0.10.9",
++]
++
+ [[package]]
+ name = "openshell-sandbox"
+ version = "0.0.0"
+@@ -4833,6 +4843,7 @@ dependencies = [
+  "openshell-isolation-interface",
+  "openshell-ocsf",
+  "openshell-policy",
++ "openshell-request-integrity",
+  "openshell-supervisor-middleware",
+  "openshell-supervisor-middleware-builtins",
+  "prost-types",
+diff --git a/architecture/security-policy.md b/architecture/security-policy.md
+index 36a9195..dc1b10d 100644
+--- a/architecture/security-policy.md
++++ b/architecture/security-policy.md
+@@ -509,3 +509,45 @@ to match, so reuse cannot transfer ownership between process generations.
+ Retired PID evidence is discarded; established identity, activity, and
+ correlation-vector links remain eligible during the five-second late-event
+ window. Records without matching generation evidence fail closed.
++
++## Ordin request integrity extension
++
++This local extension to source revision `6648bd0c290efbc41ba131ee9831ee45cd431f94`
++adds `request_integrity: {algorithm, commitments}` to an inspected endpoint.
++The algorithm is `ordin.authority-json.sha256.v1`. Each lowercase SHA-256 value
++commits a bounded JSON authority tree, without storing argument values.
++GraphQL commits the complete request envelope or ordered batch; JSON-RPC and
++MCP commit method, parameters, request/notification kind, and batch order while
++omitting correlation ID values. Duplicate decoded keys are rejected. Decimal
++values preserve exact numeric precision, integer/decimal distinctions and signed
++decimal zero; object key order is neutral and Unicode normalization is preserved.
++
++The endpoint requires `enforcement: enforce` and inspected TLS. A committed
++request must use POST, contain no URL query delimiter, and request no upgrade.
++The complete buffered body must match an allowed commitment before policy
++admission and again after middleware and credential transformations. Mismatches
++deny regardless of audit behavior and produce value-free denial diagnostics.
++The matched commitment is emitted in structured OCSF only after upstream write.
++Coarse operation/method rules and the commitment must both allow the request.
++
++Limits are 1 MiB raw/framed bytes, 4096 nodes, depth 32, 128 items per JSON
++container, 65536 UTF-8 bytes per string, 1024 significant integer/decimal digits,
++and decimal exponents of magnitude at most 10000. The domain prefix does not
++count toward the framed-byte budget. Parser-specific protocol limits remain
++explicit endpoint configuration. Overlapping endpoints must agree on integrity
++configuration; malformed or ambiguous reloads cannot activate a partial gate.
++
++Exact TCP IP literals additionally require a destination IP/CIDR allowlist and
++the authenticated, confirmed native staged mediation properties
++`seccomp-notify` and `seccomp-notify-procfs`. The supervisor reports those
++properties only after boundary confirmation, using the captured configuration
++revision and instance fence. The legacy DNS-only transparent path does not grant
++literal traffic. Protected metadata, loopback, link-local and unspecified
++destinations remain blocked.
++The supervisor brackets IPv6 literals in synthesized CONNECT authorities so
++hostname, IPv4 and IPv6 destinations all use the same strict authority parser.
++
++Runtime management reports the CLI, gateway and supervisor source identities.
++An operator must require the audited extension identity and exact build
++manifest; an OpenShell version string alone does not establish this feature.
++Rebuild and embed both the guest sandbox and host supervisor in the VM driver.
+diff --git a/crates/openshell-cli/src/run.rs b/crates/openshell-cli/src/run.rs
+index 15d91b5..564cca0 100644
+--- a/crates/openshell-cli/src/run.rs
++++ b/crates/openshell-cli/src/run.rs
+@@ -2727,6 +2727,14 @@ fn sandbox_to_json(sandbox: &Sandbox) -> serde_json::Value {
+                 "policy_hash": admission.policy_hash,
+                 "config_revision": admission.config_revision,
+                 "provider_env_revision": admission.provider_env_revision,
++                "runtime_extension_id": admission.runtime_extension_id,
++                "runtime_source_digest": admission.runtime_source_digest,
++                "gateway_source_digest": admission.gateway_source_digest,
++                "cli_source_digest": openshell_core::ORDIN_RUNTIME_SOURCE_DIGEST,
++                "confirmed_backend": admission.confirmed_backend,
++                "egress_interception": admission.egress_interception,
++                "request_attribution": admission.request_attribution,
++                "staged_tcp_confirmed": admission.staged_tcp_confirmed,
+             })
+         });
+     let provisioning = sandbox.status.as_ref().and_then(|status| status.provisioning.as_ref())
+diff --git a/crates/openshell-core/src/grpc_client.rs b/crates/openshell-core/src/grpc_client.rs
+index f49466b..510ccb4 100644
+--- a/crates/openshell-core/src/grpc_client.rs
++++ b/crates/openshell-core/src/grpc_client.rs
+@@ -1052,24 +1052,42 @@ pub async fn report_sandbox_configuration(
+     state: crate::proto::ConfigurationAdmissionState,
+     error: &str,
+ ) -> Result<()> {
++    let admission = crate::proto::SandboxConfigurationAdmission {
++        instance_id: instance_id.to_string(),
++        state: state.into(),
++        policy_version: snapshot.map_or(0, |value| value.version),
++        policy_hash: snapshot.map_or_else(String::new, |value| value.policy_hash.clone()),
++        config_revision: snapshot.map_or(0, |value| value.config_revision),
++        provider_env_revision: snapshot.map_or(0, |value| value.provider_env_revision),
++        error: error.to_string(),
++        ..Default::default()
++    };
++    report_sandbox_admission(
++        endpoint,
++        sandbox_id,
++        snapshot.map_or("", |value| value.configuration_instance_id.as_str()),
++        admission,
++    )
++    .await
++}
++
++/// Report an exact captured configuration and confirmed mediation properties.
++/// The gateway rechecks both the generation tuple and supervisor instance.
++pub async fn report_sandbox_admission(
++    endpoint: &str,
++    sandbox_id: &str,
++    expected_instance_id: &str,
++    mut admission: crate::proto::SandboxConfigurationAdmission,
++) -> Result<()> {
++    admission.runtime_extension_id = crate::ORDIN_RUNTIME_EXTENSION_ID.to_string();
++    admission.runtime_source_digest = crate::ORDIN_RUNTIME_SOURCE_DIGEST.to_string();
++    admission.gateway_source_digest.clear();
+     let mut client = connect(endpoint).await?;
+     client
+         .report_sandbox_configuration(crate::proto::ReportSandboxConfigurationRequest {
+             sandbox_id: sandbox_id.to_string(),
+-            expected_instance_id: snapshot.map_or_else(String::new, |snapshot| {
+-                snapshot.configuration_instance_id.clone()
+-            }),
+-            admission: Some(crate::proto::SandboxConfigurationAdmission {
+-                instance_id: instance_id.to_string(),
+-                state: state.into(),
+-                policy_version: snapshot.map_or(0, |snapshot| snapshot.version),
+-                policy_hash: snapshot
+-                    .map_or_else(String::new, |snapshot| snapshot.policy_hash.clone()),
+-                config_revision: snapshot.map_or(0, |snapshot| snapshot.config_revision),
+-                provider_env_revision: snapshot
+-                    .map_or(0, |snapshot| snapshot.provider_env_revision),
+-                error: error.to_string(),
+-            }),
++            expected_instance_id: expected_instance_id.to_string(),
++            admission: Some(admission),
+         })
+         .await
+         .map_err(grpc_status_error)?;
+diff --git a/crates/openshell-core/src/lib.rs b/crates/openshell-core/src/lib.rs
+index 472175f..e4b13aa 100644
+--- a/crates/openshell-core/src/lib.rs
++++ b/crates/openshell-core/src/lib.rs
+@@ -9,6 +9,14 @@
+ //! - Common error types
+ //! - Build version metadata
+ 
++/// Local Ordin runtime extension, attested by the admitted guest supervisor.
++pub const ORDIN_RUNTIME_EXTENSION_ID: &str = "ordin.request-authority.v1";
++/// Digest of the exact audited local runtime source manifest supplied at build.
++pub const ORDIN_RUNTIME_SOURCE_DIGEST: &str = match option_env!("ORDIN_RUNTIME_SOURCE_DIGEST") {
++    Some(value) => value,
++    None => "unattested",
++};
++
+ pub mod activity;
+ pub mod auth;
+ pub mod config;
+diff --git a/crates/openshell-core/src/net.rs b/crates/openshell-core/src/net.rs
+index a9bbc23..df950c2 100644
+--- a/crates/openshell-core/src/net.rs
++++ b/crates/openshell-core/src/net.rs
+@@ -60,6 +60,11 @@ pub fn is_link_local_ip(ip: IpAddr) -> bool {
+ /// an endpoint has `allowed_ips` configured. This prevents proxy bypass
+ /// (loopback) and cloud metadata SSRF (link-local 169.254.x.x).
+ pub fn is_always_blocked_ip(ip: IpAddr) -> bool {
++    if ip == IpAddr::V4(Ipv4Addr::new(100, 100, 100, 200))
++        || ip == IpAddr::V6(Ipv6Addr::new(0xfd00, 0xec2, 0, 0, 0, 0, 0, 0x254))
++    {
++        return true;
++    }
+     match ip {
+         IpAddr::V4(v4) => v4.is_loopback() || v4.is_link_local() || v4.is_unspecified(),
+         IpAddr::V6(v6) => {
+@@ -88,6 +93,13 @@ pub fn is_always_blocked_ip(ip: IpAddr) -> bool {
+ /// Used at policy load time and server-side approval to reject entries that
+ /// would be silently blocked at runtime by [`is_always_blocked_ip`].
+ pub fn is_always_blocked_net(net: IpNet) -> bool {
++    if net.contains(&IpAddr::V4(Ipv4Addr::new(100, 100, 100, 200)))
++        || net.contains(&IpAddr::V6(Ipv6Addr::new(
++            0xfd00, 0xec2, 0, 0, 0, 0, 0, 0x254,
++        )))
++    {
++        return true;
++    }
+     match net {
+         IpNet::V4(v4net) => {
+             let network = v4net.network();
+diff --git a/crates/openshell-policy-schema/Cargo.toml b/crates/openshell-policy-schema/Cargo.toml
+index 24808d3..ef7d34e 100644
+--- a/crates/openshell-policy-schema/Cargo.toml
++++ b/crates/openshell-policy-schema/Cargo.toml
+@@ -11,6 +11,7 @@ license.workspace = true
+ repository.workspace = true
+ 
+ [dependencies]
++openshell-request-integrity = { path = "../openshell-request-integrity" }
+ miette = { workspace = true }
+ serde = { workspace = true }
+ serde_json = { workspace = true }
+diff --git a/crates/openshell-policy-schema/src/lib.rs b/crates/openshell-policy-schema/src/lib.rs
+index 62c2b06..2b3aee0 100644
+--- a/crates/openshell-policy-schema/src/lib.rs
++++ b/crates/openshell-policy-schema/src/lib.rs
+@@ -288,6 +288,12 @@ pub struct NetworkEndpoint {
+         skip_serializing_if = "Option::is_none"
+     )]
+     pub mcp: Option<McpConfig>,
++    #[serde(
++        default,
++        deserialize_with = "deserialize_non_null_optional_field",
++        skip_serializing_if = "Option::is_none"
++    )]
++    pub request_integrity: Option<openshell_request_integrity::RequestIntegrity>,
+ }
+ 
+ #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+@@ -295,6 +301,7 @@ pub struct NetworkEndpoint {
+ pub struct NetworkCredentialBinding {
+     pub provider: String,
+ }
++pub use openshell_request_integrity::RequestIntegrity as NetworkRequestIntegrity;
+ #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+ #[serde(deny_unknown_fields)]
+ pub struct JsonRpcConfig {
+@@ -632,6 +639,14 @@ fn validate_policy(document: &PolicyDocument) -> Result<()> {
+     for (key, rule) in &document.network_policies {
+         let name = rule.effective_name(key);
+         for endpoint in &rule.endpoints {
++            if let Some(integrity) = &endpoint.request_integrity {
++                integrity
++                    .validate(&endpoint.protocol, &endpoint.tls)
++                    .into_diagnostic()?;
++                if endpoint.enforcement != "enforce" {
++                    miette::bail!("request_integrity requires enforcement enforce");
++                }
++            }
+             if endpoint.protocol.eq_ignore_ascii_case("mcp") {
+                 if let Some(config) = &endpoint.mcp {
+                     validate_mcp_config(config, &format!("network policy '{name}'"))?;
+@@ -750,6 +765,7 @@ fn inspect_endpoint(value: &serde_yml::Value, path: &str) -> InspectionResult {
+             "credential_binding",
+             "json_rpc",
+             "mcp",
++            "request_integrity",
+         ],
+     )?
+     else {
+@@ -760,6 +776,11 @@ fn inspect_endpoint(value: &serde_yml::Value, path: &str) -> InspectionResult {
+         &join(path, "credential_binding"),
+         &["provider"],
+     )?;
++    inspect_named(
++        endpoint.get("request_integrity"),
++        &join(path, "request_integrity"),
++        &["algorithm", "commitments"],
++    )?;
+     inspect_named(
+         endpoint.get("json_rpc"),
+         &join(path, "json_rpc"),
+diff --git a/crates/openshell-policy/src/ambiguity.rs b/crates/openshell-policy/src/ambiguity.rs
+index efb846a..3e0f287 100644
+--- a/crates/openshell-policy/src/ambiguity.rs
++++ b/crates/openshell-policy/src/ambiguity.rs
+@@ -204,6 +204,20 @@ fn endpoint_contributes_request_pipeline_metadata(endpoint: &NetworkEndpoint) ->
+ 
+ fn request_pipeline_conflicts(left: &NetworkEndpoint, right: &NetworkEndpoint) -> Vec<String> {
+     let mut conflicts = Vec::new();
++    let integrity = |endpoint: &NetworkEndpoint| {
++        endpoint.request_integrity.as_ref().map(|value| {
++            (
++                value.algorithm.clone(),
++                normalized_strings(&value.commitments),
++            )
++        })
++    };
++    push_conflict(
++        &mut conflicts,
++        "request_integrity",
++        &integrity(left),
++        &integrity(right),
++    );
+     push_conflict(
+         &mut conflicts,
+         "protocol",
+diff --git a/crates/openshell-policy/src/lib.rs b/crates/openshell-policy/src/lib.rs
+index f6ba71f..c01cc5e 100644
+--- a/crates/openshell-policy/src/lib.rs
++++ b/crates/openshell-policy/src/lib.rs
+@@ -489,6 +489,11 @@ fn yaml_mcp_method(
+ fn to_proto(raw: PolicyFile) -> Result<SandboxPolicy> {
+     for (policy_name, rule) in &raw.network_policies {
+         for (endpoint_index, endpoint) in rule.endpoints.iter().enumerate() {
++            if let Some(integrity) = &endpoint.request_integrity {
++                integrity
++                    .validate(&endpoint.protocol, &endpoint.tls)
++                    .into_diagnostic()?;
++            }
+             let errors =
+                 validate_endpoint_modes(&endpoint.tls, &endpoint.enforcement, &endpoint.access);
+             if !errors.is_empty() {
+@@ -592,6 +597,12 @@ fn to_proto(raw: PolicyFile) -> Result<SandboxPolicy> {
+                             }),
+                             json_rpc_max_body_bytes: json_rpc_max_body_bytes(&e.json_rpc, &e.mcp),
+                             mcp: mcp_options(&protocol, &e.mcp),
++                            request_integrity: e.request_integrity.map(|integrity| {
++                                openshell_core::proto::RequestIntegrity {
++                                    algorithm: integrity.algorithm,
++                                    commitments: integrity.commitments,
++                                }
++                            }),
+                         }
+                     })
+                     .collect(),
+@@ -780,6 +791,12 @@ fn from_proto(policy: &SandboxPolicy) -> Result<PolicyFile> {
+                             }),
+                             json_rpc,
+                             mcp,
++                            request_integrity: e.request_integrity.as_ref().map(|integrity| {
++                                openshell_policy_schema::NetworkRequestIntegrity {
++                                    algorithm: integrity.algorithm.clone(),
++                                    commitments: integrity.commitments.clone(),
++                                }
++                            }),
+                         })
+                     })
+                     .collect::<Result<Vec<_>>>()?,
+@@ -1462,6 +1479,27 @@ fn validate_sandbox_policy_with_mcp_presence(
+             rule.name.clone()
+         };
+         for (endpoint_index, ep) in rule.endpoints.iter().enumerate() {
++            if let Some(integrity) = &ep.request_integrity {
++                let config = openshell_policy_schema::NetworkRequestIntegrity {
++                    algorithm: integrity.algorithm.clone(),
++                    commitments: integrity.commitments.clone(),
++                };
++                if config
++                    .validate(
++                        &ep.protocol,
++                        network_tls_mode_to_str(ep.tls).unwrap_or("skip"),
++                    )
++                    .is_err()
++                    || ep.enforcement
++                        != openshell_core::proto::NetworkEnforcementMode::Enforce as i32
++                {
++                    violations.push(PolicyViolation::InvalidL7Endpoint {
++                        policy_name: name.clone(),
++                        endpoint_index,
++                        reason: "request_commitment_invalid".to_string(),
++                    });
++                }
++            }
+             let access = network_access_preset_to_str(ep.access).unwrap_or_default();
+             let enforcement = network_enforcement_mode_to_str(ep.enforcement).unwrap_or_default();
+             let explicit_tcp = l7_validate::is_explicit_tcp_protocol(&ep.protocol);
+@@ -1474,11 +1512,15 @@ fn validate_sandbox_policy_with_mcp_presence(
+                     policy_name: name.clone(),
+                 });
+             } else if explicit_tcp {
+-                if ep.host.parse::<IpAddr>().is_ok() {
+-                    violations.push(PolicyViolation::TcpEndpointIpLiteral {
+-                        policy_name: name.clone(),
+-                        host: ep.host.clone(),
+-                    });
++                if let Ok(address) = ep.host.parse::<IpAddr>() {
++                    if openshell_core::net::is_always_blocked_ip(address)
++                        || ep.allowed_ips.is_empty()
++                    {
++                        violations.push(PolicyViolation::TcpEndpointIpLiteral {
++                            policy_name: name.clone(),
++                            host: ep.host.clone(),
++                        });
++                    }
+                 } else if let Err(reason) = validate_tcp_dns_host_selector(&ep.host) {
+                     violations.push(PolicyViolation::InvalidTcpEndpointHost {
+                         policy_name: name.clone(),
+diff --git a/crates/openshell-prover-cli/src/main.rs b/crates/openshell-prover-cli/src/main.rs
+index 69166c4..b993e6f 100644
+--- a/crates/openshell-prover-cli/src/main.rs
++++ b/crates/openshell-prover-cli/src/main.rs
+@@ -21,12 +21,16 @@ use openshell_prover::containment::{
+ use serde::Serialize;
+ 
+ const MAX_POLICY_BYTES: u64 = 4 * 1024 * 1024;
++const PROVER_VERSION: &str = match option_env!("OPENSHELL_GIT_VERSION") {
++    Some(version) => version,
++    None => env!("CARGO_PKG_VERSION"),
++};
+ 
+ #[derive(Debug, Parser)]
+ #[command(
+     name = "openshell-prover",
+     about = "Verify OpenShell policy boundaries",
+-    version
++    version = PROVER_VERSION
+ )]
+ struct Cli {
+     #[command(subcommand)]
+@@ -291,7 +295,7 @@ fn render_input_error(
+     if output == OutputFormat::Json {
+         let envelope = Envelope {
+             schema_version: 1,
+-            prover_version: env!("CARGO_PKG_VERSION"),
++            prover_version: PROVER_VERSION,
+             check: "boundary",
+             coverage: None,
+             result: "error",
+@@ -356,7 +360,7 @@ fn result_envelope(result: &CheckResult, inputs: InputsJson) -> Result<Envelope<
+     };
+     Ok(Envelope {
+         schema_version: 1,
+-        prover_version: env!("CARGO_PKG_VERSION"),
++        prover_version: PROVER_VERSION,
+         check: "boundary",
+         coverage: Some(coverage_json(coverage)),
+         result: result_name,
+@@ -590,7 +594,7 @@ mod tests {
+     fn output_failures_are_reported() {
+         let envelope = Envelope {
+             schema_version: 1,
+-            prover_version: env!("CARGO_PKG_VERSION"),
++            prover_version: PROVER_VERSION,
+             check: "boundary",
+             coverage: None,
+             result: "within_boundary",
+diff --git a/crates/openshell-prover/src/containment.rs b/crates/openshell-prover/src/containment.rs
+index 9a9c9cb..22f6b54 100644
+--- a/crates/openshell-prover/src/containment.rs
++++ b/crates/openshell-prover/src/containment.rs
+@@ -1597,6 +1597,7 @@ fn validate_supported_endpoint_extensions(
+     endpoint: &Endpoint,
+ ) -> Result<(), UnsupportedFeature> {
+     if !endpoint.tls.is_empty()
++        || endpoint.request_integrity.is_some()
+         || endpoint.allow_encoded_slash
+         || endpoint.websocket_credential_rewrite
+         || endpoint.request_body_credential_rewrite
+@@ -2218,6 +2219,20 @@ fn non_separator_regex(separator: &str) -> Regexp {
+ #[cfg(test)]
+ mod tests {
+     use super::*;
++
++    #[test]
++    fn request_integrity_cannot_be_silently_ignored_by_native_transport_proof() {
++        let mut policy = parse(
++            "version: 1\nnetwork_policies:\n  n:\n    endpoints:\n      - host: api.example.com\n        port: 443\n        protocol: rest\n        enforcement: enforce\n        access: read-only\n    binaries: [{ path: /usr/bin/curl }]\n",
++        );
++        policy.network_policies.get_mut("n").unwrap().endpoints[0].request_integrity =
++            Some(openshell_policy_schema::NetworkRequestIntegrity {
++                algorithm: "ordin.authority-json.sha256.v1".to_string(),
++                commitments: vec!["0".repeat(64)],
++            });
++        let result = check_within_boundary(&policy, &policy, options());
++        assert!(matches!(result, CheckResult::Unsupported(_)), "{result:?}");
++    }
+     use std::cell::Cell;
+     use std::fmt::Write as _;
+ 
+diff --git a/crates/openshell-providers/src/profiles.rs b/crates/openshell-providers/src/profiles.rs
+index 01991d7..ea019d4 100644
+--- a/crates/openshell-providers/src/profiles.rs
++++ b/crates/openshell-providers/src/profiles.rs
+@@ -1581,6 +1581,7 @@ fn endpoint_to_proto(endpoint: &EndpointProfile) -> NetworkEndpoint {
+         graphql_max_body_bytes: endpoint.graphql_max_body_bytes,
+         json_rpc_max_body_bytes: endpoint.json_rpc_max_body_bytes,
+         mcp: endpoint_mcp_options_to_proto(endpoint),
++        request_integrity: None,
+         path: endpoint.path.clone(),
+         credential_signing: endpoint.credential_signing.clone(),
+         signing_service: endpoint.signing_service.clone(),
+diff --git a/crates/openshell-request-integrity/Cargo.toml b/crates/openshell-request-integrity/Cargo.toml
+new file mode 100644
+index 0000000..6b66428
+--- /dev/null
++++ b/crates/openshell-request-integrity/Cargo.toml
+@@ -0,0 +1,18 @@
++# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++# SPDX-License-Identifier: Apache-2.0
++
++[package]
++name = "openshell-request-integrity"
++description = "Bounded value-blind commitments to request authority"
++version.workspace = true
++edition.workspace = true
++rust-version.workspace = true
++license.workspace = true
++
++[dependencies]
++serde = { workspace = true }
++serde_json = { workspace = true, features = ["raw_value"] }
++sha2 = { workspace = true }
++
++[lints]
++workspace = true
+diff --git a/crates/openshell-request-integrity/src/lib.rs b/crates/openshell-request-integrity/src/lib.rs
+new file mode 100644
+index 0000000..90c3b92
+--- /dev/null
++++ b/crates/openshell-request-integrity/src/lib.rs
+@@ -0,0 +1,418 @@
++// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
++// SPDX-License-Identifier: Apache-2.0
++
++//! Value-blind request commitments shared with Ordin. Never log payload values.
++
++use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
++use serde::{Deserialize, Serialize};
++use serde_json::value::RawValue;
++use sha2::{Digest, Sha256};
++use std::collections::{BTreeMap, BTreeSet};
++use std::fmt;
++
++pub const ALGORITHM: &str = "ordin.authority-json.sha256.v1";
++
++/// Endpoint authority is the intersection of coarse protocol rules and these
++/// exact authority commitments. No raw argument material is retained.
++#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
++#[serde(deny_unknown_fields)]
++pub struct RequestIntegrity {
++    pub algorithm: String,
++    pub commitments: Vec<String>,
++}
++
++impl RequestIntegrity {
++    pub fn validate(&self, protocol: &str, tls: &str) -> Result<(), InvalidCommitment> {
++        if self.algorithm != ALGORITHM
++            || !matches!(protocol, "graphql" | "mcp" | "json-rpc")
++            || tls == "skip"
++            || self.commitments.is_empty()
++            || self.commitments.len() > MAX_ITEMS
++            || self.commitments.iter().any(|value| {
++                value.len() != 64
++                    || !value
++                        .bytes()
++                        .all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
++            })
++            || self.commitments.iter().collect::<BTreeSet<_>>().len() != self.commitments.len()
++        {
++            return Err(InvalidCommitment);
++        }
++        Ok(())
++    }
++
++    pub fn allows(&self, protocol: &str, body: &[u8]) -> bool {
++        if self.validate(protocol, "").is_err() {
++            return false;
++        }
++        let result = if protocol == "graphql" {
++            commitment_json(body)
++        } else {
++            rpc_commitment_json(body)
++        };
++        result.is_ok_and(|value| self.commitments.contains(&value))
++    }
++}
++const MAX_BYTES: usize = 1_048_576;
++const MAX_NODES: usize = 4096;
++const MAX_DEPTH: usize = 32;
++const MAX_ITEMS: usize = 128;
++const MAX_TEXT: usize = 65_536;
++const MAX_DIGITS: usize = 1024;
++const MAX_EXPONENT: i32 = 10_000;
++
++fn decimal_token(value: &str) -> Result<String, InvalidCommitment> {
++    let (sign, unsigned) = value.strip_prefix('-').map_or((0, value), |v| (1, v));
++    let (mantissa, exponent) =
++        unsigned
++            .split_once(['e', 'E'])
++            .map_or(Ok((unsigned, 0)), |(m, e)| {
++                e.parse::<i32>()
++                    .map(|e| (m, e))
++                    .map_err(|_| InvalidCommitment)
++            })?;
++    let fraction = mantissa.split_once('.').map_or(0, |(_, f)| f.len());
++    let digits = mantissa.replace('.', "");
++    if digits.trim_start_matches('0').len() > MAX_DIGITS
++        || exponent.unsigned_abs() > MAX_EXPONENT as u32
++    {
++        return Err(InvalidCommitment);
++    }
++    let mut exponent = exponent
++        .checked_sub(i32::try_from(fraction).map_err(|_| InvalidCommitment)?)
++        .ok_or(InvalidCommitment)?;
++    if exponent.unsigned_abs() > MAX_EXPONENT as u32 {
++        return Err(InvalidCommitment);
++    }
++    let mut coefficient = digits.trim_start_matches('0').to_owned();
++    if coefficient.is_empty() {
++        coefficient.push('0');
++        exponent = 0;
++    } else {
++        while coefficient.ends_with('0') {
++            coefficient.pop();
++            exponent += 1;
++        }
++    }
++    if exponent.unsigned_abs() > MAX_EXPONENT as u32 {
++        return Err(InvalidCommitment);
++    }
++    Ok(format!("d{sign}:{coefficient}:{exponent};"))
++}
++
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub struct InvalidCommitment;
++
++impl fmt::Display for InvalidCommitment {
++    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
++        formatter.write_str("request_commitment_invalid")
++    }
++}
++
++impl std::error::Error for InvalidCommitment {}
++
++struct RawObject(BTreeMap<String, Box<RawValue>>);
++
++impl<'de> Deserialize<'de> for RawObject {
++    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
++        struct ObjectVisitor;
++        impl<'de> Visitor<'de> for ObjectVisitor {
++            type Value = RawObject;
++            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
++                formatter.write_str("a bounded unique-key object")
++            }
++            fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<Self::Value, M::Error> {
++                let mut values = BTreeMap::new();
++                while let Some(key) = map.next_key::<String>()? {
++                    if key.len() > MAX_TEXT
++                        || values.len() >= MAX_ITEMS
++                        || values.contains_key(&key)
++                    {
++                        return Err(de::Error::custom("request_commitment_invalid"));
++                    }
++                    let value = map.next_value::<Box<RawValue>>()?;
++                    values.insert(key, value);
++                }
++                Ok(RawObject(values))
++            }
++        }
++        deserializer.deserialize_map(ObjectVisitor)
++    }
++}
++
++struct RawArray(Vec<Box<RawValue>>);
++
++impl<'de> Deserialize<'de> for RawArray {
++    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
++        struct ArrayVisitor;
++        impl<'de> Visitor<'de> for ArrayVisitor {
++            type Value = RawArray;
++            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
++                formatter.write_str("a bounded array")
++            }
++            fn visit_seq<S: SeqAccess<'de>>(
++                self,
++                mut sequence: S,
++            ) -> Result<Self::Value, S::Error> {
++                let mut values = Vec::new();
++                while let Some(value) = sequence.next_element::<Box<RawValue>>()? {
++                    if values.len() >= MAX_ITEMS {
++                        return Err(de::Error::custom("request_commitment_invalid"));
++                    }
++                    values.push(value);
++                }
++                Ok(RawArray(values))
++            }
++        }
++        deserializer.deserialize_seq(ArrayVisitor)
++    }
++}
++
++struct Encoder {
++    hasher: Sha256,
++    bytes: usize,
++    nodes: usize,
++}
++
++impl Encoder {
++    fn new() -> Self {
++        let mut hasher = Sha256::new();
++        hasher.update(b"ordin.authority-json.v1\0");
++        Self {
++            hasher,
++            bytes: 0,
++            nodes: 0,
++        }
++    }
++
++    fn write(&mut self, value: &[u8]) -> Result<(), InvalidCommitment> {
++        self.bytes += value.len();
++        if self.bytes > MAX_BYTES {
++            return Err(InvalidCommitment);
++        }
++        self.hasher.update(value);
++        Ok(())
++    }
++
++    fn string(&mut self, value: &str) -> Result<(), InvalidCommitment> {
++        if value.len() > MAX_TEXT {
++            return Err(InvalidCommitment);
++        }
++        self.write(format!("s{}:", value.len()).as_bytes())?;
++        self.write(value.as_bytes())
++    }
++
++    fn walk(&mut self, raw: &RawValue, depth: usize) -> Result<(), InvalidCommitment> {
++        self.nodes += 1;
++        if self.nodes > MAX_NODES || depth > MAX_DEPTH {
++            return Err(InvalidCommitment);
++        }
++        let value = raw.get();
++        match value.as_bytes().first() {
++            Some(b'n') => self.write(b"n"),
++            Some(b't') => self.write(b"t"),
++            Some(b'f') => self.write(b"f"),
++            Some(b'"') => {
++                let decoded: String = serde_json::from_str(value).map_err(|_| InvalidCommitment)?;
++                self.string(&decoded)
++            }
++            Some(b'[') => {
++                let RawArray(items) = serde_json::from_str(value).map_err(|_| InvalidCommitment)?;
++                self.write(format!("l{}:", items.len()).as_bytes())?;
++                for item in items {
++                    self.walk(&item, depth + 1)?;
++                }
++                self.write(b";")
++            }
++            Some(b'{') => {
++                let RawObject(items) =
++                    serde_json::from_str(value).map_err(|_| InvalidCommitment)?;
++                self.write(format!("o{}:", items.len()).as_bytes())?;
++                for (key, item) in items {
++                    self.nodes += 1;
++                    if self.nodes > MAX_NODES || depth + 1 > MAX_DEPTH {
++                        return Err(InvalidCommitment);
++                    }
++                    self.string(&key)?;
++                    self.walk(&item, depth + 1)?;
++                }
++                self.write(b";")
++            }
++            Some(_) if value.contains(['.', 'e', 'E']) => {
++                self.write(decimal_token(value)?.as_bytes())
++            }
++            Some(_) => {
++                if value.trim_start_matches('-').len() > MAX_DIGITS {
++                    return Err(InvalidCommitment);
++                }
++                self.write(b"i")?;
++                self.write(if value == "-0" {
++                    b"0"
++                } else {
++                    value.as_bytes()
++                })?;
++                self.write(b";")
++            }
++            None => Err(InvalidCommitment),
++        }
++    }
++
++    fn finish(self) -> String {
++        format!("{:x}", self.hasher.finalize())
++    }
++}
++
++pub fn commitment_json(body: &[u8]) -> Result<String, InvalidCommitment> {
++    if body.len() > MAX_BYTES {
++        return Err(InvalidCommitment);
++    }
++    let raw: Box<RawValue> = serde_json::from_slice(body).map_err(|_| InvalidCommitment)?;
++    let mut encoder = Encoder::new();
++    encoder.walk(&raw, 0)?;
++    Ok(encoder.finish())
++}
++
++pub fn rpc_commitment_json(body: &[u8]) -> Result<String, InvalidCommitment> {
++    // Validate the complete envelope first, including bounded correlation IDs
++    // and duplicate decoded keys in material omitted from authority projection.
++    commitment_json(body)?;
++    let raw: Box<RawValue> = serde_json::from_slice(body).map_err(|_| InvalidCommitment)?;
++    let projection = if raw.get().starts_with('[') {
++        let RawArray(messages) = serde_json::from_str(raw.get()).map_err(|_| InvalidCommitment)?;
++        if messages.is_empty() {
++            return Err(InvalidCommitment);
++        }
++        let projections = messages
++            .into_iter()
++            .map(|message| rpc_projection(&message))
++            .collect::<Result<Vec<_>, _>>()?;
++        serde_json::value::to_raw_value(&projections).map_err(|_| InvalidCommitment)?
++    } else {
++        rpc_projection(&raw)?
++    };
++    let mut encoder = Encoder::new();
++    encoder.walk(&projection, 0)?;
++    Ok(encoder.finish())
++}
++
++fn rpc_projection(raw: &RawValue) -> Result<Box<RawValue>, InvalidCommitment> {
++    let RawObject(mut message) = serde_json::from_str(raw.get()).map_err(|_| InvalidCommitment)?;
++    let allowed = BTreeSet::from(["jsonrpc", "id", "method", "params"]);
++    if message.keys().any(|key| !allowed.contains(key.as_str())) {
++        return Err(InvalidCommitment);
++    }
++    let version: String =
++        serde_json::from_str(message.remove("jsonrpc").ok_or(InvalidCommitment)?.get())
++            .map_err(|_| InvalidCommitment)?;
++    if version != "2.0" {
++        return Err(InvalidCommitment);
++    }
++    let method = message.remove("method").ok_or(InvalidCommitment)?;
++    let name: String = serde_json::from_str(method.get()).map_err(|_| InvalidCommitment)?;
++    if name.is_empty()
++        || name.chars().count() > 128
++        || name.chars().any(|c| c <= ' ' || c == '\u{7f}' || c == '*')
++    {
++        return Err(InvalidCommitment);
++    }
++    let kind = if let Some(id) = message.remove("id") {
++        if !matches!(
++            id.get().as_bytes().first(),
++            Some(b'"' | b'n' | b'-' | b'0'..=b'9')
++        ) {
++            return Err(InvalidCommitment);
++        }
++        "request"
++    } else {
++        "notification"
++    };
++    let mut projection = BTreeMap::new();
++    projection.insert(
++        "kind",
++        serde_json::value::to_raw_value(kind).map_err(|_| InvalidCommitment)?,
++    );
++    projection.insert("method", method);
++    if let Some(params) = message.remove("params") {
++        if !matches!(params.get().as_bytes().first(), Some(b'{' | b'[' | b'n')) {
++            return Err(InvalidCommitment);
++        }
++        projection.insert("params", params);
++    }
++    serde_json::value::to_raw_value(&projection).map_err(|_| InvalidCommitment)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn portable_python_vectors_match_runtime_commitments() {
++        let vectors: Vec<serde_json::Value> =
++            serde_json::from_str(include_str!("../test-vectors.json")).unwrap();
++        for vector in vectors {
++            let body = vector["json"].as_str().unwrap().as_bytes();
++            let actual = if vector["kind"] == "json" {
++                commitment_json(body)
++            } else {
++                rpc_commitment_json(body)
++            };
++            assert_eq!(actual.unwrap(), vector["digest"].as_str().unwrap());
++        }
++    }
++
++    #[test]
++    fn duplicate_keys_and_invalid_payloads_fail_closed() {
++        for input in [
++            r#"{"x":1,"x":2}"#,
++            r#"{"nested":{"x":1,"x":2}}"#,
++            r#"{"a":1,"\u0061":2}"#,
++            "NaN",
++            "1e10001",
++            r#""\ud800""#,
++        ] {
++            assert_eq!(commitment_json(input.as_bytes()), Err(InvalidCommitment));
++        }
++    }
++
++    #[test]
++    fn decimals_preserve_exact_authority() {
++        for (a, b) in [
++            ("9007199254740992.0", "9007199254740993.0"),
++            ("0.0", "1e-4000"),
++            ("0.1", "0.10000000000000000000000000001"),
++        ] {
++            assert_ne!(commitment_json(a.as_bytes()), commitment_json(b.as_bytes()));
++        }
++        assert_eq!(commitment_json(b"1.00"), commitment_json(b"10e-1"));
++        assert_eq!(commitment_json(b"-0"), commitment_json(b"0"));
++    }
++
++    #[test]
++    fn reordered_maps_preserve_commitments_but_values_and_types_do_not() {
++        assert_eq!(
++            commitment_json(br#"{"a":1,"b":[null,true]}"#),
++            commitment_json(br#"{"b":[null,true],"a":1}"#)
++        );
++        assert_ne!(commitment_json(b"1"), commitment_json(b"1.0"));
++        assert_ne!(commitment_json(b"0.0"), commitment_json(b"-0.0"));
++        assert_ne!(
++            commitment_json(br#"{"path":"/a"}"#),
++            commitment_json(br#"{"path":"/b"}"#)
++        );
++    }
++
++    #[test]
++    fn rpc_kind_and_params_presence_remain_bound() {
++        let first = br#"{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}"#;
++        let second = br#"{"jsonrpc":"2.0","id":"another","method":"ping","params":{}}"#;
++        assert_eq!(rpc_commitment_json(first), rpc_commitment_json(second));
++        assert_ne!(
++            rpc_commitment_json(first),
++            rpc_commitment_json(br#"{"jsonrpc":"2.0","method":"ping","params":{}}"#)
++        );
++        assert_ne!(
++            rpc_commitment_json(br#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#),
++            rpc_commitment_json(br#"{"jsonrpc":"2.0","id":1,"method":"ping","params":null}"#)
++        );
++    }
++}
+diff --git a/crates/openshell-request-integrity/test-vectors.json b/crates/openshell-request-integrity/test-vectors.json
+new file mode 100644
+index 0000000..c789731
+--- /dev/null
++++ b/crates/openshell-request-integrity/test-vectors.json
+@@ -0,0 +1,152 @@
++[
++  {
++    "kind": "json",
++    "json": "null",
++    "digest": "1b8cc8a46ef90f090f8e1ad8a267e6c9d114a13f68bb76bbdd92ab78337319b8"
++  },
++  {
++    "kind": "json",
++    "json": "false",
++    "digest": "12db2435f7eb32a421777a8496ae3469f0e62bffeb07d93161ab374807dd96fc"
++  },
++  {
++    "kind": "json",
++    "json": "true",
++    "digest": "5af3aef7a0028ab4906c544283c0205bfc5edb731864155a91f86f3c6f8d035e"
++  },
++  {
++    "kind": "json",
++    "json": "0",
++    "digest": "79e34aa3f7f707bbcd356c26868a19f56f6ec1b4b54cd0c4985b72bdc93113af"
++  },
++  {
++    "kind": "json",
++    "json": "-0",
++    "digest": "79e34aa3f7f707bbcd356c26868a19f56f6ec1b4b54cd0c4985b72bdc93113af"
++  },
++  {
++    "kind": "json",
++    "json": "1",
++    "digest": "c05dfd3ffe2161a9181d094cc1e63b766d148e8266b1b84c0d4afd55b1fe628c"
++  },
++  {
++    "kind": "json",
++    "json": "1.0",
++    "digest": "35be4bbdc13f422045559ff6b46e5e662ddd47ef5a60bacc999d3348b2cdef1c"
++  },
++  {
++    "kind": "json",
++    "json": "1.00",
++    "digest": "35be4bbdc13f422045559ff6b46e5e662ddd47ef5a60bacc999d3348b2cdef1c"
++  },
++  {
++    "kind": "json",
++    "json": "10e-1",
++    "digest": "35be4bbdc13f422045559ff6b46e5e662ddd47ef5a60bacc999d3348b2cdef1c"
++  },
++  {
++    "kind": "json",
++    "json": "-0.0",
++    "digest": "dffde5af5b8d7f84b4e77e8c991a7c44f7812a6fe94db8020614e01c5e042ae2"
++  },
++  {
++    "kind": "json",
++    "json": "0.0",
++    "digest": "d53fa198846ce15629af586bf3f625ede9dabe3f042799a95a91d91a39b6fa91"
++  },
++  {
++    "kind": "json",
++    "json": "0.1",
++    "digest": "f03ebee79468db4894ab863f72f22731cd75994725b6f3e74ade86b78d234b2d"
++  },
++  {
++    "kind": "json",
++    "json": "0.10000000000000000000000000001",
++    "digest": "105c95f776dac2486ead78037972487bf19d488424cb18b78ffbdc9aa0c62bce"
++  },
++  {
++    "kind": "json",
++    "json": "9007199254740992.0",
++    "digest": "bbeb26068f945edf4f962aab0ca1895fe1b10532fb3741a0faa9c6e3ef6010c4"
++  },
++  {
++    "kind": "json",
++    "json": "9007199254740993.0",
++    "digest": "47beaf0c6f92936402745a1c24af676b056ad25b21983bff228e2db8fe55e60b"
++  },
++  {
++    "kind": "json",
++    "json": "1e-4000",
++    "digest": "bbf79ac6570ad15783b092058dff53e5877e432a919c80ee4201fa551ff48c05"
++  },
++  {
++    "kind": "json",
++    "json": "1606938044258990275541962092341162602522202993782792835301376",
++    "digest": "d49660d5d9021195a12e1095212a0f8480b11fcd3270a3abf191214fb9d293af"
++  },
++  {
++    "kind": "json",
++    "json": "{}",
++    "digest": "cdf6255bd45986b2637664a7a8b6145ed511c4209f4cb5ff3c9161871e362336"
++  },
++  {
++    "kind": "json",
++    "json": "[]",
++    "digest": "03662f98a34aba199f90b7446a881dc9fb9c61a568b8720e036da33cf0bac24c"
++  },
++  {
++    "kind": "json",
++    "json": "{\"a\":\"é\",\"z\":\"🙂\"}",
++    "digest": "2f8ca93611c7733747bfa787fec0bf7642a6c8ba529944cb0fedc05f194d3bf5"
++  },
++  {
++    "kind": "json",
++    "json": "{\"z\":\"\\ud83d\\ude42\",\"a\":\"\\u00e9\"}",
++    "digest": "2f8ca93611c7733747bfa787fec0bf7642a6c8ba529944cb0fedc05f194d3bf5"
++  },
++  {
++    "kind": "json",
++    "json": "{\"b\":[null,true,-0.0],\"a\":1}",
++    "digest": "21c10f50d25b2103f81cd8019eebce27fedb415937b25ef4cd1ce360321f5be0"
++  },
++  {
++    "kind": "json",
++    "json": "[{\"query\":\"{ a }\"},{\"query\":\"{ b }\"}]",
++    "digest": "057605fde206cd3614224a383cf36610a2c47099b1fc969ca7b010b3b4c8bf10"
++  },
++  {
++    "kind": "json",
++    "json": "[{\"query\":\"{ b }\"},{\"query\":\"{ a }\"}]",
++    "digest": "7e185ca9b85b457fbe760a672288b2018072b70c26a59d5a5750a842186f59f8"
++  },
++  {
++    "kind": "rpc",
++    "json": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}",
++    "digest": "24cbe29fb8d6ff12d05df99449757269b458690ff89ce7243ff53726602b1d97"
++  },
++  {
++    "kind": "rpc",
++    "json": "{\"jsonrpc\":\"2.0\",\"id\":\"another\",\"method\":\"ping\"}",
++    "digest": "24cbe29fb8d6ff12d05df99449757269b458690ff89ce7243ff53726602b1d97"
++  },
++  {
++    "kind": "rpc",
++    "json": "{\"jsonrpc\":\"2.0\",\"method\":\"ping\"}",
++    "digest": "985eb83b36548730a00558138785d9153e406fc287bacdd905c76ec12a2b3977"
++  },
++  {
++    "kind": "rpc",
++    "json": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\",\"params\":null}",
++    "digest": "9aa3391827a47d37104a89825c7f4f60344fa0d086b5ac1920bbf39966137598"
++  },
++  {
++    "kind": "rpc",
++    "json": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"items/update\",\"params\":{\"id\":\"a\",\"amount\":0.10000000000000000000000000001}}",
++    "digest": "4aad643d1471d7ff6dfc330b56a27c6e88671218622e52f0e4676eaa107bcf2b"
++  },
++  {
++    "kind": "rpc",
++    "json": "[{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"},{\"jsonrpc\":\"2.0\",\"method\":\"ack\"}]",
++    "digest": "864363960cc5225d70d634dacea579c132ad18d680b055b5cec3ef9a3e0a99be"
++  }
++]
+diff --git a/crates/openshell-server/src/grpc/policy.rs b/crates/openshell-server/src/grpc/policy.rs
+index 74fac49..2ad0cc9 100644
+--- a/crates/openshell-server/src/grpc/policy.rs
++++ b/crates/openshell-server/src/grpc/policy.rs
+@@ -4483,6 +4483,7 @@ pub(super) async fn handle_report_sandbox_configuration(
+             ));
+         }
+         admission.error.clear();
++        admission.gateway_source_digest = openshell_core::ORDIN_RUNTIME_SOURCE_DIGEST.to_string();
+     } else if reported == ConfigurationAdmissionState::Rejected {
+         // Runtime error strings may contain parser payloads. Only gateway-authored
+         // diagnostics may be exposed verbatim through public sandbox status.
+@@ -7842,6 +7843,7 @@ mod tests {
+             config_revision: config.config_revision,
+             provider_env_revision: config.provider_env_revision,
+             error: String::new(),
++            ..Default::default()
+         };
+         let mut outdated_admission = accepted.clone();
+         outdated_admission.provider_env_revision =
+diff --git a/crates/openshell-supervisor-network/Cargo.toml b/crates/openshell-supervisor-network/Cargo.toml
+index d4aa9d1..5358b9c 100644
+--- a/crates/openshell-supervisor-network/Cargo.toml
++++ b/crates/openshell-supervisor-network/Cargo.toml
+@@ -11,6 +11,7 @@ repository.workspace = true
+ rust-version.workspace = true
+ 
+ [dependencies]
++openshell-request-integrity = { path = "../openshell-request-integrity" }
+ openshell-binary-identity = { path = "../openshell-binary-identity" }
+ openshell-core = { path = "../openshell-core", features = ["oauth"] }
+ openshell-isolation-interface = { path = "../openshell-isolation-interface" }
+diff --git a/crates/openshell-supervisor-network/src/l7/graphql.rs b/crates/openshell-supervisor-network/src/l7/graphql.rs
+index 994d101..f6f3eec 100644
+--- a/crates/openshell-supervisor-network/src/l7/graphql.rs
++++ b/crates/openshell-supervisor-network/src/l7/graphql.rs
+@@ -40,8 +40,8 @@ pub struct GraphqlHttpRequest {
+ }
+ 
+ pub(crate) fn log_summary(info: &GraphqlRequestInfo) -> String {
+-    if let Some(error) = &info.error {
+-        return format!("graphql_error={error:?}");
++    if info.error.is_some() {
++        return "graphql_error=graphql_parse_rejected".to_string();
+     }
+     let operations = info.operations.iter().map(|operation| {
+         let name = operation.operation_name.as_deref().unwrap_or("-");
+diff --git a/crates/openshell-supervisor-network/src/l7/jsonrpc.rs b/crates/openshell-supervisor-network/src/l7/jsonrpc.rs
+index aea53ed..7730457 100644
+--- a/crates/openshell-supervisor-network/src/l7/jsonrpc.rs
++++ b/crates/openshell-supervisor-network/src/l7/jsonrpc.rs
+@@ -194,7 +194,14 @@ impl JsonRpcInspectionError {
+ 
+     /// Render the existing proxy denial reason for an inspection failure.
+     pub(crate) fn rejection_reason(&self) -> String {
+-        format!("JSON-RPC request rejected: {self}")
++        match self.kind {
++            JsonRpcInspectionErrorKind::InvalidJson => {
++                "JSON-RPC request rejected: invalid JSON".to_string()
++            }
++            JsonRpcInspectionErrorKind::InvalidMessage => {
++                "JSON-RPC request rejected: invalid message".to_string()
++            }
++        }
+     }
+ }
+ 
+@@ -535,6 +542,20 @@ fn validate_mcp_tool_name(name: &str) -> std::result::Result<(), String> {
+ }
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    fn rejection_diagnostic_never_echoes_parameter_values() {
++        let error =
++            JsonRpcInspectionError::invalid_message("invalid type: NONSECRET_SENTINEL_ARGUMENT");
++        assert_eq!(
++            error.rejection_reason(),
++            "JSON-RPC request rejected: invalid message"
++        );
++        assert!(
++            !error
++                .rejection_reason()
++                .contains("NONSECRET_SENTINEL_ARGUMENT")
++        );
++    }
+     use super::*;
+     use std::collections::HashMap;
+ 
+diff --git a/crates/openshell-supervisor-network/src/l7/mod.rs b/crates/openshell-supervisor-network/src/l7/mod.rs
+index 89c580e..fbec6cf 100644
+--- a/crates/openshell-supervisor-network/src/l7/mod.rs
++++ b/crates/openshell-supervisor-network/src/l7/mod.rs
+@@ -115,6 +115,7 @@ pub enum EnforcementMode {
+ )]
+ #[derive(Debug, Clone)]
+ pub struct L7EndpointConfig {
++    pub request_integrity: Option<openshell_request_integrity::RequestIntegrity>,
+     pub protocol: L7Protocol,
+     /// Opaque endpoint identity derived from the matched policy endpoint.
+     ///
+@@ -299,7 +300,24 @@ pub fn parse_l7_config(val: &regorus::Value) -> Option<L7EndpointConfig> {
+     let protocol = L7Protocol::parse(&protocol_val)?;
+ 
+     let tls_value = get_object_str(val, "tls").unwrap_or_default();
++    let endpoint: serde_json::Value = serde_json::from_str(&val.to_json_str().ok()?).ok()?;
++    let request_integrity = endpoint
++        .get("request_integrity")
++        .map(|value| {
++            serde_json::from_value::<openshell_request_integrity::RequestIntegrity>(value.clone())
++        })
++        .transpose()
++        .ok()?;
++    if request_integrity
++        .as_ref()
++        .is_some_and(|integrity| integrity.validate(&protocol_val, &tls_value).is_err())
++    {
++        return None;
++    }
+     let enforcement_value = get_object_str(val, "enforcement").unwrap_or_default();
++    if request_integrity.is_some() && enforcement_value != "enforce" {
++        return None;
++    }
+     let access_value = get_object_str(val, "access").unwrap_or_default();
+     if !validate_endpoint_modes(&tls_value, &enforcement_value, &access_value).is_empty() {
+         return None;
+@@ -379,6 +397,7 @@ pub fn parse_l7_config(val: &regorus::Value) -> Option<L7EndpointConfig> {
+     }
+ 
+     Some(L7EndpointConfig {
++        request_integrity,
+         protocol,
+         endpoint_id,
+         policy_hash,
+@@ -1250,6 +1269,23 @@ pub fn validate_l7_policies(data_json: &serde_json::Value) -> (Vec<String>, Vec<
+             );
+             let loc = format!("{name}.endpoints[{i}]");
+ 
++            if let Some(value) = ep.get("request_integrity") {
++                let valid =
++                    serde_json::from_value::<openshell_request_integrity::RequestIntegrity>(
++                        value.clone(),
++                    )
++                    .ok()
++                    .is_some_and(|integrity| integrity.validate(protocol, tls).is_ok());
++                if !valid {
++                    errors.push(format!("{loc}: request_commitment_invalid"));
++                }
++                if enforcement != "enforce" {
++                    errors.push(format!(
++                        "{loc}: request_integrity requires enforcement enforce"
++                    ));
++                }
++            }
++
+             errors.extend(
+                 validate_endpoint_modes(tls, enforcement, access)
+                     .into_iter()
+diff --git a/crates/openshell-supervisor-network/src/l7/relay.rs b/crates/openshell-supervisor-network/src/l7/relay.rs
+index 574ad3b..fc89977 100644
+--- a/crates/openshell-supervisor-network/src/l7/relay.rs
++++ b/crates/openshell-supervisor-network/src/l7/relay.rs
+@@ -91,6 +91,62 @@ fn request_default_port(ctx: &L7EvalContext) -> Option<u16> {
+     ctx.request_default_port
+ }
+ 
++pub(crate) fn integrity_protocol(protocol: L7Protocol) -> &'static str {
++    match protocol {
++        L7Protocol::Graphql => "graphql",
++        L7Protocol::Mcp => "mcp",
++        L7Protocol::JsonRpc => "json-rpc",
++        _ => "",
++    }
++}
++
++pub(crate) fn emit_request_authority(
++    ctx: &L7EvalContext,
++    action: &str,
++    target: &str,
++    protocol: &str,
++    algorithm: &str,
++    commitment: &str,
++) {
++    let event = HttpActivityBuilder::new(openshell_ocsf::ctx::ctx())
++        .activity(ActivityId::Other).action(ActionId::Allowed).disposition(DispositionId::Allowed).severity(SeverityId::Informational)
++        .http_request(HttpRequest::new(action, OcsfUrl::new("http", &ctx.host, target, ctx.port)))
++        .dst_endpoint(Endpoint::from_domain(&ctx.host, ctx.port)).firewall_rule(&ctx.policy_name, "l7-request-authority")
++        .unmapped("request_authority", serde_json::json!({"protocol": protocol, "algorithm": algorithm, "commitment": commitment, "enforcement": "enforce"}))
++        .unmapped("workload_binary", ctx.binary_path.clone())
++        .message("Committed request delivered upstream").build();
++    ocsf_emit!(event);
++}
++
++pub(crate) async fn reject_request_integrity<W: AsyncWrite + Unpin>(
++    client: &mut W,
++    ctx: &L7EvalContext,
++    action: &str,
++    target: &str,
++    observer: Option<&EndpointObserver>,
++) -> Result<()> {
++    if let Some(observer) = observer {
++        observer.observe(EndpointResult::PolicyDenied);
++    }
++    ocsf_emit!(build_l7_request_event(
++        ctx,
++        action,
++        target,
++        "deny",
++        "l7-request-integrity",
++        "request_integrity_denied",
++        None
++    ));
++    emit_activity(ctx, true, "l7_policy");
++    crate::l7::rest::send_json_response(
++        &ctx.policy_name,
++        serde_json::json!({"error": "request_integrity_denied"}),
++        client,
++        "403 Forbidden",
++    )
++    .await
++}
++
+ fn scoped_context_for_request(
+     ctx: &L7EvalContext,
+     request: &crate::l7::provider::L7Request,
+@@ -186,6 +242,39 @@ where
+ /// Enforce MCP request-version policy and emit a transport or policy rejection.
+ /// Non-MCP adapters share this entry point without changing their behavior.
+ /// Record endpoint version-policy denials before client response delivery.
++fn request_integrity_valid(
++    config: &L7EndpointConfig,
++    request: &crate::l7::provider::L7Request,
++) -> bool {
++    let Some(integrity) = &config.request_integrity else {
++        return true;
++    };
++    let protocol = integrity_protocol(config.protocol);
++    let body = request
++        .raw_header
++        .windows(4)
++        .position(|window| window == b"\r\n\r\n")
++        .map(|position| &request.raw_header[position + 4..]);
++    let upgrade = crate::l7::rest::request_is_websocket_upgrade(&request.raw_header)
++        || String::from_utf8_lossy(
++            &request.raw_header[..body.map_or(request.raw_header.len(), |value| {
++                request.raw_header.len() - value.len()
++            })],
++        )
++        .lines()
++        .any(|line| {
++            line.split_once(':')
++                .is_some_and(|(name, _)| name.eq_ignore_ascii_case("upgrade"))
++        });
++    let wire_query = request
++        .raw_header
++        .split(|byte| *byte == b'\n')
++        .next()
++        .is_some_and(|line| line.contains(&b'?'));
++    !upgrade && !wire_query && request.action == "POST" && !request.target.contains('?') && request.query_params.is_empty()
++        && body.is_some_and(|body| matches!(request.body_length, crate::l7::provider::BodyLength::ContentLength(length) if usize::try_from(length).ok() == Some(body.len())) && integrity.allows(protocol, body))
++}
++
+ pub(crate) async fn enforce_mcp_protocol_version<W>(
+     config: &L7EndpointConfig,
+     request: &crate::l7::provider::L7Request,
+@@ -198,6 +287,10 @@ pub(crate) async fn enforce_mcp_protocol_version<W>(
+ where
+     W: AsyncWrite + Unpin,
+ {
++    if !request_integrity_valid(config, request) {
++        reject_request_integrity(client, ctx, &request.action, redacted_target, observer).await?;
++        return Ok(false);
++    }
+     if config.protocol != L7Protocol::Mcp {
+         return Ok(true);
+     }
+@@ -269,6 +362,10 @@ pub(crate) async fn enforce_final_mcp_protocol_version<W>(
+ where
+     W: AsyncWrite + Unpin,
+ {
++    if !request_integrity_valid(config, request) {
++        reject_request_integrity(client, ctx, &request.action, redacted_target, observer).await?;
++        return Ok(false);
++    }
+     if config.protocol != L7Protocol::Mcp {
+         return Ok(true);
+     }
+@@ -493,6 +590,15 @@ where
+     {
+         Ok(outcome) => Ok(Some(outcome)),
+         Err(report) => {
++            if report
++                .downcast_ref::<crate::l7::rest::RequestIntegrityDenied>()
++                .is_some()
++            {
++                let _ = upstream.shutdown().await;
++                reject_request_integrity(client, ctx, &request.action, &request.target, observer)
++                    .await?;
++                return Ok(None);
++            }
+             if let Some(error) = report.downcast_ref::<secrets::body::BodyCredentialError>() {
+                 // Body classification includes credentials for other destinations,
+                 // so denial does not establish that this endpoint lacks credentials.
+@@ -1055,6 +1161,19 @@ where
+             return Ok(());
+         }
+ 
++        if config.request_integrity.is_some()
++            && !enforce_final_mcp_protocol_version(
++                config,
++                &req,
++                client,
++                ctx,
++                &redacted_target,
++                None,
++            )
++            .await?
++        {
++            return Ok(());
++        }
+         let hard_deny_reason = l7_request_hard_deny_reason(config.protocol, &request_info);
+         let force_deny = hard_deny_reason.is_some();
+         let (allowed, reason) = if let Some(reason) = hard_deny_reason {
+@@ -1210,6 +1329,10 @@ where
+                 client,
+                 upstream,
+                 crate::l7::rest::RelayRequestOptions {
++                    request_integrity: config
++                        .request_integrity
++                        .as_ref()
++                        .map(|integrity| (integrity, integrity_protocol(config.protocol), ctx)),
+                     resolver: ctx.secret_resolver.as_deref(),
+                     body_classifier: ctx.body_classifier.as_deref(),
+                     credential_generation: credential_generation_guard(ctx),
+@@ -1966,6 +2089,10 @@ where
+                 client,
+                 upstream,
+                 crate::l7::rest::RelayRequestOptions {
++                    request_integrity: config
++                        .request_integrity
++                        .as_ref()
++                        .map(|integrity| (integrity, integrity_protocol(config.protocol), ctx)),
+                     resolver: ctx.secret_resolver.as_deref(),
+                     body_classifier: ctx.body_classifier.as_deref(),
+                     credential_generation: credential_generation_guard(ctx),
+@@ -2254,6 +2381,19 @@ where
+             return Ok(());
+         }
+ 
++        if config.request_integrity.is_some()
++            && !enforce_final_mcp_protocol_version(
++                config,
++                &req,
++                client,
++                ctx,
++                &redacted_target,
++                None,
++            )
++            .await?
++        {
++            return Ok(());
++        }
+         let hard_deny_reason = l7_request_hard_deny_reason(config.protocol, &request_info);
+         let force_deny = hard_deny_reason.is_some();
+         let (allowed, reason, jsonrpc_log_info) = if let Some(reason) = hard_deny_reason {
+@@ -2404,6 +2544,10 @@ where
+                 client,
+                 upstream,
+                 crate::l7::rest::RelayRequestOptions {
++                    request_integrity: config
++                        .request_integrity
++                        .as_ref()
++                        .map(|integrity| (integrity, integrity_protocol(config.protocol), ctx)),
+                     resolver: ctx.secret_resolver.as_deref(),
+                     body_classifier: ctx.body_classifier.as_deref(),
+                     credential_generation: credential_generation_guard(ctx),
+@@ -2538,6 +2682,19 @@ where
+         // control parameters, are rejected before policy evaluation. This
+         // keeps parser-differential cases fail-closed even if the endpoint is
+         // otherwise in audit mode.
++        if config.request_integrity.is_some()
++            && !enforce_final_mcp_protocol_version(
++                config,
++                &req,
++                client,
++                ctx,
++                &redacted_target,
++                None,
++            )
++            .await?
++        {
++            return Ok(());
++        }
+         let hard_deny_reason = l7_request_hard_deny_reason(config.protocol, &request_info);
+         let force_deny = hard_deny_reason.is_some();
+         let (allowed, reason) = if let Some(reason) = hard_deny_reason {
+@@ -2649,6 +2806,18 @@ where
+                     return Ok(());
+                 }
+             };
++            if !enforce_final_mcp_protocol_version(
++                config,
++                &req,
++                client,
++                ctx,
++                &redacted_target,
++                None,
++            )
++            .await?
++            {
++                return Ok(());
++            }
+             let scoped_ctx = scoped_context_for_request(ctx, &req);
+             let ctx = scoped_ctx.as_ref().unwrap_or(ctx);
+             let Some(outcome) = relay_http_request_with_credential_rejection(
+@@ -2656,6 +2825,10 @@ where
+                 client,
+                 upstream,
+                 crate::l7::rest::RelayRequestOptions {
++                    request_integrity: config
++                        .request_integrity
++                        .as_ref()
++                        .map(|integrity| (integrity, integrity_protocol(config.protocol), ctx)),
+                     resolver: ctx.secret_resolver.as_deref(),
+                     body_classifier: ctx.body_classifier.as_deref(),
+                     credential_generation: credential_generation_guard(ctx),
+@@ -2802,7 +2975,7 @@ pub(crate) fn l7_request_hard_deny_reason(
+         .graphql
+         .as_ref()
+         .and_then(|info| info.error.as_deref())
+-        .map(|error| format!("GraphQL request rejected: {error}"))
++        .map(|_| "GraphQL request rejected: invalid request".to_string())
+         .or_else(|| {
+             request.jsonrpc.as_ref().and_then(|info| {
+                 info.error
+@@ -2959,6 +3132,20 @@ fn reevaluate_transformed_body(
+     request_info: &L7RequestInfo,
+     body: &[u8],
+ ) -> Result<Option<String>> {
++    if config
++        .request_integrity
++        .as_ref()
++        .is_some_and(|integrity| !integrity.allows(integrity_protocol(config.protocol), body))
++    {
++        emit_transformed_body_decision(
++            ctx,
++            request_info,
++            "l7-request-integrity",
++            "deny",
++            "request_integrity_denied",
++        );
++        return Ok(Some("request_integrity_denied".to_string()));
++    }
+     let (engine_type, transformed_info) = match config.protocol {
+         // REST and websocket-upgrade policy evaluates only the method, path,
+         // and query, which a middleware result cannot mutate; the body is not
+@@ -8140,6 +8327,7 @@ network_policies:
+ 
+     fn encoded_slash_scoping_configs() -> Vec<L7EndpointConfig> {
+         let rest = |path: &str, allow_encoded_slash: bool| L7EndpointConfig {
++            request_integrity: None,
+             protocol: L7Protocol::Rest,
+             endpoint_id: String::new(),
+             policy_hash: String::new(),
+@@ -8587,6 +8775,7 @@ network_policies:
+             .clone_engine_for_tunnel(engine.current_generation())
+             .unwrap();
+         let configs = vec![L7EndpointConfig {
++            request_integrity: None,
+             protocol: L7Protocol::Rest,
+             endpoint_id: String::new(),
+             policy_hash: String::new(),
+@@ -8792,6 +8981,7 @@ network_policies:
+             .clone_engine_for_tunnel(engine.current_generation())
+             .unwrap();
+         let configs = vec![L7EndpointConfig {
++            request_integrity: None,
+             protocol: L7Protocol::Websocket,
+             endpoint_id: String::new(),
+             policy_hash: String::new(),
+@@ -8921,6 +9111,7 @@ network_policies:
+             .clone_engine_for_tunnel(engine.current_generation())
+             .unwrap();
+         let configs = vec![L7EndpointConfig {
++            request_integrity: None,
+             protocol: L7Protocol::Websocket,
+             endpoint_id: String::new(),
+             policy_hash: String::new(),
+@@ -10036,4 +10227,142 @@ network_policies:
+             .unwrap()
+             .unwrap();
+     }
++
++    #[tokio::test]
++    async fn committed_authority_rejects_mutations_transport_overrides_and_upgrades_before_forwarding()
++     {
++        for protocol in [L7Protocol::Graphql, L7Protocol::JsonRpc, L7Protocol::Mcp] {
++            let (mut config, _, ctx) = match protocol {
++                L7Protocol::Graphql => graphql_test_relay_context(),
++                L7Protocol::JsonRpc => jsonrpc_test_relay_context(),
++                _ => mcp_test_relay_context(),
++            };
++            let body = if protocol == L7Protocol::Graphql {
++                br#"{"query":"query Q($id:ID!){viewer(id:$id){name}}","variables":{"id":"a"}}"#
++                    .as_slice()
++            } else {
++                br#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"fixture","version":"1"}}}"#.as_slice()
++            };
++            let commitment = if protocol == L7Protocol::Graphql {
++                openshell_request_integrity::commitment_json(body)
++            } else {
++                openshell_request_integrity::rpc_commitment_json(body)
++            }
++            .unwrap();
++            config.request_integrity = Some(openshell_request_integrity::RequestIntegrity {
++                algorithm: openshell_request_integrity::ALGORITHM.into(),
++                commitments: vec![commitment],
++            });
++            for (method, target, header, changed) in [
++                ("POST", config.path.as_str(), "", false),
++                ("GET", config.path.as_str(), "", false),
++                ("PUT", config.path.as_str(), "", false),
++                ("DELETE", config.path.as_str(), "", false),
++                ("POST", "/rpc?query=unapproved", "", false),
++                (
++                    "POST",
++                    config.path.as_str(),
++                    "Upgrade: custom\r\nConnection: upgrade\r\n",
++                    false,
++                ),
++                ("POST", config.path.as_str(), "", true),
++            ] {
++                let payload = if changed { b"{}".as_slice() } else { body };
++                let raw = format!(
++                    "{method} {target} HTTP/1.1\r\nHost: {}:{}\r\nContent-Type: application/json\r\n{header}Content-Length: {}\r\n\r\n",
++                    ctx.host,
++                    ctx.port,
++                    payload.len()
++                );
++                let mut bytes = raw.into_bytes();
++                bytes.extend_from_slice(payload);
++                let request = crate::l7::rest::request_from_buffered_http(
++                    method,
++                    target.split('?').next().unwrap(),
++                    target,
++                    bytes,
++                )
++                .unwrap();
++                let (mut writer, mut reader) = tokio::io::duplex(4096);
++                let allowed = enforce_final_mcp_protocol_version(
++                    &config,
++                    &request,
++                    &mut writer,
++                    &ctx,
++                    config.path.as_str(),
++                    None,
++                )
++                .await
++                .unwrap();
++                assert_eq!(
++                    allowed,
++                    method == "POST" && !target.contains('?') && header.is_empty() && !changed
++                );
++                if !allowed {
++                    drop(writer);
++                    let mut response = String::new();
++                    reader.read_to_string(&mut response).await.unwrap();
++                    assert!(
++                        response.contains("403 Forbidden")
++                            && response.contains("request_integrity_denied")
++                    );
++                }
++            }
++        }
++    }
++
++    #[tokio::test]
++    async fn rpc_integrity_denial_has_zero_upstream_bytes_on_dedicated_and_selected_relays() {
++        for route_selected in [false, true] {
++            let (mut config, engine, ctx) = jsonrpc_test_relay_context();
++            config.request_integrity = Some(openshell_request_integrity::RequestIntegrity {
++                algorithm: openshell_request_integrity::ALGORITHM.into(),
++                commitments: vec![openshell_request_integrity::rpc_commitment_json(br#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"scope":"approved"}}"#).unwrap()],
++            });
++            let (mut app, mut relay_client) = tokio::io::duplex(4096);
++            let (mut relay_upstream, mut upstream) = tokio::io::duplex(4096);
++            let task = tokio::spawn(async move {
++                if route_selected {
++                    relay_with_route_selection(
++                        &[config],
++                        engine,
++                        &mut relay_client,
++                        &mut relay_upstream,
++                        &ctx,
++                    )
++                    .await
++                } else {
++                    relay_with_inspection(
++                        &config,
++                        engine,
++                        &mut relay_client,
++                        &mut relay_upstream,
++                        &ctx,
++                    )
++                    .await
++                }
++            });
++            let body =
++                br#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"scope":"changed"}}"#;
++            let header = format!(
++                "POST /rpc HTTP/1.1\r\nHost: jsonrpc.example.test:8000\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
++                body.len()
++            );
++            app.write_all(header.as_bytes()).await.unwrap();
++            app.write_all(body).await.unwrap();
++            let mut response = String::new();
++            tokio::time::timeout(
++                std::time::Duration::from_secs(2),
++                app.read_to_string(&mut response),
++            )
++            .await
++            .unwrap()
++            .unwrap();
++            task.await.unwrap().unwrap();
++            let mut forwarded = Vec::new();
++            upstream.read_to_end(&mut forwarded).await.unwrap();
++            assert!(response.contains("request_integrity_denied"));
++            assert!(forwarded.is_empty());
++        }
++    }
+ }
+diff --git a/crates/openshell-supervisor-network/src/l7/rest.rs b/crates/openshell-supervisor-network/src/l7/rest.rs
+index 4592600..d0c89b7 100644
+--- a/crates/openshell-supervisor-network/src/l7/rest.rs
++++ b/crates/openshell-supervisor-network/src/l7/rest.rs
+@@ -744,6 +744,7 @@ where
+         upstream,
+         RelayRequestOptions {
+             resolver,
++            request_integrity: None,
+             body_classifier: None,
+             credential_generation: None,
+             generation_guard,
+@@ -769,6 +770,11 @@ pub(crate) enum WebSocketExtensionMode {
+ 
+ #[derive(Clone, Copy, Default)]
+ pub(crate) struct RelayRequestOptions<'a> {
++    pub(crate) request_integrity: Option<(
++        &'a openshell_request_integrity::RequestIntegrity,
++        &'a str,
++        &'a crate::l7::relay::L7EvalContext,
++    )>,
+     pub(crate) resolver: Option<&'a SecretResolver>,
+     pub(crate) body_classifier: Option<&'a openshell_core::secrets::body::BodyCredentialClassifier>,
+     pub(crate) credential_generation: Option<CredentialGenerationGuard<'a>>,
+@@ -798,6 +804,11 @@ pub(crate) struct CredentialUnavailableError {
+     reason: &'static str,
+ }
+ 
++#[derive(Debug, thiserror::Error)]
++#[error("request_integrity_denied")]
++pub(crate) struct RequestIntegrityDenied;
++impl miette::Diagnostic for RequestIntegrityDenied {}
++
+ impl CredentialUnavailableError {
+     fn new(reason: &'static str) -> Self {
+         Self { reason }
+@@ -878,6 +889,22 @@ where
+         .map_or(req.raw_header.len(), |p| p + 4);
+     let header_str = std::str::from_utf8(&req.raw_header[..header_end])
+         .map_err(|_| miette!("HTTP headers contain invalid UTF-8"))?;
++    if let Some((integrity, protocol, _)) = options.request_integrity {
++        let body = &req.raw_header[header_end..];
++        if req.action != "POST"
++            || req
++                .raw_header
++                .split(|byte| *byte == b'\n')
++                .next()
++                .is_some_and(|line| line.contains(&b'?'))
++            || req.target.contains('?')
++            || !req.query_params.is_empty()
++            || !matches!(req.body_length, BodyLength::ContentLength(length) if usize::try_from(length).ok() == Some(body.len()))
++            || !integrity.allows(protocol, body)
++        {
++            return Err(miette::Report::new(RequestIntegrityDenied));
++        }
++    }
+     let client_requested_upgrade = client_requested_upgrade(header_str);
+     let is_websocket_request = request_is_websocket_upgrade(&req.raw_header[..header_end]);
+     let websocket_request = if options.websocket_extensions == WebSocketExtensionMode::Preserve {
+@@ -1154,6 +1181,11 @@ where
+         )
+         .await?;
+         ensure_credential_generation_current(options)?;
++        if let Some((integrity, protocol, _)) = options.request_integrity
++            && !integrity.allows(protocol, &body.body)
++        {
++            return Err(miette::Report::new(RequestIntegrityDenied));
++        }
+         upstream.write_all(&body.headers).await.into_diagnostic()?;
+         if !body.body.is_empty() {
+             upstream.write_all(&body.body).await.into_diagnostic()?;
+@@ -1211,6 +1243,24 @@ where
+     }
+     upstream.flush().await.into_diagnostic()?;
+ 
++    if let Some((integrity, protocol, ctx)) = options.request_integrity {
++        let body = &req.raw_header[header_end..];
++        let commitment = if protocol == "graphql" {
++            openshell_request_integrity::commitment_json(body)
++        } else {
++            openshell_request_integrity::rpc_commitment_json(body)
++        }
++        .map_err(|_| miette::Report::new(RequestIntegrityDenied))?;
++        crate::l7::relay::emit_request_authority(
++            ctx,
++            &req.action,
++            &req.target,
++            protocol,
++            &integrity.algorithm,
++            &commitment,
++        );
++    }
++
+     let outcome = relay_response(
+         &req.action,
+         upstream,
+diff --git a/crates/openshell-supervisor-network/src/opa.rs b/crates/openshell-supervisor-network/src/opa.rs
+index c883651..f2f3b00 100644
+--- a/crates/openshell-supervisor-network/src/opa.rs
++++ b/crates/openshell-supervisor-network/src/opa.rs
+@@ -1770,6 +1770,41 @@ fn normalize_l7_config_aliases(data: &mut serde_json::Value) -> Vec<String> {
+                 continue;
+             };
+             let loc = format!("network_policies.{policy_name}.endpoints[{index}]");
++            if let Some(value) = ep_obj.get("request_integrity") {
++                let valid =
++                    serde_json::from_value::<openshell_request_integrity::RequestIntegrity>(
++                        value.clone(),
++                    )
++                    .ok()
++                    .is_some_and(|integrity| {
++                        integrity
++                            .validate(
++                                ep_obj
++                                    .get("protocol")
++                                    .and_then(serde_json::Value::as_str)
++                                    .unwrap_or(""),
++                                ep_obj
++                                    .get("tls")
++                                    .and_then(serde_json::Value::as_str)
++                                    .unwrap_or(""),
++                            )
++                            .is_ok()
++                    });
++                if !valid {
++                    errors.push(format!(
++                        "{loc}.request_integrity: request_commitment_invalid"
++                    ));
++                }
++                if ep_obj
++                    .get("enforcement")
++                    .and_then(serde_json::Value::as_str)
++                    != Some("enforce")
++                {
++                    errors.push(format!(
++                        "{loc}.request_integrity: requires enforcement enforce"
++                    ));
++                }
++            }
+             for stanza in L7ConfigStanza::ALL {
+                 normalize_l7_config_alias(&mut errors, ep_obj, &loc, stanza);
+             }
+@@ -2323,6 +2358,9 @@ fn proto_to_opa_data_json(proto: &ProtoSandboxPolicy, entrypoint_pid: u32) -> St
+                     if !e.allowed_ips.is_empty() {
+                         ep["allowed_ips"] = e.allowed_ips.clone().into();
+                     }
++                    if let Some(integrity) = &e.request_integrity {
++                        ep["request_integrity"] = serde_json::json!({"algorithm": integrity.algorithm, "commitments": integrity.commitments});
++                    }
+                     if e.advisor_proposed {
+                         ep["advisor_proposed"] = true.into();
+                     }
+diff --git a/crates/openshell-supervisor-network/src/policy_local.rs b/crates/openshell-supervisor-network/src/policy_local.rs
+index 6a6c0f9..c9e785c 100644
+--- a/crates/openshell-supervisor-network/src/policy_local.rs
++++ b/crates/openshell-supervisor-network/src/policy_local.rs
+@@ -1219,6 +1219,7 @@ fn network_endpoint_from_json(
+         graphql_max_body_bytes: 0,
+         json_rpc_max_body_bytes: 0,
+         mcp: None,
++        request_integrity: None,
+         path: String::new(),
+         credential_signing: String::new(),
+         signing_service: String::new(),
+diff --git a/crates/openshell-supervisor-network/src/proxy.rs b/crates/openshell-supervisor-network/src/proxy.rs
+index 6ac6628..faf3e4e 100644
+--- a/crates/openshell-supervisor-network/src/proxy.rs
++++ b/crates/openshell-supervisor-network/src/proxy.rs
+@@ -2342,6 +2342,14 @@ async fn handle_tcp_connection(
+     .await
+ }
+ 
++fn transparent_connect_authority(host: &str, port: u16) -> String {
++    if host.parse::<std::net::Ipv6Addr>().is_ok() {
++        format!("[{host}]:{port}")
++    } else {
++        format!("{host}:{port}")
++    }
++}
++
+ /// Adapt a transparent application stream to the existing CONNECT pipeline.
+ /// The synthetic CONNECT request is supervisor-owned and its successful 200
+ /// response is consumed before bytes are returned to the workload.
+@@ -2434,7 +2442,7 @@ async fn handle_mediated_connection(
+                 .map_or((None, None), |(decision, connector)| {
+                     (Some(decision), Some(connector))
+                 });
+-            let authority = format!("{host}:{}", destination.port());
++            let authority = transparent_connect_authority(&host, destination.port());
+             client =
+                 tokio::io::BufReader::new(virtual_connect_stream(client.into_inner(), authority));
+             (decision, connector)
+@@ -5053,6 +5061,11 @@ fn complete_chunked_body_prefix_len(bytes: &[u8]) -> Option<usize> {
+ }
+ 
+ struct ForwardRelayOptions<'a> {
++    request_integrity: Option<(
++        &'a openshell_request_integrity::RequestIntegrity,
++        &'a str,
++        &'a crate::l7::relay::L7EvalContext,
++    )>,
+     body_classifier: Option<&'a secrets::body::BodyCredentialClassifier>,
+     generation_guard: &'a PolicyGenerationGuard,
+     credential_generation: Option<crate::l7::rest::CredentialGenerationGuard<'a>>,
+@@ -5114,6 +5127,7 @@ where
+         upstream,
+         crate::l7::rest::RelayRequestOptions {
+             resolver: options.secret_resolver,
++            request_integrity: options.request_integrity,
+             body_classifier: options.body_classifier,
+             credential_generation: options.credential_generation,
+             generation_guard: Some(options.generation_guard),
+@@ -5838,6 +5852,27 @@ async fn handle_forward_proxy(
+             jsonrpc,
+         };
+ 
++        if l7_config.config.request_integrity.is_some() {
++            let request = crate::l7::rest::request_from_buffered_http(
++                method,
++                path.split_once('?')
++                    .map_or(path.as_str(), |(value, _)| value),
++                &path,
++                forward_request_bytes.clone(),
++            )?;
++            if !crate::l7::relay::enforce_final_mcp_protocol_version(
++                &l7_config.config,
++                &request,
++                client,
++                &l7_ctx,
++                &telemetry_path,
++                endpoint_observer.as_ref(),
++            )
++            .await?
++            {
++                return Ok(());
++            }
++        }
+         let hard_deny_reason =
+             crate::l7::relay::l7_request_hard_deny_reason(l7_config.config.protocol, &request_info);
+         let force_deny = hard_deny_reason.is_some();
+@@ -6320,7 +6355,10 @@ async fn handle_forward_proxy(
+     // the final origin-form bytes after hop-by-hop sanitization, before an
+     // upstream connection exists, so forwarding preserves the MCP decision.
+     let rewritten = match forward_l7_reeval.as_ref() {
+-        Some((config, _)) if config.protocol == crate::l7::L7Protocol::Mcp => {
++        Some((config, _))
++            if config.protocol == crate::l7::L7Protocol::Mcp
++                || config.request_integrity.is_some() =>
++        {
+             let request = crate::l7::rest::request_from_buffered_http(
+                 method,
+                 middleware_path,
+@@ -6469,6 +6507,15 @@ async fn handle_forward_proxy(
+         client,
+         &mut upstream,
+         ForwardRelayOptions {
++            request_integrity: forward_l7_reeval.as_ref().and_then(|(config, _)| {
++                config.request_integrity.as_ref().map(|integrity| {
++                    (
++                        integrity,
++                        crate::l7::relay::integrity_protocol(config.protocol),
++                        &l7_ctx,
++                    )
++                })
++            }),
+             generation_guard: &forward_generation_guard,
+             credential_generation,
+             websocket_extensions,
+@@ -6494,6 +6541,26 @@ async fn handle_forward_proxy(
+     .await;
+     let outcome_result = match outcome_result {
+         Err(report) => {
++            if report
++                .downcast_ref::<crate::l7::rest::RequestIntegrityDenied>()
++                .is_some()
++            {
++                if let Some(session) = middleware_session.take() {
++                    session
++                        .end(openshell_core::proto::MiddlewareSessionEndReason::Cancellation)
++                        .await;
++                }
++                let _ = upstream.shutdown().await;
++                crate::l7::relay::reject_request_integrity(
++                    client,
++                    &l7_ctx,
++                    method,
++                    &telemetry_path,
++                    endpoint_observer.as_ref(),
++                )
++                .await?;
++                return Ok(());
++            }
+             if let Some(error) = report.downcast_ref::<secrets::body::BodyCredentialError>() {
+                 if let Some(session) = middleware_session.take() {
+                     session
+@@ -7344,6 +7411,43 @@ process: { run_as_user: sandbox, run_as_group: sandbox }
+         )
+     }
+ 
++    #[tokio::test]
++    async fn staged_connect_bridge_preserves_ipv6_authority_and_bidirectional_payload() {
++        for host in ["api.example.test", "192.0.2.10", "fd55:0:4f52:4449::205"] {
++            let (mut workload, bridge) = tokio::io::duplex(128);
++            let mut handler = virtual_connect_stream(
++                Box::new(bridge),
++                transparent_connect_authority(host, 19991),
++            );
++            let mut headers = Vec::new();
++            while !headers.ends_with(b"\r\n\r\n") {
++                let mut byte = [0];
++                handler.read_exact(&mut byte).await.unwrap();
++                headers.push(byte[0]);
++            }
++            let request = std::str::from_utf8(&headers).unwrap();
++            let authority = request
++                .lines()
++                .next()
++                .unwrap()
++                .split_whitespace()
++                .nth(1)
++                .unwrap();
++            assert_eq!(parse_target(authority).unwrap(), (host.to_string(), 19991));
++            handler
++                .write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
++                .await
++                .unwrap();
++            workload.write_all(b"ping").await.unwrap();
++            let mut payload = [0; 4];
++            handler.read_exact(&mut payload).await.unwrap();
++            assert_eq!(&payload, b"ping");
++            handler.write_all(b"pong").await.unwrap();
++            workload.read_exact(&mut payload).await.unwrap();
++            assert_eq!(&payload, b"pong");
++        }
++    }
++
+     #[tokio::test]
+     async fn staged_transparent_open_dials_only_pinned_policy_dns_addresses() {
+         let engine = OpaEngine::from_strings(
+@@ -9425,6 +9529,7 @@ network_policies:
+         websocket_credential_rewrite: bool,
+     ) -> crate::l7::L7EndpointConfig {
+         crate::l7::L7EndpointConfig {
++            request_integrity: None,
+             endpoint_id: String::new(),
+             policy_hash: String::new(),
+             protocol,
+@@ -9664,7 +9769,7 @@ network_policies:
+             (b"{", "JSON-RPC request rejected: invalid JSON"),
+             (
+                 br#"{"id":1,"method":"reports.list"}"#,
+-                "JSON-RPC request rejected: missing or non-string 'jsonrpc' field",
++                "JSON-RPC request rejected: invalid message",
+             ),
+         ];
+ 
+@@ -10085,6 +10190,7 @@ network_policies:
+             &mut proxy_to_client,
+             &mut proxy_to_upstream,
+             ForwardRelayOptions {
++                request_integrity: None,
+                 body_classifier: None,
+                 generation_guard: &guard,
+                 credential_generation: None,
+@@ -10174,6 +10280,7 @@ network_policies:
+             &mut proxy_to_client,
+             &mut proxy_to_upstream,
+             ForwardRelayOptions {
++                request_integrity: None,
+                 body_classifier: None,
+                 generation_guard: &guard,
+                 credential_generation: None,
+@@ -10296,6 +10403,7 @@ network_policies:
+             &mut proxy_to_client,
+             &mut proxy_to_upstream,
+             ForwardRelayOptions {
++                request_integrity: None,
+                 generation_guard: &guard,
+                 credential_generation: None,
+                 body_classifier,
+@@ -10563,6 +10671,7 @@ network_policies:
+                 &mut proxy_to_client,
+                 &mut proxy_to_upstream,
+                 ForwardRelayOptions {
++                    request_integrity: None,
+                     generation_guard: guard,
+                     credential_generation: None,
+                     body_classifier: None,
+@@ -10871,6 +10980,7 @@ network_policies:
+         let configs = vec![
+             L7ConfigSnapshot {
+                 config: crate::l7::L7EndpointConfig {
++                    request_integrity: None,
+                     endpoint_id: String::new(),
+                     policy_hash: String::new(),
+                     protocol: crate::l7::L7Protocol::Rest,
+@@ -10894,6 +11004,7 @@ network_policies:
+             },
+             L7ConfigSnapshot {
+                 config: crate::l7::L7EndpointConfig {
++                    request_integrity: None,
+                     endpoint_id: String::new(),
+                     policy_hash: String::new(),
+                     protocol: crate::l7::L7Protocol::Graphql,
+@@ -13111,6 +13222,7 @@ network_policies:
+             &mut proxy_to_client,
+             &mut proxy_to_upstream,
+             ForwardRelayOptions {
++                request_integrity: None,
+                 generation_guard: &guard,
+                 credential_generation: None,
+                 body_classifier: None,
+@@ -13195,6 +13307,7 @@ network_policies:
+             &mut proxy_to_client,
+             &mut proxy_to_upstream,
+             ForwardRelayOptions {
++                request_integrity: None,
+                 generation_guard: &guard,
+                 credential_generation: None,
+                 body_classifier: None,
+@@ -13286,6 +13399,7 @@ network_policies:
+             &mut proxy_to_client,
+             &mut proxy_to_upstream,
+             ForwardRelayOptions {
++                request_integrity: None,
+                 generation_guard: &guard,
+                 credential_generation: None,
+                 body_classifier: None,
+@@ -13339,6 +13453,7 @@ network_policies:
+             &mut proxy_to_client,
+             &mut proxy_to_upstream,
+             ForwardRelayOptions {
++                request_integrity: None,
+                 generation_guard: &guard,
+                 credential_generation: None,
+                 body_classifier: None,
+diff --git a/crates/openshell-supervisor-network/src/proxy/relay.rs b/crates/openshell-supervisor-network/src/proxy/relay.rs
+index 7705524..9349c20 100644
+--- a/crates/openshell-supervisor-network/src/proxy/relay.rs
++++ b/crates/openshell-supervisor-network/src/proxy/relay.rs
+@@ -510,6 +510,7 @@ mod tests {
+         let route = L7RouteSnapshot {
+             configs: vec![super::super::L7ConfigSnapshot {
+                 config: crate::l7::L7EndpointConfig {
++                    request_integrity: None,
+                     protocol: crate::l7::L7Protocol::Rest,
+                     endpoint_id: String::new(),
+                     policy_hash: String::new(),
+diff --git a/crates/openshell-supervisor/src/lib.rs b/crates/openshell-supervisor/src/lib.rs
+index fd5ed08..7584e9b 100644
+--- a/crates/openshell-supervisor/src/lib.rs
++++ b/crates/openshell-supervisor/src/lib.rs
+@@ -868,6 +868,46 @@ pub async fn run_sandbox(
+         (ready, backend_name, ca_file_paths)
+     };
+ 
++    let properties = &remote_ready.confirmation().properties;
++    let confirmed_mediation = openshell_core::proto::SandboxConfigurationAdmission {
++        confirmed_backend: backend_name.clone(),
++        egress_interception: properties.egress_interception.mechanism.clone(),
++        request_attribution: properties.request_attribution.mechanism.clone(),
++        staged_tcp_confirmed: properties.egress_interception.enforced
++            && properties.request_attribution.enforced
++            && properties.egress_interception.mechanism == "seccomp-notify"
++            && properties.request_attribution.mechanism == "seccomp-notify-procfs",
++        ..Default::default()
++    };
++    if retained_proto.as_ref().is_some_and(policy_has_tcp_literals)
++        && !confirmed_mediation.staged_tcp_confirmed
++    {
++        miette::bail!("literal TCP requires confirmed staged mediation");
++    }
++    if let (
++        Some(endpoint),
++        Some(id),
++        LoadedPolicyOrigin::Gateway {
++            revision: Some(revision),
++            ..
++        },
++    ) = (
++        openshell_endpoint.as_deref(),
++        sandbox_id.as_deref(),
++        &loaded_policy_origin,
++    ) && let Some(instance_id) = &revision.admission_instance_id
++    {
++        let mut admission = confirmed_mediation.clone();
++        admission.instance_id = instance_id.clone();
++        admission.state = openshell_core::proto::ConfigurationAdmissionState::Accepted as i32;
++        admission.policy_version = revision.version;
++        admission.policy_hash = revision.policy_hash.clone();
++        admission.config_revision = revision.config_revision;
++        admission.provider_env_revision = revision.provider_env_revision;
++        openshell_core::grpc_client::report_sandbox_admission(endpoint, id, instance_id, admission)
++            .await?;
++    }
++
+     let mut networking = Some(
+         openshell_supervisor_network::run::run_networking(
+             &policy,
+@@ -1025,6 +1065,7 @@ pub async fn run_sandbox(
+             .and_then(|v| v.parse().ok())
+             .unwrap_or(10);
+         let poll_ctx = PolicyPollLoopContext {
++            confirmed_mediation,
+             endpoint: poll_endpoint,
+             sandbox_id: poll_id,
+             sandbox: poll_sandbox,
+@@ -2750,6 +2791,17 @@ struct LoadedPolicyRevision {
+     provider_env_revision: u64,
+ }
+ 
++fn policy_has_tcp_literals(policy: &openshell_core::proto::SandboxPolicy) -> bool {
++    policy
++        .network_policies
++        .values()
++        .flat_map(|rule| &rule.endpoints)
++        .any(|endpoint| {
++            endpoint.protocol.eq_ignore_ascii_case("tcp")
++                && endpoint.host.parse::<std::net::IpAddr>().is_ok()
++        })
++}
++
+ /// Identifies where the policy currently loaded into OPA came from.
+ ///
+ /// A missing gateway revision means the policy was loaded from the gateway but
+@@ -3295,6 +3347,7 @@ async fn report_initial_policy_failure(
+ /// When the entrypoint PID is available, policy reloads include symlink
+ /// resolution for binary paths via the container filesystem.
+ struct PolicyPollLoopContext {
++    confirmed_mediation: openshell_core::proto::SandboxConfigurationAdmission,
+     endpoint: String,
+     sandbox_id: String,
+     /// Canonical sandbox reference used by name-scoped configuration APIs.
+@@ -3736,13 +3789,19 @@ async fn report_runtime_configuration(
+                 .build()
+         );
+     }
+-    openshell_core::grpc_client::report_sandbox_configuration(
++    let mut admission = ctx.confirmed_mediation.clone();
++    admission.instance_id = instance_id.to_string();
++    admission.state = state as i32;
++    admission.policy_version = snapshot.version;
++    admission.policy_hash = snapshot.policy_hash.clone();
++    admission.config_revision = snapshot.config_revision;
++    admission.provider_env_revision = snapshot.provider_env_revision;
++    admission.error = error.to_string();
++    openshell_core::grpc_client::report_sandbox_admission(
+         &ctx.endpoint,
+         &ctx.sandbox_id,
+-        instance_id,
+-        Some(snapshot),
+-        state,
+-        error,
++        &snapshot.configuration_instance_id,
++        admission,
+     )
+     .await
+     .is_ok()
+@@ -4198,27 +4257,37 @@ async fn run_policy_poll_loop_with_client<C: PolicyGatewayClient>(
+ 
+         if policy_runtime_changed {
+             let pid = ctx.entrypoint_pid.load(Ordering::Acquire);
+-            let runtime_result = reload_gateway_configuration_runtime(
+-                &ctx.opa_engine,
+-                result.policy.as_ref(),
+-                pid,
+-                MiddlewareReloadContext {
+-                    desired_services: &result.supervisor_middleware_services,
+-                    authentication: &MiddlewareAuthentication {
+-                        credentials: middleware_credentials.clone(),
+-                        enabled: result.extension_authentication_enabled,
++            let runtime_result = if result.policy.as_ref().is_some_and(policy_has_tcp_literals)
++                && !ctx.confirmed_mediation.staged_tcp_confirmed
++            {
++                Err(GatewayRuntimeReloadError::TransparentTcpPrerequisite(
++                    miette::miette!(
++                        "literal TCP requires confirmed staged mediation; previous policy remains active"
++                    ),
++                ))
++            } else {
++                reload_gateway_configuration_runtime(
++                    &ctx.opa_engine,
++                    result.policy.as_ref(),
++                    pid,
++                    MiddlewareReloadContext {
++                        desired_services: &result.supervisor_middleware_services,
++                        authentication: &MiddlewareAuthentication {
++                            credentials: middleware_credentials.clone(),
++                            enabled: result.extension_authentication_enabled,
++                        },
++                        registry_changed: middleware_registry_changed,
++                        connector: &ctx.middleware_connector,
+                     },
+-                    registry_changed: middleware_registry_changed,
+-                    connector: &ctx.middleware_connector,
+-                },
+-                ctx.transparent_tcp,
+-                || {
+-                    if let Some(prepared) = prepared_provider.as_ref() {
+-                        ctx.provider_credentials.install_prepared(prepared);
+-                    }
+-                },
+-            )
+-            .await;
++                    ctx.transparent_tcp,
++                    || {
++                        if let Some(prepared) = prepared_provider.as_ref() {
++                            ctx.provider_credentials.install_prepared(prepared);
++                        }
++                    },
++                )
++                .await
++            };
+ 
+             match runtime_result {
+                 Ok(generation) => {
+@@ -6249,6 +6318,7 @@ network_policies:
+             );
+         }
+         PolicyPollLoopContext {
++            confirmed_mediation: openshell_core::proto::SandboxConfigurationAdmission::default(),
+             endpoint: String::new(),
+             sandbox_id: "sandbox-test".to_string(),
+             sandbox: "sandbox-test-name".to_string(),
+diff --git a/docs/how-it-works/policies/network-rules.mdx b/docs/how-it-works/policies/network-rules.mdx
+index bcaba59..826ad37 100644
+--- a/docs/how-it-works/policies/network-rules.mdx
++++ b/docs/how-it-works/policies/network-rules.mdx
+@@ -616,3 +616,43 @@ record.
+   defaults, field constraints, and matcher semantics.
+ - Use [Troubleshoot](/how-it-works/policies/manage-policies#troubleshoot) when a
+   request is denied unexpectedly.
++
++## Ordin request integrity extension
++
++This local extension to source revision `6648bd0c290efbc41ba131ee9831ee45cd431f94`
++adds `request_integrity: {algorithm, commitments}` to an inspected endpoint.
++The algorithm is `ordin.authority-json.sha256.v1`. Each lowercase SHA-256 value
++commits a bounded JSON authority tree, without storing argument values.
++GraphQL commits the complete request envelope or ordered batch; JSON-RPC and
++MCP commit method, parameters, request/notification kind, and batch order while
++omitting correlation ID values. Duplicate decoded keys are rejected. Decimal
++values preserve exact numeric precision, integer/decimal distinctions and signed
++decimal zero; object key order is neutral and Unicode normalization is preserved.
++
++The endpoint requires `enforcement: enforce` and inspected TLS. A committed
++request must use POST, contain no URL query delimiter, and request no upgrade.
++The complete buffered body must match an allowed commitment before policy
++admission and again after middleware and credential transformations. Mismatches
++deny regardless of audit behavior and produce value-free denial diagnostics.
++The matched commitment is emitted in structured OCSF only after upstream write.
++Coarse operation/method rules and the commitment must both allow the request.
++
++Limits are 1 MiB raw/framed bytes, 4096 nodes, depth 32, 128 items per JSON
++container, 65536 UTF-8 bytes per string, 1024 significant integer/decimal digits,
++and decimal exponents of magnitude at most 10000. The domain prefix does not
++count toward the framed-byte budget. Parser-specific protocol limits remain
++explicit endpoint configuration. Overlapping endpoints must agree on integrity
++configuration; malformed or ambiguous reloads cannot activate a partial gate.
++
++Exact TCP IP literals additionally require a destination IP/CIDR allowlist and
++the authenticated, confirmed native staged mediation properties
++`seccomp-notify` and `seccomp-notify-procfs`. The supervisor reports those
++properties only after boundary confirmation, using the captured configuration
++revision and instance fence. The legacy DNS-only transparent path does not grant
++literal traffic. Protected metadata, loopback, link-local and unspecified
++destinations remain blocked.
++
++Runtime management reports the CLI, gateway and supervisor source identities.
++An operator must require the audited extension identity and exact build
++manifest; an OpenShell version string alone does not establish this feature.
++Rebuild and embed both the guest sandbox and host supervisor in the VM driver.
+diff --git a/examples/governance-interceptor/Cargo.lock b/examples/governance-interceptor/Cargo.lock
+index 9aeef0f..4d65ed1 100644
+--- a/examples/governance-interceptor/Cargo.lock
++++ b/examples/governance-interceptor/Cargo.lock
+@@ -1140,6 +1140,7 @@ version = "0.0.0"
+ dependencies = [
+  "miette",
+  "noyalib",
++ "openshell-request-integrity",
+  "serde",
+  "serde_json",
+ ]
+@@ -1159,6 +1160,15 @@ dependencies = [
+  "url",
+ ]
+ 
++[[package]]
++name = "openshell-request-integrity"
++version = "0.0.0"
++dependencies = [
++ "serde",
++ "serde_json",
++ "sha2",
++]
++
+ [[package]]
+ name = "openssl-probe"
+ version = "0.2.1"
+diff --git a/examples/supervisor-middleware-content-guard/Cargo.lock b/examples/supervisor-middleware-content-guard/Cargo.lock
+index 381cb63..896ded4 100644
+--- a/examples/supervisor-middleware-content-guard/Cargo.lock
++++ b/examples/supervisor-middleware-content-guard/Cargo.lock
+@@ -1209,10 +1209,20 @@ version = "0.0.0"
+ dependencies = [
+  "miette",
+  "noyalib",
++ "openshell-request-integrity",
+  "serde",
+  "serde_json",
+ ]
+ 
++[[package]]
++name = "openshell-request-integrity"
++version = "0.0.0"
++dependencies = [
++ "serde",
++ "serde_json",
++ "sha2",
++]
++
+ [[package]]
+ name = "openshell-supervisor-middleware-content-guard"
+ version = "0.0.0"
+diff --git a/proto/openshell.proto b/proto/openshell.proto
+index a836e16..ff31916 100644
+--- a/proto/openshell.proto
++++ b/proto/openshell.proto
+@@ -2842,6 +2842,14 @@ message SandboxConfigurationAdmission {
+   uint64 config_revision = 5;
+   uint64 provider_env_revision = 6;
+   string error = 7;
++  string runtime_extension_id = 8;
++  string runtime_source_digest = 9;
++  // Set by the gateway; caller-supplied values are overwritten.
++  string gateway_source_digest = 10;
++  string confirmed_backend = 11;
++  string egress_interception = 12;
++  string request_attribution = 13;
++  bool staged_tcp_confirmed = 14;
+ }
+ 
+ message ReportSandboxConfigurationRequest {
+diff --git a/proto/sandbox.proto b/proto/sandbox.proto
+index 1d837b7..a6b67bb 100644
+--- a/proto/sandbox.proto
++++ b/proto/sandbox.proto
+@@ -230,6 +230,14 @@ message NetworkEndpoint {
+   // Internal gateway-derived marker indicating that this endpoint belongs to
+   // an attached credentialed provider. User-authored values are ignored.
+   bool provider_credentialed = 26;
++  // Mandatory final-payload authority check. Requires the Ordin local runtime
++  // extension; stock OpenShell 0.1.2 must not consume these policies.
++  RequestIntegrity request_integrity = 27;
++}
++
++message RequestIntegrity {
++  string algorithm = 1;
++  repeated string commitments = 2;
+ }
+ 
+ // MCP options are grouped so MCP-specific policy can grow without adding more
+diff --git a/sdk/go/openshell/v1/internal/converter/coverage_test.go b/sdk/go/openshell/v1/internal/converter/coverage_test.go
+index 2f90b73..cada087 100644
+--- a/sdk/go/openshell/v1/internal/converter/coverage_test.go
++++ b/sdk/go/openshell/v1/internal/converter/coverage_test.go
+@@ -223,11 +223,17 @@ func TestConverterCoversAllProtoFields_NetworkEndpoint(t *testing.T) {
+ 		"json_rpc_max_body_bytes":         true,
+ 		"mcp":                             true,
+ 		"credential_binding":              true,
++		"request_integrity":               true,
+ 	}
+ 
+ 	assertAllFieldsCovered(t, (&sandboxpb.NetworkEndpoint{}).ProtoReflect().Descriptor(), handled, nil)
+ }
+ 
++func TestConverterCoversAllProtoFields_RequestIntegrity(t *testing.T) {
++	assertAllFieldsCovered(t, (&sandboxpb.RequestIntegrity{}).ProtoReflect().Descriptor(),
++		fieldSet{"algorithm": true, "commitments": true}, nil)
++}
++
+ func TestConverterCoversAllProtoFields_L7Allow(t *testing.T) {
+ 	handled := fieldSet{
+ 		"method":         true,
+diff --git a/sdk/go/openshell/v1/internal/converter/network_policy.go b/sdk/go/openshell/v1/internal/converter/network_policy.go
+index d51323e..8b3ab8b 100644
+--- a/sdk/go/openshell/v1/internal/converter/network_policy.go
++++ b/sdk/go/openshell/v1/internal/converter/network_policy.go
+@@ -121,6 +121,12 @@ func policyNetworkEndpointFromProto(ep *sbv1.NetworkEndpoint) types.PolicyNetwor
+ 		}
+ 	}
+ 	result.Mcp = mcpOptionsFromProto(ep.GetMcp())
++	if integrity := ep.GetRequestIntegrity(); integrity != nil {
++		result.RequestIntegrity = &types.RequestIntegrity{
++			Algorithm:   integrity.GetAlgorithm(),
++			Commitments: CopyStringSlice(integrity.GetCommitments()),
++		}
++	}
+ 	return result
+ }
+ 
+@@ -177,6 +183,12 @@ func policyNetworkEndpointToProto(ep *types.PolicyNetworkEndpoint) *sbv1.Network
+ 		}
+ 	}
+ 	result.Mcp = mcpOptionsToProto(ep.Mcp)
++	if ep.RequestIntegrity != nil {
++		result.RequestIntegrity = &sbv1.RequestIntegrity{
++			Algorithm:   ep.RequestIntegrity.Algorithm,
++			Commitments: CopyStringSlice(ep.RequestIntegrity.Commitments),
++		}
++	}
+ 	return result
+ }
+ 
+diff --git a/sdk/go/openshell/v1/internal/converter/network_policy_test.go b/sdk/go/openshell/v1/internal/converter/network_policy_test.go
+index 6a4d73d..8f3ecaf 100644
+--- a/sdk/go/openshell/v1/internal/converter/network_policy_test.go
++++ b/sdk/go/openshell/v1/internal/converter/network_policy_test.go
+@@ -14,6 +14,24 @@ import (
+ 
+ // --- NetworkPolicyRule round-trip ---
+ 
++func TestRequestIntegrityRoundTripDoesNotShareCommitments(t *testing.T) {
++	wire := &sbv1.NetworkPolicyRule{Endpoints: []*sbv1.NetworkEndpoint{{
++		RequestIntegrity: &sbv1.RequestIntegrity{
++			Algorithm: "ordin.authority-json.sha256.v1", Commitments: []string{"approved"},
++		},
++	}}}
++	domain := NetworkPolicyRuleFromProto(wire)
++	require.NotNil(t, domain.Endpoints[0].RequestIntegrity)
++	assert.Equal(t, wire.Endpoints[0].RequestIntegrity.Algorithm, domain.Endpoints[0].RequestIntegrity.Algorithm)
++	wire.Endpoints[0].RequestIntegrity.Commitments[0] = "wire-change"
++	assert.Equal(t, "approved", domain.Endpoints[0].RequestIntegrity.Commitments[0])
++	roundTrip := NetworkPolicyRuleToProto(domain)
++	domain.Endpoints[0].RequestIntegrity.Commitments[0] = "domain-change"
++	assert.Equal(t, "approved", roundTrip.Endpoints[0].RequestIntegrity.Commitments[0])
++	assert.Nil(t, policyNetworkEndpointFromProto(&sbv1.NetworkEndpoint{}).RequestIntegrity)
++	assert.Nil(t, policyNetworkEndpointToProto(&v1.PolicyNetworkEndpoint{}).RequestIntegrity)
++}
++
+ func TestNetworkPolicyRuleFromProto(t *testing.T) {
+ 	proto := &sbv1.NetworkPolicyRule{
+ 		Name: "web-api",
+diff --git a/sdk/go/openshell/v1/internal/converter/sandbox.go b/sdk/go/openshell/v1/internal/converter/sandbox.go
+index 1f773c1..1306116 100644
+--- a/sdk/go/openshell/v1/internal/converter/sandbox.go
++++ b/sdk/go/openshell/v1/internal/converter/sandbox.go
+@@ -141,6 +141,13 @@ func sandboxStatusFromProto(status *pb.SandboxStatus) types.SandboxStatus {
+ 			ConfigRevision:      admission.GetConfigRevision(),
+ 			ProviderEnvRevision: admission.GetProviderEnvRevision(),
+ 			Error:               admission.GetError(),
++			RuntimeExtensionID:  admission.GetRuntimeExtensionId(),
++			RuntimeSourceDigest: admission.GetRuntimeSourceDigest(),
++			GatewaySourceDigest: admission.GetGatewaySourceDigest(),
++			ConfirmedBackend:    admission.GetConfirmedBackend(),
++			EgressInterception:  admission.GetEgressInterception(),
++			RequestAttribution:  admission.GetRequestAttribution(),
++			StagedTCPConfirmed:  admission.GetStagedTcpConfirmed(),
+ 		}
+ 	}
+ 
+diff --git a/sdk/go/openshell/v1/internal/converter/sandbox_test.go b/sdk/go/openshell/v1/internal/converter/sandbox_test.go
+index 5980290..37aee17 100644
+--- a/sdk/go/openshell/v1/internal/converter/sandbox_test.go
++++ b/sdk/go/openshell/v1/internal/converter/sandbox_test.go
+@@ -46,6 +46,23 @@ func TestSandboxConfigurationAdmissionFromProto(t *testing.T) {
+ 	assert.Nil(t, sandboxStatusFromProto(&pb.SandboxStatus{}).ConfigurationAdmission)
+ }
+ 
++func TestSandboxConfigurationAdmissionPreservesRuntimeIdentity(t *testing.T) {
++	wire := &pb.SandboxStatus{ConfigurationAdmission: &pb.SandboxConfigurationAdmission{
++		RuntimeExtensionId: "ordin.request-authority.v1", RuntimeSourceDigest: "supervisor",
++		GatewaySourceDigest: "gateway", ConfirmedBackend: "openshell-sandbox",
++		EgressInterception: "seccomp-notify", RequestAttribution: "seccomp-notify-procfs",
++		StagedTcpConfirmed: true,
++	}}
++	got := sandboxStatusFromProto(wire).ConfigurationAdmission
++	assert.Equal(t, "ordin.request-authority.v1", got.RuntimeExtensionID)
++	assert.Equal(t, "supervisor", got.RuntimeSourceDigest)
++	assert.Equal(t, "gateway", got.GatewaySourceDigest)
++	assert.Equal(t, "openshell-sandbox", got.ConfirmedBackend)
++	assert.Equal(t, "seccomp-notify", got.EgressInterception)
++	assert.Equal(t, "seccomp-notify-procfs", got.RequestAttribution)
++	assert.True(t, got.StagedTCPConfirmed)
++}
++
+ func TestSandboxFromProto(t *testing.T) {
+ 	userNS := true
+ 	gpuCount := uint32(2)
+diff --git a/sdk/go/openshell/v1/types/network_policy.go b/sdk/go/openshell/v1/types/network_policy.go
+index 0e41348..4e9339b 100644
+--- a/sdk/go/openshell/v1/types/network_policy.go
++++ b/sdk/go/openshell/v1/types/network_policy.go
+@@ -87,6 +87,14 @@ type PolicyNetworkEndpoint struct {
+ 	JSONRPCMaxBodyBytes  uint32
+ 	Mcp                  *McpOptions
+ 	CredentialBinding    *NetworkCredentialBinding
++	// RequestIntegrity restricts forwarding to exact approved request commitments.
++	RequestIntegrity *RequestIntegrity
++}
++
++// RequestIntegrity intersects protocol rules with bounded request commitments.
++type RequestIntegrity struct {
++	Algorithm   string
++	Commitments []string
+ }
+ 
+ // NetworkCredentialBinding binds an endpoint to static credentials from an attached provider.
+diff --git a/sdk/go/openshell/v1/types/sandbox.go b/sdk/go/openshell/v1/types/sandbox.go
+index 1218bb6..e594fd1 100644
+--- a/sdk/go/openshell/v1/types/sandbox.go
++++ b/sdk/go/openshell/v1/types/sandbox.go
+@@ -145,6 +145,13 @@ type SandboxConfigurationAdmission struct {
+ 	ConfigRevision      uint64
+ 	ProviderEnvRevision uint64
+ 	Error               string
++	RuntimeExtensionID  string
++	RuntimeSourceDigest string
++	GatewaySourceDigest string
++	ConfirmedBackend    string
++	EgressInterception  string
++	RequestAttribution  string
++	StagedTCPConfirmed  bool
+ }
+ 
+ // EndpointStatus holds a configured tool endpoint and its last accepted network result.
+diff --git a/sdk/go/openshell/v1/types_reexport.go b/sdk/go/openshell/v1/types_reexport.go
+index 090918b..11e7f23 100644
+--- a/sdk/go/openshell/v1/types_reexport.go
++++ b/sdk/go/openshell/v1/types_reexport.go
+@@ -15,6 +15,9 @@ type NetworkPolicyRule = types.NetworkPolicyRule
+ // PolicyNetworkEndpoint describes a full network endpoint in a sandbox network policy rule.
+ type PolicyNetworkEndpoint = types.PolicyNetworkEndpoint
+ 
++// RequestIntegrity restricts request authority to the approved commitments.
++type RequestIntegrity = types.RequestIntegrity
++
+ // NetworkTLSMode controls TLS handling for a policy endpoint.
+ type NetworkTLSMode = types.NetworkTLSMode
+ 
+diff --git a/sdk/go/proto/datamodelv1/datamodel.pb.go b/sdk/go/proto/datamodelv1/datamodel.pb.go
+index 917f9bb..7fc1c5d 100644
+--- a/sdk/go/proto/datamodelv1/datamodel.pb.go
++++ b/sdk/go/proto/datamodelv1/datamodel.pb.go
+@@ -10,13 +10,14 @@
+ package datamodelv1
+ 
+ import (
++	reflect "reflect"
++	sync "sync"
++	unsafe "unsafe"
++
+ 	_ "github.com/NVIDIA/OpenShell/sdk/go/proto/optionsv1"
+ 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+ 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+ 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+-	reflect "reflect"
+-	sync "sync"
+-	unsafe "unsafe"
+ )
+ 
+ const (
+diff --git a/sdk/go/proto/openshellv1/openshell.pb.go b/sdk/go/proto/openshellv1/openshell.pb.go
+index 18d0b9b..2731d9a 100644
+--- a/sdk/go/proto/openshellv1/openshell.pb.go
++++ b/sdk/go/proto/openshellv1/openshell.pb.go
+@@ -12352,6 +12352,14 @@ type SandboxConfigurationAdmission struct {
+ 	ConfigRevision      uint64                      `protobuf:"varint,5,opt,name=config_revision,json=configRevision,proto3" json:"config_revision,omitempty"`
+ 	ProviderEnvRevision uint64                      `protobuf:"varint,6,opt,name=provider_env_revision,json=providerEnvRevision,proto3" json:"provider_env_revision,omitempty"`
+ 	Error               string                      `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
++	RuntimeExtensionId  string                      `protobuf:"bytes,8,opt,name=runtime_extension_id,json=runtimeExtensionId,proto3" json:"runtime_extension_id,omitempty"`
++	RuntimeSourceDigest string                      `protobuf:"bytes,9,opt,name=runtime_source_digest,json=runtimeSourceDigest,proto3" json:"runtime_source_digest,omitempty"`
++	// Set by the gateway; caller-supplied values are overwritten.
++	GatewaySourceDigest string `protobuf:"bytes,10,opt,name=gateway_source_digest,json=gatewaySourceDigest,proto3" json:"gateway_source_digest,omitempty"`
++	ConfirmedBackend    string `protobuf:"bytes,11,opt,name=confirmed_backend,json=confirmedBackend,proto3" json:"confirmed_backend,omitempty"`
++	EgressInterception  string `protobuf:"bytes,12,opt,name=egress_interception,json=egressInterception,proto3" json:"egress_interception,omitempty"`
++	RequestAttribution  string `protobuf:"bytes,13,opt,name=request_attribution,json=requestAttribution,proto3" json:"request_attribution,omitempty"`
++	StagedTcpConfirmed  bool   `protobuf:"varint,14,opt,name=staged_tcp_confirmed,json=stagedTcpConfirmed,proto3" json:"staged_tcp_confirmed,omitempty"`
+ 	unknownFields       protoimpl.UnknownFields
+ 	sizeCache           protoimpl.SizeCache
+ }
+@@ -12435,6 +12443,55 @@ func (x *SandboxConfigurationAdmission) GetError() string {
+ 	return ""
+ }
+ 
++func (x *SandboxConfigurationAdmission) GetRuntimeExtensionId() string {
++	if x != nil {
++		return x.RuntimeExtensionId
++	}
++	return ""
++}
++
++func (x *SandboxConfigurationAdmission) GetRuntimeSourceDigest() string {
++	if x != nil {
++		return x.RuntimeSourceDigest
++	}
++	return ""
++}
++
++func (x *SandboxConfigurationAdmission) GetGatewaySourceDigest() string {
++	if x != nil {
++		return x.GatewaySourceDigest
++	}
++	return ""
++}
++
++func (x *SandboxConfigurationAdmission) GetConfirmedBackend() string {
++	if x != nil {
++		return x.ConfirmedBackend
++	}
++	return ""
++}
++
++func (x *SandboxConfigurationAdmission) GetEgressInterception() string {
++	if x != nil {
++		return x.EgressInterception
++	}
++	return ""
++}
++
++func (x *SandboxConfigurationAdmission) GetRequestAttribution() string {
++	if x != nil {
++		return x.RequestAttribution
++	}
++	return ""
++}
++
++func (x *SandboxConfigurationAdmission) GetStagedTcpConfirmed() bool {
++	if x != nil {
++		return x.StagedTcpConfirmed
++	}
++	return false
++}
++
+ type ReportSandboxConfigurationRequest struct {
+ 	state     protoimpl.MessageState         `protogen:"open.v1"`
+ 	SandboxId string                         `protobuf:"bytes,1,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
+@@ -18485,7 +18542,7 @@ const file_openshell_proto_rawDesc = "" +
+ 	"\x06status\x18\x03 \x01(\x0e2\x1a.openshell.v1.PolicyStatusR\x06status\x12\x1d\n" +
+ 	"\n" +
+ 	"load_error\x18\x04 \x01(\tR\tloadError\"\x1c\n" +
+-	"\x1aReportPolicyStatusResponse\"\xbc\x02\n" +
++	"\x1aReportPolicyStatusResponse\"\x97\x05\n" +
+ 	"\x1dSandboxConfigurationAdmission\x12\x1f\n" +
+ 	"\vinstance_id\x18\x01 \x01(\tR\n" +
+ 	"instanceId\x12?\n" +
+@@ -18495,7 +18552,15 @@ const file_openshell_proto_rawDesc = "" +
+ 	"policyHash\x12'\n" +
+ 	"\x0fconfig_revision\x18\x05 \x01(\x04R\x0econfigRevision\x122\n" +
+ 	"\x15provider_env_revision\x18\x06 \x01(\x04R\x13providerEnvRevision\x12\x14\n" +
+-	"\x05error\x18\a \x01(\tR\x05error\"\xbf\x01\n" +
++	"\x05error\x18\a \x01(\tR\x05error\x120\n" +
++	"\x14runtime_extension_id\x18\b \x01(\tR\x12runtimeExtensionId\x122\n" +
++	"\x15runtime_source_digest\x18\t \x01(\tR\x13runtimeSourceDigest\x122\n" +
++	"\x15gateway_source_digest\x18\n" +
++	" \x01(\tR\x13gatewaySourceDigest\x12+\n" +
++	"\x11confirmed_backend\x18\v \x01(\tR\x10confirmedBackend\x12/\n" +
++	"\x13egress_interception\x18\f \x01(\tR\x12egressInterception\x12/\n" +
++	"\x13request_attribution\x18\r \x01(\tR\x12requestAttribution\x120\n" +
++	"\x14staged_tcp_confirmed\x18\x0e \x01(\bR\x12stagedTcpConfirmed\"\xbf\x01\n" +
+ 	"!ReportSandboxConfigurationRequest\x12\x1d\n" +
+ 	"\n" +
+ 	"sandbox_id\x18\x01 \x01(\tR\tsandboxId\x12I\n" +
+diff --git a/sdk/go/proto/openshellv1/openshell_grpc.pb.go b/sdk/go/proto/openshellv1/openshell_grpc.pb.go
+index d185e24..8f9c370 100644
+--- a/sdk/go/proto/openshellv1/openshell_grpc.pb.go
++++ b/sdk/go/proto/openshellv1/openshell_grpc.pb.go
+@@ -11,6 +11,7 @@ package openshellv1
+ 
+ import (
+ 	context "context"
++
+ 	sandboxv1 "github.com/NVIDIA/OpenShell/sdk/go/proto/sandboxv1"
+ 	grpc "google.golang.org/grpc"
+ 	codes "google.golang.org/grpc/codes"
+diff --git a/sdk/go/proto/optionsv1/options.pb.go b/sdk/go/proto/optionsv1/options.pb.go
+index 3219a94..13a819e 100644
+--- a/sdk/go/proto/optionsv1/options.pb.go
++++ b/sdk/go/proto/optionsv1/options.pb.go
+@@ -10,12 +10,13 @@
+ package optionsv1
+ 
+ import (
+-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+-	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
+ 	reflect "reflect"
+ 	sync "sync"
+ 	unsafe "unsafe"
++
++	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
++	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
++	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
+ )
+ 
+ const (
+diff --git a/sdk/go/proto/sandboxv1/sandbox.pb.go b/sdk/go/proto/sandboxv1/sandbox.pb.go
+index c38db28..b5411d3 100644
+--- a/sdk/go/proto/sandboxv1/sandbox.pb.go
++++ b/sdk/go/proto/sandboxv1/sandbox.pb.go
+@@ -911,8 +911,11 @@ type NetworkEndpoint struct {
+ 	// Internal gateway-derived marker indicating that this endpoint belongs to
+ 	// an attached credentialed provider. User-authored values are ignored.
+ 	ProviderCredentialed bool `protobuf:"varint,26,opt,name=provider_credentialed,json=providerCredentialed,proto3" json:"provider_credentialed,omitempty"`
+-	unknownFields        protoimpl.UnknownFields
+-	sizeCache            protoimpl.SizeCache
++	// Mandatory final-payload authority check. Requires the Ordin local runtime
++	// extension; stock OpenShell 0.1.2 must not consume these policies.
++	RequestIntegrity *RequestIntegrity `protobuf:"bytes,27,opt,name=request_integrity,json=requestIntegrity,proto3" json:"request_integrity,omitempty"`
++	unknownFields    protoimpl.UnknownFields
++	sizeCache        protoimpl.SizeCache
+ }
+ 
+ func (x *NetworkEndpoint) Reset() {
+@@ -1127,6 +1130,65 @@ func (x *NetworkEndpoint) GetProviderCredentialed() bool {
+ 	return false
+ }
+ 
++func (x *NetworkEndpoint) GetRequestIntegrity() *RequestIntegrity {
++	if x != nil {
++		return x.RequestIntegrity
++	}
++	return nil
++}
++
++type RequestIntegrity struct {
++	state         protoimpl.MessageState `protogen:"open.v1"`
++	Algorithm     string                 `protobuf:"bytes,1,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
++	Commitments   []string               `protobuf:"bytes,2,rep,name=commitments,proto3" json:"commitments,omitempty"`
++	unknownFields protoimpl.UnknownFields
++	sizeCache     protoimpl.SizeCache
++}
++
++func (x *RequestIntegrity) Reset() {
++	*x = RequestIntegrity{}
++	mi := &file_sandbox_proto_msgTypes[9]
++	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
++	ms.StoreMessageInfo(mi)
++}
++
++func (x *RequestIntegrity) String() string {
++	return protoimpl.X.MessageStringOf(x)
++}
++
++func (*RequestIntegrity) ProtoMessage() {}
++
++func (x *RequestIntegrity) ProtoReflect() protoreflect.Message {
++	mi := &file_sandbox_proto_msgTypes[9]
++	if x != nil {
++		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
++		if ms.LoadMessageInfo() == nil {
++			ms.StoreMessageInfo(mi)
++		}
++		return ms
++	}
++	return mi.MessageOf(x)
++}
++
++// Deprecated: Use RequestIntegrity.ProtoReflect.Descriptor instead.
++func (*RequestIntegrity) Descriptor() ([]byte, []int) {
++	return file_sandbox_proto_rawDescGZIP(), []int{9}
++}
++
++func (x *RequestIntegrity) GetAlgorithm() string {
++	if x != nil {
++		return x.Algorithm
++	}
++	return ""
++}
++
++func (x *RequestIntegrity) GetCommitments() []string {
++	if x != nil {
++		return x.Commitments
++	}
++	return nil
++}
++
+ // MCP options are grouped so MCP-specific policy can grow without adding more
+ // top-level NetworkEndpoint fields. OpenShell owns the supported revision
+ // profiles instead of treating dependency enums as the policy contract.
+@@ -1168,7 +1230,7 @@ type McpOptions struct {
+ 
+ func (x *McpOptions) Reset() {
+ 	*x = McpOptions{}
+-	mi := &file_sandbox_proto_msgTypes[9]
++	mi := &file_sandbox_proto_msgTypes[10]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -1180,7 +1242,7 @@ func (x *McpOptions) String() string {
+ func (*McpOptions) ProtoMessage() {}
+ 
+ func (x *McpOptions) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[9]
++	mi := &file_sandbox_proto_msgTypes[10]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -1193,7 +1255,7 @@ func (x *McpOptions) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use McpOptions.ProtoReflect.Descriptor instead.
+ func (*McpOptions) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{9}
++	return file_sandbox_proto_rawDescGZIP(), []int{10}
+ }
+ 
+ func (x *McpOptions) GetStrictToolNames() bool {
+@@ -1232,7 +1294,7 @@ type GraphqlOperation struct {
+ 
+ func (x *GraphqlOperation) Reset() {
+ 	*x = GraphqlOperation{}
+-	mi := &file_sandbox_proto_msgTypes[10]
++	mi := &file_sandbox_proto_msgTypes[11]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -1244,7 +1306,7 @@ func (x *GraphqlOperation) String() string {
+ func (*GraphqlOperation) ProtoMessage() {}
+ 
+ func (x *GraphqlOperation) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[10]
++	mi := &file_sandbox_proto_msgTypes[11]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -1257,7 +1319,7 @@ func (x *GraphqlOperation) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use GraphqlOperation.ProtoReflect.Descriptor instead.
+ func (*GraphqlOperation) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{10}
++	return file_sandbox_proto_rawDescGZIP(), []int{11}
+ }
+ 
+ func (x *GraphqlOperation) GetOperationType() string {
+@@ -1312,7 +1374,7 @@ type L7DenyRule struct {
+ 
+ func (x *L7DenyRule) Reset() {
+ 	*x = L7DenyRule{}
+-	mi := &file_sandbox_proto_msgTypes[11]
++	mi := &file_sandbox_proto_msgTypes[12]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -1324,7 +1386,7 @@ func (x *L7DenyRule) String() string {
+ func (*L7DenyRule) ProtoMessage() {}
+ 
+ func (x *L7DenyRule) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[11]
++	mi := &file_sandbox_proto_msgTypes[12]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -1337,7 +1399,7 @@ func (x *L7DenyRule) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use L7DenyRule.ProtoReflect.Descriptor instead.
+ func (*L7DenyRule) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{11}
++	return file_sandbox_proto_rawDescGZIP(), []int{12}
+ }
+ 
+ func (x *L7DenyRule) GetMethod() string {
+@@ -1406,7 +1468,7 @@ type L7Rule struct {
+ 
+ func (x *L7Rule) Reset() {
+ 	*x = L7Rule{}
+-	mi := &file_sandbox_proto_msgTypes[12]
++	mi := &file_sandbox_proto_msgTypes[13]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -1418,7 +1480,7 @@ func (x *L7Rule) String() string {
+ func (*L7Rule) ProtoMessage() {}
+ 
+ func (x *L7Rule) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[12]
++	mi := &file_sandbox_proto_msgTypes[13]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -1431,7 +1493,7 @@ func (x *L7Rule) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use L7Rule.ProtoReflect.Descriptor instead.
+ func (*L7Rule) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{12}
++	return file_sandbox_proto_rawDescGZIP(), []int{13}
+ }
+ 
+ func (x *L7Rule) GetAllow() *L7Allow {
+@@ -1471,7 +1533,7 @@ type L7Allow struct {
+ 
+ func (x *L7Allow) Reset() {
+ 	*x = L7Allow{}
+-	mi := &file_sandbox_proto_msgTypes[13]
++	mi := &file_sandbox_proto_msgTypes[14]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -1483,7 +1545,7 @@ func (x *L7Allow) String() string {
+ func (*L7Allow) ProtoMessage() {}
+ 
+ func (x *L7Allow) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[13]
++	mi := &file_sandbox_proto_msgTypes[14]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -1496,7 +1558,7 @@ func (x *L7Allow) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use L7Allow.ProtoReflect.Descriptor instead.
+ func (*L7Allow) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{13}
++	return file_sandbox_proto_rawDescGZIP(), []int{14}
+ }
+ 
+ func (x *L7Allow) GetMethod() string {
+@@ -1568,7 +1630,7 @@ type L7QueryMatcher struct {
+ 
+ func (x *L7QueryMatcher) Reset() {
+ 	*x = L7QueryMatcher{}
+-	mi := &file_sandbox_proto_msgTypes[14]
++	mi := &file_sandbox_proto_msgTypes[15]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -1580,7 +1642,7 @@ func (x *L7QueryMatcher) String() string {
+ func (*L7QueryMatcher) ProtoMessage() {}
+ 
+ func (x *L7QueryMatcher) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[14]
++	mi := &file_sandbox_proto_msgTypes[15]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -1593,7 +1655,7 @@ func (x *L7QueryMatcher) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use L7QueryMatcher.ProtoReflect.Descriptor instead.
+ func (*L7QueryMatcher) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{14}
++	return file_sandbox_proto_rawDescGZIP(), []int{15}
+ }
+ 
+ func (x *L7QueryMatcher) GetGlob() string {
+@@ -1620,7 +1682,7 @@ type NetworkBinary struct {
+ 
+ func (x *NetworkBinary) Reset() {
+ 	*x = NetworkBinary{}
+-	mi := &file_sandbox_proto_msgTypes[15]
++	mi := &file_sandbox_proto_msgTypes[16]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -1632,7 +1694,7 @@ func (x *NetworkBinary) String() string {
+ func (*NetworkBinary) ProtoMessage() {}
+ 
+ func (x *NetworkBinary) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[15]
++	mi := &file_sandbox_proto_msgTypes[16]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -1645,7 +1707,7 @@ func (x *NetworkBinary) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use NetworkBinary.ProtoReflect.Descriptor instead.
+ func (*NetworkBinary) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{15}
++	return file_sandbox_proto_rawDescGZIP(), []int{16}
+ }
+ 
+ func (x *NetworkBinary) GetPath() string {
+@@ -1667,7 +1729,7 @@ type GetSandboxConfigRequest struct {
+ 
+ func (x *GetSandboxConfigRequest) Reset() {
+ 	*x = GetSandboxConfigRequest{}
+-	mi := &file_sandbox_proto_msgTypes[16]
++	mi := &file_sandbox_proto_msgTypes[17]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -1679,7 +1741,7 @@ func (x *GetSandboxConfigRequest) String() string {
+ func (*GetSandboxConfigRequest) ProtoMessage() {}
+ 
+ func (x *GetSandboxConfigRequest) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[16]
++	mi := &file_sandbox_proto_msgTypes[17]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -1692,7 +1754,7 @@ func (x *GetSandboxConfigRequest) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use GetSandboxConfigRequest.ProtoReflect.Descriptor instead.
+ func (*GetSandboxConfigRequest) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{16}
++	return file_sandbox_proto_rawDescGZIP(), []int{17}
+ }
+ 
+ func (x *GetSandboxConfigRequest) GetWorkspaceScope() *datamodelv1.WorkspaceSelector {
+@@ -1718,7 +1780,7 @@ type GetGatewayConfigRequest struct {
+ 
+ func (x *GetGatewayConfigRequest) Reset() {
+ 	*x = GetGatewayConfigRequest{}
+-	mi := &file_sandbox_proto_msgTypes[17]
++	mi := &file_sandbox_proto_msgTypes[18]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -1730,7 +1792,7 @@ func (x *GetGatewayConfigRequest) String() string {
+ func (*GetGatewayConfigRequest) ProtoMessage() {}
+ 
+ func (x *GetGatewayConfigRequest) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[17]
++	mi := &file_sandbox_proto_msgTypes[18]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -1743,7 +1805,7 @@ func (x *GetGatewayConfigRequest) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use GetGatewayConfigRequest.ProtoReflect.Descriptor instead.
+ func (*GetGatewayConfigRequest) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{17}
++	return file_sandbox_proto_rawDescGZIP(), []int{18}
+ }
+ 
+ // Response containing gateway-global settings.
+@@ -1760,7 +1822,7 @@ type GetGatewayConfigResponse struct {
+ 
+ func (x *GetGatewayConfigResponse) Reset() {
+ 	*x = GetGatewayConfigResponse{}
+-	mi := &file_sandbox_proto_msgTypes[18]
++	mi := &file_sandbox_proto_msgTypes[19]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -1772,7 +1834,7 @@ func (x *GetGatewayConfigResponse) String() string {
+ func (*GetGatewayConfigResponse) ProtoMessage() {}
+ 
+ func (x *GetGatewayConfigResponse) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[18]
++	mi := &file_sandbox_proto_msgTypes[19]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -1785,7 +1847,7 @@ func (x *GetGatewayConfigResponse) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use GetGatewayConfigResponse.ProtoReflect.Descriptor instead.
+ func (*GetGatewayConfigResponse) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{18}
++	return file_sandbox_proto_rawDescGZIP(), []int{19}
+ }
+ 
+ func (x *GetGatewayConfigResponse) GetSettings() map[string]*SettingValue {
+@@ -1818,7 +1880,7 @@ type SettingValue struct {
+ 
+ func (x *SettingValue) Reset() {
+ 	*x = SettingValue{}
+-	mi := &file_sandbox_proto_msgTypes[19]
++	mi := &file_sandbox_proto_msgTypes[20]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -1830,7 +1892,7 @@ func (x *SettingValue) String() string {
+ func (*SettingValue) ProtoMessage() {}
+ 
+ func (x *SettingValue) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[19]
++	mi := &file_sandbox_proto_msgTypes[20]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -1843,7 +1905,7 @@ func (x *SettingValue) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use SettingValue.ProtoReflect.Descriptor instead.
+ func (*SettingValue) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{19}
++	return file_sandbox_proto_rawDescGZIP(), []int{20}
+ }
+ 
+ func (x *SettingValue) GetValue() isSettingValue_Value {
+@@ -1928,7 +1990,7 @@ type EffectiveSetting struct {
+ 
+ func (x *EffectiveSetting) Reset() {
+ 	*x = EffectiveSetting{}
+-	mi := &file_sandbox_proto_msgTypes[20]
++	mi := &file_sandbox_proto_msgTypes[21]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -1940,7 +2002,7 @@ func (x *EffectiveSetting) String() string {
+ func (*EffectiveSetting) ProtoMessage() {}
+ 
+ func (x *EffectiveSetting) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[20]
++	mi := &file_sandbox_proto_msgTypes[21]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -1953,7 +2015,7 @@ func (x *EffectiveSetting) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use EffectiveSetting.ProtoReflect.Descriptor instead.
+ func (*EffectiveSetting) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{20}
++	return file_sandbox_proto_rawDescGZIP(), []int{21}
+ }
+ 
+ func (x *EffectiveSetting) GetValue() *SettingValue {
+@@ -2022,7 +2084,7 @@ type GetSandboxConfigResponse struct {
+ 
+ func (x *GetSandboxConfigResponse) Reset() {
+ 	*x = GetSandboxConfigResponse{}
+-	mi := &file_sandbox_proto_msgTypes[21]
++	mi := &file_sandbox_proto_msgTypes[22]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -2034,7 +2096,7 @@ func (x *GetSandboxConfigResponse) String() string {
+ func (*GetSandboxConfigResponse) ProtoMessage() {}
+ 
+ func (x *GetSandboxConfigResponse) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[21]
++	mi := &file_sandbox_proto_msgTypes[22]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -2047,7 +2109,7 @@ func (x *GetSandboxConfigResponse) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use GetSandboxConfigResponse.ProtoReflect.Descriptor instead.
+ func (*GetSandboxConfigResponse) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{21}
++	return file_sandbox_proto_rawDescGZIP(), []int{22}
+ }
+ 
+ func (x *GetSandboxConfigResponse) GetPolicy() *SandboxPolicy {
+@@ -2194,7 +2256,7 @@ type SupervisorMiddlewareService struct {
+ 
+ func (x *SupervisorMiddlewareService) Reset() {
+ 	*x = SupervisorMiddlewareService{}
+-	mi := &file_sandbox_proto_msgTypes[22]
++	mi := &file_sandbox_proto_msgTypes[23]
+ 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 	ms.StoreMessageInfo(mi)
+ }
+@@ -2206,7 +2268,7 @@ func (x *SupervisorMiddlewareService) String() string {
+ func (*SupervisorMiddlewareService) ProtoMessage() {}
+ 
+ func (x *SupervisorMiddlewareService) ProtoReflect() protoreflect.Message {
+-	mi := &file_sandbox_proto_msgTypes[22]
++	mi := &file_sandbox_proto_msgTypes[23]
+ 	if x != nil {
+ 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+ 		if ms.LoadMessageInfo() == nil {
+@@ -2219,7 +2281,7 @@ func (x *SupervisorMiddlewareService) ProtoReflect() protoreflect.Message {
+ 
+ // Deprecated: Use SupervisorMiddlewareService.ProtoReflect.Descriptor instead.
+ func (*SupervisorMiddlewareService) Descriptor() ([]byte, []int) {
+-	return file_sandbox_proto_rawDescGZIP(), []int{22}
++	return file_sandbox_proto_rawDescGZIP(), []int{23}
+ }
+ 
+ func (x *SupervisorMiddlewareService) GetName() string {
+@@ -2319,7 +2381,7 @@ const file_sandbox_proto_rawDesc = "" +
+ 	"\ainclude\x18\x01 \x03(\tR\ainclude\x12\x18\n" +
+ 	"\aexclude\x18\x02 \x03(\tR\aexclude\"6\n" +
+ 	"\x18NetworkCredentialBinding\x12\x1a\n" +
+-	"\bprovider\x18\x01 \x01(\tR\bprovider\"\xdb\v\n" +
++	"\bprovider\x18\x01 \x01(\tR\bprovider\"\xb0\f\n" +
+ 	"\x0fNetworkEndpoint\x12\x12\n" +
+ 	"\x04host\x18\x01 \x01(\tR\x04host\x12\x12\n" +
+ 	"\x04port\x18\x02 \x01(\rR\x04port\x12\x1a\n" +
+@@ -2349,10 +2411,14 @@ const file_sandbox_proto_rawDesc = "" +
+ 	"\x03mcp\x18\x17 \x01(\v2 .openshell.sandbox.v1.McpOptionsR\x03mcp\x12]\n" +
+ 	"\x12credential_binding\x18\x18 \x01(\v2..openshell.sandbox.v1.NetworkCredentialBindingR\x11credentialBinding\x12B\n" +
+ 	"\x1dallow_uninspected_credentials\x18\x19 \x01(\bR\x1ballowUninspectedCredentials\x123\n" +
+-	"\x15provider_credentialed\x18\x1a \x01(\bR\x14providerCredentialed\x1ar\n" +
++	"\x15provider_credentialed\x18\x1a \x01(\bR\x14providerCredentialed\x12S\n" +
++	"\x11request_integrity\x18\x1b \x01(\v2&.openshell.sandbox.v1.RequestIntegrityR\x10requestIntegrity\x1ar\n" +
+ 	"\x1cGraphqlPersistedQueriesEntry\x12\x10\n" +
+ 	"\x03key\x18\x01 \x01(\tR\x03key\x12<\n" +
+-	"\x05value\x18\x02 \x01(\v2&.openshell.sandbox.v1.GraphqlOperationR\x05value:\x028\x01\"\xd2\x01\n" +
++	"\x05value\x18\x02 \x01(\v2&.openshell.sandbox.v1.GraphqlOperationR\x05value:\x028\x01\"R\n" +
++	"\x10RequestIntegrity\x12\x1c\n" +
++	"\talgorithm\x18\x01 \x01(\tR\talgorithm\x12 \n" +
++	"\vcommitments\x18\x02 \x03(\tR\vcommitments\"\xd2\x01\n" +
+ 	"\n" +
+ 	"McpOptions\x12/\n" +
+ 	"\x11strict_tool_names\x18\x01 \x01(\bH\x00R\x0fstrictToolNames\x88\x01\x01\x12A\n" +
+@@ -2491,7 +2557,7 @@ func file_sandbox_proto_rawDescGZIP() []byte {
+ }
+ 
+ var file_sandbox_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+-var file_sandbox_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
++var file_sandbox_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+ var file_sandbox_proto_goTypes = []any{
+ 	(NetworkTlsMode)(0),                   // 0: openshell.sandbox.v1.NetworkTlsMode
+ 	(NetworkEnforcementMode)(0),           // 1: openshell.sandbox.v1.NetworkEnforcementMode
+@@ -2507,79 +2573,81 @@ var file_sandbox_proto_goTypes = []any{
+ 	(*MiddlewareEndpointSelector)(nil),    // 11: openshell.sandbox.v1.MiddlewareEndpointSelector
+ 	(*NetworkCredentialBinding)(nil),      // 12: openshell.sandbox.v1.NetworkCredentialBinding
+ 	(*NetworkEndpoint)(nil),               // 13: openshell.sandbox.v1.NetworkEndpoint
+-	(*McpOptions)(nil),                    // 14: openshell.sandbox.v1.McpOptions
+-	(*GraphqlOperation)(nil),              // 15: openshell.sandbox.v1.GraphqlOperation
+-	(*L7DenyRule)(nil),                    // 16: openshell.sandbox.v1.L7DenyRule
+-	(*L7Rule)(nil),                        // 17: openshell.sandbox.v1.L7Rule
+-	(*L7Allow)(nil),                       // 18: openshell.sandbox.v1.L7Allow
+-	(*L7QueryMatcher)(nil),                // 19: openshell.sandbox.v1.L7QueryMatcher
+-	(*NetworkBinary)(nil),                 // 20: openshell.sandbox.v1.NetworkBinary
+-	(*GetSandboxConfigRequest)(nil),       // 21: openshell.sandbox.v1.GetSandboxConfigRequest
+-	(*GetGatewayConfigRequest)(nil),       // 22: openshell.sandbox.v1.GetGatewayConfigRequest
+-	(*GetGatewayConfigResponse)(nil),      // 23: openshell.sandbox.v1.GetGatewayConfigResponse
+-	(*SettingValue)(nil),                  // 24: openshell.sandbox.v1.SettingValue
+-	(*EffectiveSetting)(nil),              // 25: openshell.sandbox.v1.EffectiveSetting
+-	(*GetSandboxConfigResponse)(nil),      // 26: openshell.sandbox.v1.GetSandboxConfigResponse
+-	(*SupervisorMiddlewareService)(nil),   // 27: openshell.sandbox.v1.SupervisorMiddlewareService
+-	nil,                                   // 28: openshell.sandbox.v1.SandboxPolicy.NetworkPoliciesEntry
+-	nil,                                   // 29: openshell.sandbox.v1.SandboxPolicy.NetworkMiddlewaresEntry
+-	nil,                                   // 30: openshell.sandbox.v1.NetworkEndpoint.GraphqlPersistedQueriesEntry
+-	nil,                                   // 31: openshell.sandbox.v1.L7DenyRule.QueryEntry
+-	nil,                                   // 32: openshell.sandbox.v1.L7DenyRule.ParamsEntry
+-	nil,                                   // 33: openshell.sandbox.v1.L7Allow.QueryEntry
+-	nil,                                   // 34: openshell.sandbox.v1.L7Allow.ParamsEntry
+-	nil,                                   // 35: openshell.sandbox.v1.GetGatewayConfigResponse.SettingsEntry
+-	nil,                                   // 36: openshell.sandbox.v1.GetSandboxConfigResponse.SettingsEntry
+-	(*structpb.Struct)(nil),               // 37: google.protobuf.Struct
+-	(*datamodelv1.WorkspaceSelector)(nil), // 38: openshell.datamodel.v1.WorkspaceSelector
+-	(*durationpb.Duration)(nil),           // 39: google.protobuf.Duration
++	(*RequestIntegrity)(nil),              // 14: openshell.sandbox.v1.RequestIntegrity
++	(*McpOptions)(nil),                    // 15: openshell.sandbox.v1.McpOptions
++	(*GraphqlOperation)(nil),              // 16: openshell.sandbox.v1.GraphqlOperation
++	(*L7DenyRule)(nil),                    // 17: openshell.sandbox.v1.L7DenyRule
++	(*L7Rule)(nil),                        // 18: openshell.sandbox.v1.L7Rule
++	(*L7Allow)(nil),                       // 19: openshell.sandbox.v1.L7Allow
++	(*L7QueryMatcher)(nil),                // 20: openshell.sandbox.v1.L7QueryMatcher
++	(*NetworkBinary)(nil),                 // 21: openshell.sandbox.v1.NetworkBinary
++	(*GetSandboxConfigRequest)(nil),       // 22: openshell.sandbox.v1.GetSandboxConfigRequest
++	(*GetGatewayConfigRequest)(nil),       // 23: openshell.sandbox.v1.GetGatewayConfigRequest
++	(*GetGatewayConfigResponse)(nil),      // 24: openshell.sandbox.v1.GetGatewayConfigResponse
++	(*SettingValue)(nil),                  // 25: openshell.sandbox.v1.SettingValue
++	(*EffectiveSetting)(nil),              // 26: openshell.sandbox.v1.EffectiveSetting
++	(*GetSandboxConfigResponse)(nil),      // 27: openshell.sandbox.v1.GetSandboxConfigResponse
++	(*SupervisorMiddlewareService)(nil),   // 28: openshell.sandbox.v1.SupervisorMiddlewareService
++	nil,                                   // 29: openshell.sandbox.v1.SandboxPolicy.NetworkPoliciesEntry
++	nil,                                   // 30: openshell.sandbox.v1.SandboxPolicy.NetworkMiddlewaresEntry
++	nil,                                   // 31: openshell.sandbox.v1.NetworkEndpoint.GraphqlPersistedQueriesEntry
++	nil,                                   // 32: openshell.sandbox.v1.L7DenyRule.QueryEntry
++	nil,                                   // 33: openshell.sandbox.v1.L7DenyRule.ParamsEntry
++	nil,                                   // 34: openshell.sandbox.v1.L7Allow.QueryEntry
++	nil,                                   // 35: openshell.sandbox.v1.L7Allow.ParamsEntry
++	nil,                                   // 36: openshell.sandbox.v1.GetGatewayConfigResponse.SettingsEntry
++	nil,                                   // 37: openshell.sandbox.v1.GetSandboxConfigResponse.SettingsEntry
++	(*structpb.Struct)(nil),               // 38: google.protobuf.Struct
++	(*datamodelv1.WorkspaceSelector)(nil), // 39: openshell.datamodel.v1.WorkspaceSelector
++	(*durationpb.Duration)(nil),           // 40: google.protobuf.Duration
+ }
+ var file_sandbox_proto_depIdxs = []int32{
+ 	6,  // 0: openshell.sandbox.v1.SandboxPolicy.filesystem:type_name -> openshell.sandbox.v1.FilesystemPolicy
+ 	7,  // 1: openshell.sandbox.v1.SandboxPolicy.landlock:type_name -> openshell.sandbox.v1.LandlockPolicy
+ 	8,  // 2: openshell.sandbox.v1.SandboxPolicy.process:type_name -> openshell.sandbox.v1.ProcessPolicy
+-	28, // 3: openshell.sandbox.v1.SandboxPolicy.network_policies:type_name -> openshell.sandbox.v1.SandboxPolicy.NetworkPoliciesEntry
+-	29, // 4: openshell.sandbox.v1.SandboxPolicy.network_middlewares:type_name -> openshell.sandbox.v1.SandboxPolicy.NetworkMiddlewaresEntry
++	29, // 3: openshell.sandbox.v1.SandboxPolicy.network_policies:type_name -> openshell.sandbox.v1.SandboxPolicy.NetworkPoliciesEntry
++	30, // 4: openshell.sandbox.v1.SandboxPolicy.network_middlewares:type_name -> openshell.sandbox.v1.SandboxPolicy.NetworkMiddlewaresEntry
+ 	13, // 5: openshell.sandbox.v1.NetworkPolicyRule.endpoints:type_name -> openshell.sandbox.v1.NetworkEndpoint
+-	20, // 6: openshell.sandbox.v1.NetworkPolicyRule.binaries:type_name -> openshell.sandbox.v1.NetworkBinary
+-	37, // 7: openshell.sandbox.v1.NetworkMiddlewareConfig.config:type_name -> google.protobuf.Struct
++	21, // 6: openshell.sandbox.v1.NetworkPolicyRule.binaries:type_name -> openshell.sandbox.v1.NetworkBinary
++	38, // 7: openshell.sandbox.v1.NetworkMiddlewareConfig.config:type_name -> google.protobuf.Struct
+ 	11, // 8: openshell.sandbox.v1.NetworkMiddlewareConfig.endpoints:type_name -> openshell.sandbox.v1.MiddlewareEndpointSelector
+ 	0,  // 9: openshell.sandbox.v1.NetworkEndpoint.tls:type_name -> openshell.sandbox.v1.NetworkTlsMode
+ 	1,  // 10: openshell.sandbox.v1.NetworkEndpoint.enforcement:type_name -> openshell.sandbox.v1.NetworkEnforcementMode
+ 	2,  // 11: openshell.sandbox.v1.NetworkEndpoint.access:type_name -> openshell.sandbox.v1.NetworkAccessPreset
+-	17, // 12: openshell.sandbox.v1.NetworkEndpoint.rules:type_name -> openshell.sandbox.v1.L7Rule
+-	16, // 13: openshell.sandbox.v1.NetworkEndpoint.deny_rules:type_name -> openshell.sandbox.v1.L7DenyRule
+-	30, // 14: openshell.sandbox.v1.NetworkEndpoint.graphql_persisted_queries:type_name -> openshell.sandbox.v1.NetworkEndpoint.GraphqlPersistedQueriesEntry
+-	14, // 15: openshell.sandbox.v1.NetworkEndpoint.mcp:type_name -> openshell.sandbox.v1.McpOptions
++	18, // 12: openshell.sandbox.v1.NetworkEndpoint.rules:type_name -> openshell.sandbox.v1.L7Rule
++	17, // 13: openshell.sandbox.v1.NetworkEndpoint.deny_rules:type_name -> openshell.sandbox.v1.L7DenyRule
++	31, // 14: openshell.sandbox.v1.NetworkEndpoint.graphql_persisted_queries:type_name -> openshell.sandbox.v1.NetworkEndpoint.GraphqlPersistedQueriesEntry
++	15, // 15: openshell.sandbox.v1.NetworkEndpoint.mcp:type_name -> openshell.sandbox.v1.McpOptions
+ 	12, // 16: openshell.sandbox.v1.NetworkEndpoint.credential_binding:type_name -> openshell.sandbox.v1.NetworkCredentialBinding
+-	31, // 17: openshell.sandbox.v1.L7DenyRule.query:type_name -> openshell.sandbox.v1.L7DenyRule.QueryEntry
+-	32, // 18: openshell.sandbox.v1.L7DenyRule.params:type_name -> openshell.sandbox.v1.L7DenyRule.ParamsEntry
+-	18, // 19: openshell.sandbox.v1.L7Rule.allow:type_name -> openshell.sandbox.v1.L7Allow
+-	33, // 20: openshell.sandbox.v1.L7Allow.query:type_name -> openshell.sandbox.v1.L7Allow.QueryEntry
+-	34, // 21: openshell.sandbox.v1.L7Allow.params:type_name -> openshell.sandbox.v1.L7Allow.ParamsEntry
+-	38, // 22: openshell.sandbox.v1.GetSandboxConfigRequest.workspace_scope:type_name -> openshell.datamodel.v1.WorkspaceSelector
+-	35, // 23: openshell.sandbox.v1.GetGatewayConfigResponse.settings:type_name -> openshell.sandbox.v1.GetGatewayConfigResponse.SettingsEntry
+-	24, // 24: openshell.sandbox.v1.EffectiveSetting.value:type_name -> openshell.sandbox.v1.SettingValue
+-	3,  // 25: openshell.sandbox.v1.EffectiveSetting.scope:type_name -> openshell.sandbox.v1.SettingScope
+-	5,  // 26: openshell.sandbox.v1.GetSandboxConfigResponse.policy:type_name -> openshell.sandbox.v1.SandboxPolicy
+-	36, // 27: openshell.sandbox.v1.GetSandboxConfigResponse.settings:type_name -> openshell.sandbox.v1.GetSandboxConfigResponse.SettingsEntry
+-	4,  // 28: openshell.sandbox.v1.GetSandboxConfigResponse.policy_source:type_name -> openshell.sandbox.v1.PolicySource
+-	27, // 29: openshell.sandbox.v1.GetSandboxConfigResponse.supervisor_middleware_services:type_name -> openshell.sandbox.v1.SupervisorMiddlewareService
+-	39, // 30: openshell.sandbox.v1.SupervisorMiddlewareService.request_timeout:type_name -> google.protobuf.Duration
+-	9,  // 31: openshell.sandbox.v1.SandboxPolicy.NetworkPoliciesEntry.value:type_name -> openshell.sandbox.v1.NetworkPolicyRule
+-	10, // 32: openshell.sandbox.v1.SandboxPolicy.NetworkMiddlewaresEntry.value:type_name -> openshell.sandbox.v1.NetworkMiddlewareConfig
+-	15, // 33: openshell.sandbox.v1.NetworkEndpoint.GraphqlPersistedQueriesEntry.value:type_name -> openshell.sandbox.v1.GraphqlOperation
+-	19, // 34: openshell.sandbox.v1.L7DenyRule.QueryEntry.value:type_name -> openshell.sandbox.v1.L7QueryMatcher
+-	19, // 35: openshell.sandbox.v1.L7DenyRule.ParamsEntry.value:type_name -> openshell.sandbox.v1.L7QueryMatcher
+-	19, // 36: openshell.sandbox.v1.L7Allow.QueryEntry.value:type_name -> openshell.sandbox.v1.L7QueryMatcher
+-	19, // 37: openshell.sandbox.v1.L7Allow.ParamsEntry.value:type_name -> openshell.sandbox.v1.L7QueryMatcher
+-	24, // 38: openshell.sandbox.v1.GetGatewayConfigResponse.SettingsEntry.value:type_name -> openshell.sandbox.v1.SettingValue
+-	25, // 39: openshell.sandbox.v1.GetSandboxConfigResponse.SettingsEntry.value:type_name -> openshell.sandbox.v1.EffectiveSetting
+-	40, // [40:40] is the sub-list for method output_type
+-	40, // [40:40] is the sub-list for method input_type
+-	40, // [40:40] is the sub-list for extension type_name
+-	40, // [40:40] is the sub-list for extension extendee
+-	0,  // [0:40] is the sub-list for field type_name
++	14, // 17: openshell.sandbox.v1.NetworkEndpoint.request_integrity:type_name -> openshell.sandbox.v1.RequestIntegrity
++	32, // 18: openshell.sandbox.v1.L7DenyRule.query:type_name -> openshell.sandbox.v1.L7DenyRule.QueryEntry
++	33, // 19: openshell.sandbox.v1.L7DenyRule.params:type_name -> openshell.sandbox.v1.L7DenyRule.ParamsEntry
++	19, // 20: openshell.sandbox.v1.L7Rule.allow:type_name -> openshell.sandbox.v1.L7Allow
++	34, // 21: openshell.sandbox.v1.L7Allow.query:type_name -> openshell.sandbox.v1.L7Allow.QueryEntry
++	35, // 22: openshell.sandbox.v1.L7Allow.params:type_name -> openshell.sandbox.v1.L7Allow.ParamsEntry
++	39, // 23: openshell.sandbox.v1.GetSandboxConfigRequest.workspace_scope:type_name -> openshell.datamodel.v1.WorkspaceSelector
++	36, // 24: openshell.sandbox.v1.GetGatewayConfigResponse.settings:type_name -> openshell.sandbox.v1.GetGatewayConfigResponse.SettingsEntry
++	25, // 25: openshell.sandbox.v1.EffectiveSetting.value:type_name -> openshell.sandbox.v1.SettingValue
++	3,  // 26: openshell.sandbox.v1.EffectiveSetting.scope:type_name -> openshell.sandbox.v1.SettingScope
++	5,  // 27: openshell.sandbox.v1.GetSandboxConfigResponse.policy:type_name -> openshell.sandbox.v1.SandboxPolicy
++	37, // 28: openshell.sandbox.v1.GetSandboxConfigResponse.settings:type_name -> openshell.sandbox.v1.GetSandboxConfigResponse.SettingsEntry
++	4,  // 29: openshell.sandbox.v1.GetSandboxConfigResponse.policy_source:type_name -> openshell.sandbox.v1.PolicySource
++	28, // 30: openshell.sandbox.v1.GetSandboxConfigResponse.supervisor_middleware_services:type_name -> openshell.sandbox.v1.SupervisorMiddlewareService
++	40, // 31: openshell.sandbox.v1.SupervisorMiddlewareService.request_timeout:type_name -> google.protobuf.Duration
++	9,  // 32: openshell.sandbox.v1.SandboxPolicy.NetworkPoliciesEntry.value:type_name -> openshell.sandbox.v1.NetworkPolicyRule
++	10, // 33: openshell.sandbox.v1.SandboxPolicy.NetworkMiddlewaresEntry.value:type_name -> openshell.sandbox.v1.NetworkMiddlewareConfig
++	16, // 34: openshell.sandbox.v1.NetworkEndpoint.GraphqlPersistedQueriesEntry.value:type_name -> openshell.sandbox.v1.GraphqlOperation
++	20, // 35: openshell.sandbox.v1.L7DenyRule.QueryEntry.value:type_name -> openshell.sandbox.v1.L7QueryMatcher
++	20, // 36: openshell.sandbox.v1.L7DenyRule.ParamsEntry.value:type_name -> openshell.sandbox.v1.L7QueryMatcher
++	20, // 37: openshell.sandbox.v1.L7Allow.QueryEntry.value:type_name -> openshell.sandbox.v1.L7QueryMatcher
++	20, // 38: openshell.sandbox.v1.L7Allow.ParamsEntry.value:type_name -> openshell.sandbox.v1.L7QueryMatcher
++	25, // 39: openshell.sandbox.v1.GetGatewayConfigResponse.SettingsEntry.value:type_name -> openshell.sandbox.v1.SettingValue
++	26, // 40: openshell.sandbox.v1.GetSandboxConfigResponse.SettingsEntry.value:type_name -> openshell.sandbox.v1.EffectiveSetting
++	41, // [41:41] is the sub-list for method output_type
++	41, // [41:41] is the sub-list for method input_type
++	41, // [41:41] is the sub-list for extension type_name
++	41, // [41:41] is the sub-list for extension extendee
++	0,  // [0:41] is the sub-list for field type_name
+ }
+ 
+ func init() { file_sandbox_proto_init() }
+@@ -2587,8 +2655,8 @@ func file_sandbox_proto_init() {
+ 	if File_sandbox_proto != nil {
+ 		return
+ 	}
+-	file_sandbox_proto_msgTypes[9].OneofWrappers = []any{}
+-	file_sandbox_proto_msgTypes[19].OneofWrappers = []any{
++	file_sandbox_proto_msgTypes[10].OneofWrappers = []any{}
++	file_sandbox_proto_msgTypes[20].OneofWrappers = []any{
+ 		(*SettingValue_StringValue)(nil),
+ 		(*SettingValue_BoolValue)(nil),
+ 		(*SettingValue_IntValue)(nil),
+@@ -2600,7 +2668,7 @@ func file_sandbox_proto_init() {
+ 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
+ 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sandbox_proto_rawDesc), len(file_sandbox_proto_rawDesc)),
+ 			NumEnums:      5,
+-			NumMessages:   32,
++			NumMessages:   33,
+ 			NumExtensions: 0,
+ 			NumServices:   0,
+ 		},

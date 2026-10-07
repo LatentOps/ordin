@@ -95,7 +95,9 @@ def test_high_level_or_unknown_protocol_never_falls_back_to_tcp(protocol):
     )
     result = compile(changed)
     assert result.status == "unsupported" and result.plan is None
-    assert "network.protocol" in result.unsupported_fields
+    assert (
+        "network.tcp_scope" if protocol == "tcp" else "network.protocol"
+    ) in result.unsupported_fields
 
 
 def test_missing_binary_process_identity_and_child_restriction_fail_closed():

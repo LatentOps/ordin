@@ -15,7 +15,7 @@ def test_request_artifact_cli_derives_compiles_validates_and_verifies(tmp_path, 
     boundary_file = tmp_path / "boundary.json"
     boundary_file.write_text(json.dumps(request_boundary(request).as_dict()))
     output = tmp_path / "policy.json"
-    assert main(["derive-requests", "--review", str(review_file)]) == 0
+    assert main(["derive-requests", "--review", str(review_file), "--schema-version", "1"]) == 0
     assert json.loads(capsys.readouterr().out)["request_contract_id"] == request.request_contract_id
     assert (
         main(

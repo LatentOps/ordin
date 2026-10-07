@@ -36,7 +36,14 @@ class EnforcementPlan:
         # Protocol matchers add a bounded nested selector array. Capability and
         # metadata contracts retain the original ten-level default.
         object.__setattr__(self, "policy", freeze(self.policy, max_depth=12))
-        object.__setattr__(self, "metadata", freeze(self.metadata))
+        request = self.metadata.get("request_contract")
+        extended = (
+            isinstance(request, Mapping)
+            and request.get("schema_version") == "ordin.runtime_request_contract.v2"
+        )
+        object.__setattr__(
+            self, "metadata", freeze(self.metadata, max_items=4096 if extended else 128)
+        )
         if self.mode == "enforce" and self.contract.grant_state == "diagnostic":
             raise ValueError("blocked or uncertain contracts cannot form enforceable plans")
 

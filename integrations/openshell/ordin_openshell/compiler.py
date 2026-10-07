@@ -9,6 +9,9 @@ from ordin._runtime_json import MAX_RUNTIME_ITEMS, digest, thaw
 from ordin.enforcement_backend import BackendValidationResult, CompilationResult, EnforcementPlan
 from ordin.runtime_contract import RuntimeCapabilityContract, _safe_path
 from ordin.runtime_requests import RuntimeRequestContract, request_contract_errors
+from ordin.runtime_requests_v2 import RuntimeRequestContractV2, request_authority_errors
+from .address_scope import approved_addresses, scoped_host, validate_network_scopes
+from .extension import has_tcp_literals
 
 from .model import (
     PUBLIC_IPV4_RANGES,
@@ -31,13 +34,23 @@ def compile_openshell_policy(
     resource_kinds: Mapping[str, str] | None = None,
     credential_providers: Mapping[str, Mapping[str, Any]] | None = None,
     mode: str = "enforce",
-    request_contract: RuntimeRequestContract | None = None,
+    request_contract: RuntimeRequestContract | RuntimeRequestContractV2 | None = None,
+    network_scopes: tuple[Mapping[str, Any], ...] = (),
 ) -> CompilationResult:
     if not isinstance(contract, RuntimeCapabilityContract):
         raise ValueError("compiler requires a runtime capability contract")
     if mode not in {"shadow", "enforce"}:
         raise ValueError("compiler mode must be shadow or enforce")
     unsupported = set()
+    try:
+        validate_network_scopes(network_scopes)
+    except (ValueError, TypeError):
+        return CompilationResult(
+            "unsupported",
+            "openshell",
+            "openshell_operator_configuration_invalid",
+            unsupported_fields=("config.network_scopes",),
+        )
     if contract.decision == "block":
         unsupported.add("decision.block")
     unsupported.update(f"unknowns.{u.domain}.{u.reason_code}" for u in contract.unknowns)
@@ -61,7 +74,7 @@ def compile_openshell_policy(
     ):
         unsupported.add("process.spawn_children")
     if request_contract is not None and (
-        not isinstance(request_contract, RuntimeRequestContract)
+        not isinstance(request_contract, (RuntimeRequestContract, RuntimeRequestContractV2))
         or request_contract.capability != contract
     ):
         return CompilationResult(
@@ -71,9 +84,15 @@ def compile_openshell_policy(
             unsupported_fields=("requests.contract",),
         )
     if request_contract is not None:
-        unsupported.update(request_contract_errors(request_contract))
-        if contract.credentials and any(n.protocol in {"mcp", "graphql"} for n in contract.network):
+        unsupported.update(
+            request_authority_errors(request_contract)
+            if isinstance(request_contract, RuntimeRequestContractV2)
+            else request_contract_errors(request_contract)
+        )
+        if contract.credentials and any(n.protocol != "rest" for n in contract.network):
             unsupported.add("credentials.request_protocol_unrepresentable")
+    elif contract.credentials and any(n.protocol != "rest" for n in contract.network):
+        unsupported.add("credentials.request_protocol_unrepresentable")
     if contract.tools and request_contract is None:
         unsupported.add("tools.request_identity")
     if resource_kinds is not None and (
@@ -171,7 +190,141 @@ def compile_openshell_policy(
         unsupported.add("network.binary_identity")
     rules: dict[str, Any] = {}
     for index, capability in enumerate(contract.network):
-        if capability.protocol in {"graphql", "mcp"} and request_contract is not None:
+        try:
+            addresses = approved_addresses(
+                network_scopes, capability.host, capability.port, capability.protocol
+            )
+        except ValueError:
+            unsupported.add("network.address_scope_conflict")
+            continue
+        host_valid = (
+            scoped_host(capability.host) if addresses is not None else exact_host(capability.host)
+        )
+        addresses = addresses if addresses is not None else PUBLIC_IPV4_RANGES
+        if capability.protocol == "tcp":
+            if (
+                not isinstance(capability.host, str)
+                or not host_valid
+                or capability.port is None
+                or capability.access != "write"
+                or capability.methods
+                or capability.paths
+                or capability.tool_identity
+            ):
+                unsupported.add("network.tcp_scope")
+                continue
+            import ipaddress
+
+            try:
+                address = ipaddress.ip_address(capability.host)
+                if not any(
+                    address.version == ipaddress.ip_network(value).version
+                    and address in ipaddress.ip_network(value)
+                    for value in addresses
+                ):
+                    unsupported.add("network.allowed_ip_mismatch")
+                    continue
+            except ValueError:
+                pass
+            rules[f"ordin_action_{contract.action_digest[:12]}_{index}"] = {
+                "endpoints": [
+                    {
+                        "host": capability.host,
+                        "port": capability.port,
+                        "protocol": "tcp",
+                        "allowed_ips": list(addresses),
+                    }
+                ],
+                "binaries": [{"path": p} for p in executables],
+            }
+            continue
+        if capability.protocol in {"graphql", "mcp", "json-rpc"} and isinstance(
+            request_contract, RuntimeRequestContractV2
+        ):
+            authorities = [
+                r
+                for r in request_contract.requests
+                if (r.protocol, r.host, r.port, (r.path,))
+                == (capability.protocol, capability.host, capability.port, capability.paths)
+            ]
+            if (
+                not authorities
+                or not host_valid
+                or capability.methods != ("POST",)
+                or capability.access not in {"read", "write"}
+            ):
+                unsupported.add("network.request_scope")
+                continue
+            authority_endpoint: dict[str, Any] = {
+                "host": capability.host,
+                "port": capability.port,
+                "path": capability.paths[0],
+                "protocol": capability.protocol,
+                "enforcement": "enforce",
+                "allowed_ips": list(addresses),
+                "rules": [],
+                "request_integrity": {
+                    "algorithm": authorities[0].algorithm,
+                    "commitments": sorted({r.commitment for r in authorities}),
+                },
+            }
+            if capability.protocol == "graphql":
+                authority_endpoint["graphql_max_body_bytes"] = 1_048_576
+                authority_endpoint["rules"] = [
+                    {
+                        "allow": {
+                            "operation_type": o["operation_type"],
+                            **(
+                                {"operation_name": o["operation_name"]}
+                                if o["operation_name"]
+                                else {}
+                            ),
+                            "fields": sorted({field.split(".")[0] for field in o["fields"]}),
+                        }
+                    }
+                    for request in authorities
+                    for o in request.operations
+                ]
+            else:
+                authority_endpoint["rules"] = [
+                    {
+                        "allow": {
+                            "method": call["method"],
+                            **(
+                                {"params": {"name": {"any": [call["tool"]]}}}
+                                if call["tool"] and capability.protocol == "mcp"
+                                else {}
+                            ),
+                        }
+                    }
+                    for request in authorities
+                    for call in request.calls
+                ]
+                if capability.protocol == "mcp":
+                    versions = {r.versions for r in authorities}
+                    if len(versions) != 1:
+                        unsupported.add("network.mcp_version_conflict")
+                        continue
+                    authority_endpoint["mcp"] = {
+                        "strict_tool_names": True,
+                        "allow_all_known_mcp_methods": False,
+                        "versions": list(authorities[0].versions),
+                        "max_body_bytes": 1_048_576,
+                    }
+                else:
+                    # JSON-RPC method strings can contain glob punctuation.
+                    # The exact method is committed; the coarse parser rule
+                    # admits only messages that pass that complete commitment.
+                    authority_endpoint["rules"] = [{"allow": {"method": "*"}}]
+                    authority_endpoint["json_rpc"] = {"max_body_bytes": 1_048_576}
+            rules[f"ordin_action_{contract.action_digest[:12]}_{index}"] = {
+                "endpoints": [authority_endpoint],
+                "binaries": [{"path": p} for p in executables],
+            }
+            continue
+        if capability.protocol in {"graphql", "mcp"} and isinstance(
+            request_contract, RuntimeRequestContract
+        ):
             selected = [
                 r
                 for r in request_contract.requests
@@ -182,7 +335,7 @@ def compile_openshell_policy(
             ]
             if (
                 not selected
-                or not exact_host(capability.host)
+                or not host_valid
                 or type(capability.port) is not int
                 or capability.methods != ("POST",)
                 or capability.access not in {"read", "write"}
@@ -195,7 +348,7 @@ def compile_openshell_policy(
                 "path": capability.paths[0],
                 "protocol": capability.protocol,
                 "enforcement": "enforce",
-                "allowed_ips": list(PUBLIC_IPV4_RANGES),
+                "allowed_ips": list(addresses),
                 "rules": [],
             }
             if capability.protocol == "graphql":
@@ -236,7 +389,7 @@ def compile_openshell_policy(
         if capability.protocol != "rest" or capability.tool_identity is not None:
             unsupported.add("network.protocol")
             continue
-        if not exact_host(capability.host) or type(capability.port) is not int:
+        if not host_valid or type(capability.port) is not int:
             unsupported.add("network.endpoint_identity")
             continue
         if capability.access not in {"read", "write"} or (
@@ -255,7 +408,7 @@ def compile_openshell_policy(
             "port": capability.port,
             "protocol": "rest",
             "enforcement": "enforce",
-            "allowed_ips": list(PUBLIC_IPV4_RANGES),
+            "allowed_ips": list(addresses),
             "rules": [
                 {"allow": {"method": m, "path": p}}
                 for m in sorted(set(capability.methods))
@@ -332,6 +485,13 @@ def compile_openshell_policy(
             "source_provenance_digest": contract.source.get("provenance_digest"),
             "resource_kinds": dict(resource_kinds or {}),
             "credential_binding_ids": [c.binding for c in contract.credentials],
+            **({"network_scopes": list(network_scopes)} if network_scopes else {}),
+            **(
+                {"runtime_extension": "ordin.request-authority.v1"}
+                if isinstance(request_contract, RuntimeRequestContractV2)
+                or has_tcp_literals(contract)
+                else {}
+            ),
             **(
                 {
                     "request_contract": request_contract.as_dict(),
@@ -351,7 +511,8 @@ class OpenShellBackend:
     resource_kinds: Mapping[str, str] = field(default_factory=dict)
     credential_providers: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     mode: str = "enforce"
-    request_contract: RuntimeRequestContract | None = None
+    request_contract: RuntimeRequestContract | RuntimeRequestContractV2 | None = None
+    network_scopes: tuple[Mapping[str, Any], ...] = ()
 
     @property
     def name(self) -> str:
@@ -365,6 +526,7 @@ class OpenShellBackend:
             credential_providers=self.credential_providers,
             mode=self.mode,
             request_contract=self.request_contract,
+            network_scopes=self.network_scopes,
         )
 
     def validate(self, plan: EnforcementPlan) -> BackendValidationResult:
@@ -381,6 +543,7 @@ class OpenShellBackend:
                 credential_providers=self.credential_providers,
                 mode=self.mode,
                 request_contract=self.request_contract,
+                network_scopes=self.network_scopes,
             )
             if (
                 rebuilt.status != "success"

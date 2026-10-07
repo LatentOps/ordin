@@ -1,0 +1,38 @@
+name: runtime extension
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-extension-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-authority:
+    name: Native request authority
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust components
+        run: rustup toolchain install 1.95.0 --profile minimal --component clippy --component rustfmt
+      - name: Prepare exact upstream source and local patch
+        run: |
+          git clone --filter=blob:none --no-checkout https://github.com/NVIDIA/OpenShell.git "$RUNNER_TEMP/ordin-openshell"
+          git -C "$RUNNER_TEMP/ordin-openshell" checkout --detach 6648bd0c290efbc41ba131ee9831ee45cd431f94
+          git -C "$RUNNER_TEMP/ordin-openshell" apply "$GITHUB_WORKSPACE/integrations/openshell/runtime/patches/request-authority-v1.patch"
+      - name: Verify source identity, lint and native enforcement tests
+        env:
+          CARGO_BUILD_JOBS: "2"
+        run: >-
+          python scripts/build_runtime_extension.py
+          --source "$RUNNER_TEMP/ordin-openshell"
+          --output "$RUNNER_TEMP/ordin-runtime-validation"
+          --check-only

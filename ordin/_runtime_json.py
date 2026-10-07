@@ -22,21 +22,32 @@ def thaw(value: Any) -> Any:
     return value
 
 
-def freeze(value: Any, *, depth: int = 0, max_depth: int = MAX_RUNTIME_DEPTH) -> Any:
+def freeze(
+    value: Any,
+    *,
+    depth: int = 0,
+    max_depth: int = MAX_RUNTIME_DEPTH,
+    max_items: int = MAX_RUNTIME_ITEMS,
+) -> Any:
     if depth > max_depth:
         raise ValueError("runtime JSON nesting limit exceeded")
     if isinstance(value, Mapping):
-        if len(value) > MAX_RUNTIME_ITEMS:
+        if len(value) > max_items:
             raise ValueError("runtime JSON property limit exceeded")
         if any(not isinstance(k, str) or not k or len(k) > 128 for k in value):
             raise ValueError("runtime JSON requires bounded text keys")
         return MappingProxyType(
-            {k: freeze(v, depth=depth + 1, max_depth=max_depth) for k, v in value.items()}
+            {
+                k: freeze(v, depth=depth + 1, max_depth=max_depth, max_items=max_items)
+                for k, v in value.items()
+            }
         )
     if isinstance(value, (tuple, list)):
-        if len(value) > MAX_RUNTIME_ITEMS:
+        if len(value) > max_items:
             raise ValueError("runtime JSON collection limit exceeded")
-        return tuple(freeze(v, depth=depth + 1, max_depth=max_depth) for v in value)
+        return tuple(
+            freeze(v, depth=depth + 1, max_depth=max_depth, max_items=max_items) for v in value
+        )
     if isinstance(value, str):
         if len(value) > MAX_RUNTIME_TEXT or any(ord(c) < 32 for c in value):
             raise ValueError("runtime JSON contains oversized text or control characters")
@@ -62,7 +73,13 @@ def validate(name: str, payload: Any) -> None:
     from .schema import validate_instance
     from ._runtime_schemas import SCHEMAS, SHAPES
 
-    freeze(payload)
+    freeze(
+        payload,
+        max_items=4096
+        if name
+        in {"request_authority", "runtime_request_contract_v2", "runtime_request_boundary_v2"}
+        else MAX_RUNTIME_ITEMS,
+    )
     if len(canonical_json(payload).encode("utf-8")) > MAX_RUNTIME_BYTES:
         raise ValueError("runtime JSON byte limit exceeded")
     errors = validate_instance(thaw(payload), SCHEMAS[name] if name in SCHEMAS else SHAPES[name])
