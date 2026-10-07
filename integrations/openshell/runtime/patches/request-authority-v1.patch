@@ -1069,7 +1069,7 @@ index 994d101..f6f3eec 100644
      let operations = info.operations.iter().map(|operation| {
          let name = operation.operation_name.as_deref().unwrap_or("-");
 diff --git a/crates/openshell-supervisor-network/src/l7/jsonrpc.rs b/crates/openshell-supervisor-network/src/l7/jsonrpc.rs
-index aea53ed..40bddc0 100644
+index aea53ed..2d0b1c3 100644
 --- a/crates/openshell-supervisor-network/src/l7/jsonrpc.rs
 +++ b/crates/openshell-supervisor-network/src/l7/jsonrpc.rs
 @@ -194,7 +194,14 @@ impl JsonRpcInspectionError {
@@ -1087,6 +1087,19 @@ index aea53ed..40bddc0 100644
 +        }
      }
  }
+ 
+@@ -535,6 +542,12 @@ fn validate_mcp_tool_name(name: &str) -> std::result::Result<(), String> {
+ }
+ #[cfg(test)]
+ mod tests {
++    #[test]
++    fn rejection_diagnostic_never_echoes_parameter_values() {
++        let error = super::JsonRpcInspectionError::invalid_message("invalid type: NONSECRET_SENTINEL_ARGUMENT");
++        assert_eq!(error.rejection_reason(), "JSON-RPC request rejected: invalid message");
++        assert!(!error.rejection_reason().contains("NONSECRET_SENTINEL_ARGUMENT"));
++    }
+     use super::*;
+     use std::collections::HashMap;
  
 diff --git a/crates/openshell-supervisor-network/src/l7/mod.rs b/crates/openshell-supervisor-network/src/l7/mod.rs
 index 89c580e..fbec6cf 100644
@@ -1795,7 +1808,7 @@ index 6a6c0f9..c9e785c 100644
          credential_signing: String::new(),
          signing_service: String::new(),
 diff --git a/crates/openshell-supervisor-network/src/proxy.rs b/crates/openshell-supervisor-network/src/proxy.rs
-index 6ac6628..19a3fc3 100644
+index 6ac6628..8312b26 100644
 --- a/crates/openshell-supervisor-network/src/proxy.rs
 +++ b/crates/openshell-supervisor-network/src/proxy.rs
 @@ -5053,6 +5053,11 @@ fn complete_chunked_body_prefix_len(bytes: &[u8]) -> Option<usize> {
@@ -1909,6 +1922,15 @@ index 6ac6628..19a3fc3 100644
              endpoint_id: String::new(),
              policy_hash: String::new(),
              protocol,
+@@ -9664,7 +9724,7 @@ network_policies:
+             (b"{", "JSON-RPC request rejected: invalid JSON"),
+             (
+                 br#"{"id":1,"method":"reports.list"}"#,
+-                "JSON-RPC request rejected: missing or non-string 'jsonrpc' field",
++                "JSON-RPC request rejected: invalid message",
+             ),
+         ];
+ 
 @@ -10085,6 +10145,7 @@ network_policies:
              &mut proxy_to_client,
              &mut proxy_to_upstream,
