@@ -455,7 +455,16 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
                 "Endpoint evidence does not establish request protocol and method.",
             )
     params = review.action.parameters
-    if review.action.kind in {"mcp", "tool"}:
+    if review.action.kind == "mcp" and review.adapter and effects:
+        from .runtime_requests import _mcp_protocol_version
+
+        if _mcp_protocol_version(review) is None:
+            unknown(
+                "network",
+                "runtime_contract_mcp_version_unapproved",
+                "MCP revision is not explicitly approved by the host profile.",
+            )
+    if review.action.kind in {"mcp", "tool"} and review.adapter != "mcp.protocol":
         runtime = "mcp" if review.action.kind == "mcp" else params.get("runtime")
         server = params.get("server") if runtime == "mcp" else None
         tool = params.get("tool")

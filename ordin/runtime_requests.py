@@ -37,24 +37,149 @@ NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,127}\Z")
 TOOL_NAME = re.compile(r"[A-Za-z0-9_.-]{1,128}\Z")
 
 
+class _GraphQLScopeParser:
+    """Bounded syntax whose exact root fields the pinned backend enforces."""
+
+    def __init__(self, query: str) -> None:
+        self.tokens: list[str] = []
+        position = 0
+        while position < len(query):
+            if query[position] in " \t\r\n,":
+                position += 1
+                continue
+            comment = re.match(r"#[^\r\n]*", query[position:])
+            if comment:
+                position += len(comment[0])
+                continue
+            token = re.match(r"\.\.\.|[A-Za-z_][A-Za-z0-9_]*|[{}:]", query[position:])
+            if token is None or len(token[0]) > 128 or len(self.tokens) >= 512:
+                raise ValueError("graphql_scope_unsupported")
+            self.tokens.append(token[0])
+            position += len(token[0])
+        self.position = 0
+
+    def take(self, expected: str | None = None) -> str:
+        value = self.tokens[self.position]
+        self.position += 1
+        if expected is not None and value != expected:
+            raise ValueError("graphql_scope_unsupported")
+        return value
+
+    def peek(self) -> str | None:
+        return self.tokens[self.position] if self.position < len(self.tokens) else None
+
+    def name(self) -> str:
+        value = self.take()
+        if not NAME.fullmatch(value):
+            raise ValueError("graphql_scope_unsupported")
+        return value
+
+    def selections(self, depth: int = 0) -> list[tuple[str, str, str]]:
+        if depth > 16:
+            raise ValueError("graphql_scope_unsupported")
+        self.take("{")
+        result: list[tuple[str, str, str]] = []
+        while self.peek() != "}":
+            if self.peek() == "...":
+                self.take()
+                fragment = self.name()
+                if fragment == "on":
+                    self.name()  # Type conditions reduce execution, never add fields.
+                    result.extend(self.selections(depth + 1))
+                else:
+                    result.append(("spread", fragment, ""))
+            else:
+                response_name = field_name = self.name()
+                if self.peek() == ":":
+                    self.take()
+                    field_name = self.name()
+                result.append(("field", field_name, response_name))
+        self.take("}")
+        if not result:
+            raise ValueError("graphql_scope_unsupported")
+        return result
+
+    def operation(self) -> tuple[str, str, tuple[str, ...]]:
+        operation = None
+        fragments: dict[str, list[tuple[str, str, str]]] = {}
+        while self.peek() is not None:
+            kind = self.take()
+            if kind in {"query", "mutation"} and operation is None:
+                operation = (kind, self.name(), self.selections())
+            elif kind == "fragment":
+                name = self.name()
+                if name == "on" or name in fragments or len(fragments) >= 128:
+                    raise ValueError("graphql_scope_unsupported")
+                self.take("on")
+                self.name()
+                fragments[name] = self.selections()
+            else:
+                raise ValueError("graphql_scope_unsupported")
+        if operation is None:
+            raise ValueError("graphql_scope_unsupported")
+        fields: set[str] = set()
+        responses: dict[str, str] = {}
+        visited: set[str] = set()
+
+        def expand(nodes, active: frozenset[str] = frozenset()) -> None:
+            if len(active) > 16:
+                raise ValueError("graphql_scope_unsupported")
+            for kind, value, response in nodes:
+                if kind == "field":
+                    if response in responses and responses[response] != value:
+                        raise ValueError("graphql_scope_unsupported")
+                    responses[response] = value
+                    fields.add(value)
+                else:
+                    if value in active or value not in fragments:
+                        raise ValueError("graphql_scope_unsupported")
+                    if value not in visited:
+                        expand(fragments[value], active | {value})
+                        visited.add(value)
+
+        expand(operation[2])
+        if not fields or len(fields) > 128 or visited != set(fragments):
+            raise ValueError("graphql_scope_unsupported")
+        return operation[0], operation[1], tuple(sorted(fields))
+
+
 def graphql_operation(query: Any) -> tuple[str, str, tuple[str, ...]] | None:
-    """Parse only named flat operations; no values, variables, aliases or fragments."""
+    """Parse one named operation with flat aliases/fragments; never argument values."""
     if not isinstance(query, str) or len(query) > 4096:
         return None
-    match = re.fullmatch(
-        r"\s*(query|mutation)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{\s*([A-Za-z_][A-Za-z0-9_]*(?:[\s,]+[A-Za-z_][A-Za-z0-9_]*)*)\s*\}\s*",
-        query,
+    try:
+        return _GraphQLScopeParser(query).operation()
+    except (ValueError, IndexError, RecursionError):
+        return None
+
+
+def _mcp_protocol_version(review: ActionReview) -> str | None:
+    version = review.action.parameters.get("protocol_version", "2025-11-25")
+    if not isinstance(version, str) or version not in MCP_VERSIONS:
+        return None
+    declarations = (
+        [
+            r.metadata.get("versions")
+            for r in review.provenance.records
+            if r.source == "context"
+            and r.code == "runtime.requirement.mcp_versions"
+            and r.metadata.get("profile_digest")
+            and r.metadata.get("server") == review.action.parameters.get("server")
+        ]
+        if review.provenance
+        else []
     )
-    if match is None:
-        return None
-    fields = tuple(sorted(set(re.split(r"[\s,]+", match[3]))))
-    if (
-        len(fields) > 128
-        or not NAME.fullmatch(match[2])
-        or any(not NAME.fullmatch(v) for v in fields)
-    ):
-        return None
-    return match[1], match[2], fields
+    if declarations:
+        scopes = []
+        for value in declarations:
+            if not isinstance(value, str):
+                return None
+            entries = value.split(",")
+            if len(set(entries)) != len(entries) or not set(entries).issubset(MCP_VERSIONS):
+                return None
+            scopes.append(set(entries))
+        return version if all(version in scope for scope in scopes) else None
+    return version if version == "2025-11-25" else None
 
 
 def request_endpoint(url: Any) -> tuple[str, int, str] | None:
@@ -294,6 +419,12 @@ def derive_runtime_request_contract(review: ActionReview) -> RuntimeRequestContr
                     )
     if review.action.kind == "mcp" and review.adapter and review.effects:
         server, tool = review.action.parameters.get("server"), review.action.parameters.get("tool")
+        version = _mcp_protocol_version(review)
+        method = (
+            review.action.parameters.get("method")
+            if review.adapter == "mcp.protocol"
+            else "tools/call"
+        )
         for net in capability.network:
             if (
                 net.protocol == "mcp"
@@ -301,7 +432,8 @@ def derive_runtime_request_contract(review: ActionReview) -> RuntimeRequestContr
                 and net.port
                 and len(net.paths) == 1
                 and isinstance(server, str)
-                and isinstance(tool, str)
+                and version is not None
+                and (review.adapter == "mcp.protocol" or isinstance(tool, str))
             ):
                 requests.append(
                     ProtocolRequestCapability(
@@ -310,9 +442,9 @@ def derive_runtime_request_contract(review: ActionReview) -> RuntimeRequestContr
                         net.port,
                         net.paths[0],
                         server=server,
-                        method="tools/call",
+                        method=method,
                         tool=tool,
-                        versions=("2025-11-25",),
+                        versions=(version,),
                         requires_argument_constraints=bool(
                             review.action.parameters.get("arguments")
                         ),

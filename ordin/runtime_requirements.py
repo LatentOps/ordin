@@ -24,6 +24,7 @@ class RuntimeRequirementProfile:
     spawn_children: bool | None = None
     client_executables: tuple[str, ...] = ()
     mcp_endpoints: Mapping[str, str] = field(default_factory=dict)
+    mcp_versions: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not isinstance(self.profile_id, str) or not 1 <= len(self.profile_id) <= 128:
@@ -41,7 +42,7 @@ class RuntimeRequirementProfile:
         if self.spawn_children is not None and type(self.spawn_children) is not bool:
             raise ValueError("runtime_requirement_children_invalid")
         from ._runtime_json import text_tuple
-        from .runtime_requests import request_endpoint
+        from .runtime_requests import request_endpoint, MCP_VERSIONS
 
         object.__setattr__(self, "client_executables", text_tuple(self.client_executables))
         if any(not _safe_path(path) for path in self.client_executables):
@@ -52,6 +53,18 @@ class RuntimeRequirementProfile:
         ):
             raise ValueError("runtime_requirement_mcp_endpoint_invalid")
         object.__setattr__(self, "mcp_endpoints", freeze(self.mcp_endpoints))
+        if not isinstance(self.mcp_versions, Mapping) or any(
+            server not in self.mcp_endpoints
+            or not isinstance(versions, (tuple, list))
+            or not versions
+            or any(not isinstance(v, str) or v not in MCP_VERSIONS for v in versions)
+            or len(set(versions)) != len(versions)
+            for server, versions in self.mcp_versions.items()
+        ):
+            raise ValueError("runtime_requirement_mcp_versions_invalid")
+        object.__setattr__(
+            self, "mcp_versions", freeze({k: sorted(v) for k, v in self.mcp_versions.items()})
+        )
         if any(
             f.path is None
             or not _safe_path(f.path)
@@ -73,6 +86,8 @@ class RuntimeRequirementProfile:
             result["client_executables"] = list(self.client_executables)
         if self.mcp_endpoints:
             result["mcp_endpoints"] = thaw(self.mcp_endpoints)
+        if self.mcp_versions:
+            result["mcp_versions"] = thaw(self.mcp_versions)
         return result
 
     @property
@@ -135,6 +150,19 @@ class RuntimeRequirementProfile:
                 )
         if review.action.kind == "mcp":
             server = review.action.parameters.get("server")
+            if isinstance(server, str) and server in self.mcp_versions:
+                records.append(
+                    ProvenanceRecord(
+                        source="context",
+                        kind="finding",
+                        code="runtime.requirement.mcp_versions",
+                        metadata={
+                            "server": server,
+                            "versions": ",".join(self.mcp_versions[server]),
+                            "profile_digest": self.digest,
+                        },
+                    )
+                )
             if isinstance(server, str) and server in self.mcp_endpoints:
                 records.append(
                     ProvenanceRecord(
