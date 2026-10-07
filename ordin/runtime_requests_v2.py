@@ -260,6 +260,8 @@ def request_authority_errors(contract: RuntimeRequestContractV2) -> tuple[str, .
         ):
             errors.add("requests.graphql_access_mismatch")
     for network in contract.capability.network:
+        if network.protocol == "json-rpc" and network.access != "write":
+            errors.add("requests.jsonrpc_access_mismatch")
         if network.protocol in {"graphql", "mcp", "json-rpc"}:
             if (
                 network.tool_identity is not None

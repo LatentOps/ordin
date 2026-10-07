@@ -280,6 +280,8 @@ def parse_openshell_event(event: str | Mapping[str, Any]) -> ParsedOpenShellEven
             name = _text(process.get("name"))
             # Upstream may supply a basename. Never invent an absolute binary path.
             if _safe_path(name):
+                if "binary" in fields and fields["binary"] != name:
+                    raise OpenShellEventError("openshell_event_process_conflict")
                 fields["binary"] = name
         return ParsedOpenShellEvent(
             digest(event),

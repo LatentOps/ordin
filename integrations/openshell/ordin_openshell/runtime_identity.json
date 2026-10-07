@@ -21,7 +21,7 @@
     "crates/openshell-server/src/grpc/policy.rs": "ce739b58830a04cc272bfc371aa15bd9694b745416dca73ceb13aa183f8e2cea",
     "crates/openshell-supervisor-network/Cargo.toml": "84beea392714759fb07d2d6bda3d1e9643b363856175de47ca0433760894ec2f",
     "crates/openshell-supervisor-network/src/l7/graphql.rs": "28962b25147313efb3ff775b079a11728b595b4343b1be6620e351b2c646b039",
-    "crates/openshell-supervisor-network/src/l7/jsonrpc.rs": "881b1888121a66d9ac48b17c8df6b8fbcd92066cb49616654cdbdaf852728fb4",
+    "crates/openshell-supervisor-network/src/l7/jsonrpc.rs": "a34a6bd8915a1a2b11a50d35c248dc8e09fdccf65b413f9725d8d64531e5d88c",
     "crates/openshell-supervisor-network/src/l7/mod.rs": "0ff9f12df7ffc95165fc3a079be43a962d4e954798c5de71531ad296eb1086d4",
     "crates/openshell-supervisor-network/src/l7/relay.rs": "d049700f06b3cd7786c185ab9a33457a13aa570861d5e552fb4be16bbaaa1315",
     "crates/openshell-supervisor-network/src/l7/rest.rs": "579b99528287cfbb4414d3ab0b425a59dc20585a2d3c42c0311d6039419a053c",
@@ -34,8 +34,8 @@
     "proto/openshell.proto": "3af2bc1f51dbca25d77707607e61f5ba9c5654ce5975e7e6bdc377f798ddd986",
     "proto/sandbox.proto": "4633424e7f6ecd801e11c2a7c1cd34a7a08e0d5bc8048ba8be74776a860bbdac"
   },
-  "patch_sha256": "1fa27c6535c23583ac865d5b045565fca8fa1e7e1e9ba29335e903274628e4b3",
+  "patch_sha256": "80bb075ac1229c179497d7b416fa27258b5bb65d49f905f492775bb387fc5a15",
   "rust_toolchain": "1.95.0",
-  "source_digest": "e9b66d90e56561cd81636f647d32cff4d13c83657eae02e032551d3bb5acd659",
+  "source_digest": "f4e254f01a62cf690579836cea56a7ca1a087a9bac1770ddeaf9284c9418b877",
   "upstream_revision": "6648bd0c290efbc41ba131ee9831ee45cd431f94"
 }

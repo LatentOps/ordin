@@ -45,6 +45,8 @@ Generic RPC method names may contain glob punctuation. Its coarse rule uses
 `method: '*'`; the mandatory complete commitment enforces the exact method and
 parameters. That policy requires the audited runtime extension. Stock 0.1.2
 cannot establish compatibility by version string alone.
+Generic JSON-RPC requires write authority because arbitrary methods have no
+trusted read-only semantics; changing a contract to read fails validation.
 
 Host-owned `network_scopes` supply explicit host patterns, ports, protocols and
 IP/CIDR ranges. The compiler expands them to the action's exact endpoint; it
@@ -63,6 +65,10 @@ revision, executable and address containment before invoking the native solver
 on an exact transport projection. It records original input hashes, component
 hashes and explicit coverage. Raw REST cannot borrow GraphQL or RPC permissions.
 An explicitly broader TCP maximum can contain narrower request authority.
+Exact IPv4/IPv6 TCP literal grants are checked in the bounded component before
+being omitted from both native transport inputs. Their coverage is named
+`network_tcp_literal`; native filesystem, process and remaining network proof
+still runs. The reproducible bundle includes the standalone native prover.
 
 Apply checks the audited CLI, gateway and supervisor build identities and the
 current admitted configuration tuple. Literal TCP additionally requires actual

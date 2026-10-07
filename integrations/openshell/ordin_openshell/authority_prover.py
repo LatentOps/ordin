@@ -18,7 +18,19 @@ def protocol_domains(policy: dict[str, Any]) -> frozenset[str]:
         for rule in policy["network_policies"].values()
         for ep in rule["endpoints"]
         if ep["protocol"] in EXTENDED_PROTOCOLS
+    ) | frozenset(
+        "network_tcp_literal" for _, endpoint in _endpoints(policy) if _tcp_literal(endpoint)
     )
+
+
+def _tcp_literal(endpoint):
+    if endpoint["protocol"] != "tcp":
+        return False
+    try:
+        ipaddress.ip_address(endpoint["host"])
+    except ValueError:
+        return False
+    return True
 
 
 def _rules_within(candidate, boundary, protocol):
@@ -60,8 +72,17 @@ def _endpoints(policy):
 
 
 def project_transport(policy):
-    """Exact POST/path projection, whose digest is retained as a proof component."""
+    """Project native domains after exact protocol and literal TCP containment.
+
+    Literal TCP grants are proved by the bounded component with their original
+    host, port, binary and address range, then omitted from both native inputs.
+    The native solver still proves filesystem, process and remaining networking.
+    """
     result = deepcopy(policy)
+    for name, rule in list(result["network_policies"].items()):
+        rule["endpoints"] = [ep for ep in rule["endpoints"] if not _tcp_literal(ep)]
+        if not rule["endpoints"]:
+            del result["network_policies"][name]
     for _, endpoint in _endpoints(result):
         if endpoint["protocol"] in EXTENDED_PROTOCOLS:
             path = endpoint.pop("path")
@@ -96,6 +117,8 @@ def check_protocol_containment(candidate, boundary):
         integrity = endpoint.get("request_integrity")
         if protocol in EXTENDED_PROTOCOLS and integrity is None:
             return "unsupported", "openshell_authority_commitment_required"
+        if _tcp_literal(endpoint) and not endpoint["allowed_ips"]:
+            return "unsupported", "openshell_authority_literal_address_required"
         matched = False
         for allowed_rule, allowed in _endpoints(boundary):
             if (

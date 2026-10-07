@@ -52,6 +52,12 @@ def test_full_graphql_operation_selection(body, kind, fields):
         {"query": "{ user(id:1,id:2) }"},
         {"query": "{ user }", "extensions": {"unknown": True}},
         {"query": "{ user }", "variables": [1]},
+        {"query": "query Q { user(id:$undefined) }"},
+        {"query": "query Q { ...F } fragment F on Query { user(id:$undefined) }"},
+        {
+            "query": "query Q($id:ID) { ...F } query Other { ...F } fragment F on Query { user(id:$id) }",
+            "operationName": "Q",
+        },
     ],
 )
 def test_ambiguous_or_unmodeled_graphql_fails_closed(body):
@@ -121,6 +127,32 @@ def test_generic_rpc_derives_exact_argument_and_batch_authority():
     assert len(contract.requests[0].calls) == 2
     assert contract.capability.network[0].access == "write"
     assert "items/update" in str(contract.as_dict()) and "params" not in str(contract.as_dict())
+
+
+def test_generic_rpc_cannot_downgrade_unknown_effects_to_read():
+    review = Ordin().review_action(
+        ActionEnvelope(
+            kind="network",
+            operation="jsonrpc.request",
+            parameters={
+                "url": "https://api.example.com/rpc",
+                "body": {"jsonrpc": "2.0", "id": 1, "method": "items/delete"},
+            },
+        )
+    )
+    request = derive_runtime_request_contract_v2(review)
+    read_capability = replace(
+        request.capability,
+        contract_id="",
+        network=tuple(replace(n, access="read") for n in request.capability.network),
+    )
+    downgraded = replace(request, request_contract_id="", capability=read_capability)
+    maximum = RuntimeRequestBoundaryV2(
+        RuntimeCapabilityBoundary("read-only", network=read_capability.network), request.requests
+    )
+    result = verify_runtime_request_authority(downgraded, maximum)
+    assert result.result == "unsupported"
+    assert "requests.jsonrpc_access_mismatch" in result.unsupported_fields
 
 
 def test_opaque_sibling_cannot_borrow_another_requests_restrictions():

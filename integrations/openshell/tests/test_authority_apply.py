@@ -1,4 +1,6 @@
 from test_apply import FakeCLI, boundary_for
+from dataclasses import replace
+from ordin.runtime_contract import NetworkCapability
 from test_authority_compiler import supported_request
 from ordin.runtime_requests_v2 import RuntimeRequestBoundaryV2
 from ordin_openshell import extension
@@ -93,3 +95,30 @@ def test_literal_tcp_needs_authenticated_confirmation_beyond_source_build(monkey
         prepare_openshell_apply(plan, backend=backend, sandbox="demo", cli=cli).status
         == "requires_approval"
     )
+
+
+def test_pure_tcp_request_boundary_is_verified_and_bound_before_approval():
+    request = supported_request("jsonrpc.request", {"jsonrpc": "2.0", "id": 1, "method": "lookup"})
+    capability = replace(
+        request.capability,
+        contract_id="",
+        network=(NetworkCapability("db.example.com", 5432, "tcp", "write"),),
+    )
+    request = replace(request, request_contract_id="", capability=capability, requests=())
+    backend = OpenShellBackend((1000, 1000), request_contract=request)
+    plan = backend.compile(capability).plan
+    cli = FakeCLI(plan)
+    maximum = replace(boundary_for(capability), network=())
+    boundary = RuntimeRequestBoundaryV2(maximum, ())
+    rejected = prepare_openshell_apply(
+        plan, backend=backend, sandbox="demo", cli=cli, request_boundary=boundary
+    )
+    assert rejected.status == "exceeds_boundary", rejected.reason_code
+    assert cli.set_calls == 0
+    accepted_boundary = RuntimeRequestBoundaryV2(boundary_for(capability), ())
+    accepted = prepare_openshell_apply(
+        plan, backend=backend, sandbox="demo", cli=cli, request_boundary=accepted_boundary
+    )
+    assert accepted.status == "requires_approval", accepted.reason_code
+    assert rejected.request_id != accepted.request_id
+    assert rejected.verification[-1]["boundary_digest"] == boundary.digest

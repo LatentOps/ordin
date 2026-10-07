@@ -72,3 +72,25 @@ def test_coarse_allow_and_wrong_payload_never_become_exact_request_evidence(tmp_
             and result.reason_code == "runtime_request_observation_mismatch"
         )
         assert store.lookup(parse_openshell_event(event).event_id_digest) is not None
+
+
+def test_conflicting_actor_cannot_replace_bound_workload_binary(tmp_path):
+    request = supported_request("graphql.request", {"query": "{ viewer { id } }"})
+    source = source_context()
+    store = CorrelationStore(tmp_path / "bindings.json")
+    event = authority_event(request)
+    event_id = parse_openshell_event(event).event_id_digest
+    register_event(store, event, request.capability, source)
+    changed = deepcopy(event)
+    changed["actor"] = {"process": {"pid": 123, "name": "/usr/bin/other"}}
+    result = ingest_openshell_event(
+        changed,
+        contract=request.capability,
+        request_contract=request,
+        source=source,
+        store=store,
+        now_ms=2000,
+    )
+    assert result.status == "rejected"
+    assert result.reason_code == "openshell_event_process_conflict"
+    assert store.lookup(event_id) is not None

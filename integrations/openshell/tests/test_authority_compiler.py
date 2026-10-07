@@ -149,6 +149,21 @@ def test_literal_tcp_is_exact_and_requires_confirmed_runtime_support():
     assert endpoint["host"] == "8.8.8.8" and endpoint["port"] == 853
 
 
+def test_generic_rpc_read_downgrade_is_not_enforceable():
+    request = supported_request(
+        "jsonrpc.request", {"jsonrpc": "2.0", "id": 1, "method": "items/delete"}
+    )
+    capability = replace(
+        request.capability,
+        contract_id="",
+        network=tuple(replace(n, access="read") for n in request.capability.network),
+    )
+    request = replace(request, request_contract_id="", capability=capability)
+    result = OpenShellBackend((1000, 1000), request_contract=request).compile(capability)
+    assert not result.enforceable
+    assert "requests.jsonrpc_access_mismatch" in result.unsupported_fields
+
+
 @pytest.mark.parametrize(
     "alias", ["host.openshell.internal", "host.containers.internal", "host.docker.internal"]
 )

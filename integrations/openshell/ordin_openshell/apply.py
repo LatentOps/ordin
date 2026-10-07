@@ -335,6 +335,9 @@ def prepare_openshell_apply(
     if any(n.protocol in {"mcp", "graphql", "json-rpc"} for n in plan.contract.network):
         if backend.request_contract is None or request_boundary is None:
             return result("unsupported", "runtime_request_boundary_required")
+    if request_boundary is not None:
+        if backend.request_contract is None:
+            return result("unsupported", "runtime_request_contract_required")
         requests_verified = verify_request_contract(backend.request_contract, request_boundary)
         requests_report = requests_verified.as_dict()
         counter = requests_report.pop("counterexample")

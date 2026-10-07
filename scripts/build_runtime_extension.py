@@ -14,6 +14,40 @@ ROOT = Path(__file__).resolve().parents[1]
 INTEGRATION = ROOT / "integrations/openshell"
 
 
+def verify_source(source: Path, identity: dict) -> None:
+    def git(*arguments: str) -> str:
+        return subprocess.check_output(["git", "-C", str(source), *arguments], text=True).strip()
+
+    if git("rev-parse", "HEAD") != identity["upstream_revision"]:
+        raise ValueError("runtime source must use the pinned upstream revision")
+    changed = set(git("diff", "HEAD", "--name-only", "-z").split("\0")) - {""}
+    untracked = set(git("ls-files", "--others", "--exclude-standard", "-z").split("\0")) - {""}
+    if (changed | untracked) - identity["files"].keys():
+        raise ValueError("runtime source contains unaudited changes")
+    ignored = git(
+        "ls-files",
+        "--others",
+        "--ignored",
+        "--exclude-standard",
+        "-z",
+        "--",
+        "crates",
+        "proto",
+        "tasks",
+        ".cargo",
+    )
+    if ignored:
+        raise ValueError("runtime source contains ignored build inputs")
+    for name, expected in identity["files"].items():
+        path = source / name
+        if (
+            path.is_symlink()
+            or not path.is_file()
+            or hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest() != expected
+        ):
+            raise ValueError("runtime source differs from the audited patch manifest")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -32,28 +66,38 @@ def main() -> int:
     patch = INTEGRATION / "runtime/patches/request-authority-v1.patch"
     if hashlib.sha256(patch.read_bytes()).hexdigest() != identity["patch_sha256"]:
         raise ValueError("runtime patch digest mismatch")
-    for name, expected in identity["files"].items():
-        path = source / name
-        if (
-            not path.is_file()
-            or hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest() != expected
-        ):
-            raise ValueError("runtime source differs from the audited patch manifest")
+    verify_source(source, identity)
     output.mkdir(parents=True, exist_ok=True)
     env = dict(
         os.environ,
         ORDIN_RUNTIME_SOURCE_DIGEST=identity["source_digest"],
         OPENSHELL_GIT_VERSION="0.1.2",
+        RUSTUP_TOOLCHAIN=identity["rust_toolchain"],
+        CARGO_TARGET_DIR=str(source / "target"),
     )
     cargo_program = shutil.which("cargo") or str(Path.home() / ".cargo/bin/cargo")
     if not Path(cargo_program).is_file():
         raise ValueError("pinned Rust toolchain is unavailable")
     env["PATH"] = str(Path(cargo_program).parent) + os.pathsep + env.get("PATH", "")
     env["CARGO_BUILD_JOBS"] = env.get("CARGO_BUILD_JOBS", "2")
-    env.pop("RUSTC_WRAPPER", None)
+    for name in (
+        "RUSTC_WRAPPER",
+        "RUSTC_WORKSPACE_WRAPPER",
+        "RUSTC",
+        "RUSTDOC",
+        "RUSTFLAGS",
+        "CARGO_ENCODED_RUSTFLAGS",
+        "CARGO_BUILD_TARGET",
+    ):
+        env.pop(name, None)
 
     def cargo(*arguments):
-        subprocess.run([cargo_program, "+1.95.0", *arguments], cwd=source, env=env, check=True)
+        subprocess.run(
+            [cargo_program, "+" + identity["rust_toolchain"], *arguments],
+            cwd=source,
+            env=env,
+            check=True,
+        )
 
     if args.check_only:
         cargo("fmt", "--all", "--", "--check")
@@ -97,6 +141,7 @@ def main() -> int:
         "--features",
         "compute-driver-vm,bundled-z3",
     )
+    cargo("build", "--release", "-p", "openshell-prover-cli", "--features", "bundled-z3")
     if args.vm_assets is None:
         raise ValueError("full runtime build requires verified VM assets")
     assets = output / "vm-runtime-compressed"
@@ -120,7 +165,13 @@ def main() -> int:
         "compute-driver",
     )
     binaries = {}
-    for name in ("openshell", "openshell-supervisor", "openshell-gateway", "openshell-driver-vm"):
+    for name in (
+        "openshell",
+        "openshell-supervisor",
+        "openshell-gateway",
+        "openshell-driver-vm",
+        "openshell-prover",
+    ):
         path = output / name
         shutil.copyfile(source / "target/release" / name, path)
         path.chmod(0o755)

@@ -53,7 +53,9 @@ class _Parser:
             position = match.end()
         self.position = 0
         self.fragments: dict[str, list[Any]] = {}
-        self.operations: list[tuple[str, str | None, list[Any], set[str]]] = []
+        self.fragment_variables: dict[str, set[str]] = {}
+        self.references: set[str] = set()
+        self.operations: list[tuple[str, str | None, list[Any], set[str], set[str], set[str]]] = []
 
     def peek(self):
         return self.tokens[self.position] if self.position < len(self.tokens) else None
@@ -76,7 +78,7 @@ class _Parser:
             raise ValueError("graphql_authority_invalid")
         token = self.take()
         if token == "$" and not constant:
-            self.name()
+            self.references.add(self.name())
         elif token == "[":
             while self.peek() != "]":
                 self.value(depth + 1, constant=constant)
@@ -138,7 +140,7 @@ class _Parser:
 
     def variables(self):
         if self.peek() != "(":
-            return set()
+            return set(), set()
         self.take()
         seen = set()
         required = set()
@@ -160,7 +162,7 @@ class _Parser:
         self.take(")")
         if not seen:
             raise ValueError("graphql_authority_invalid")
-        return required
+        return required, seen
 
     def selection(self, depth=0):
         if depth > 32:
@@ -197,6 +199,7 @@ class _Parser:
 
     def document(self, selected, variables):
         while self.peek() is not None:
+            self.references = set()
             if self.peek() == "fragment":
                 self.take()
                 name = self.name()
@@ -206,18 +209,20 @@ class _Parser:
                 self.name()
                 self.directives()
                 self.fragments[name] = self.selection()
+                self.fragment_variables[name] = self.references
             else:
                 kind, name = "query", None
-                required = set()
+                required, declared = set(), set()
                 if self.peek() != "{":
                     kind = self.take()
                     if kind not in {"query", "mutation", "subscription"}:
                         raise ValueError("graphql_authority_invalid")
                     if self.peek() not in {"(", "@", "{"}:
                         name = self.name()
-                    required = self.variables()
+                    required, declared = self.variables()
                     self.directives()
-                self.operations.append((kind, name, self.selection(), required))
+                nodes = self.selection()
+                self.operations.append((kind, name, nodes, required, declared, self.references))
         names = [operation[1] for operation in self.operations]
         if not names or len(set(names)) != len(names) or None in names and len(names) != 1:
             raise ValueError("graphql_authority_invalid")
@@ -231,6 +236,7 @@ class _Parser:
         fields = set()
         visits = 0
         used = set()
+        references = set()
         responses: dict[tuple[str, ...], Any] = {}
 
         def expand(nodes, prefix=(), active=frozenset(), response_prefix=()):
@@ -253,6 +259,7 @@ class _Parser:
                     if name not in self.fragments or name in active:
                         raise ValueError("graphql_authority_invalid")
                     used.add(name)
+                    references.update(self.fragment_variables[name])
                     expand(self.fragments[name], prefix, active | {name}, response_prefix)
 
         operation = matching[0]
@@ -261,7 +268,11 @@ class _Parser:
         for definition in self.operations:
             fields.clear()
             responses.clear()
+            references.clear()
+            references.update(definition[5])
             expand(definition[2])
+            if not references.issubset(definition[4]):
+                raise ValueError("graphql_authority_invalid")
         if used != set(self.fragments):
             raise ValueError("graphql_authority_invalid")
         fields.clear()

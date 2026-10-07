@@ -230,7 +230,7 @@ def verify_with_openshell_prover(
                 covered = (
                     set(component.coverage.get("domains", ()))
                     | set(domains)
-                    | {"request_integrity"}
+                    | ({"request_integrity"} if domains - {"network_tcp_literal"} else set())
                 )
                 missing = tuple(sorted(required_domains - covered))
                 return OpenShellProverResult(

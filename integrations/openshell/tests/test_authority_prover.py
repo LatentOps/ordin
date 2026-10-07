@@ -1,8 +1,16 @@
 from copy import deepcopy
+from dataclasses import replace
+import json
+import os
+import shutil
+
+import pytest
 
 from test_authority_compiler import supported_request
+from ordin.runtime_contract import NetworkCapability
 from ordin_openshell.compiler import OpenShellBackend
 from ordin_openshell.authority_prover import check_protocol_containment, project_transport
+from ordin_openshell.prover import verify_with_openshell_prover
 
 
 def compiled():
@@ -58,3 +66,49 @@ def test_ambiguous_duplicate_integrity_endpoints_are_not_projected_into_success(
     sibling["request_integrity"]["commitments"] = ["0" * 64]
     rule["endpoints"].append(sibling)
     assert check_protocol_containment(candidate, candidate)[0] == "unsupported"
+
+
+@pytest.mark.parametrize("host", ["8.8.8.8", "2001:4860:4860::8888"])
+@pytest.mark.parametrize("mixed", [False, True])
+def test_real_prover_literal_tcp_and_mixed_request_authority(tmp_path, host, mixed):
+    executable = os.environ.get("ORDIN_OPENSHELL_PROVER", "openshell-prover")
+    if shutil.which(executable) is None:
+        pytest.skip("standalone OpenShell prover is not installed")
+    request = supported_request(
+        "jsonrpc.request", {"jsonrpc": "2.0", "id": 1, "method": "items/delete"}
+    )
+    capability = replace(
+        request.capability,
+        contract_id="",
+        network=((*request.capability.network,) if mixed else ())
+        + (NetworkCapability(host, 853, "tcp", "write"),),
+    )
+    request = replace(request, request_contract_id="", capability=capability)
+    result = OpenShellBackend((1000, 1000), request_contract=request).compile(capability)
+    assert result.enforceable, result.unsupported_fields
+    policy = result.plan.as_dict()["policy"]
+    candidate, boundary = tmp_path / "candidate.json", tmp_path / "boundary.json"
+    candidate.write_text(json.dumps(policy))
+    boundary.write_text(json.dumps(policy))
+    within = verify_with_openshell_prover(candidate, boundary, executable=executable)
+    assert within.ok, within.as_dict()
+    assert "network_tcp_literal" in within.coverage["domains"]
+    for change in ("host", "port", "binary", "ips"):
+        changed = deepcopy(policy)
+        rule = next(
+            rule
+            for rule in changed["network_policies"].values()
+            if any(ep["protocol"] == "tcp" for ep in rule["endpoints"])
+        )
+        endpoint = next(ep for ep in rule["endpoints"] if ep["protocol"] == "tcp")
+        if change == "host":
+            endpoint["host"] = "1.1.1.1"
+        elif change == "port":
+            endpoint["port"] = 854
+        elif change == "binary":
+            rule["binaries"][0]["path"] = "/usr/bin/other"
+        else:
+            endpoint["allowed_ips"] = ["1.1.1.1/32"]
+        candidate.write_text(json.dumps(changed))
+        exceeds = verify_with_openshell_prover(candidate, boundary, executable=executable)
+        assert exceeds.result == "exceeds_boundary", (change, exceeds.as_dict())
