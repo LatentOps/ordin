@@ -7,7 +7,7 @@ its original scope. New acceptance reports are generated locally after merge
 against the exact final HEAD; the earlier results below retain their tested
 revision and do not certify the v2 extension.
 
-This report tests implementation revision `010669336a05187114ef1903bf2f533c9040595a` from an immutable
+The original acceptance suite tests implementation revision `010669336a05187114ef1903bf2f533c9040595a` from an immutable
 Git checkout. Starting HEAD was `925468d7153ef11d966af7706ca1029f44ffcd65`. Source digest is
 `ae81269d0e85726a176988418df4cca793f0d240344ac05899511f65ec7fd2e5`. The digest covers 600 committed
 tracked files and excludes the six generated evidence outputs listed in the
@@ -63,17 +63,71 @@ Actual results on Python 3.12.3 / native WSL Linux:
 
 ## Real pinned-runtime evidence
 
-All linked reports were rerun for `010669336a05187114ef1903bf2f533c9040595a` and the same source digest:
+The earlier reports below were rerun for `010669336a05187114ef1903bf2f533c9040595a`
+and the same source digest. The additional live mutation report records its own
+current-main source identity:
 
 | Report | Actual result and evidence scope |
 | --- | --- |
 | [VM/backend demo](reports/openshell-runtime-demo.json) | 6/6 assertions passed with KVM guest kernel 6.12.76: exact GET, denied POST/unrelated host, filesystem positive and read-only negative controls, and evidence returned to later review. Backend allows and the host filesystem probe are `backend_observed`; correlated network denials are `backend_enforced`. A fixture is not called kernel enforcement. |
 | [Protocol probes](reports/runtime-protocol-enforcement.json) | Seven baseline cases and fourteen extension cases passed. Extensions cover allowed aliases/fragments, disguised field expansion, MCP discovery and initialization notification, an exact legacy tool, wrong tools and disallowed protocol revisions. Denials require HTTP 403 and the backend's policy/version denial code. Loaded canonical policy equals the final-source compiler output. Public echo tests validate request enforcement, not application GraphQL/MCP execution. |
-| [Explicit apply](reports/openshell-runtime-apply.json) | Unapproved call required approval; exact host-fixture approval applied an authority-identical policy, with loaded revision/admission readback and two verified audit receipts. Apply executed no workload. |
+| [Idempotent apply](reports/openshell-runtime-apply.json) | Unapproved call required approval; exact host-fixture approval applied an authority-identical policy, with `mutation_attempted = false`, version **2 → 2**, loaded revision/admission readback and two verified audit receipts. Apply executed no workload. |
+| [Live policy mutation](reports/openshell-runtime-mutation-apply.json) | On current main `1757b735e52b0e852f430cda99f2ff174b06fb46`, exact approval executed one real `policy set`, with `mutation_attempted = true` and version **2 → 3**. Active/loaded/admitted policy matched compiled B; five before/after request controls and two hash-chained audit receipts passed. Apply executed no workload. |
 | [Corpus](reports/runtime-enforcement-corpus.json) | 13/13 synthetic adversarial cases passed with decision/evidence checks; no backend enforcement claim. |
 
 Task-owned sandbox and service identities were checked before cleanup. All task
 runtime services were stopped, while fixture state and sanitized evidence remain.
+
+## Final live mutation acceptance
+
+The separate mutation report tests an immutable native-LF archive of starting main
+`1757b735e52b0e852f430cda99f2ff174b06fb46`, tree
+`7a0fe45017969f3b75154793aba570ecbc57ee61`, with source digest
+`8ad0625679978b4412a78645842e74776e182a08678822dcbe07c321a91729af`.
+The manifest uses the same six evidence exclusions and covers 600 files. Compared
+with the earlier certified checkout, the only additional non-evidence change is
+`docs/threat-model.md`; implementation files are identical. Earlier suite and
+idempotent results retain their original source identities. No implementation
+code or runtime binary was changed for this acceptance.
+
+Disposable sandbox `ordin-mut-1007b` ran pinned OpenShell **0.1.2** with KVM guest
+kernel **6.12.76**. Its ID digest is
+`d1c25deab4eb04d89bfa0bf430916b2e1d14eed95cf7a2d8a6fc3eb176cb776f`.
+Policy A allowed GET `https://postman-echo.com/headers`; policy B allowed GET
+`https://postman-echo.com/get`. Both stayed inside the fixed operator boundary.
+B came from normal Ordin review, capability derivation and compilation, with no
+subsequent policy edits. Backend validation, capability containment and the
+pinned OpenShell prover all passed. The report records action, contract, plan,
+boundary and exact policy-byte digests.
+
+The workload used no credentials or providers, no root identity and no host
+mounts. Startup filesystem/process controls stayed unchanged. The runtime's
+mandatory temporary paths `/tmp` and `/dev/null` were declared inside the
+disposable guest; remaining bootstrap paths were read-only. Disposable internal
+VM launch signing material was created for this gateway and removed at cleanup.
+The first provisioning attempt ended in `Error` before the test because that
+internal authentication was missing; the acceptance used a new sandbox after
+configuration. Fixture setup observations are retained in the report.
+
+| Check | Observed result |
+| --- | --- |
+| Initial A | Version 2; digest `4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357`; config revision `996079740163844018`; admission accepted. |
+| Unapproved B | `requires_approval`, `mutation_attempted = false`; A's complete readback identity unchanged. |
+| Exact approval | Current preparation's exact request ID supplied; `applied`, reason `openshell_policy_applied`, `mutation_attempted = true`. |
+| Real management call | Process observation captured one actual OpenShell `policy set`; submitted bytes matched the compiled B byte digest. No mock was used. |
+| Active B | Version 3; digest `92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2`, exactly the expected B digest; config revision `12992550413905305689`. |
+| Loaded/admitted state | Loaded version/hash/canonical policy matched active B; admission accepted with identical version/backend hash/config revision. Sandbox and creation identities unchanged. |
+| Config revision surfaces | Effective policy and admission revisions agreed. Pinned revision readback exposes no `config_revision`; that surface was linked through exact version, backend hash and canonical policy digest. |
+| Before controls | A's GET `/headers`: HTTP 200; B's GET `/get`: HTTP 403 with `policy_denied`. |
+| After controls | B's GET `/get`: HTTP 200; POST `/get` and old GET `/headers`: HTTP 403 with `policy_denied`. |
+| Audit | Two receipts, `attempted` then `applied`; hash chain verified. Last hash `54f36ef10d43910e709871d1ba39e1906e709454857c0c53b2a6de4014b6e9f8`. |
+| Workload execution | `action_executed_by_apply = false`; apply spawned only management/prover processes. Each request probe was invoked separately by the trusted harness. |
+| Cleanup | Sandbox verified stopped; task-owned gateway, VM helpers, Docker and containerd stopped; no task runtime service remained. Unrelated services remained running. Disposable state and signing material removed; sanitized evidence retained. |
+
+**LIVE MUTATION ACCEPTANCE PASSED.** Runtime-enforcement architecture remains
+frozen. Subsequent work is real-world evaluation of coding-agent workloads,
+Claude/Codex/Cursor integrations, false positives and negatives, latency, policy
+UX and developer adoption.
 
 ## Packaging and historical evidence
 
