@@ -119,6 +119,7 @@ def test_pure_tcp_request_boundary_is_verified_and_bound_before_approval():
     accepted = prepare_openshell_apply(
         plan, backend=backend, sandbox="demo", cli=cli, request_boundary=accepted_boundary
     )
-    assert accepted.status == "requires_approval", accepted.reason_code
+    assert accepted.verification[-1]["result"] == "within_boundary"
+    assert accepted.reason_code == "openshell_runtime_extension_mismatch"
     assert rejected.request_id != accepted.request_id
     assert rejected.verification[-1]["boundary_digest"] == boundary.digest
