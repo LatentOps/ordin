@@ -125,3 +125,57 @@ def test_real_prover_literal_tcp_and_mixed_request_authority(tmp_path, host, mix
         candidate.write_text(json.dumps(changed))
         exceeds = verify_with_openshell_prover(candidate, boundary, executable=executable)
         assert exceeds.result == "exceeds_boundary", (change, exceeds.as_dict())
+
+
+@pytest.mark.parametrize("host", ["8.8.8.8", "2001:4860:4860::8888"])
+@pytest.mark.parametrize("protocol", ["graphql", "json-rpc", "rest"])
+def test_real_prover_literal_request_self_and_broader_tcp_maximum(tmp_path, host, protocol):
+    executable = os.environ.get("ORDIN_OPENSHELL_PROVER", "openshell-prover")
+    if shutil.which(executable) is None:
+        pytest.skip("standalone OpenShell prover is not installed")
+    authority_host = f"[{host}]" if ":" in host else host
+    request = supported_request(
+        "graphql.request" if protocol == "graphql" else "jsonrpc.request",
+        {"query": "{ viewer { id } }"}
+        if protocol == "graphql"
+        else {"jsonrpc": "2.0", "id": 1, "method": "items/delete"},
+        f"https://{authority_host}/rpc",
+    )
+    scope = {
+        "host": host,
+        "port": 443,
+        "protocols": [request.requests[0].protocol],
+        "allowed_ips": [host + ("/128" if ":" in host else "/32")],
+    }
+    compiled = OpenShellBackend(
+        (1000, 1000), request_contract=request, network_scopes=(scope,)
+    ).compile(request.capability)
+    assert compiled.enforceable, compiled.unsupported_fields
+    policy = compiled.plan.as_dict()["policy"]
+    rule = next(iter(policy["network_policies"].values()))
+    endpoint = rule["endpoints"][0]
+    if protocol == "rest":
+        endpoint["protocol"] = "rest"
+        endpoint.pop("path")
+        endpoint.pop("request_integrity")
+        endpoint.pop("json_rpc")
+        endpoint["rules"] = [{"allow": {"method": "GET", "path": "/rpc"}}]
+    candidate, boundary = tmp_path / "candidate.json", tmp_path / "boundary.json"
+    candidate.write_text(json.dumps(policy))
+    boundary.write_text(json.dumps(policy))
+    within = verify_with_openshell_prover(candidate, boundary, executable=executable)
+    assert within.ok, within.as_dict()
+    assert "network_ip_literal" in within.coverage["domains"]
+    maximum = deepcopy(policy)
+    maximum_rule = next(iter(maximum["network_policies"].values()))
+    maximum_rule["endpoints"] = [{k: endpoint[k] for k in ("host", "port", "allowed_ips")}]
+    maximum_rule["endpoints"][0]["protocol"] = "tcp"
+    boundary.write_text(json.dumps(maximum))
+    within = verify_with_openshell_prover(candidate, boundary, executable=executable)
+    assert within.ok, within.as_dict()
+    maximum_rule["endpoints"][0]["port"] = 444
+    boundary.write_text(json.dumps(maximum))
+    assert (
+        verify_with_openshell_prover(candidate, boundary, executable=executable).result
+        == "exceeds_boundary"
+    )

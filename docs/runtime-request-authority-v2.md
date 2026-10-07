@@ -65,9 +65,10 @@ revision, executable and address containment before invoking the native solver
 on an exact transport projection. It records original input hashes, component
 hashes and explicit coverage. Raw REST cannot borrow GraphQL or RPC permissions.
 An explicitly broader TCP maximum can contain narrower request authority.
-Exact IPv4/IPv6 TCP literal grants are checked in the bounded component before
+Exact IPv4/IPv6 literal grants are checked in the bounded component before
 being omitted from both native transport inputs. Their coverage is named
-`network_tcp_literal`; native filesystem, process and remaining network proof
+`network_ip_literal` (and `network_tcp_literal` for TCP); native filesystem,
+process and remaining network proof
 still runs. The reproducible bundle includes the standalone native prover.
 
 Apply checks the audited CLI, gateway and supervisor build identities and the
