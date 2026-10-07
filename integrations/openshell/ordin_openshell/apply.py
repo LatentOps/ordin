@@ -543,9 +543,15 @@ def apply_openshell_policy(
                 pass  # The returned digest-bound result still exposes the uncertain attempt.
         return outcome
     except (ValueError, OSError, TypeError):
-        return PolicyApplyResult(
+        outcome = PolicyApplyResult(
             "inconclusive" if attempted else "unsupported",
             "openshell_apply_io_or_audit_failed",
             prepared,
             attempted,
         )
+        if audit is not None:
+            try:
+                audit.record(prepared, outcome.status, result=outcome)
+            except (ValueError, OSError, TypeError):
+                pass
+        return outcome

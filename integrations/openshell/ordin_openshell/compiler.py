@@ -201,6 +201,21 @@ def compile_openshell_policy(
             scoped_host(capability.host) if addresses is not None else exact_host(capability.host)
         )
         addresses = addresses if addresses is not None else PUBLIC_IPV4_RANGES
+        if host_valid and isinstance(capability.host, str):
+            import ipaddress
+
+            try:
+                address = ipaddress.ip_address(capability.host)
+            except ValueError:
+                pass
+            else:
+                if not any(
+                    address.version == ipaddress.ip_network(value).version
+                    and address in ipaddress.ip_network(value)
+                    for value in addresses
+                ):
+                    unsupported.add("network.allowed_ip_mismatch")
+                    continue
         if capability.protocol == "tcp":
             if (
                 not isinstance(capability.host, str)
@@ -213,19 +228,6 @@ def compile_openshell_policy(
             ):
                 unsupported.add("network.tcp_scope")
                 continue
-            import ipaddress
-
-            try:
-                address = ipaddress.ip_address(capability.host)
-                if not any(
-                    address.version == ipaddress.ip_network(value).version
-                    and address in ipaddress.ip_network(value)
-                    for value in addresses
-                ):
-                    unsupported.add("network.allowed_ip_mismatch")
-                    continue
-            except ValueError:
-                pass
             rules[f"ordin_action_{contract.action_digest[:12]}_{index}"] = {
                 "endpoints": [
                     {
