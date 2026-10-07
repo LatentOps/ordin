@@ -83,8 +83,21 @@ def test_real_prover_literal_tcp_and_mixed_request_authority(tmp_path, host, mix
         network=((*request.capability.network,) if mixed else ())
         + (NetworkCapability(host, 853, "tcp", "write"),),
     )
-    request = replace(request, request_contract_id="", capability=capability)
-    result = OpenShellBackend((1000, 1000), request_contract=request).compile(capability)
+    request = replace(
+        request,
+        request_contract_id="",
+        capability=capability,
+        requests=request.requests if mixed else (),
+    )
+    scope = {
+        "host": host,
+        "port": 853,
+        "protocols": ["tcp"],
+        "allowed_ips": [host + ("/128" if ":" in host else "/32")],
+    }
+    result = OpenShellBackend(
+        (1000, 1000), request_contract=request, network_scopes=(scope,)
+    ).compile(capability)
     assert result.enforceable, result.unsupported_fields
     policy = result.plan.as_dict()["policy"]
     candidate, boundary = tmp_path / "candidate.json", tmp_path / "boundary.json"
