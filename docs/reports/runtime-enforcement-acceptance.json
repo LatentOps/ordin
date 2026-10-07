@@ -113,6 +113,12 @@
       "source_revision": "010669336a05187114ef1903bf2f533c9040595a",
       "sha256": "f7b9f9efdcd6dd5d23f70e76aa271b302d633ee4a1bc75304dca9fbd2a43dd28",
       "evidence_class": "actual runtime management; no workload execution by apply"
+    },
+    "openshell-runtime-mutation-apply.json": {
+      "source_revision": "1757b735e52b0e852f430cda99f2ff174b06fb46",
+      "source_digest": "8ad0625679978b4412a78645842e74776e182a08678822dcbe07c321a91729af",
+      "sha256": "79ce38ca69832107b4899ffa490a62291fbdc257557e05ce60416671689379d5",
+      "evidence_class": "real OpenShell management mutation and KVM request enforcement; finite public-resource controls"
     }
   },
   "cleanup": {
@@ -210,7 +216,10 @@
     "approved": "applied",
     "authority_unchanged": true,
     "audit_receipts": 2,
-    "action_executed_by_apply": false
+    "action_executed_by_apply": false,
+    "mutation_attempted": false,
+    "before_version": 2,
+    "after_version": 2
   },
   "packaging": {
     "core_wheel": true,
@@ -344,5 +353,78 @@
       "checks": 14,
       "passed": true
     }
-  }
+  },
+  "runtime_mutation_apply": {
+    "status": "passed",
+    "report": "docs/reports/openshell-runtime-mutation-apply.json",
+    "tested_source_revision": "1757b735e52b0e852f430cda99f2ff174b06fb46",
+    "tested_source_digest": "8ad0625679978b4412a78645842e74776e182a08678822dcbe07c321a91729af",
+    "openshell_version": "0.1.2",
+    "guest_kernel": "6.12.76",
+    "unapproved_status": "requires_approval",
+    "approved_status": "applied",
+    "reason_code": "openshell_policy_applied",
+    "mutation_attempted": true,
+    "before_version": 2,
+    "after_version": 3,
+    "before_policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+    "after_policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+    "expected_policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+    "authority_changed_as_expected": true,
+    "positive_control_passed": true,
+    "negative_control_passed": true,
+    "action_executed_by_apply": false,
+    "admission_verified": true,
+    "version_increment_verified": true,
+    "source_unchanged_after_test": true,
+    "implementation_changed": false,
+    "audit": {
+      "ok": true,
+      "events": 2,
+      "last_hash": "54f36ef10d43910e709871d1ba39e1906e709454857c0c53b2a6de4014b6e9f8"
+    },
+    "cleanup": {
+      "passed": true,
+      "sandbox_stopped": true,
+      "task_owned_services_stopped": true,
+      "verified_no_task_services": true,
+      "unrelated_services_preserved": true,
+      "records": [
+        {
+          "sandbox": "ordin-mut-1007",
+          "phase": "NotFound",
+          "removed_by_gateway_restart": true,
+          "already_inactive": true
+        },
+        {
+          "sandbox": "ordin-mut-1007b",
+          "phase": "Stopped",
+          "stopped": true,
+          "identity_verified": true
+        },
+        {
+          "program": "openshell-gateway",
+          "pid": 235329,
+          "stopped": true,
+          "ownership_verified": true
+        },
+        {
+          "program": "dockerd",
+          "pid": 234928,
+          "stopped": true,
+          "ownership_verified": true
+        },
+        {
+          "program": "containerd",
+          "pid": 234830,
+          "stopped": true,
+          "ownership_verified": true
+        }
+      ],
+      "only_task_owned_state_removed": true,
+      "retained_non_secret_image_cache": true,
+      "temporary_runtime_state_removed": true
+    }
+  },
+  "runtime_enforcement_architecture": "historical v1 milestone frozen after live mutation acceptance; v2 request authority has separate source-bound validation"
 }

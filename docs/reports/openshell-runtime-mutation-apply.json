@@ -1,0 +1,688 @@
+{
+  "schema_version": "ordin.openshell_runtime_mutation_apply.v1",
+  "starting_revision": "1757b735e52b0e852f430cda99f2ff174b06fb46",
+  "tested_source_revision": "1757b735e52b0e852f430cda99f2ff174b06fb46",
+  "tested_source_tree": "7a0fe45017969f3b75154793aba570ecbc57ee61",
+  "tested_source_digest": "8ad0625679978b4412a78645842e74776e182a08678822dcbe07c321a91729af",
+  "source_digest_excludes": [
+    "docs/runtime-enforcement-acceptance.md",
+    "docs/reports/runtime-enforcement-acceptance.json",
+    "docs/reports/runtime-enforcement-corpus.json",
+    "docs/reports/runtime-protocol-enforcement.json",
+    "docs/reports/openshell-runtime-demo.json",
+    "docs/reports/openshell-runtime-apply.json"
+  ],
+  "source_files": 600,
+  "source_digest_algorithm": "SHA256 of sorted path-to-SHA256 manifest over committed tracked files with LF checkout, excluding six generated evidence outputs",
+  "previous_certified_revision": "010669336a05187114ef1903bf2f533c9040595a",
+  "previous_certified_digest": "ae81269d0e85726a176988418df4cca793f0d240344ac05899511f65ec7fd2e5",
+  "non_evidence_changes_from_certified_source": [
+    "docs/threat-model.md"
+  ],
+  "implementation_files_identical_to_certified_source": true,
+  "passed": true,
+  "sandbox": "ordin-mut-1007b",
+  "openshell_version": "0.1.2",
+  "approval_actor": "trusted disposable acceptance harness under explicit live-mutation test authorization",
+  "action_executed_by_apply": false,
+  "evidence_class": "real OpenShell management mutation and KVM request enforcement; finite public-resource controls",
+  "operator_boundary_digest": "a4cf45059232601e171d9ed77fea44ef7d1e0d1d14b2430b933e59a734211304",
+  "before_policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+  "expected_policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+  "action_digest": "5018ecd57f35048dc56df6cacf2b2be1560ac9fb2af77c0515ef17cbccb9c2d9",
+  "contract_id": "rc:e1ddb7973471a08d0813e5a6f40a6b803abe2c26bf61a9a409ebcdf6ae697828",
+  "contract_digest": "3159b35723bf7c9259720d9fd54903667d03a45f6028b325487337781ef5d224",
+  "plan_id": "ep:103c9066e837872991b675df9d3c62e84698f13f3f30677cf8198f861cef5a80",
+  "policy_bytes_digest": "9c86d619ee3d1b656e36114eb2a71ecf37f158c54ba7654ffecc272e60a804cc",
+  "no_user_credentials": true,
+  "credential_capabilities": 0,
+  "process_uid": 1000,
+  "process_gid": 1000,
+  "filesystem_write_scope": [
+    "/tmp",
+    "/dev/null"
+  ],
+  "filesystem_scope": "mandatory temporary paths inside the disposable guest; no host mounts",
+  "startup_sections_unchanged": true,
+  "disposable_internal_vm_launch_auth": true,
+  "phase": "complete",
+  "before_version": 2,
+  "sandbox_id_digest": "d1c25deab4eb04d89bfa0bf430916b2e1d14eed95cf7a2d8a6fc3eb176cb776f",
+  "before": {
+    "version": 2,
+    "active_version": 2,
+    "policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+    "backend_hash": "23b5ee5c95333c11c5064a7a053df9ce32a6aa9fc6cb859147c8a350973385c4",
+    "config_revision": 996079740163844018,
+    "loaded_version": 2,
+    "loaded_active_version": 2,
+    "loaded_policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+    "loaded_backend_hash": "23b5ee5c95333c11c5064a7a053df9ce32a6aa9fc6cb859147c8a350973385c4",
+    "loaded_config_revision": null,
+    "sandbox_id_digest": "d1c25deab4eb04d89bfa0bf430916b2e1d14eed95cf7a2d8a6fc3eb176cb776f",
+    "creation_identity_digest": "ece2d0ed04c4ceeca7a5586d92cb52912cc35d8d55dde7391002ba5b206dbbe4",
+    "sandbox_policy_version": 2,
+    "sandbox_policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+    "admission_state": "accepted",
+    "admission_policy_version": 2,
+    "admission_policy_hash": "23b5ee5c95333c11c5064a7a053df9ce32a6aa9fc6cb859147c8a350973385c4",
+    "admission_config_revision": 996079740163844018,
+    "phase": "Ready",
+    "config_revision_surfaces": {
+      "effective_policy": 996079740163844018,
+      "configuration_admission": 996079740163844018
+    },
+    "config_revision_surfaces_agree": true,
+    "loaded_revision_linkage": "exact active version, backend hash and canonical policy digest; pinned revision readback does not expose config_revision"
+  },
+  "guest_kernel": "6.12.76",
+  "controls": [
+    {
+      "case": "before_A_allowed",
+      "expected": "allowed",
+      "exit_code": 0,
+      "http_status": 200,
+      "backend_denial_code": null,
+      "policy_version": 2,
+      "passed": true,
+      "invoked_separately_by_trusted_harness": true
+    },
+    {
+      "case": "before_B_denied",
+      "expected": "denied",
+      "exit_code": 0,
+      "http_status": 403,
+      "backend_denial_code": "policy_denied",
+      "policy_version": 2,
+      "passed": true,
+      "invoked_separately_by_trusted_harness": true
+    },
+    {
+      "case": "after_B_allowed",
+      "expected": "allowed",
+      "exit_code": 0,
+      "http_status": 200,
+      "backend_denial_code": null,
+      "policy_version": 3,
+      "passed": true,
+      "invoked_separately_by_trusted_harness": true
+    },
+    {
+      "case": "after_POST_B_denied",
+      "expected": "denied",
+      "exit_code": 0,
+      "http_status": 403,
+      "backend_denial_code": "policy_denied",
+      "policy_version": 3,
+      "passed": true,
+      "invoked_separately_by_trusted_harness": true
+    },
+    {
+      "case": "after_A_revoked",
+      "expected": "denied",
+      "exit_code": 0,
+      "http_status": 403,
+      "backend_denial_code": "policy_denied",
+      "policy_version": 3,
+      "passed": true,
+      "invoked_separately_by_trusted_harness": true
+    }
+  ],
+  "unapproved_status": "requires_approval",
+  "unapproved_mutation_attempted": false,
+  "unapproved_policy_unchanged": true,
+  "unapproved": {
+    "status": "requires_approval",
+    "reason_code": "openshell_apply_requires_approval",
+    "preparation": {
+      "status": "requires_approval",
+      "reason_code": "openshell_apply_requires_approval",
+      "request_id": "pa:c12fec4f1418584a6c244f0694443e427ad85142b19de88c0ba1d7f789df4e4d",
+      "action_digest": "5018ecd57f35048dc56df6cacf2b2be1560ac9fb2af77c0515ef17cbccb9c2d9",
+      "contract_id": "rc:e1ddb7973471a08d0813e5a6f40a6b803abe2c26bf61a9a409ebcdf6ae697828",
+      "contract_digest": "3159b35723bf7c9259720d9fd54903667d03a45f6028b325487337781ef5d224",
+      "plan_id": "ep:103c9066e837872991b675df9d3c62e84698f13f3f30677cf8198f861cef5a80",
+      "policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+      "policy_bytes_digest": "9c86d619ee3d1b656e36114eb2a71ecf37f158c54ba7654ffecc272e60a804cc",
+      "sandbox_id_digest": "d1c25deab4eb04d89bfa0bf430916b2e1d14eed95cf7a2d8a6fc3eb176cb776f",
+      "current_policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+      "verification": [
+        {
+          "step": "backend_validation",
+          "status": "success",
+          "backend": "openshell",
+          "policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+          "reason_code": "openshell_policy_valid",
+          "reasons": [],
+          "unsupported_fields": []
+        },
+        {
+          "step": "capability_boundary",
+          "result": "within_boundary",
+          "reason_code": "runtime_boundary_within",
+          "contract_digest": "3159b35723bf7c9259720d9fd54903667d03a45f6028b325487337781ef5d224",
+          "boundary_digest": "a4cf45059232601e171d9ed77fea44ef7d1e0d1d14b2430b933e59a734211304",
+          "coverage": {
+            "filesystem": true,
+            "network": true,
+            "tools": true,
+            "process": true,
+            "privilege": true,
+            "credentials": true
+          },
+          "unsupported_fields": [],
+          "counterexample_digest": null
+        },
+        {
+          "step": "openshell_prover",
+          "result": "within_boundary",
+          "reason_code": "openshell_prover_within_boundary",
+          "coverage": {
+            "domains": [
+              "filesystem",
+              "network_l4",
+              "network_rest",
+              "process",
+              "landlock"
+            ]
+          },
+          "candidate_digest": "9c86d619ee3d1b656e36114eb2a71ecf37f158c54ba7654ffecc272e60a804cc",
+          "boundary_digest": "199ca0b18d673dcffa59bb4291749e27a0c087016f8e532de4e75d105889ad38",
+          "prover_version": "0.1.2",
+          "unsupported_domains": [],
+          "counterexample_digest": null
+        }
+      ]
+    },
+    "mutation_attempted": false,
+    "active_policy_digest": null
+  },
+  "after_unapproved": {
+    "version": 2,
+    "active_version": 2,
+    "policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+    "backend_hash": "23b5ee5c95333c11c5064a7a053df9ce32a6aa9fc6cb859147c8a350973385c4",
+    "config_revision": 996079740163844018,
+    "loaded_version": 2,
+    "loaded_active_version": 2,
+    "loaded_policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+    "loaded_backend_hash": "23b5ee5c95333c11c5064a7a053df9ce32a6aa9fc6cb859147c8a350973385c4",
+    "loaded_config_revision": null,
+    "sandbox_id_digest": "d1c25deab4eb04d89bfa0bf430916b2e1d14eed95cf7a2d8a6fc3eb176cb776f",
+    "creation_identity_digest": "ece2d0ed04c4ceeca7a5586d92cb52912cc35d8d55dde7391002ba5b206dbbe4",
+    "sandbox_policy_version": 2,
+    "sandbox_policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+    "admission_state": "accepted",
+    "admission_policy_version": 2,
+    "admission_policy_hash": "23b5ee5c95333c11c5064a7a053df9ce32a6aa9fc6cb859147c8a350973385c4",
+    "admission_config_revision": 996079740163844018,
+    "phase": "Ready",
+    "config_revision_surfaces": {
+      "effective_policy": 996079740163844018,
+      "configuration_admission": 996079740163844018
+    },
+    "config_revision_surfaces_agree": true,
+    "loaded_revision_linkage": "exact active version, backend hash and canonical policy digest; pinned revision readback does not expose config_revision"
+  },
+  "preparation": {
+    "status": "requires_approval",
+    "reason_code": "openshell_apply_requires_approval",
+    "request_id": "pa:c12fec4f1418584a6c244f0694443e427ad85142b19de88c0ba1d7f789df4e4d",
+    "action_digest": "5018ecd57f35048dc56df6cacf2b2be1560ac9fb2af77c0515ef17cbccb9c2d9",
+    "contract_id": "rc:e1ddb7973471a08d0813e5a6f40a6b803abe2c26bf61a9a409ebcdf6ae697828",
+    "contract_digest": "3159b35723bf7c9259720d9fd54903667d03a45f6028b325487337781ef5d224",
+    "plan_id": "ep:103c9066e837872991b675df9d3c62e84698f13f3f30677cf8198f861cef5a80",
+    "policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+    "policy_bytes_digest": "9c86d619ee3d1b656e36114eb2a71ecf37f158c54ba7654ffecc272e60a804cc",
+    "sandbox_id_digest": "d1c25deab4eb04d89bfa0bf430916b2e1d14eed95cf7a2d8a6fc3eb176cb776f",
+    "current_policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+    "verification": [
+      {
+        "step": "backend_validation",
+        "status": "success",
+        "backend": "openshell",
+        "policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+        "reason_code": "openshell_policy_valid",
+        "reasons": [],
+        "unsupported_fields": []
+      },
+      {
+        "step": "capability_boundary",
+        "result": "within_boundary",
+        "reason_code": "runtime_boundary_within",
+        "contract_digest": "3159b35723bf7c9259720d9fd54903667d03a45f6028b325487337781ef5d224",
+        "boundary_digest": "a4cf45059232601e171d9ed77fea44ef7d1e0d1d14b2430b933e59a734211304",
+        "coverage": {
+          "filesystem": true,
+          "network": true,
+          "tools": true,
+          "process": true,
+          "privilege": true,
+          "credentials": true
+        },
+        "unsupported_fields": [],
+        "counterexample_digest": null
+      },
+      {
+        "step": "openshell_prover",
+        "result": "within_boundary",
+        "reason_code": "openshell_prover_within_boundary",
+        "coverage": {
+          "domains": [
+            "filesystem",
+            "network_l4",
+            "network_rest",
+            "process",
+            "landlock"
+          ]
+        },
+        "candidate_digest": "9c86d619ee3d1b656e36114eb2a71ecf37f158c54ba7654ffecc272e60a804cc",
+        "boundary_digest": "199ca0b18d673dcffa59bb4291749e27a0c087016f8e532de4e75d105889ad38",
+        "prover_version": "0.1.2",
+        "unsupported_domains": [],
+        "counterexample_digest": null
+      }
+    ]
+  },
+  "approved_status": "applied",
+  "reason_code": "openshell_policy_applied",
+  "mutation_attempted": true,
+  "result": {
+    "status": "applied",
+    "reason_code": "openshell_policy_applied",
+    "preparation": {
+      "status": "requires_approval",
+      "reason_code": "openshell_apply_requires_approval",
+      "request_id": "pa:c12fec4f1418584a6c244f0694443e427ad85142b19de88c0ba1d7f789df4e4d",
+      "action_digest": "5018ecd57f35048dc56df6cacf2b2be1560ac9fb2af77c0515ef17cbccb9c2d9",
+      "contract_id": "rc:e1ddb7973471a08d0813e5a6f40a6b803abe2c26bf61a9a409ebcdf6ae697828",
+      "contract_digest": "3159b35723bf7c9259720d9fd54903667d03a45f6028b325487337781ef5d224",
+      "plan_id": "ep:103c9066e837872991b675df9d3c62e84698f13f3f30677cf8198f861cef5a80",
+      "policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+      "policy_bytes_digest": "9c86d619ee3d1b656e36114eb2a71ecf37f158c54ba7654ffecc272e60a804cc",
+      "sandbox_id_digest": "d1c25deab4eb04d89bfa0bf430916b2e1d14eed95cf7a2d8a6fc3eb176cb776f",
+      "current_policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+      "verification": [
+        {
+          "step": "backend_validation",
+          "status": "success",
+          "backend": "openshell",
+          "policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+          "reason_code": "openshell_policy_valid",
+          "reasons": [],
+          "unsupported_fields": []
+        },
+        {
+          "step": "capability_boundary",
+          "result": "within_boundary",
+          "reason_code": "runtime_boundary_within",
+          "contract_digest": "3159b35723bf7c9259720d9fd54903667d03a45f6028b325487337781ef5d224",
+          "boundary_digest": "a4cf45059232601e171d9ed77fea44ef7d1e0d1d14b2430b933e59a734211304",
+          "coverage": {
+            "filesystem": true,
+            "network": true,
+            "tools": true,
+            "process": true,
+            "privilege": true,
+            "credentials": true
+          },
+          "unsupported_fields": [],
+          "counterexample_digest": null
+        },
+        {
+          "step": "openshell_prover",
+          "result": "within_boundary",
+          "reason_code": "openshell_prover_within_boundary",
+          "coverage": {
+            "domains": [
+              "filesystem",
+              "network_l4",
+              "network_rest",
+              "process",
+              "landlock"
+            ]
+          },
+          "candidate_digest": "9c86d619ee3d1b656e36114eb2a71ecf37f158c54ba7654ffecc272e60a804cc",
+          "boundary_digest": "199ca0b18d673dcffa59bb4291749e27a0c087016f8e532de4e75d105889ad38",
+          "prover_version": "0.1.2",
+          "unsupported_domains": [],
+          "counterexample_digest": null
+        }
+      ]
+    },
+    "mutation_attempted": true,
+    "active_policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2"
+  },
+  "apply_process_observations": [
+    {
+      "program": "openshell-prover",
+      "operation": "prove"
+    },
+    {
+      "program": "openshell",
+      "operation": "version"
+    },
+    {
+      "program": "openshell",
+      "operation": "policy_get"
+    },
+    {
+      "program": "openshell",
+      "operation": "policy_get"
+    },
+    {
+      "program": "openshell",
+      "operation": "sandbox_get"
+    },
+    {
+      "program": "openshell",
+      "operation": "policy_get"
+    },
+    {
+      "program": "openshell",
+      "operation": "policy_get"
+    },
+    {
+      "program": "openshell",
+      "operation": "sandbox_get"
+    },
+    {
+      "program": "openshell",
+      "operation": "policy_set",
+      "submitted_policy_bytes_digest": "9c86d619ee3d1b656e36114eb2a71ecf37f158c54ba7654ffecc272e60a804cc"
+    },
+    {
+      "program": "openshell",
+      "operation": "policy_get"
+    },
+    {
+      "program": "openshell",
+      "operation": "policy_get"
+    },
+    {
+      "program": "openshell",
+      "operation": "sandbox_get"
+    }
+  ],
+  "actual_policy_set_executions": 1,
+  "apply_workload_processes": 0,
+  "after_version": 3,
+  "after_policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+  "after": {
+    "version": 3,
+    "active_version": 3,
+    "policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+    "backend_hash": "b546261af6b2052ace3087e43a6dd88074ed32bfcdcfed6db1b1c2ab84c7e88c",
+    "config_revision": 12992550413905305689,
+    "loaded_version": 3,
+    "loaded_active_version": 3,
+    "loaded_policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+    "loaded_backend_hash": "b546261af6b2052ace3087e43a6dd88074ed32bfcdcfed6db1b1c2ab84c7e88c",
+    "loaded_config_revision": null,
+    "sandbox_id_digest": "d1c25deab4eb04d89bfa0bf430916b2e1d14eed95cf7a2d8a6fc3eb176cb776f",
+    "creation_identity_digest": "ece2d0ed04c4ceeca7a5586d92cb52912cc35d8d55dde7391002ba5b206dbbe4",
+    "sandbox_policy_version": 3,
+    "sandbox_policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+    "admission_state": "accepted",
+    "admission_policy_version": 3,
+    "admission_policy_hash": "b546261af6b2052ace3087e43a6dd88074ed32bfcdcfed6db1b1c2ab84c7e88c",
+    "admission_config_revision": 12992550413905305689,
+    "phase": "Ready",
+    "config_revision_surfaces": {
+      "effective_policy": 12992550413905305689,
+      "configuration_admission": 12992550413905305689
+    },
+    "config_revision_surfaces_agree": true,
+    "loaded_revision_linkage": "exact active version, backend hash and canonical policy digest; pinned revision readback does not expose config_revision"
+  },
+  "version_increment_verified": true,
+  "sandbox_identity_unchanged": true,
+  "sandbox_creation_identity_unchanged": true,
+  "admission_verified": true,
+  "authority_changed_as_expected": true,
+  "positive_control_passed": true,
+  "negative_control_passed": true,
+  "audit": {
+    "ok": true,
+    "events": 2,
+    "last_hash": "54f36ef10d43910e709871d1ba39e1906e709454857c0c53b2a6de4014b6e9f8",
+    "outcomes": [
+      "attempted",
+      "applied"
+    ],
+    "receipts": [
+      {
+        "action_digest": "5018ecd57f35048dc56df6cacf2b2be1560ac9fb2af77c0515ef17cbccb9c2d9",
+        "active_policy_digest": null,
+        "code": "runtime.policy.attempted",
+        "contract_digest": "3159b35723bf7c9259720d9fd54903667d03a45f6028b325487337781ef5d224",
+        "contract_id": "rc:e1ddb7973471a08d0813e5a6f40a6b803abe2c26bf61a9a409ebcdf6ae697828",
+        "current_policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+        "event_hash": "6809676c63217ebe1df13005a5758cf8132270dcd45b8141c2635651d1e38ba6",
+        "mutation_attempted": null,
+        "outcome": "attempted",
+        "plan_id": "ep:103c9066e837872991b675df9d3c62e84698f13f3f30677cf8198f861cef5a80",
+        "policy_bytes_digest": "9c86d619ee3d1b656e36114eb2a71ecf37f158c54ba7654ffecc272e60a804cc",
+        "policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+        "previous_hash": null,
+        "reason_code": "openshell_apply_requires_approval",
+        "request_id": "pa:c12fec4f1418584a6c244f0694443e427ad85142b19de88c0ba1d7f789df4e4d",
+        "sandbox_id_digest": "d1c25deab4eb04d89bfa0bf430916b2e1d14eed95cf7a2d8a6fc3eb176cb776f",
+        "schema_version": "ordin.openshell_apply_audit.v1",
+        "status": "requires_approval",
+        "timestamp": "2026-10-07T18:27:31.751648+00:00",
+        "verification": [
+          {
+            "backend": "openshell",
+            "policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+            "reason_code": "openshell_policy_valid",
+            "reasons": [],
+            "status": "success",
+            "step": "backend_validation",
+            "unsupported_fields": []
+          },
+          {
+            "boundary_digest": "a4cf45059232601e171d9ed77fea44ef7d1e0d1d14b2430b933e59a734211304",
+            "contract_digest": "3159b35723bf7c9259720d9fd54903667d03a45f6028b325487337781ef5d224",
+            "counterexample_digest": null,
+            "coverage": {
+              "credentials": true,
+              "filesystem": true,
+              "network": true,
+              "privilege": true,
+              "process": true,
+              "tools": true
+            },
+            "reason_code": "runtime_boundary_within",
+            "result": "within_boundary",
+            "step": "capability_boundary",
+            "unsupported_fields": []
+          },
+          {
+            "boundary_digest": "199ca0b18d673dcffa59bb4291749e27a0c087016f8e532de4e75d105889ad38",
+            "candidate_digest": "9c86d619ee3d1b656e36114eb2a71ecf37f158c54ba7654ffecc272e60a804cc",
+            "counterexample_digest": null,
+            "coverage": {
+              "domains": [
+                "filesystem",
+                "network_l4",
+                "network_rest",
+                "process",
+                "landlock"
+              ]
+            },
+            "prover_version": "0.1.2",
+            "reason_code": "openshell_prover_within_boundary",
+            "result": "within_boundary",
+            "step": "openshell_prover",
+            "unsupported_domains": []
+          }
+        ]
+      },
+      {
+        "action_digest": "5018ecd57f35048dc56df6cacf2b2be1560ac9fb2af77c0515ef17cbccb9c2d9",
+        "active_policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+        "code": "runtime.policy.applied",
+        "contract_digest": "3159b35723bf7c9259720d9fd54903667d03a45f6028b325487337781ef5d224",
+        "contract_id": "rc:e1ddb7973471a08d0813e5a6f40a6b803abe2c26bf61a9a409ebcdf6ae697828",
+        "current_policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+        "event_hash": "54f36ef10d43910e709871d1ba39e1906e709454857c0c53b2a6de4014b6e9f8",
+        "mutation_attempted": true,
+        "outcome": "applied",
+        "plan_id": "ep:103c9066e837872991b675df9d3c62e84698f13f3f30677cf8198f861cef5a80",
+        "policy_bytes_digest": "9c86d619ee3d1b656e36114eb2a71ecf37f158c54ba7654ffecc272e60a804cc",
+        "policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+        "previous_hash": "6809676c63217ebe1df13005a5758cf8132270dcd45b8141c2635651d1e38ba6",
+        "reason_code": "openshell_apply_requires_approval",
+        "request_id": "pa:c12fec4f1418584a6c244f0694443e427ad85142b19de88c0ba1d7f789df4e4d",
+        "sandbox_id_digest": "d1c25deab4eb04d89bfa0bf430916b2e1d14eed95cf7a2d8a6fc3eb176cb776f",
+        "schema_version": "ordin.openshell_apply_audit.v1",
+        "status": "requires_approval",
+        "timestamp": "2026-10-07T18:27:36.164614+00:00",
+        "verification": [
+          {
+            "backend": "openshell",
+            "policy_digest": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+            "reason_code": "openshell_policy_valid",
+            "reasons": [],
+            "status": "success",
+            "step": "backend_validation",
+            "unsupported_fields": []
+          },
+          {
+            "boundary_digest": "a4cf45059232601e171d9ed77fea44ef7d1e0d1d14b2430b933e59a734211304",
+            "contract_digest": "3159b35723bf7c9259720d9fd54903667d03a45f6028b325487337781ef5d224",
+            "counterexample_digest": null,
+            "coverage": {
+              "credentials": true,
+              "filesystem": true,
+              "network": true,
+              "privilege": true,
+              "process": true,
+              "tools": true
+            },
+            "reason_code": "runtime_boundary_within",
+            "result": "within_boundary",
+            "step": "capability_boundary",
+            "unsupported_fields": []
+          },
+          {
+            "boundary_digest": "199ca0b18d673dcffa59bb4291749e27a0c087016f8e532de4e75d105889ad38",
+            "candidate_digest": "9c86d619ee3d1b656e36114eb2a71ecf37f158c54ba7654ffecc272e60a804cc",
+            "counterexample_digest": null,
+            "coverage": {
+              "domains": [
+                "filesystem",
+                "network_l4",
+                "network_rest",
+                "process",
+                "landlock"
+              ]
+            },
+            "prover_version": "0.1.2",
+            "reason_code": "openshell_prover_within_boundary",
+            "result": "within_boundary",
+            "step": "openshell_prover",
+            "unsupported_domains": []
+          }
+        ]
+      }
+    ]
+  },
+  "source_unchanged_after_test": true,
+  "runtime_checks_passed": true,
+  "runtime_binaries": {
+    "openshell": {
+      "version": "0.1.2",
+      "sha256": "f334da80f867776dde9034e0ca3c2406d48ba77b0d0abe64b5aa610490a34fca"
+    },
+    "openshell-gateway": {
+      "version": "0.1.2",
+      "sha256": "37c3d29f6305b42df349407ddc946b8c4755e464aaf875bdf2eb5af833b5de45"
+    },
+    "openshell-driver-vm": {
+      "version": "0.1.2",
+      "sha256": "ba76b6a42d9a89ef62975efdcc02e330cf90fc0db37f7c750256de2ada942bee"
+    },
+    "openshell-supervisor": {
+      "version": "0.1.2",
+      "sha256": "7185e4e5a2c3292c4b044d92a6d083e6c1dce0e48dee12f49ca425ce53e2ba92"
+    },
+    "openshell-prover": {
+      "version": "0.1.2",
+      "sha256": "3e80c0d041a7552d57cc338868bc825a6261e21b5f29a7d7527bcc7926d423f1"
+    }
+  },
+  "runtime_upgraded": false,
+  "initial_active_policy_version": 2,
+  "initial_active_policy_digest": "4301acec0c0bf196c03ef5bd21694da29715817f31da1b76b6f507ef3aac7357",
+  "policy_digest_B": "92d04eaf4ea0c952250f03d627f7a8b131da19e111a7c5582e390fdfe04790c2",
+  "sandbox_creation_identity_digest": "ece2d0ed04c4ceeca7a5586d92cb52912cc35d8d55dde7391002ba5b206dbbe4",
+  "policy_B_edited_after_compilation": false,
+  "workload_probes_separate_from_apply": true,
+  "setup_observations": [
+    {
+      "phase": "fixture_configuration",
+      "result": "runtime required explicit filesystem object type and representable rights"
+    },
+    {
+      "phase": "fixture_name",
+      "result": "runtime sandbox name limited to 19 characters"
+    },
+    {
+      "phase": "first_provisioning",
+      "result": "terminal Error before policy test; missing disposable internal VM launch authentication"
+    },
+    {
+      "phase": "startup_readback",
+      "result": "mandatory disposable-guest /tmp and /var/log bootstrap paths declared explicitly before policy B compilation"
+    },
+    {
+      "phase": "revision_readback",
+      "result": "loaded revision surface has no config_revision field; exact version/hash/policy linkage and all exposed config_revision values verified"
+    }
+  ],
+  "implementation_changed": false,
+  "cleanup": {
+    "passed": true,
+    "sandbox_stopped": true,
+    "task_owned_services_stopped": true,
+    "verified_no_task_services": true,
+    "unrelated_services_preserved": true,
+    "records": [
+      {
+        "sandbox": "ordin-mut-1007",
+        "phase": "NotFound",
+        "removed_by_gateway_restart": true,
+        "already_inactive": true
+      },
+      {
+        "sandbox": "ordin-mut-1007b",
+        "phase": "Stopped",
+        "stopped": true,
+        "identity_verified": true
+      },
+      {
+        "program": "openshell-gateway",
+        "pid": 235329,
+        "stopped": true,
+        "ownership_verified": true
+      },
+      {
+        "program": "dockerd",
+        "pid": 234928,
+        "stopped": true,
+        "ownership_verified": true
+      },
+      {
+        "program": "containerd",
+        "pid": 234830,
+        "stopped": true,
+        "ownership_verified": true
+      }
+    ],
+    "only_task_owned_state_removed": true,
+    "retained_non_secret_image_cache": true,
+    "temporary_runtime_state_removed": true
+  }
+}
