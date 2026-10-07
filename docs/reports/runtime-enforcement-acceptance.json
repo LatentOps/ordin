@@ -426,5 +426,5 @@
       "temporary_runtime_state_removed": true
     }
   },
-  "runtime_enforcement_architecture": "frozen after live mutation acceptance; subsequent work is real-world evaluation"
+  "runtime_enforcement_architecture": "historical v1 milestone frozen after live mutation acceptance; v2 request authority has separate source-bound validation"
 }

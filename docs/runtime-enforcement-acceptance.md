@@ -19,7 +19,7 @@ Core version is `0.4.0.dev0`, with zero required dependencies.
 The optional integration remains `0.1.0` and supports
 pinned OpenShell `0.1.2`; no runtime version upgrade or hosted service was added.
 
-## Current requirements and evidence
+## Historical requirements and evidence
 
 | Requirement | Current-source implementation and evidence |
 | --- | --- |
@@ -78,7 +78,7 @@ current-main source identity:
 Task-owned sandbox and service identities were checked before cleanup. All task
 runtime services were stopped, while fixture state and sanitized evidence remain.
 
-## Final live mutation acceptance
+## Historical live mutation acceptance
 
 The separate mutation report tests an immutable native-LF archive of starting main
 `1757b735e52b0e852f430cda99f2ff174b06fb46`, tree
@@ -124,10 +124,10 @@ configuration. Fixture setup observations are retained in the report.
 | Workload execution | `action_executed_by_apply = false`; apply spawned only management/prover processes. Each request probe was invoked separately by the trusted harness. |
 | Cleanup | Sandbox verified stopped; task-owned gateway, VM helpers, Docker and containerd stopped; no task runtime service remained. Unrelated services remained running. Disposable state and signing material removed; sanitized evidence retained. |
 
-**LIVE MUTATION ACCEPTANCE PASSED.** Runtime-enforcement architecture remains
-frozen. Subsequent work is real-world evaluation of coding-agent workloads,
-Claude/Codex/Cursor integrations, false positives and negatives, latency, policy
-UX and developer adoption.
+**LIVE MUTATION ACCEPTANCE PASSED** for the recorded v1 source milestone.
+The later v2 request-authority implementation has separate source-bound
+validation. This historical result preserves the real policy mutation and
+idempotent apply evidence from before that extension.
 
 ## Packaging and historical evidence
 
