@@ -432,7 +432,8 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
                     )
                     continue
             if host is not None and (
-                review.adapter == "network.graphql" or resource.value in mcp_urls
+                review.adapter in {"network.graphql", "network.jsonrpc"}
+                or resource.value in mcp_urls
             ):
                 from .runtime_requests import request_endpoint
 
@@ -442,7 +443,9 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
                         NetworkCapability(
                             host,
                             port,
-                            "graphql" if review.adapter == "network.graphql" else "mcp",
+                            {"network.graphql": "graphql", "network.jsonrpc": "json-rpc"}.get(
+                                review.adapter or "", "mcp"
+                            ),
                             access,
                             ("POST",),
                             (concrete[2],),

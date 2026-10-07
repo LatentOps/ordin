@@ -551,6 +551,58 @@ def _review_action_base(
                 )
             )
 
+    if action.kind == "mcp" and action.operation == "protocol.request":
+        from ._request_commitment import rpc_body_commitment
+        from .runtime_requests import MCP_VERSIONS
+        import re
+
+        params = action.parameters.get("params")
+        method = action.parameters.get("method")
+        server = action.parameters.get("server")
+        version = action.parameters.get("protocol_version", "2025-11-25")
+        try:
+            valid = (
+                not set(action.parameters) - {"server", "method", "params", "protocol_version"}
+                and isinstance(server, str)
+                and re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", server)
+                and method in {"initialize", "tools/list"}
+                and version in MCP_VERSIONS
+                and isinstance(params, Mapping)
+            )
+            if method == "initialize" and isinstance(params, Mapping):
+                valid = (
+                    valid
+                    and set(params) == {"protocolVersion", "capabilities", "clientInfo"}
+                    and params["protocolVersion"] == version
+                    and isinstance(params["capabilities"], Mapping)
+                    and isinstance(params["clientInfo"], Mapping)
+                    and isinstance(params["clientInfo"].get("name"), str)
+                    and isinstance(params["clientInfo"].get("version"), str)
+                )
+            elif method == "tools/list" and isinstance(params, Mapping):
+                valid = valid and set(params) == {"cursor"} and isinstance(params["cursor"], str)
+            if valid and isinstance(params, Mapping) and isinstance(server, str):
+                rpc_body_commitment({"jsonrpc": "2.0", "id": 1, "method": method, "params": params})
+                effects = ["network.download" if method == "tools/list" else "network.connect"]
+                resources = [ActionResource("mcp_server", server)]
+                return _with_base_provenance(
+                    ActionReview(
+                        action=action,
+                        decision="allow",
+                        risk="low",
+                        reasons=[
+                            "Known MCP control method requires exact parameter authority enforcement."
+                        ],
+                        safer_next_step=None,
+                        effects=effects,
+                        resources=resources,
+                        adapter="mcp.protocol",
+                        capabilities=derive_capabilities(action.kind, effects, resources),
+                    )
+                )
+        except (ValueError, TypeError):
+            pass
+
     if action.kind == "network" and action.operation == "graphql.request":
         from .runtime_requests import graphql_operation, request_endpoint
 
@@ -578,6 +630,85 @@ def _review_action_base(
                     capabilities=derive_capabilities(action.kind, effects, resources),
                 )
             )
+
+        from ._graphql_authority import graphql_authorities
+        from ._request_commitment import request_commitment
+
+        try:
+            if "body" in action.parameters:
+                if set(action.parameters) != {"url", "body"}:
+                    raise ValueError("graphql_authority_invalid")
+                body = action.parameters["body"]
+            else:
+                if not {"url", "query"}.issubset(action.parameters) or set(action.parameters) - {
+                    "url",
+                    "query",
+                    "variables",
+                    "operationName",
+                }:
+                    raise ValueError("graphql_authority_invalid")
+                body = {
+                    k: action.parameters[k]
+                    for k in ("query", "variables", "operationName")
+                    if k in action.parameters
+                }
+            operations = graphql_authorities(body)
+            request_commitment(body)
+            if endpoint is not None:
+                reading = all(o["operation_type"] in {"query", "subscription"} for o in operations)
+                effects = ["network.download" if reading else "network.upload"]
+                resources = [ActionResource("url", action.parameters["url"])]
+                resources.extend(
+                    ActionResource("graphql_field", value)
+                    for value in sorted({f for o in operations for f in o["fields"]})
+                )
+                return _with_base_provenance(
+                    ActionReview(
+                        action=action,
+                        decision="allow" if reading else "warn",
+                        risk="low" if reading else "medium",
+                        reasons=[
+                            "Selected GraphQL operations require exact request authority enforcement."
+                        ],
+                        safer_next_step=None,
+                        effects=effects,
+                        resources=resources,
+                        adapter="network.graphql",
+                        capabilities=derive_capabilities(action.kind, effects, resources),
+                    )
+                )
+        except (ValueError, TypeError):
+            pass
+
+    if action.kind == "network" and action.operation == "jsonrpc.request":
+        from .runtime_requests import request_endpoint
+        from ._request_commitment import rpc_body_commitment
+
+        try:
+            if (
+                set(action.parameters) == {"url", "body"}
+                and request_endpoint(action.parameters["url"]) is not None
+            ):
+                rpc_body_commitment(action.parameters["body"])
+                effects = ["network.upload"]
+                resources = [ActionResource("url", action.parameters["url"])]
+                return _with_base_provenance(
+                    ActionReview(
+                        action=action,
+                        decision="warn",
+                        risk="medium",
+                        reasons=[
+                            "Generic JSON-RPC authority requires an exact approved method and parameter commitment."
+                        ],
+                        safer_next_step=None,
+                        effects=effects,
+                        resources=resources,
+                        adapter="network.jsonrpc",
+                        capabilities=derive_capabilities(action.kind, effects, resources),
+                    )
+                )
+        except (ValueError, TypeError):
+            pass
 
     if action.kind in {"tool", "mcp"} and action.operation == "call" and tool_semantics is not None:
         from .tool_calls import review_tool_action

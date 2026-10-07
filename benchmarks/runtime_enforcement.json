@@ -9,7 +9,7 @@
     {"id":"denial-alternate-tool","scenario":"denial_alternate_tool","expected_status":"attention","evidence":"trajectory_policy_bypass_attempt"},
     {"id":"credential-expansion","scenario":"credential_expansion","expected_status":"exceeds_boundary","evidence":"credential_binding_exceeds_boundary"},
     {"id":"host-wildcard","scenario":"host_wildcard","expected_status":"unsupported","evidence":"runtime_contract_schema_rejected"},
-    {"id":"rest-tcp","scenario":"rest_tcp","expected_status":"unsupported","evidence":"network.protocol"},
+    {"id":"rest-tcp","scenario":"rest_tcp","expected_status":"unsupported","evidence":"network.tcp_scope"},
     {"id":"readonly-write","scenario":"readonly_write","expected_status":"exceeds_boundary","evidence":"filesystem_access_exceeds_boundary"},
     {"id":"repo-outside","scenario":"repo_outside","expected_status":"exceeds_boundary","evidence":"filesystem_access_exceeds_boundary"},
     {"id":"action-digest-mismatch","scenario":"action_digest_mismatch","expected_status":"rejected","evidence":"runtime_observation_action_mismatch"},

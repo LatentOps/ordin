@@ -14,6 +14,7 @@ from ._runtime_json import digest, freeze, model_tuple, thaw
 from .action import ActionReview
 from .provenance import ProvenanceRecord, ProvenanceResource
 from .runtime_contract import FilesystemCapability, _safe_path
+from ._runtime_host import identity_matches
 
 
 @dataclass(frozen=True)
@@ -150,7 +151,16 @@ class RuntimeRequirementProfile:
                 )
         if review.action.kind == "mcp":
             server = review.action.parameters.get("server")
-            if isinstance(server, str) and server in self.mcp_versions:
+            matching = sorted(
+                key
+                for key in self.mcp_endpoints
+                if isinstance(server, str) and identity_matches(key, server)
+            )
+            if len({self.mcp_endpoints[key] for key in matching}) > 1:
+                raise ValueError("runtime_requirement_mcp_endpoint_conflict")
+            for key in matching:
+                if key not in self.mcp_versions:
+                    continue
                 records.append(
                     ProvenanceRecord(
                         source="context",
@@ -158,18 +168,18 @@ class RuntimeRequirementProfile:
                         code="runtime.requirement.mcp_versions",
                         metadata={
                             "server": server,
-                            "versions": ",".join(self.mcp_versions[server]),
+                            "versions": ",".join(self.mcp_versions[key]),
                             "profile_digest": self.digest,
                         },
                     )
                 )
-            if isinstance(server, str) and server in self.mcp_endpoints:
+            if matching:
                 records.append(
                     ProvenanceRecord(
                         source="context",
                         kind="resource",
                         code="runtime.requirement.mcp_endpoint",
-                        resource=ProvenanceResource("url", self.mcp_endpoints[server]),
+                        resource=ProvenanceResource("url", self.mcp_endpoints[matching[0]]),
                         metadata={"server": server, "profile_digest": self.digest},
                     )
                 )

@@ -177,6 +177,23 @@
           "minLength": 1,
           "maxLength": 64,
           "pattern": "^[a-f0-9]{64}$"
+        },
+        "protocol": {
+          "type": "string",
+          "enum": [
+            "graphql",
+            "mcp",
+            "json-rpc"
+          ]
+        },
+        "request_commitment": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "request_commitment_algorithm": {
+          "const": "ordin.authority-json.sha256.v1"
         }
       },
       "required": [],

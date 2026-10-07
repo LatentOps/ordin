@@ -19,3 +19,6 @@ ordin-openshell = "ordin_openshell.cli:main"
 
 [tool.setuptools]
 packages = ["ordin_openshell"]
+
+[tool.setuptools.package-data]
+ordin_openshell = ["runtime_identity.json"]

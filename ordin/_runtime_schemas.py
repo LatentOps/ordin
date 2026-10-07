@@ -147,6 +147,65 @@ PROTOCOL_REQUEST = obj(
     }
 )
 SHAPES["protocol_request"] = PROTOCOL_REQUEST
+
+REQUEST_AUTHORITY = obj(
+    {
+        "protocol": enum("graphql", "mcp", "json-rpc"),
+        "host": {**HOST, "type": "string"},
+        "port": {**PORT, "type": "integer"},
+        "path": text(),
+        "commitment": DIGEST,
+        "algorithm": {"const": "ordin.authority-json.sha256.v1"},
+        "server": text(256, nullable=True),
+        "versions": array(enum("2025-03-26", "2025-06-18", "2025-11-25"), 3),
+        "operations": array(
+            obj(
+                {
+                    "operation_type": enum("query", "mutation", "subscription"),
+                    "operation_name": text(128, nullable=True, pattern="^[A-Za-z_][A-Za-z0-9_]*$"),
+                    "fields": array(
+                        text(4096, pattern="^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"),
+                        4096,
+                    ),
+                }
+            )
+        ),
+        "calls": array(
+            obj(
+                {
+                    "method": text(128),
+                    "tool": text(128, nullable=True),
+                    "kind": enum("request", "notification"),
+                }
+            )
+        ),
+    }
+)
+SHAPES["request_authority"] = REQUEST_AUTHORITY
+NETWORK_AUTHORITY_GRANT = obj(
+    {
+        "host_pattern": text(253),
+        "port": {**PORT, "type": "integer"},
+        "protocol": enum("rest", "graphql", "mcp", "json-rpc", "tcp"),
+        "access": enum("read", "write"),
+        "methods": NETWORK["properties"]["methods"],
+        "paths": NETWORK["properties"]["paths"],
+    }
+)
+SHAPES["network_authority_grant"] = NETWORK_AUTHORITY_GRANT
+SCHEMAS["runtime_request_contract_v2"] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://latentops.space/ordin/schemas/runtime-request-contract.v2.schema.json",
+    "title": "Ordin exact request authority v2",
+    **obj(
+        {
+            "schema_version": {"const": "ordin.runtime_request_contract.v2"},
+            "capability": CAPABILITY,
+            "requests": array(REQUEST_AUTHORITY),
+            "request_contract_id": text(67, pattern="^rq:[a-f0-9]{64}$"),
+        }
+    ),
+}
 SCHEMAS["runtime_request_contract"] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://latentops.space/ordin/schemas/runtime-request-contract.v1.schema.json",
@@ -183,6 +242,9 @@ OBSERVATION_METADATA = obj(
         "binary": text(),
         "process_id": {"type": "integer", "minimum": 0},
         "request_id_digest": DIGEST,
+        "protocol": enum("graphql", "mcp", "json-rpc"),
+        "request_commitment": DIGEST,
+        "request_commitment_algorithm": {"const": "ordin.authority-json.sha256.v1"},
     },
     required=[],
 )
@@ -294,6 +356,20 @@ SCHEMAS["runtime_request_boundary"] = {
             "schema_version": {"const": "ordin.runtime_request_boundary.v1"},
             "boundary": BOUNDARY,
             "requests": array(PROTOCOL_REQUEST),
+        }
+    ),
+}
+
+SCHEMAS["runtime_request_boundary_v2"] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://latentops.space/ordin/schemas/runtime-request-boundary.v2.schema.json",
+    "title": "Ordin exact request authority boundary v2",
+    **obj(
+        {
+            "schema_version": {"const": "ordin.runtime_request_boundary.v2"},
+            "boundary": BOUNDARY,
+            "requests": array(REQUEST_AUTHORITY),
+            "network_grants": array(NETWORK_AUTHORITY_GRANT),
         }
     ),
 }

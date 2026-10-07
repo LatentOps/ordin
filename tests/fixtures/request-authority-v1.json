@@ -1,0 +1,152 @@
+[
+  {
+    "kind": "json",
+    "json": "null",
+    "digest": "1b8cc8a46ef90f090f8e1ad8a267e6c9d114a13f68bb76bbdd92ab78337319b8"
+  },
+  {
+    "kind": "json",
+    "json": "false",
+    "digest": "12db2435f7eb32a421777a8496ae3469f0e62bffeb07d93161ab374807dd96fc"
+  },
+  {
+    "kind": "json",
+    "json": "true",
+    "digest": "5af3aef7a0028ab4906c544283c0205bfc5edb731864155a91f86f3c6f8d035e"
+  },
+  {
+    "kind": "json",
+    "json": "0",
+    "digest": "79e34aa3f7f707bbcd356c26868a19f56f6ec1b4b54cd0c4985b72bdc93113af"
+  },
+  {
+    "kind": "json",
+    "json": "-0",
+    "digest": "79e34aa3f7f707bbcd356c26868a19f56f6ec1b4b54cd0c4985b72bdc93113af"
+  },
+  {
+    "kind": "json",
+    "json": "1",
+    "digest": "c05dfd3ffe2161a9181d094cc1e63b766d148e8266b1b84c0d4afd55b1fe628c"
+  },
+  {
+    "kind": "json",
+    "json": "1.0",
+    "digest": "35be4bbdc13f422045559ff6b46e5e662ddd47ef5a60bacc999d3348b2cdef1c"
+  },
+  {
+    "kind": "json",
+    "json": "1.00",
+    "digest": "35be4bbdc13f422045559ff6b46e5e662ddd47ef5a60bacc999d3348b2cdef1c"
+  },
+  {
+    "kind": "json",
+    "json": "10e-1",
+    "digest": "35be4bbdc13f422045559ff6b46e5e662ddd47ef5a60bacc999d3348b2cdef1c"
+  },
+  {
+    "kind": "json",
+    "json": "-0.0",
+    "digest": "dffde5af5b8d7f84b4e77e8c991a7c44f7812a6fe94db8020614e01c5e042ae2"
+  },
+  {
+    "kind": "json",
+    "json": "0.0",
+    "digest": "d53fa198846ce15629af586bf3f625ede9dabe3f042799a95a91d91a39b6fa91"
+  },
+  {
+    "kind": "json",
+    "json": "0.1",
+    "digest": "f03ebee79468db4894ab863f72f22731cd75994725b6f3e74ade86b78d234b2d"
+  },
+  {
+    "kind": "json",
+    "json": "0.10000000000000000000000000001",
+    "digest": "105c95f776dac2486ead78037972487bf19d488424cb18b78ffbdc9aa0c62bce"
+  },
+  {
+    "kind": "json",
+    "json": "9007199254740992.0",
+    "digest": "bbeb26068f945edf4f962aab0ca1895fe1b10532fb3741a0faa9c6e3ef6010c4"
+  },
+  {
+    "kind": "json",
+    "json": "9007199254740993.0",
+    "digest": "47beaf0c6f92936402745a1c24af676b056ad25b21983bff228e2db8fe55e60b"
+  },
+  {
+    "kind": "json",
+    "json": "1e-4000",
+    "digest": "bbf79ac6570ad15783b092058dff53e5877e432a919c80ee4201fa551ff48c05"
+  },
+  {
+    "kind": "json",
+    "json": "1606938044258990275541962092341162602522202993782792835301376",
+    "digest": "d49660d5d9021195a12e1095212a0f8480b11fcd3270a3abf191214fb9d293af"
+  },
+  {
+    "kind": "json",
+    "json": "{}",
+    "digest": "cdf6255bd45986b2637664a7a8b6145ed511c4209f4cb5ff3c9161871e362336"
+  },
+  {
+    "kind": "json",
+    "json": "[]",
+    "digest": "03662f98a34aba199f90b7446a881dc9fb9c61a568b8720e036da33cf0bac24c"
+  },
+  {
+    "kind": "json",
+    "json": "{\"a\":\"é\",\"z\":\"🙂\"}",
+    "digest": "2f8ca93611c7733747bfa787fec0bf7642a6c8ba529944cb0fedc05f194d3bf5"
+  },
+  {
+    "kind": "json",
+    "json": "{\"z\":\"\\ud83d\\ude42\",\"a\":\"\\u00e9\"}",
+    "digest": "2f8ca93611c7733747bfa787fec0bf7642a6c8ba529944cb0fedc05f194d3bf5"
+  },
+  {
+    "kind": "json",
+    "json": "{\"b\":[null,true,-0.0],\"a\":1}",
+    "digest": "21c10f50d25b2103f81cd8019eebce27fedb415937b25ef4cd1ce360321f5be0"
+  },
+  {
+    "kind": "json",
+    "json": "[{\"query\":\"{ a }\"},{\"query\":\"{ b }\"}]",
+    "digest": "057605fde206cd3614224a383cf36610a2c47099b1fc969ca7b010b3b4c8bf10"
+  },
+  {
+    "kind": "json",
+    "json": "[{\"query\":\"{ b }\"},{\"query\":\"{ a }\"}]",
+    "digest": "7e185ca9b85b457fbe760a672288b2018072b70c26a59d5a5750a842186f59f8"
+  },
+  {
+    "kind": "rpc",
+    "json": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}",
+    "digest": "24cbe29fb8d6ff12d05df99449757269b458690ff89ce7243ff53726602b1d97"
+  },
+  {
+    "kind": "rpc",
+    "json": "{\"jsonrpc\":\"2.0\",\"id\":\"another\",\"method\":\"ping\"}",
+    "digest": "24cbe29fb8d6ff12d05df99449757269b458690ff89ce7243ff53726602b1d97"
+  },
+  {
+    "kind": "rpc",
+    "json": "{\"jsonrpc\":\"2.0\",\"method\":\"ping\"}",
+    "digest": "985eb83b36548730a00558138785d9153e406fc287bacdd905c76ec12a2b3977"
+  },
+  {
+    "kind": "rpc",
+    "json": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\",\"params\":null}",
+    "digest": "9aa3391827a47d37104a89825c7f4f60344fa0d086b5ac1920bbf39966137598"
+  },
+  {
+    "kind": "rpc",
+    "json": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"items/update\",\"params\":{\"id\":\"a\",\"amount\":0.10000000000000000000000000001}}",
+    "digest": "4aad643d1471d7ff6dfc330b56a27c6e88671218622e52f0e4676eaa107bcf2b"
+  },
+  {
+    "kind": "rpc",
+    "json": "[{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"},{\"jsonrpc\":\"2.0\",\"method\":\"ack\"}]",
+    "digest": "864363960cc5225d70d634dacea579c132ad18d680b055b5cec3ef9a3e0a99be"
+  }
+]

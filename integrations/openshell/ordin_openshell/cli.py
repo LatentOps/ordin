@@ -10,6 +10,12 @@ from typing import Any, Sequence
 
 from ordin._runtime_json import MAX_RUNTIME_BYTES, digest
 from ordin.runtime_boundary import RuntimeCapabilityBoundary
+from ordin.runtime_requests_v2 import (
+    derive_runtime_request_contract_v2,
+    request_contract_from_dict,
+    request_boundary_from_dict,
+    verify_request_contract,
+)
 from ordin.runtime_boundary import CapabilityVerificationResult
 from ordin.enforcement_backend import CompilationResult
 from ordin.runtime_codec import (
@@ -56,14 +62,15 @@ def read_text(path: str) -> str:
 
 def _backend(args, *, mode="enforce") -> OpenShellBackend:
     config = read_private_runtime_json(args.operator_config) if args.operator_config else {}
-    if set(config) - {"resource_kinds", "credential_providers"}:
+    if set(config) - {"resource_kinds", "credential_providers", "network_scopes"}:
         raise ValueError("openshell_operator_configuration_invalid")
     return OpenShellBackend(
         (args.uid, args.gid),
         config.get("resource_kinds", {}),
         config.get("credential_providers", {}),
         mode=mode,
-        request_contract=RuntimeRequestContract.from_dict(read_runtime_json(args.request_contract))
+        network_scopes=tuple(config.get("network_scopes", ())),
+        request_contract=request_contract_from_dict(read_runtime_json(args.request_contract))
         if getattr(args, "request_contract", None)
         else None,
     )
@@ -71,7 +78,7 @@ def _backend(args, *, mode="enforce") -> OpenShellBackend:
 
 def _contract(args) -> RuntimeCapabilityContract:
     if getattr(args, "request_contract", None):
-        request_capability = RuntimeRequestContract.from_dict(
+        request_capability = request_contract_from_dict(
             read_runtime_json(args.request_contract)
         ).capability
         if (
@@ -95,6 +102,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     derive_requests = commands.add_parser("derive-requests")
     derive_requests.add_argument("--review", required=True)
+    derive_requests.add_argument("--schema-version", type=int, choices=(1, 2), default=2)
     verify_requests = commands.add_parser("verify-requests")
     verify_requests.add_argument("--request-contract", required=True)
     verify_requests.add_argument("--request-boundary", required=True)
@@ -127,9 +135,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     doctor = commands.add_parser("doctor")
     doctor.add_argument("--openshell", default="openshell")
     doctor.add_argument("--prover", default="openshell-prover")
+    doctor.add_argument("--sandbox")
+    doctor.add_argument("--gateway")
+    doctor.add_argument("--gateway-endpoint")
+    doctor.add_argument("--workspace", default="default")
     ingest = commands.add_parser("ingest-event")
     ingest.add_argument("--event", required=True)
     ingest.add_argument("--contract")
+    ingest.add_argument("--request-contract")
     ingest.add_argument("--source-context")
     ingest.add_argument("--correlation-db")
     ingest.add_argument("--now-ms", type=int)
@@ -158,14 +171,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "derive-requests":
-            output = derive_runtime_request_contract(
-                action_review_from_dict(read_runtime_json(args.review))
-            ).as_dict()
+            derive = (
+                derive_runtime_request_contract_v2
+                if args.schema_version == 2
+                else derive_runtime_request_contract
+            )
+            output = derive(action_review_from_dict(read_runtime_json(args.review))).as_dict()
             code = 0
         elif args.command == "verify-requests":
-            verified_requests = verify_runtime_request_capability(
-                RuntimeRequestContract.from_dict(read_runtime_json(args.request_contract)),
-                RuntimeRequestBoundary.from_dict(read_runtime_json(args.request_boundary)),
+            verified_requests = verify_request_contract(
+                request_contract_from_dict(read_runtime_json(args.request_contract)),
+                request_boundary_from_dict(read_runtime_json(args.request_boundary)),
             )
             output, code = verified_requests.as_dict(), 0 if verified_requests.ok else 2
         elif args.command == "export-ocsf":
@@ -233,7 +249,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             }
             code = 0
         elif args.command == "doctor":
-            output = openshell_doctor(cli_executable=args.openshell, prover_executable=args.prover)
+            output = openshell_doctor(
+                cli_executable=args.openshell,
+                prover_executable=args.prover,
+                sandbox=args.sandbox,
+                gateway=args.gateway,
+                gateway_endpoint=args.gateway_endpoint,
+                workspace=args.workspace,
+            )
             code = 0 if output["status"] == "success" else 2
         elif args.command == "prove":
             proof = verify_with_openshell_prover(
@@ -241,7 +264,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             output, code = proof.as_dict(), 0 if proof.ok else 2
         elif args.command == "ingest-event":
-            contract = _contract(args) if args.contract else None
+            contract = _contract(args) if args.contract or args.request_contract else None
+            request_contract = (
+                request_contract_from_dict(read_runtime_json(args.request_contract))
+                if args.request_contract
+                else None
+            )
             source = (
                 RuntimeEvidenceSource(**read_private_runtime_json(args.source_context))
                 if args.source_context
@@ -255,6 +283,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 source=source,
                 store=store,
                 now_ms=args.now_ms,
+                request_contract=request_contract,
             )
             output, code = ingestion.as_dict(), 0 if ingestion.status == "accepted" else 2
         elif args.command == "shadow-report":
@@ -289,7 +318,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     operator["resource_kinds"],
                     operator["credential_providers"],
                     mode="shadow",
-                    request_contract=RuntimeRequestContract.from_dict(case["request_contract"])
+                    request_contract=request_contract_from_dict(case["request_contract"])
                     if case.get("request_contract")
                     else None,
                 )
@@ -300,7 +329,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         tuple(source.restore_trusted(o) for o in case["observations"]),
                         source,
                         backend,
-                        RuntimeRequestBoundary.from_dict(case["request_boundary"])
+                        request_boundary_from_dict(case["request_boundary"])
                         if case.get("request_boundary")
                         else None,
                     )
@@ -341,7 +370,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     prover_executable=args.prover,
                     timeout=args.timeout,
                     audit=PolicyApplyAudit(args.audit) if args.audit else None,
-                    request_boundary=RuntimeRequestBoundary.from_dict(
+                    request_boundary=request_boundary_from_dict(
                         read_runtime_json(args.request_boundary)
                     )
                     if args.request_boundary

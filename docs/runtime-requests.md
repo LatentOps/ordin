@@ -1,4 +1,14 @@
-# GraphQL and MCP request restrictions
+# Versioned request restrictions
+
+
+The default request derivation now emits [exact request authority v2](runtime-request-authority-v2.md).
+It covers GraphQL variables, arguments, nesting, directives, selected and anonymous
+operations, subscriptions and batches; MCP arguments, initialization and pagination;
+and generic JSON-RPC. It requires the audited runtime extension and includes composed
+protocol/transport proof and exact commitment-bound evidence. The following legacy
+v1 API remains available with `derive-requests --schema-version 1`.
+
+## Legacy v1 scopes
 
 `ordin.runtime_requests` adds immutable `ProtocolRequestCapability`,
 `RuntimeRequestContract`, `RuntimeRequestBoundary`, and
@@ -23,7 +33,7 @@ field names, never response aliases. Missing, cyclic, duplicate or unused
 fragments and conflicting response aliases fail closed. Parsing bounds document
 length, token count and fragment depth and performs no I/O.
 
-Variables, arguments, directives, nested selections, batches and subscriptions
+In the legacy v1 artifact, variables, arguments, directives, nested selections, batches and subscriptions
 stay unmodeled. These permissions do not pin query text or
 application-specific argument values. Requests requiring finer constraints
 retain `requires_argument_constraints=true` and cannot compile. In particular,
