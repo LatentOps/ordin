@@ -47,10 +47,10 @@ index c6330b8..312526d 100644
   "openshell-supervisor-middleware-builtins",
   "prost-types",
 diff --git a/architecture/security-policy.md b/architecture/security-policy.md
-index 36a9195..004702e 100644
+index 36a9195..dc1b10d 100644
 --- a/architecture/security-policy.md
 +++ b/architecture/security-policy.md
-@@ -509,3 +509,43 @@ to match, so reuse cannot transfer ownership between process generations.
+@@ -509,3 +509,45 @@ to match, so reuse cannot transfer ownership between process generations.
  Retired PID evidence is discarded; established identity, activity, and
  correlation-vector links remain eligible during the five-second late-event
  window. Records without matching generation evidence fail closed.
@@ -89,6 +89,8 @@ index 36a9195..004702e 100644
 +revision and instance fence. The legacy DNS-only transparent path does not grant
 +literal traffic. Protected metadata, loopback, link-local and unspecified
 +destinations remain blocked.
++The supervisor brackets IPv6 literals in synthesized CONNECT authorities so
++hostname, IPv4 and IPv6 destinations all use the same strict authority parser.
 +
 +Runtime management reports the CLI, gateway and supervisor source identities.
 +An operator must require the audited extension identity and exact build
@@ -1906,10 +1908,34 @@ index 6a6c0f9..c9e785c 100644
          credential_signing: String::new(),
          signing_service: String::new(),
 diff --git a/crates/openshell-supervisor-network/src/proxy.rs b/crates/openshell-supervisor-network/src/proxy.rs
-index 6ac6628..8312b26 100644
+index 6ac6628..faf3e4e 100644
 --- a/crates/openshell-supervisor-network/src/proxy.rs
 +++ b/crates/openshell-supervisor-network/src/proxy.rs
-@@ -5053,6 +5053,11 @@ fn complete_chunked_body_prefix_len(bytes: &[u8]) -> Option<usize> {
+@@ -2342,6 +2342,14 @@ async fn handle_tcp_connection(
+     .await
+ }
+ 
++fn transparent_connect_authority(host: &str, port: u16) -> String {
++    if host.parse::<std::net::Ipv6Addr>().is_ok() {
++        format!("[{host}]:{port}")
++    } else {
++        format!("{host}:{port}")
++    }
++}
++
+ /// Adapt a transparent application stream to the existing CONNECT pipeline.
+ /// The synthetic CONNECT request is supervisor-owned and its successful 200
+ /// response is consumed before bytes are returned to the workload.
+@@ -2434,7 +2442,7 @@ async fn handle_mediated_connection(
+                 .map_or((None, None), |(decision, connector)| {
+                     (Some(decision), Some(connector))
+                 });
+-            let authority = format!("{host}:{}", destination.port());
++            let authority = transparent_connect_authority(&host, destination.port());
+             client =
+                 tokio::io::BufReader::new(virtual_connect_stream(client.into_inner(), authority));
+             (decision, connector)
+@@ -5053,6 +5061,11 @@ fn complete_chunked_body_prefix_len(bytes: &[u8]) -> Option<usize> {
  }
  
  struct ForwardRelayOptions<'a> {
@@ -1921,7 +1947,7 @@ index 6ac6628..8312b26 100644
      body_classifier: Option<&'a secrets::body::BodyCredentialClassifier>,
      generation_guard: &'a PolicyGenerationGuard,
      credential_generation: Option<crate::l7::rest::CredentialGenerationGuard<'a>>,
-@@ -5114,6 +5119,7 @@ where
+@@ -5114,6 +5127,7 @@ where
          upstream,
          crate::l7::rest::RelayRequestOptions {
              resolver: options.secret_resolver,
@@ -1929,7 +1955,7 @@ index 6ac6628..8312b26 100644
              body_classifier: options.body_classifier,
              credential_generation: options.credential_generation,
              generation_guard: Some(options.generation_guard),
-@@ -5838,6 +5844,27 @@ async fn handle_forward_proxy(
+@@ -5838,6 +5852,27 @@ async fn handle_forward_proxy(
              jsonrpc,
          };
  
@@ -1957,7 +1983,7 @@ index 6ac6628..8312b26 100644
          let hard_deny_reason =
              crate::l7::relay::l7_request_hard_deny_reason(l7_config.config.protocol, &request_info);
          let force_deny = hard_deny_reason.is_some();
-@@ -6320,7 +6347,10 @@ async fn handle_forward_proxy(
+@@ -6320,7 +6355,10 @@ async fn handle_forward_proxy(
      // the final origin-form bytes after hop-by-hop sanitization, before an
      // upstream connection exists, so forwarding preserves the MCP decision.
      let rewritten = match forward_l7_reeval.as_ref() {
@@ -1969,7 +1995,7 @@ index 6ac6628..8312b26 100644
              let request = crate::l7::rest::request_from_buffered_http(
                  method,
                  middleware_path,
-@@ -6469,6 +6499,15 @@ async fn handle_forward_proxy(
+@@ -6469,6 +6507,15 @@ async fn handle_forward_proxy(
          client,
          &mut upstream,
          ForwardRelayOptions {
@@ -1985,7 +2011,7 @@ index 6ac6628..8312b26 100644
              generation_guard: &forward_generation_guard,
              credential_generation,
              websocket_extensions,
-@@ -6494,6 +6533,26 @@ async fn handle_forward_proxy(
+@@ -6494,6 +6541,26 @@ async fn handle_forward_proxy(
      .await;
      let outcome_result = match outcome_result {
          Err(report) => {
@@ -2012,7 +2038,51 @@ index 6ac6628..8312b26 100644
              if let Some(error) = report.downcast_ref::<secrets::body::BodyCredentialError>() {
                  if let Some(session) = middleware_session.take() {
                      session
-@@ -9425,6 +9484,7 @@ network_policies:
+@@ -7344,6 +7411,43 @@ process: { run_as_user: sandbox, run_as_group: sandbox }
+         )
+     }
+ 
++    #[tokio::test]
++    async fn staged_connect_bridge_preserves_ipv6_authority_and_bidirectional_payload() {
++        for host in ["api.example.test", "192.0.2.10", "fd55:0:4f52:4449::205"] {
++            let (mut workload, bridge) = tokio::io::duplex(128);
++            let mut handler = virtual_connect_stream(
++                Box::new(bridge),
++                transparent_connect_authority(host, 19991),
++            );
++            let mut headers = Vec::new();
++            while !headers.ends_with(b"\r\n\r\n") {
++                let mut byte = [0];
++                handler.read_exact(&mut byte).await.unwrap();
++                headers.push(byte[0]);
++            }
++            let request = std::str::from_utf8(&headers).unwrap();
++            let authority = request
++                .lines()
++                .next()
++                .unwrap()
++                .split_whitespace()
++                .nth(1)
++                .unwrap();
++            assert_eq!(parse_target(authority).unwrap(), (host.to_string(), 19991));
++            handler
++                .write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
++                .await
++                .unwrap();
++            workload.write_all(b"ping").await.unwrap();
++            let mut payload = [0; 4];
++            handler.read_exact(&mut payload).await.unwrap();
++            assert_eq!(&payload, b"ping");
++            handler.write_all(b"pong").await.unwrap();
++            workload.read_exact(&mut payload).await.unwrap();
++            assert_eq!(&payload, b"pong");
++        }
++    }
++
+     #[tokio::test]
+     async fn staged_transparent_open_dials_only_pinned_policy_dns_addresses() {
+         let engine = OpaEngine::from_strings(
+@@ -9425,6 +9529,7 @@ network_policies:
          websocket_credential_rewrite: bool,
      ) -> crate::l7::L7EndpointConfig {
          crate::l7::L7EndpointConfig {
@@ -2020,7 +2090,7 @@ index 6ac6628..8312b26 100644
              endpoint_id: String::new(),
              policy_hash: String::new(),
              protocol,
-@@ -9664,7 +9724,7 @@ network_policies:
+@@ -9664,7 +9769,7 @@ network_policies:
              (b"{", "JSON-RPC request rejected: invalid JSON"),
              (
                  br#"{"id":1,"method":"reports.list"}"#,
@@ -2029,7 +2099,7 @@ index 6ac6628..8312b26 100644
              ),
          ];
  
-@@ -10085,6 +10145,7 @@ network_policies:
+@@ -10085,6 +10190,7 @@ network_policies:
              &mut proxy_to_client,
              &mut proxy_to_upstream,
              ForwardRelayOptions {
@@ -2037,7 +2107,7 @@ index 6ac6628..8312b26 100644
                  body_classifier: None,
                  generation_guard: &guard,
                  credential_generation: None,
-@@ -10174,6 +10235,7 @@ network_policies:
+@@ -10174,6 +10280,7 @@ network_policies:
              &mut proxy_to_client,
              &mut proxy_to_upstream,
              ForwardRelayOptions {
@@ -2045,7 +2115,7 @@ index 6ac6628..8312b26 100644
                  body_classifier: None,
                  generation_guard: &guard,
                  credential_generation: None,
-@@ -10296,6 +10358,7 @@ network_policies:
+@@ -10296,6 +10403,7 @@ network_policies:
              &mut proxy_to_client,
              &mut proxy_to_upstream,
              ForwardRelayOptions {
@@ -2053,7 +2123,7 @@ index 6ac6628..8312b26 100644
                  generation_guard: &guard,
                  credential_generation: None,
                  body_classifier,
-@@ -10563,6 +10626,7 @@ network_policies:
+@@ -10563,6 +10671,7 @@ network_policies:
                  &mut proxy_to_client,
                  &mut proxy_to_upstream,
                  ForwardRelayOptions {
@@ -2061,7 +2131,7 @@ index 6ac6628..8312b26 100644
                      generation_guard: guard,
                      credential_generation: None,
                      body_classifier: None,
-@@ -10871,6 +10935,7 @@ network_policies:
+@@ -10871,6 +10980,7 @@ network_policies:
          let configs = vec![
              L7ConfigSnapshot {
                  config: crate::l7::L7EndpointConfig {
@@ -2069,7 +2139,7 @@ index 6ac6628..8312b26 100644
                      endpoint_id: String::new(),
                      policy_hash: String::new(),
                      protocol: crate::l7::L7Protocol::Rest,
-@@ -10894,6 +10959,7 @@ network_policies:
+@@ -10894,6 +11004,7 @@ network_policies:
              },
              L7ConfigSnapshot {
                  config: crate::l7::L7EndpointConfig {
@@ -2077,7 +2147,7 @@ index 6ac6628..8312b26 100644
                      endpoint_id: String::new(),
                      policy_hash: String::new(),
                      protocol: crate::l7::L7Protocol::Graphql,
-@@ -13111,6 +13177,7 @@ network_policies:
+@@ -13111,6 +13222,7 @@ network_policies:
              &mut proxy_to_client,
              &mut proxy_to_upstream,
              ForwardRelayOptions {
@@ -2085,7 +2155,7 @@ index 6ac6628..8312b26 100644
                  generation_guard: &guard,
                  credential_generation: None,
                  body_classifier: None,
-@@ -13195,6 +13262,7 @@ network_policies:
+@@ -13195,6 +13307,7 @@ network_policies:
              &mut proxy_to_client,
              &mut proxy_to_upstream,
              ForwardRelayOptions {
@@ -2093,7 +2163,7 @@ index 6ac6628..8312b26 100644
                  generation_guard: &guard,
                  credential_generation: None,
                  body_classifier: None,
-@@ -13286,6 +13354,7 @@ network_policies:
+@@ -13286,6 +13399,7 @@ network_policies:
              &mut proxy_to_client,
              &mut proxy_to_upstream,
              ForwardRelayOptions {
@@ -2101,7 +2171,7 @@ index 6ac6628..8312b26 100644
                  generation_guard: &guard,
                  credential_generation: None,
                  body_classifier: None,
-@@ -13339,6 +13408,7 @@ network_policies:
+@@ -13339,6 +13453,7 @@ network_policies:
              &mut proxy_to_client,
              &mut proxy_to_upstream,
              ForwardRelayOptions {

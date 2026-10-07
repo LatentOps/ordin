@@ -5,7 +5,7 @@
   "files": {
     "AGENTS.md": "063f46e643ae47a62e994965003c985d91a8b9e5c4a53cd239e42b23ce43c66a",
     "Cargo.lock": "97176fe6eede7959784b16114bb12ee51ad9fb41383b1374a8445ff7d19bca45",
-    "architecture/security-policy.md": "87d162ef9300a659bc1f3567e0c0d52243f7e4db19610ec966b7c8a127650460",
+    "architecture/security-policy.md": "9f4f992a7907bd69aa9a1ba23a182b3481d44210a7200067b16f1660231d7cec",
     "crates/openshell-cli/src/run.rs": "3e2a0219c1dc172f2f78be468bb5e58eb207f141e3e9484e8c9859cd9409591a",
     "crates/openshell-core/src/grpc_client.rs": "0533aa5662a5b44e6576ddcf1f2286ef328aa05dfd34bcd61594a56896e2b8c0",
     "crates/openshell-core/src/lib.rs": "508ab37f038fac09043f12ca00d42f28c646593c618843d7bc138931b9764ea7",
@@ -29,7 +29,7 @@
     "crates/openshell-supervisor-network/src/l7/rest.rs": "579b99528287cfbb4414d3ab0b425a59dc20585a2d3c42c0311d6039419a053c",
     "crates/openshell-supervisor-network/src/opa.rs": "1a8678838bb9d4d080c660c00540ab8f980444bcf5bc02a42801cd4410297e7b",
     "crates/openshell-supervisor-network/src/policy_local.rs": "5eed4d45aeb28af81457cde1be5e23ae207bb3796695908137404790f1fb4761",
-    "crates/openshell-supervisor-network/src/proxy.rs": "b4cda74c6282e8a54d6135a67e4e342aaf6a34b0b95cabbe12711e0546a6036c",
+    "crates/openshell-supervisor-network/src/proxy.rs": "5b3da4706c590e6261da931b7389c7daaa9280118a8e1219659eb9e86c5df095",
     "crates/openshell-supervisor-network/src/proxy/relay.rs": "afa40d6a033bcec71a60b207c8918b1e0dca8ce646a35aba790228262780409b",
     "crates/openshell-supervisor/src/lib.rs": "64d08b3b184a9ba694e6785c64d1a3c14b7a2c38ade40fd502b4b7e95b1e1ce5",
     "docs/how-it-works/policies/network-rules.mdx": "f1464f46b5a5477209cc2f59b277ef4b3d8b1b7b44e08ad37ff5d5b0c7b20c43",
@@ -51,8 +51,8 @@
     "sdk/go/proto/optionsv1/options.pb.go": "a9c387751d6a36cd15a164f27b4050622d6c867e719e33f3cab0fdcc62ea052a",
     "sdk/go/proto/sandboxv1/sandbox.pb.go": "abd15abc3103a2c153515f7004f441effea5d26e9cb74bbd39b157a859dce00e"
   },
-  "patch_sha256": "7c01468fe8c0a2c99446677669a99285416ded9f8cbf62df8b1e310cafda8fe0",
+  "patch_sha256": "8f93705e6bbb8a0460b39cd3c8e11003cc2a81b6beb97229d5c9f4300525d98a",
   "rust_toolchain": "1.95.0",
-  "source_digest": "6638885cc536debabc41659b8296ff8188e0164732c69abd58110ed5bf6dbbe8",
+  "source_digest": "f70ee4a421d3f31c91792e3f6bf4b192544ef5a57b0ea9e776e7017e83cb5673",
   "upstream_revision": "6648bd0c290efbc41ba131ee9831ee45cd431f94"
 }
