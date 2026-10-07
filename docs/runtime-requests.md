@@ -15,10 +15,16 @@ names identify requested permissions; they do not establish trusted semantics.
 MCP derivation still requires exact registered tool semantics and a host-owned
 server/transport declaration.
 
-The deterministic `network.graphql.request` adapter accepts only named, flat
-`query` or `mutation` operations with literal field identifiers. Variables,
-arguments, aliases, directives, fragments, nested selections, batches and
-subscriptions stay unmodeled. These permissions do not pin query text or
+The deterministic `network.graphql.request` adapter accepts one named, flat
+`query` or `mutation` operation with literal field identifiers. Comments,
+response aliases, inline fragments and reachable named fragments are supported
+when they expand to that same flat root-field scope. Permissions use actual
+field names, never response aliases. Missing, cyclic, duplicate or unused
+fragments and conflicting response aliases fail closed. Parsing bounds document
+length, token count and fragment depth and performs no I/O.
+
+Variables, arguments, directives, nested selections, batches and subscriptions
+stay unmodeled. These permissions do not pin query text or
 application-specific argument values. Requests requiring finer constraints
 retain `requires_argument_constraints=true` and cannot compile. In particular,
 `gh issue view` still cannot be represented as the plan's assumed REST GET or
@@ -49,6 +55,23 @@ identities. Without declared filesystem/process requirements, compilation
 continues to fail closed. Nonempty MCP tool arguments require argument
 constraints and are unsupported by this compiler; argument values never enter
 the request artifact.
+
+Parameter-free MCP control requests use `ActionEnvelope("mcp",
+"protocol.request", {"server": "monitor", "method": "tools/list"})`.
+Supported methods are `ping`, `tools/list`, and `notifications/initialized`;
+each requires its own exact request boundary. These names do not establish
+transport authority: the host must declare the logical server endpoint and
+client/startup requirements. Initialization parameters, pagination cursors and
+other nonempty control parameters remain unsupported.
+
+Tool calls and control requests may specify `protocol_version`. The default
+remains `2025-11-25`. Older supported revisions (`2025-03-26`, `2025-06-18`)
+require a protected profile declaration, for example
+`mcp_versions={"monitor": ("2025-06-18",)}` alongside `mcp_endpoints`.
+The artifact and compiled policy retain the single requested revision, rather
+than the full host-approved set. Conflicting host declarations intersect;
+an agent-supplied revision alone cannot expand authority. Empty profile fields
+preserve existing configuration identities.
 
 `verify_runtime_request_capability` verifies every original capability domain
 and then the request-specific scope. Transport bounds must agree with declared
@@ -85,6 +108,12 @@ models only TCP and REST. Supplying a backend prover boundary therefore returns
 are distinctly labeled; they are not an OpenShell prover result. Credentialed
 protocol policies, private-address expansion, and mixed MCP/non-MCP endpoints
 on one host/port are also rejected.
+
+The pinned backend exposes only GraphQL operation/type/root fields and MCP
+`params.name` to enforcement. Although its YAML can serialize nested parameter
+selectors, MCP argument matching is not implemented. Enabling argument-value
+or nested-field constraints requires a separately audited enforcement backend
+extension; accepting their syntax in Ordin would not make them enforceable.
 
 The [recorded VM probes](reports/runtime-protocol-enforcement.json) verified
 four GraphQL cases (forwarded query; denied mutation, field expansion and

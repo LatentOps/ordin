@@ -513,6 +513,44 @@ def _review_action_base(
 ) -> ActionReview:
     """Review one action without applying temporal history."""
 
+    if action.kind == "mcp" and action.operation == "protocol.request":
+        import re
+        from .runtime_requests import MCP_VERSIONS
+
+        params = action.parameters.get("params", {})
+        server = action.parameters.get("server")
+        method = action.parameters.get("method")
+        version = action.parameters.get("protocol_version", "2025-11-25")
+        if (
+            {"server", "method"}.issubset(action.parameters)
+            and not set(action.parameters) - {"server", "method", "params", "protocol_version"}
+            and isinstance(server, str)
+            and re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", server)
+            and isinstance(method, str)
+            and method in {"ping", "tools/list", "notifications/initialized"}
+            and isinstance(version, str)
+            and version in MCP_VERSIONS
+            and isinstance(params, Mapping)
+            and not params
+        ):
+            effects = ["network.download" if method == "tools/list" else "network.connect"]
+            resources = [ActionResource("mcp_server", server)]
+            return _with_base_provenance(
+                ActionReview(
+                    action=action,
+                    decision="allow",
+                    risk="low",
+                    reasons=[
+                        "Known MCP control method with empty parameters; transport authority requires host binding."
+                    ],
+                    safer_next_step=None,
+                    effects=effects,
+                    resources=resources,
+                    adapter="mcp.protocol",
+                    capabilities=derive_capabilities(action.kind, effects, resources),
+                )
+            )
+
     if action.kind == "network" and action.operation == "graphql.request":
         from .runtime_requests import graphql_operation, request_endpoint
 

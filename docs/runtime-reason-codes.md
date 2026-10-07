@@ -10,6 +10,7 @@ Non-success states preserve unsupported fields and verification coverage.
 | `runtime_contract_malformed_resource` | Resource syntax is ambiguous or contains sensitive URL components. |
 | `runtime_contract_unknown_protocol` | Host information does not establish request restrictions. |
 | `runtime_contract_conflicting_requirement` | Reviewed runtime facts conflict; refuse compilation. |
+| `runtime_contract_mcp_version_unapproved` | Requested MCP revision lacks an explicit matching host declaration; retain diagnostic state. |
 | `runtime_boundary_blocked_decision` | A blocked semantic review cannot pass for granting authority. |
 | `filesystem_access_exceeds_boundary` | Access/resource falls outside allowed filesystem grants. |
 | `network_request_exceeds_boundary` | Method/path pair is outside the caller's network boundary. |

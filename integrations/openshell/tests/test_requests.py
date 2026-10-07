@@ -58,7 +58,7 @@ def graphql_contract(query="query InspectStatus { status version }"):
     return review, derive_runtime_request_contract(review)
 
 
-def mcp_contract(arguments=None):
+def mcp_contract(arguments=None, *, version=None, declared=None):
     rules = ToolSemanticsRegistry(
         "request-test",
         "1",
@@ -71,10 +71,18 @@ def mcp_contract(arguments=None):
     action = ActionEnvelope(
         "mcp",
         "call",
-        {"server": "monitor", "tool": "read_status", "arguments": arguments or {}},
+        {
+            "server": "monitor",
+            "tool": "read_status",
+            "arguments": arguments or {},
+            **({"protocol_version": version} if version is not None else {}),
+        },
         action_id="mcp",
     )
-    review = Ordin(tool_semantics=rules, runtime_requirements=profile(True)).review_action(action)
+    deployment = profile(True)
+    if declared is not None:
+        deployment = replace(deployment, mcp_versions={"monitor": declared})
+    review = Ordin(tool_semantics=rules, runtime_requirements=deployment).review_action(action)
     return review, derive_runtime_request_contract(review)
 
 
@@ -119,7 +127,7 @@ def test_derived_protocol_contract_preserves_action_decision_and_exact_source(fa
         "{ status }",
         "query Q($id: ID!){ status(id:$id) }",
         "query Q { account { secret } }",
-        "query Q { a:status }",
+        "query Q { a::status }",
         "query Q { ...F }",
         "query Q { status @include(if:true) }",
         "query Q { status }; mutation X { delete }",
@@ -439,3 +447,227 @@ def test_malformed_mcp_readback_returns_unsupported_before_apply(entry):
         plan, backend=backend, sandbox="demo", cli=cli, request_boundary=request_boundary(request)
     )
     assert result.status == "unsupported" and cli.set_calls == 0
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "query InspectStatus { current:status version }",
+        "# comment\nquery InspectStatus { status, version # another comment\n}",
+        "query InspectStatus { ...Status } fragment Status on Query { current:status version }",
+        "fragment Status on Query { status version } query InspectStatus { ...Status }",
+        "query InspectStatus { ... on Query { status version } }",
+        "query InspectStatus { ...A } fragment A on Query { status ...B } fragment B on Query { version }",
+    ],
+)
+def test_equivalent_graphql_syntax_preserves_exact_backend_field_authority(query):
+    _, original = graphql_contract()
+    review, request = graphql_contract(query)
+    assert review.decision == "allow" and request.requests == original.requests
+    assert request.capability.action_digest != original.capability.action_digest
+    result = OpenShellBackend((1000, 1000), request_contract=request).compile(request.capability)
+    assert result.status == "success"
+    endpoint = next(iter(result.plan.policy["network_policies"].values()))["endpoints"][0]
+    assert endpoint["rules"][0]["allow"]["fields"] == ("status", "version")
+    assert verify_runtime_request_capability(request, request_boundary(original)).ok
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "query InspectStatus { status:secret version }",
+        "query InspectStatus { ...Fields } fragment Fields on Query { secret version }",
+    ],
+)
+def test_aliases_and_fragments_cannot_disguise_field_expansion(query):
+    _, original = graphql_contract()
+    _, expanded = graphql_contract(query)
+    assert expanded.requests[0].fields == ("secret", "version")
+    assert (
+        verify_runtime_request_capability(expanded, request_boundary(original)).result
+        == "exceeds_boundary"
+    )
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "query Q { a:status a:secret }",
+        "query Q { ...A } fragment A on Query { ...A }",
+        "query Q { ...A } fragment A on Query { ...B } fragment B on Query { ...A }",
+        "query Q { status } fragment Unused on Query { secret }",
+        "query Q { ...Missing }",
+        "query Q { ...A } fragment A on Query { status } fragment A on Query { secret }",
+        "query Q { ... on Query { account { secret } } }",
+        "query Q { ...A } fragment A on Query { status(id:1) }",
+        "query Q { ...A @include(if:true) } fragment A on Query { status }",
+        "query Q { status } query Other { secret }",
+    ],
+)
+def test_ambiguous_or_unenforceable_graphql_documents_stay_diagnostic(query):
+    review, request = graphql_contract(query)
+    assert review.decision == "ask" and not request.requests
+    assert (
+        OpenShellBackend((1000, 1000), request_contract=request).compile(request.capability).status
+        == "unsupported"
+    )
+
+
+def protocol_contract(method="tools/list", version="2025-11-25", declared=None, params=None):
+    deployment = profile(True)
+    if declared is not None:
+        deployment = replace(deployment, mcp_versions={"monitor": declared})
+    action = ActionEnvelope(
+        "mcp",
+        "protocol.request",
+        {
+            "server": "monitor",
+            "method": method,
+            "protocol_version": version,
+            "params": {} if params is None else params,
+        },
+        action_id="protocol",
+    )
+    review = Ordin(runtime_requirements=deployment).review_action(action)
+    return review, derive_runtime_request_contract(review)
+
+
+@pytest.mark.parametrize("method", ["ping", "tools/list", "notifications/initialized"])
+def test_known_mcp_control_methods_require_exact_transport_method_and_version(method):
+    review, request = protocol_contract(method)
+    assert review.adapter == "mcp.protocol" and request.capability.unknowns == ()
+    assert request.capability.tools == ()
+    assert request.requests[0].method == method and request.requests[0].tool is None
+    assert verify_runtime_request_capability(request, request_boundary(request)).ok
+    plan = OpenShellBackend((1000, 1000), request_contract=request).compile(request.capability).plan
+    assert plan is not None
+    endpoint = next(iter(plan.policy["network_policies"].values()))["endpoints"][0]
+    assert endpoint["rules"][0]["allow"] == {"method": method}
+    changed = replace(
+        request,
+        requests=(
+            replace(request.requests[0], method="tools/list" if method == "ping" else "ping"),
+        ),
+        request_contract_id="",
+    )
+    assert (
+        verify_runtime_request_capability(changed, request_boundary(request)).result
+        == "exceeds_boundary"
+    )
+
+
+@pytest.mark.parametrize("version", ["2025-03-26", "2025-06-18"])
+def test_older_mcp_versions_need_explicit_host_approval(version):
+    _, denied = protocol_contract(version=version)
+    assert denied.capability.grant_state == "diagnostic" and not denied.requests
+    assert any(
+        u.reason_code == "runtime_contract_mcp_version_unapproved"
+        for u in denied.capability.unknowns
+    )
+    _, approved = protocol_contract(version=version, declared=(version,))
+    assert approved.requests[0].versions == (version,) and approved.capability.unknowns == ()
+    result = OpenShellBackend((1000, 1000), request_contract=approved).compile(approved.capability)
+    assert result.status == "success"
+    endpoint = next(iter(result.plan.policy["network_policies"].values()))["endpoints"][0]
+    assert endpoint["mcp"]["versions"] == (version,)
+    _, latest = protocol_contract()
+    assert (
+        verify_runtime_request_capability(approved, request_boundary(latest)).result
+        == "exceeds_boundary"
+    )
+
+
+@pytest.mark.parametrize(
+    "method,params",
+    [
+        ("tools/call", {}),
+        ("tools/delete", {}),
+        ("initialize", {}),
+        ("tools/list", {"cursor": "opaque"}),
+        ("ping", []),
+    ],
+)
+def test_unknown_or_parameterized_mcp_control_actions_cannot_gain_authority(method, params):
+    review, request = protocol_contract(method, params=params)
+    assert review.decision == "ask" and request.capability.grant_state == "diagnostic"
+    assert (
+        OpenShellBackend((1000, 1000), request_contract=request).compile(request.capability).status
+        == "unsupported"
+    )
+
+
+def test_control_method_names_do_not_establish_transport_authority():
+    action = ActionEnvelope(
+        "mcp", "protocol.request", {"server": "monitor", "method": "ping"}, action_id="unbound"
+    )
+    request = derive_runtime_request_contract(Ordin().review_action(action))
+    assert not request.requests and request.capability.grant_state == "diagnostic"
+
+
+@pytest.mark.parametrize("version", ["latest", True])
+def test_unknown_control_protocol_versions_remain_unknown_actions(version):
+    review, request = protocol_contract(version=version)
+    assert review.decision == "ask" and request.capability.grant_state == "diagnostic"
+
+
+@pytest.mark.parametrize("version", ["2025-03-26", "2025-06-18"])
+def test_exact_mcp_tools_can_use_only_host_approved_older_versions(version):
+    _, unapproved = mcp_contract(version=version)
+    assert unapproved.capability.grant_state == "diagnostic" and not unapproved.requests
+    _, approved = mcp_contract(version=version, declared=(version,))
+    assert approved.capability.unknowns == () and approved.requests[0].versions == (version,)
+    assert (
+        OpenShellBackend((1000, 1000), request_contract=approved)
+        .compile(approved.capability)
+        .status
+        == "success"
+    )
+    _, with_args = mcp_contract(
+        {"secret": "REJECTED_ARGUMENT_VALUE"}, version=version, declared=(version,)
+    )
+    rejected = OpenShellBackend((1000, 1000), request_contract=with_args).compile(
+        with_args.capability
+    )
+    assert rejected.status == "unsupported" and "REJECTED_ARGUMENT_VALUE" not in json.dumps(
+        rejected.as_dict()
+    )
+
+
+@pytest.mark.parametrize("versions", [(), ("latest",), ("2025-06-18", "2025-06-18"), (True,)])
+def test_host_version_profile_is_bounded_and_exact(versions):
+    with pytest.raises(ValueError, match="runtime_requirement_mcp_versions_invalid"):
+        replace(profile(True), mcp_versions={"monitor": versions})
+
+
+def test_conflicting_host_version_declarations_do_not_union_authority():
+    review, _ = protocol_contract(version="2025-06-18", declared=("2025-06-18",))
+    stricter = replace(profile(True), mcp_versions={"monitor": ("2025-11-25",)})
+    request = derive_runtime_request_contract(stricter.declare(review))
+    assert request.capability.grant_state == "diagnostic" and not request.requests
+
+
+def test_graphql_parser_work_is_bounded_and_performs_no_io(monkeypatch):
+    import builtins
+    import socket
+    import subprocess
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("GraphQL scope parsing crossed an I/O boundary")
+
+    monkeypatch.setattr(builtins, "open", forbidden)
+    monkeypatch.setattr(socket, "getaddrinfo", forbidden)
+    monkeypatch.setattr(subprocess, "run", forbidden)
+    assert graphql_operation("query Q { ...F } fragment F on Query { a:status }") == (
+        "query",
+        "Q",
+        ("status",),
+    )
+    assert graphql_operation("query Q { " + "status " * 1000 + "}") is None
+    chain = (
+        "query Q { ...F0 } "
+        + " ".join(
+            "fragment F" + str(i) + " on Query { ...F" + str(i + 1) + " }" for i in range(20)
+        )
+        + " fragment F20 on Query { status }"
+    )
+    assert graphql_operation(chain) is None

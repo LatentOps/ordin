@@ -134,6 +134,14 @@ Logical MCP server identity depends on protected host transport declarations
 and existing semantic/contract pinning, not a name substring or remote
 attestation. Generic HTTP events do not establish high-level request fields.
 
+GraphQL aliases and flat fragments are resolved to actual root field names;
+conflicting aliases, missing/cyclic fragments and unmodeled constraints fail
+closed. MCP control methods require exact method boundaries and host transport
+bindings. Older MCP revisions require explicit host version declarations,
+retained in provenance and intersected rather than unioned. The pinned backend
+cannot enforce GraphQL arguments/nested fields or MCP argument values; policy
+serialization support alone is not enforcement evidence.
+
 Optional OCSF Detection Findings retain digests and fixed machine categories,
 omitting commands, arguments, human reasons, resource identities and raw
 payloads. They report local decisions and diagnostics; they cannot be restored
