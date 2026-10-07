@@ -179,3 +179,11 @@ def test_driver_aliases_cannot_bypass_operator_address_ranges(alias):
                 }
             ]
         )
+
+
+@pytest.mark.parametrize("host", ["fd55::1%eth0", "2001:4860:4860:0:0:0:0:8888"])
+def test_scoped_or_noncanonical_literal_addresses_fail_before_compilation(host):
+    with pytest.raises(ValueError, match="openshell_network_scope_invalid"):
+        validate_network_scopes(
+            [{"host": host, "port": 853, "protocols": ["tcp"], "allowed_ips": ["fd55::1/128"]}]
+        )

@@ -25,7 +25,13 @@ _FORBIDDEN = tuple(
 
 
 def scoped_host(host: Any) -> bool:
-    if not isinstance(host, str) or len(host) > 253 or host != host.lower() or host.endswith("."):
+    if (
+        not isinstance(host, str)
+        or len(host) > 253
+        or host != host.lower()
+        or host.endswith(".")
+        or "%" in host
+    ):
         return False
     if host in {
         "metadata.google.internal",
@@ -38,7 +44,9 @@ def scoped_host(host: Any) -> bool:
         return False
     try:
         address = ipaddress.ip_address(host)
-        return not any(address.version == net.version and address in net for net in _FORBIDDEN)
+        return str(address) == host and not any(
+            address.version == net.version and address in net for net in _FORBIDDEN
+        )
     except ValueError:
         return "." in host and all(
             re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", label)
@@ -83,7 +91,7 @@ def validate_network_scopes(scopes: Any) -> None:
         networks = []
         for value in scope["allowed_ips"]:
             try:
-                if not isinstance(value, str):
+                if not isinstance(value, str) or "%" in value:
                     raise ValueError
                 network = ipaddress.ip_network(value, strict=True)
                 if any(

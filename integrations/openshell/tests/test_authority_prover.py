@@ -68,6 +68,14 @@ def test_ambiguous_duplicate_integrity_endpoints_are_not_projected_into_success(
     assert check_protocol_containment(candidate, candidate)[0] == "unsupported"
 
 
+def test_zoned_ipv6_cannot_be_projected_into_a_literal_proof():
+    policy = compiled()
+    endpoint = next(iter(policy["network_policies"].values()))["endpoints"][0]
+    endpoint["host"] = "fd55::1%eth0"
+    endpoint["allowed_ips"] = ["fd55::1/128"]
+    assert check_protocol_containment(policy, policy)[0] == "unsupported"
+
+
 @pytest.mark.parametrize("host", ["8.8.8.8", "2001:4860:4860::8888"])
 @pytest.mark.parametrize("mixed", [False, True])
 def test_real_prover_literal_tcp_and_mixed_request_authority(tmp_path, host, mixed):
