@@ -1069,7 +1069,7 @@ index 994d101..f6f3eec 100644
      let operations = info.operations.iter().map(|operation| {
          let name = operation.operation_name.as_deref().unwrap_or("-");
 diff --git a/crates/openshell-supervisor-network/src/l7/jsonrpc.rs b/crates/openshell-supervisor-network/src/l7/jsonrpc.rs
-index aea53ed..2d0b1c3 100644
+index aea53ed..2097ec4 100644
 --- a/crates/openshell-supervisor-network/src/l7/jsonrpc.rs
 +++ b/crates/openshell-supervisor-network/src/l7/jsonrpc.rs
 @@ -194,7 +194,14 @@ impl JsonRpcInspectionError {
@@ -1088,15 +1088,24 @@ index aea53ed..2d0b1c3 100644
      }
  }
  
-@@ -535,6 +542,12 @@ fn validate_mcp_tool_name(name: &str) -> std::result::Result<(), String> {
+@@ -535,6 +542,21 @@ fn validate_mcp_tool_name(name: &str) -> std::result::Result<(), String> {
  }
  #[cfg(test)]
  mod tests {
 +    #[test]
 +    fn rejection_diagnostic_never_echoes_parameter_values() {
-+        let error = super::JsonRpcInspectionError::invalid_message("invalid type: NONSECRET_SENTINEL_ARGUMENT");
-+        assert_eq!(error.rejection_reason(), "JSON-RPC request rejected: invalid message");
-+        assert!(!error.rejection_reason().contains("NONSECRET_SENTINEL_ARGUMENT"));
++        let error = super::JsonRpcInspectionError::invalid_message(
++            "invalid type: NONSECRET_SENTINEL_ARGUMENT",
++        );
++        assert_eq!(
++            error.rejection_reason(),
++            "JSON-RPC request rejected: invalid message"
++        );
++        assert!(
++            !error
++                .rejection_reason()
++                .contains("NONSECRET_SENTINEL_ARGUMENT")
++        );
 +    }
      use super::*;
      use std::collections::HashMap;
