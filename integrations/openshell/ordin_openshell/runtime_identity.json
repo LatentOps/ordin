@@ -14,6 +14,7 @@
     "crates/openshell-policy-schema/src/lib.rs": "cc39f82e76aa5df1f454a090d03d48e3daa8b20608568aff1c36e178a28dbbbd",
     "crates/openshell-policy/src/ambiguity.rs": "69f8e7fa2248da98e69a86ad282dd5f8289cf3bef0ed7615ae852ba3ae13e08f",
     "crates/openshell-policy/src/lib.rs": "7c73d61616d7464d21f1a9e89b968442f233fb6c6bcc2f2be1fb66ad26071534",
+    "crates/openshell-prover-cli/src/main.rs": "5522472a997fe15c61e07c666e224b3d121b1e73e2f295cd84ca6709c8f498ef",
     "crates/openshell-prover/src/containment.rs": "9749e04fdfa976593411ea4dfc5177bdf3d6281eac630315e89220595c808ef0",
     "crates/openshell-providers/src/profiles.rs": "9bb07b5e2e695fb0f1ac955a069609b349efda31df1e76ad8b7425fa39a29385",
     "crates/openshell-request-integrity/Cargo.toml": "3e395611a18ded0e1dd12223294064f7838553c479a2d7fdce90dca5798aebd8",
@@ -50,8 +51,8 @@
     "sdk/go/proto/optionsv1/options.pb.go": "a9c387751d6a36cd15a164f27b4050622d6c867e719e33f3cab0fdcc62ea052a",
     "sdk/go/proto/sandboxv1/sandbox.pb.go": "abd15abc3103a2c153515f7004f441effea5d26e9cb74bbd39b157a859dce00e"
   },
-  "patch_sha256": "2aba41d7b15fefa8e5d96c6597671b7a6abb29e17b8306da97e4c2ca155ee0dc",
+  "patch_sha256": "7c01468fe8c0a2c99446677669a99285416ded9f8cbf62df8b1e310cafda8fe0",
   "rust_toolchain": "1.95.0",
-  "source_digest": "0460795c25ace9c53c50fb1688c4d461920e310a31305af34328bf78b83ef037",
+  "source_digest": "6638885cc536debabc41659b8296ff8188e0164732c69abd58110ed5bf6dbbe8",
   "upstream_revision": "6648bd0c290efbc41ba131ee9831ee45cd431f94"
 }

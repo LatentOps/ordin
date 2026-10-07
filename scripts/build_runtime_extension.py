@@ -138,6 +138,8 @@ def main() -> int:
             "openshell-server",
             "-p",
             "openshell-prover",
+            "-p",
+            "openshell-prover-cli",
             "--all-targets",
             "--",
             "-D",
@@ -164,11 +166,12 @@ def main() -> int:
         "--release",
         "-p",
         "openshell-gateway",
+        "-p",
+        "openshell-prover-cli",
         "--no-default-features",
         "--features",
-        "compute-driver-vm,bundled-z3",
+        "openshell-gateway/compute-driver-vm,openshell-gateway/bundled-z3,openshell-prover-cli/bundled-z3",
     )
-    cargo("build", "--release", "-p", "openshell-prover-cli", "--features", "bundled-z3")
     if args.vm_assets is None:
         raise ValueError("full runtime build requires verified VM assets")
     assets = output / "vm-runtime-compressed"

@@ -411,6 +411,55 @@ index f6ba71f..c01cc5e 100644
                  } else if let Err(reason) = validate_tcp_dns_host_selector(&ep.host) {
                      violations.push(PolicyViolation::InvalidTcpEndpointHost {
                          policy_name: name.clone(),
+diff --git a/crates/openshell-prover-cli/src/main.rs b/crates/openshell-prover-cli/src/main.rs
+index 69166c4..b993e6f 100644
+--- a/crates/openshell-prover-cli/src/main.rs
++++ b/crates/openshell-prover-cli/src/main.rs
+@@ -21,12 +21,16 @@ use openshell_prover::containment::{
+ use serde::Serialize;
+ 
+ const MAX_POLICY_BYTES: u64 = 4 * 1024 * 1024;
++const PROVER_VERSION: &str = match option_env!("OPENSHELL_GIT_VERSION") {
++    Some(version) => version,
++    None => env!("CARGO_PKG_VERSION"),
++};
+ 
+ #[derive(Debug, Parser)]
+ #[command(
+     name = "openshell-prover",
+     about = "Verify OpenShell policy boundaries",
+-    version
++    version = PROVER_VERSION
+ )]
+ struct Cli {
+     #[command(subcommand)]
+@@ -291,7 +295,7 @@ fn render_input_error(
+     if output == OutputFormat::Json {
+         let envelope = Envelope {
+             schema_version: 1,
+-            prover_version: env!("CARGO_PKG_VERSION"),
++            prover_version: PROVER_VERSION,
+             check: "boundary",
+             coverage: None,
+             result: "error",
+@@ -356,7 +360,7 @@ fn result_envelope(result: &CheckResult, inputs: InputsJson) -> Result<Envelope<
+     };
+     Ok(Envelope {
+         schema_version: 1,
+-        prover_version: env!("CARGO_PKG_VERSION"),
++        prover_version: PROVER_VERSION,
+         check: "boundary",
+         coverage: Some(coverage_json(coverage)),
+         result: result_name,
+@@ -590,7 +594,7 @@ mod tests {
+     fn output_failures_are_reported() {
+         let envelope = Envelope {
+             schema_version: 1,
+-            prover_version: env!("CARGO_PKG_VERSION"),
++            prover_version: PROVER_VERSION,
+             check: "boundary",
+             coverage: None,
+             result: "within_boundary",
 diff --git a/crates/openshell-prover/src/containment.rs b/crates/openshell-prover/src/containment.rs
 index 9a9c9cb..22f6b54 100644
 --- a/crates/openshell-prover/src/containment.rs
