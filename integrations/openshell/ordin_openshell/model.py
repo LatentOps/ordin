@@ -7,6 +7,7 @@ import json
 from typing import Any, Mapping
 
 from ordin._runtime_json import MAX_RUNTIME_BYTES, canonical_json, freeze, thaw
+from ordin._runtime_url import has_unsafe_authority_characters
 from ordin.runtime_contract import _safe_path
 from ordin.runtime_requests import NAME, TOOL_NAME, MCP_METHODS, MCP_VERSIONS
 
@@ -68,6 +69,7 @@ def exact_host(host: Any) -> bool:
 def exact_request_path(path: Any) -> bool:
     return (
         isinstance(path, str)
+        and not has_unsafe_authority_characters(path)
         and _safe_path(path)
         and not any(c in path for c in "%?#")
         and "//" not in path

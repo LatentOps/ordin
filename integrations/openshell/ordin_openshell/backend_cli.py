@@ -12,6 +12,7 @@ from typing import Any, Sequence
 from urllib.parse import urlsplit
 
 from ordin._runtime_json import MAX_RUNTIME_BYTES, freeze
+from ordin._runtime_url import has_unsafe_authority_characters
 
 SUPPORTED_CLI_VERSION = "0.1.2"
 
@@ -64,6 +65,10 @@ class OpenShellCLI:
         identifier(self.workspace)
         if self.gateway_endpoint is not None:
             try:
+                if not isinstance(self.gateway_endpoint, str) or has_unsafe_authority_characters(
+                    self.gateway_endpoint
+                ):
+                    raise ValueError("openshell_gateway_endpoint_invalid")
                 parsed = urlsplit(self.gateway_endpoint)
                 if (
                     parsed.scheme not in {"http", "https"}
@@ -73,7 +78,6 @@ class OpenShellCLI:
                     or parsed.query
                     or parsed.fragment
                     or parsed.path not in {"", "/"}
-                    or any(ord(c) < 32 for c in self.gateway_endpoint)
                     or parsed.port is not None
                     and not 1 <= parsed.port <= 65535
                 ):

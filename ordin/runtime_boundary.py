@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Mapping
+from ._runtime_url import has_unsafe_authority_characters
 
 from ._runtime_json import digest, freeze, model_tuple, text_tuple, thaw, validate
 from .runtime_contract import (
@@ -144,6 +145,8 @@ class CapabilityVerificationResult:
 
 
 def _request_path(path: str, *, pattern: bool = False) -> bool:
+    if has_unsafe_authority_characters(path):
+        return False
     if not _safe_path(path.replace("/**", "/placeholder") if pattern else path):
         return False
     if "%" in path or "#" in path or "?" in path or "//" in path:

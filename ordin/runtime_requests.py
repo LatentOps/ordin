@@ -11,6 +11,7 @@ import re
 from dataclasses import dataclass, field, replace
 from typing import Any
 from urllib.parse import urlsplit
+from ._runtime_url import has_unsafe_authority_characters
 
 from ._runtime_json import digest, freeze, thaw, model_tuple, text_tuple, validate
 from .action import ActionReview
@@ -183,7 +184,7 @@ def _mcp_protocol_version(review: ActionReview) -> str | None:
 
 
 def request_endpoint(url: Any) -> tuple[str, int, str] | None:
-    if not isinstance(url, str) or any(ord(c) < 32 for c in url):
+    if not isinstance(url, str) or has_unsafe_authority_characters(url):
         return None
     try:
         parsed = urlsplit(url)

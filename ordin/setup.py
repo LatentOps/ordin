@@ -15,6 +15,7 @@ import sys
 import tempfile
 from typing import Any, Iterator
 from urllib.parse import urlsplit
+from ._runtime_url import has_unsafe_authority_characters
 
 from . import __version__
 from ._json_contracts import load_configuration
@@ -139,7 +140,12 @@ def validate_settings(settings: dict[str, Any], *, validate_contracts: bool = Tr
                 raise SetupError("http_port_requires_fixed_nonzero_port")
             if command or not isinstance(settings["upstream"], str):
                 raise SetupError("http_upstream_required")
-            url = urlsplit(settings["upstream"])
+            if has_unsafe_authority_characters(settings["upstream"]):
+                raise SetupError("http_upstream_url_invalid")
+            try:
+                url = urlsplit(settings["upstream"])
+            except ValueError:
+                raise SetupError("http_upstream_url_invalid") from None
             if url.query or url.fragment or url.username is not None or url.password is not None:
                 raise SetupError("credential_url_requires_manual_configuration")
             MCPHTTPConfig(settings["server_id"], settings["upstream"], port=settings["port"])

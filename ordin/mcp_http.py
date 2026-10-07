@@ -20,6 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Mapping, Sequence, cast
 from urllib.parse import urlsplit
+from ._runtime_url import has_unsafe_authority_characters
 
 from .agent import AgentGate
 from .context import ExecutionContext
@@ -91,7 +92,12 @@ class MCPHTTPConfig:
             self.forward_authorization, bool
         ):
             raise ValueError("HTTP exposure and authorization flags must be boolean")
-        if not isinstance(self.host, str) or not self.host or len(self.host) > 256:
+        if (
+            not isinstance(self.host, str)
+            or not self.host
+            or len(self.host) > 256
+            or has_unsafe_authority_characters(self.host)
+        ):
             raise ValueError("invalid HTTP listen host")
         if not isinstance(self.upstream_url, str):
             raise ValueError("upstream URL must be text")
@@ -110,7 +116,13 @@ class MCPHTTPConfig:
             or len(self.server_id) > 256
         ):
             raise ValueError("HTTP MCP requires an exact bounded server identity")
-        target = urlsplit(self.upstream_url)
+        if len(self.upstream_url) > 4096 or has_unsafe_authority_characters(self.upstream_url):
+            raise ValueError("invalid upstream URL")
+        try:
+            target = urlsplit(self.upstream_url)
+            target_port = target.port
+        except ValueError:
+            raise ValueError("invalid upstream URL") from None
         if (
             target.scheme not in {"http", "https"}
             or not target.hostname
@@ -122,9 +134,7 @@ class MCPHTTPConfig:
             raise ValueError(
                 "upstream requires a fixed HTTP(S) URL without credentials, query, or fragment"
             )
-        if len(self.upstream_url) > 4096 or any(ord(c) < 33 for c in self.upstream_url):
-            raise ValueError("invalid upstream URL")
-        if target.port is not None and not 1 <= target.port <= 65535:
+        if target_port is not None and not 1 <= target_port <= 65535:
             raise ValueError("invalid upstream port")
         try:
             upstream_loopback = ipaddress.ip_address(target.hostname).is_loopback
@@ -169,10 +179,14 @@ class MCPHTTPConfig:
         ):
             raise ValueError("forwarded header names must be unique and bounded")
         for value in self.allowed_hosts | self.allowed_origins:
-            if not value or len(value) > 1024 or any(ord(c) < 33 for c in value):
+            if not value or len(value) > 1024 or has_unsafe_authority_characters(value):
                 raise ValueError("invalid explicit HTTP host/origin policy")
         for origin in self.allowed_origins:
-            parsed = urlsplit(origin)
+            try:
+                parsed = urlsplit(origin)
+                origin_port = parsed.port
+            except ValueError:
+                raise ValueError("invalid explicit HTTP host/origin policy") from None
             if (
                 parsed.scheme not in {"http", "https"}
                 or not parsed.hostname
@@ -181,6 +195,8 @@ class MCPHTTPConfig:
                 or parsed.path
                 or parsed.query
                 or parsed.fragment
+                or origin_port is not None
+                and not 1 <= origin_port <= 65535
             ):
                 raise ValueError("allowed origins must be exact HTTP(S) origins without paths")
 

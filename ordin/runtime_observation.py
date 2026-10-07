@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 from urllib.parse import urlsplit
+from ._runtime_url import has_unsafe_authority_characters
 
 from ._runtime_json import digest, freeze, model_tuple, text_tuple, thaw, validate
 from .action import ActionEnvelope, ActionHistory
@@ -56,6 +57,8 @@ def _safe_resources(resources: tuple[ObservedResource, ...], metadata: Mapping[s
         value = resource.value
         if resource.type in {"url", "endpoint"}:
             try:
+                if has_unsafe_authority_characters(value):
+                    raise ValueError("runtime observation rejects sensitive or ambiguous URLs")
                 url = urlsplit(value)
                 if (
                     url.scheme not in {"https", "http"}
@@ -74,7 +77,13 @@ def _safe_resources(resources: tuple[ObservedResource, ...], metadata: Mapping[s
                 ) from None
     # These fields identify request boundaries, not headers, bodies, or queries.
     path = metadata.get("path")
-    if path is not None and (not path.startswith("/") or "?" in path or "#" in path):
+    if path is not None and (
+        not isinstance(path, str)
+        or has_unsafe_authority_characters(path)
+        or not path.startswith("/")
+        or "?" in path
+        or "#" in path
+    ):
         raise ValueError("runtime observation path must not contain query or fragment data")
 
 
@@ -103,9 +112,9 @@ class RuntimeObservation:
         object.__setattr__(self, "resources", model_tuple(self.resources, ObservedResource))
         if not isinstance(self.metadata, Mapping):
             raise ValueError("runtime observation metadata requires an object")
+        _safe_resources(self.resources, self.metadata)
         object.__setattr__(self, "metadata", freeze(self.metadata))
         validate("runtime_observation", self.as_dict())
-        _safe_resources(self.resources, self.metadata)
         if self.trust != "caller_asserted":
             if not all(
                 (
@@ -234,6 +243,10 @@ class RuntimeEvidenceSource:
     ) -> RuntimeObservation:
         if not isinstance(contract, RuntimeCapabilityContract) or contract.action_id is None:
             raise RuntimeCorrelationError("runtime_observation_action_mismatch")
+        resources = model_tuple(resources, ObservedResource)
+        if metadata is not None and not isinstance(metadata, Mapping):
+            raise ValueError("runtime observation metadata requires an object")
+        _safe_resources(resources, metadata if metadata is not None else {})
         packet = {
             "schema_version": RUNTIME_OBSERVATION_SCHEMA_VERSION,
             "observation_id": observation_id,

@@ -10,6 +10,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 from urllib.parse import urlsplit
+from ._runtime_url import has_unsafe_authority_characters
 
 from ._runtime_json import digest, freeze, model_tuple, text_tuple, thaw, validate
 from .action import ActionReview
@@ -391,11 +392,12 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
                     if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]{0,252}", resource.value):
                         host = resource.value
                 else:
+                    if has_unsafe_authority_characters(resource.value):
+                        raise ValueError("runtime_contract_malformed_resource")
                     url = urlsplit(resource.value)
                     # Query/userinfo can contain credentials. Never retain them.
                     if (
                         url.scheme in {"http", "https"}
-                        and not any(ord(c) < 32 for c in resource.value)
                         and url.username is None
                         and url.password is None
                         and not url.query
