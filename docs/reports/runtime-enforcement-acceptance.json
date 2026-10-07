@@ -1,8 +1,19 @@
 {
   "schema_version": "ordin.runtime_enforcement_acceptance.v1",
-  "evidence_status": "historical pre-#199 validation; not current HEAD",
-  "source_revision": "8dc27db112af6347a42f8184d2a4468324f8a4c8",
-  "source_digest": "9dca50a6c212f33716d3536094b221d234b07641202225b44fb76900fd0c5c67",
+  "evidence_status": "exact implementation validation; subsequent evidence-only commit",
+  "starting_revision": "925468d7153ef11d966af7706ca1029f44ffcd65",
+  "source_revision": "010669336a05187114ef1903bf2f533c9040595a",
+  "source_digest": "ae81269d0e85726a176988418df4cca793f0d240344ac05899511f65ec7fd2e5",
+  "source_digest_algorithm": "SHA256 of sorted path-to-SHA256 manifest over committed tracked files, excluding the six generated evidence outputs",
+  "source_digest_excludes": [
+    "docs/runtime-enforcement-acceptance.md",
+    "docs/reports/runtime-enforcement-acceptance.json",
+    "docs/reports/runtime-enforcement-corpus.json",
+    "docs/reports/runtime-protocol-enforcement.json",
+    "docs/reports/openshell-runtime-demo.json",
+    "docs/reports/openshell-runtime-apply.json"
+  ],
+  "source_files": 600,
   "environment": {
     "python": "3.12.3",
     "platform": "Linux-5.15.167.4-microsoft-standard-WSL2-x86_64-with-glibc2.39"
@@ -10,101 +21,290 @@
   "core_version": "0.4.0.dev0",
   "integration_version": "0.1.0",
   "required_core_dependencies": [],
-  "pytest": {
-    "command": "python -m pytest -q",
-    "passed": 1086,
-    "skipped": 11,
-    "seconds": 172.11,
-    "skip_reasons": {
-      "zsh_unavailable": 9,
-      "zle_not_applicable_to_bash": 2
+  "command_results": [
+    {
+      "name": "focused",
+      "command": "python -m pytest -q tests/test_runtime_contract.py tests/test_runtime_observation.py tests/test_runtime_boundary.py tests/test_runtime_requirements.py tests/test_capability_delta.py integrations/openshell/tests/test_requests.py integrations/openshell/tests/test_observations.py integrations/openshell/tests/test_apply.py integrations/openshell/tests/test_compiler.py integrations/openshell/tests/test_ocsf_export.py tests/test_runtime_url.py integrations/openshell/tests/test_url_authority.py",
+      "exit_code": 0,
+      "seconds": 94.133
+    },
+    {
+      "name": "full",
+      "command": "python -m pytest -q",
+      "exit_code": 0,
+      "seconds": 375.263
+    },
+    {
+      "name": "doctor",
+      "command": "python -m ordin doctor",
+      "exit_code": 0,
+      "seconds": 0.327
+    },
+    {
+      "name": "pre_commit",
+      "command": "python -m pre_commit run --all-files --show-diff-on-failure",
+      "exit_code": 0,
+      "seconds": 11.236
+    },
+    {
+      "name": "runtime_corpus",
+      "command": "python scripts/run_runtime_enforcement_corpus.py --json-out /tmp/runtime-enforcement-corpus.json",
+      "exit_code": 0
     }
+  ],
+  "focused_pytest": {
+    "passed": 442,
+    "failed": 0,
+    "skipped": 0,
+    "skip_reasons": {}
+  },
+  "pytest": {
+    "passed": 1313,
+    "failed": 0,
+    "skipped": 11,
+    "skip_reasons": {
+      "zsh is unavailable": 9,
+      "ZLE belongs to Zsh": 2
+    },
+    "elapsed_seconds": 375.263
   },
   "doctor": {
-    "command": "python -m ordin doctor",
-    "schemas": 36,
+    "schemas": 38,
     "errors": 0,
     "passed": true
   },
   "pre_commit": {
-    "command": "python -m pre_commit run --all-files --show-diff-on-failure",
     "hooks": 7,
     "passed": true
   },
   "runtime_corpus": {
     "cases": 13,
     "passed": 13,
-    "failed": 0
+    "failed": 0,
+    "source_revision": "010669336a05187114ef1903bf2f533c9040595a"
+  },
+  "optional_doctor": {
+    "pinned": {
+      "exit_code": 0,
+      "status": "success"
+    },
+    "missing": {
+      "exit_code": 2,
+      "status": "unsupported"
+    }
+  },
+  "evidence_reports": {
+    "runtime-enforcement-corpus.json": {
+      "source_revision": "010669336a05187114ef1903bf2f533c9040595a",
+      "sha256": "a78aeebba970d55fc4563d793ae839fbf9f90f56a0bb4bc9d12abe400404ba2d",
+      "evidence_class": "integration fixture; no kernel/runtime enforcement claim"
+    },
+    "runtime-protocol-enforcement.json": {
+      "source_revision": "010669336a05187114ef1903bf2f533c9040595a",
+      "sha256": "0a4cef129d7362c55013afb8c3c5e27c7196afd5c41a084bc33d297cee0b69d1",
+      "evidence_class": "kernel/runtime request enforcement"
+    },
+    "openshell-runtime-demo.json": {
+      "source_revision": "010669336a05187114ef1903bf2f533c9040595a",
+      "sha256": "17fa1e9bc989b850d38fe52d9070e673e0ceaaae185945b8ed9a13e431367cbf",
+      "evidence_class": "kernel/runtime probes with protected backend observation/enforcement correlation"
+    },
+    "openshell-runtime-apply.json": {
+      "source_revision": "010669336a05187114ef1903bf2f533c9040595a",
+      "sha256": "f7b9f9efdcd6dd5d23f70e76aa271b302d633ee4a1bc75304dca9fbd2a43dd28",
+      "evidence_class": "actual runtime management; no workload execution by apply"
+    }
+  },
+  "cleanup": {
+    "task_owned_only": true,
+    "fixture_state_retained": true,
+    "records": [
+      {
+        "target": "ordin-gql-e2e",
+        "stop_exit": 0
+      },
+      {
+        "target": "ordin-mcp-any",
+        "stop_exit": 0
+      },
+      {
+        "target": "ordin-mcp-discovery",
+        "phase": "Stopped",
+        "already_inactive": true
+      },
+      {
+        "target": "ordin-mcp-legacy",
+        "phase": "Stopped",
+        "already_inactive": true
+      },
+      {
+        "target": "ordin-mcp-notify",
+        "phase": "Stopped",
+        "already_inactive": true
+      },
+      {
+        "target": "ordin-vm-get-e2e",
+        "phase": "Error",
+        "already_inactive": true
+      },
+      {
+        "target": "ordin-vm-fs-e2e",
+        "phase": "Stopped",
+        "already_inactive": true
+      },
+      {
+        "target": "ordin-vm-get-corr",
+        "operation": "stop",
+        "returncode": 0
+      },
+      {
+        "target": "ordin-vm-fs-corr",
+        "operation": "stop",
+        "returncode": 0
+      },
+      {
+        "target": "openshell-gateway",
+        "pid": 748,
+        "stopped": true
+      },
+      {
+        "target": "openshell-gateway",
+        "pid": 3979,
+        "already_stopped": true
+      },
+      {
+        "target": "dockerd",
+        "pid": 587,
+        "stopped": true
+      },
+      {
+        "target": "containerd",
+        "pid": 287,
+        "stopped": true
+      }
+    ],
+    "passed": true,
+    "verified_no_task_services": true
   },
   "runtime_demo": {
+    "status": "rerun and passed",
     "assertions": 6,
     "passed": 6,
     "guest_kernel": "6.12.76",
-    "runtime_version": "0.1.2"
+    "runtime_version": "0.1.2",
+    "filesystem_evidence_trust": "backend_observed",
+    "network_allowed_trust": "backend_observed",
+    "network_denied_trust": "backend_enforced"
+  },
+  "protocol_enforcement": {
+    "status": "rerun and passed",
+    "cases": 21,
+    "passed": 21,
+    "baseline_cases": 7,
+    "extension_cases": 14,
+    "application_execution_claim": false
   },
   "runtime_apply": {
+    "status": "rerun and passed",
     "unapproved": "requires_approval",
     "approved": "applied",
     "authority_unchanged": true,
-    "audit_receipts": 2
+    "audit_receipts": 2,
+    "action_executed_by_apply": false
   },
   "packaging": {
-    "core_wheel_and_sdist": true,
-    "optional_wheel_and_sdist": true,
+    "core_wheel": true,
+    "core_sdist": true,
+    "optional_wheel": true,
+    "optional_sdist": true,
     "twine": true,
-    "core_import_without_optional_packages": true,
-    "optional_import_without_yaml": true,
-    "missing_runtime_doctor_expected_exit": 2,
-    "pinned_runtime_doctor_exit": 0,
-    "release_integrity_create_and_verify": true,
+    "fresh_core_import": true,
+    "core_without_yaml_or_optional": true,
+    "optional_without_yaml": true,
+    "core_install_no_index_no_deps": true,
+    "optional_install_no_index_no_deps": true,
     "published": false,
     "artifacts_sha256": {
-      "ordin-0.4.0.dev0-py3-none-any.whl": "4fb465212dfffd54626fdc5352916115b97088b700b1ca722e18343fb888d592",
-      "ordin_openshell-0.1.0-py3-none-any.whl": "a77dc52a0dcd156433e8ad84ab83a3d83e7b45840d912cc7a0be460e90f376d0",
-      "ordin-0.4.0.dev0.tar.gz": "df4d494650bbe3863139793a467b9dc562808786df87ee212a8698dd6c8965d9",
-      "ordin_openshell-0.1.0.tar.gz": "832009bf8661b86028a5f6d3fa6870d75e88fa23cad6457407e228abbfe58816"
+      "ordin-0.4.0.dev0-py3-none-any.whl": "92266af2da56dffc3fc08fc4909da094336c4e8fc2d044bb145d05d7511d890c",
+      "ordin_openshell-0.1.0-py3-none-any.whl": "ea1d8f02c090f48eaa4a4729db942f3f1107fda7d21fe54e25d90dc2e95ef472",
+      "ordin-0.4.0.dev0.tar.gz": "7602428cc0ed341c4cb4996be0efaf43665637af902cb05b58d36f9eab8f601e",
+      "ordin_openshell-0.1.0.tar.gz": "33d8bc857b1e234ddd8c036473c44398be88c1a8052b998a767b770d964479db"
     }
   },
+  "github_ci": {
+    "pr": 203,
+    "url": "https://github.com/LatentOps/ordin/pull/203",
+    "verified_pr_head": "010669336a05187114ef1903bf2f533c9040595a",
+    "merge_revision": "8cdce14936147c7e04f3a80a4aeb4e1fe8b4f086",
+    "source_tree_identical": true,
+    "applicable_validation_checks": 15,
+    "all_passed": true,
+    "checks": [
+      "Build and install package",
+      "Build release artifacts",
+      "CodeQL",
+      "CodeQL Python",
+      "Dependency review",
+      "Linux Debian 12",
+      "Linux Fedora 42",
+      "Python 3.10",
+      "Python 3.11",
+      "Python 3.12",
+      "Python 3.13",
+      "Quality",
+      "Safety benchmark",
+      "Workflow security",
+      "macOS 15 Python 3.13"
+    ],
+    "skipped": [
+      "Attest tested release artifacts",
+      "Publish GitHub Release"
+    ]
+  },
+  "limits": "Finite local acceptance and real KVM/backend probes; not remote attestation or application GraphQL/MCP execution. Packaging claims are separately scoped to their tested source.",
+  "tested_source_revision": "010669336a05187114ef1903bf2f533c9040595a",
+  "tested_source_digest": "ae81269d0e85726a176988418df4cca793f0d240344ac05899511f65ec7fd2e5",
   "installed_candidate": {
     "passed": true,
+    "revision": "010669336a05187114ef1903bf2f533c9040595a",
     "steps": [
       {
-        "elapsed_seconds": 2.606,
+        "elapsed_seconds": 1.366,
         "exit_code": 0,
         "name": "safety"
       },
       {
-        "elapsed_seconds": 1.067,
+        "elapsed_seconds": 0.815,
         "exit_code": 0,
         "name": "trajectories"
       },
       {
-        "elapsed_seconds": 0.766,
+        "elapsed_seconds": 0.816,
         "exit_code": 0,
         "name": "failure_regressions"
       },
       {
-        "elapsed_seconds": 0.515,
+        "elapsed_seconds": 0.315,
         "exit_code": 0,
         "name": "extended_regressions"
       },
       {
-        "elapsed_seconds": 0.766,
+        "elapsed_seconds": 0.665,
         "exit_code": 0,
         "name": "conformance"
       },
       {
-        "elapsed_seconds": 17.056,
+        "elapsed_seconds": 11.939,
         "exit_code": 0,
         "name": "integration"
       },
       {
-        "elapsed_seconds": 33.953,
+        "elapsed_seconds": 24.716,
         "exit_code": 0,
         "name": "runtime"
       },
       {
-        "elapsed_seconds": 27.738,
+        "elapsed_seconds": 19.959,
         "exit_code": 0,
         "name": "quickstarts"
       }
@@ -144,53 +344,5 @@
       "checks": 14,
       "passed": true
     }
-  },
-  "cleanup": {
-    "task_owned_only": true,
-    "fixture_state_retained": true,
-    "records": [
-      {
-        "target": "ordin-vm-get-e2e",
-        "phase": "Error",
-        "already_inactive": true
-      },
-      {
-        "target": "ordin-vm-fs-e2e",
-        "phase": "Stopped",
-        "already_inactive": true
-      },
-      {
-        "target": "ordin-vm-get-corr",
-        "operation": "stop",
-        "returncode": 0
-      },
-      {
-        "target": "ordin-vm-fs-corr",
-        "operation": "stop",
-        "returncode": 0
-      },
-      {
-        "target": "openshell-gateway",
-        "pid": 907,
-        "stopped": true
-      },
-      {
-        "target": "openshell-gateway",
-        "pid": 3979,
-        "already_stopped": true
-      },
-      {
-        "target": "dockerd",
-        "pid": 782,
-        "stopped": true
-      },
-      {
-        "target": "containerd",
-        "pid": 294,
-        "stopped": true
-      }
-    ],
-    "passed": true
-  },
-  "limits": "Finite local acceptance on Python3.12.3/Linux plus VM guest. Not remote attestation or the GitHub multi-platform release CI matrix."
+  }
 }

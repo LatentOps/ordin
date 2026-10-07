@@ -3,7 +3,7 @@
   "openshell_version": "0.1.2",
   "runtime": "OpenShell VM driver / KVM",
   "sandbox_id_digest": "03dcf4cb467f058787a5af4d901e3e0d432b91f2fe489ef21b0e1fe827d2182e",
-  "policy_digest": "bc49a6446212de2b4e88a7acb6e19f9a9a6f3d7523407c8dcd79dc3c5f64410e",
+  "policy_digest": "ae929ab8859e10af5737c3b230c3abf9244850b859cb1080060b9963bb0b015b",
   "records": [
     {
       "name": "get",
@@ -78,8 +78,11 @@
   ],
   "passed": true,
   "scope": "Actual caller probes plus verified backend readback and protected local evidence correlation. No credential providers, raw commands, response bodies, or secrets are recorded.",
+  "source_revision": "010669336a05187114ef1903bf2f533c9040595a",
+  "source_digest": "ae81269d0e85726a176988418df4cca793f0d240344ac05899511f65ec7fd2e5",
   "guest_kernel": "6.12.76",
-  "host_kernel": "5.15.167.4",
+  "host_kernel": "5.15.167.4-microsoft-standard-WSL2",
+  "evidence_class": "kernel/runtime probes with protected backend observation/enforcement correlation",
   "runtime_versions": {
     "openshell": "0.1.2",
     "gateway": "0.1.2",
@@ -87,6 +90,5 @@
     "supervisor": "0.1.2",
     "prover": "0.1.2",
     "ordin_openshell": "0.1.0"
-  },
-  "source_revision_before_correlation_fix": "ae3038ae7f3bb16e5727b59abedd22564df5397c"
+  }
 }

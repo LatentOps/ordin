@@ -1,5 +1,8 @@
 {
   "runtime_version": "0.1.2",
+  "source_revision": "010669336a05187114ef1903bf2f533c9040595a",
+  "source_digest": "ae81269d0e85726a176988418df4cca793f0d240344ac05899511f65ec7fd2e5",
+  "evidence_class": "kernel/runtime request enforcement",
   "probe_kind": "request-enforcement-only; public HTTP echo, no application GraphQL/MCP execution claim",
   "records": [
     {
@@ -52,5 +55,119 @@
       "request_contract_digest": "8186985474f41194e80ec76b412e4c08d9a44df9bda1972b9d3b5b0ec34c2a08"
     }
   ],
-  "passed": true
+  "passed": true,
+  "extension_records": [
+    {
+      "case": "graphql-alias",
+      "passed": true,
+      "expected": "ALLOW",
+      "protocol_version": null,
+      "http_status": 200,
+      "denial_code": null
+    },
+    {
+      "case": "graphql-fragment",
+      "passed": true,
+      "expected": "ALLOW",
+      "protocol_version": null,
+      "http_status": 200,
+      "denial_code": null
+    },
+    {
+      "case": "graphql-alias-expansion",
+      "passed": true,
+      "expected": "DENY",
+      "protocol_version": null,
+      "http_status": 403,
+      "denial_code": "policy_denied"
+    },
+    {
+      "case": "graphql-fragment-expansion",
+      "passed": true,
+      "expected": "DENY",
+      "protocol_version": null,
+      "http_status": 403,
+      "denial_code": "policy_denied"
+    },
+    {
+      "case": "graphql-alias-other-operation",
+      "passed": true,
+      "expected": "DENY",
+      "protocol_version": null,
+      "http_status": 403,
+      "denial_code": "policy_denied"
+    },
+    {
+      "case": "ordin-mcp-discovery-allow",
+      "passed": true,
+      "expected": "ALLOW",
+      "protocol_version": "2025-06-18",
+      "http_status": 200,
+      "denial_code": null
+    },
+    {
+      "case": "ordin-mcp-discovery-deny-other-tool",
+      "passed": true,
+      "expected": "DENY",
+      "protocol_version": "2025-06-18",
+      "http_status": 403,
+      "denial_code": "policy_denied"
+    },
+    {
+      "case": "ordin-mcp-discovery-deny-other-version",
+      "passed": true,
+      "expected": "DENY",
+      "protocol_version": "2025-11-25",
+      "http_status": 403,
+      "denial_code": "mcp_protocol_version_not_allowed"
+    },
+    {
+      "case": "ordin-mcp-legacy-allow",
+      "passed": true,
+      "expected": "ALLOW",
+      "protocol_version": "2025-06-18",
+      "http_status": 200,
+      "denial_code": null
+    },
+    {
+      "case": "ordin-mcp-legacy-deny-other-tool",
+      "passed": true,
+      "expected": "DENY",
+      "protocol_version": "2025-06-18",
+      "http_status": 403,
+      "denial_code": "policy_denied"
+    },
+    {
+      "case": "ordin-mcp-legacy-deny-other-version",
+      "passed": true,
+      "expected": "DENY",
+      "protocol_version": "2025-11-25",
+      "http_status": 403,
+      "denial_code": "mcp_protocol_version_not_allowed"
+    },
+    {
+      "case": "ordin-mcp-notify-allow",
+      "passed": true,
+      "expected": "ALLOW",
+      "protocol_version": "2025-11-25",
+      "http_status": 200,
+      "denial_code": null
+    },
+    {
+      "case": "ordin-mcp-notify-deny-other-tool",
+      "passed": true,
+      "expected": "DENY",
+      "protocol_version": "2025-11-25",
+      "http_status": 403,
+      "denial_code": "policy_denied"
+    },
+    {
+      "case": "ordin-mcp-notify-deny-other-version",
+      "passed": true,
+      "expected": "DENY",
+      "protocol_version": "2025-06-18",
+      "http_status": 403,
+      "denial_code": "mcp_protocol_version_not_allowed"
+    }
+  ]
 }
