@@ -1,0 +1,23 @@
+{
+  "schema_version": "ordin.assurance_test_gate.v1",
+  "test_scope": [
+    "tests/assurance",
+    "tests/test_agent.py",
+    "tests/test_action_policy.py",
+    "tests/test_policy.py",
+    "tests/test_entrypoint.py"
+  ],
+  "results": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "tests": "108",
+    "time": "9.773",
+    "timestamp": "2026-10-09T18:34:06.318525-04:00"
+  },
+  "junit_sha256": "a66a529d522217ff85f98a0f160cad6feabfb8caceb1b204c8e0f127d317765d",
+  "limitations": [
+    "Focused contract/compatibility gate; not full release acceptance."
+  ]
+}

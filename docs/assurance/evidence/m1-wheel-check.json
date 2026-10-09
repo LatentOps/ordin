@@ -1,0 +1,40 @@
+{
+  "doctor": "commands: 48\nrisk_rules: 16\neffects: 43\nschemas: 50\npacks: 11/11 loaded\nloaded_packs: aws, azure, database, docker, gcloud, git, github, kubernetes, remote, systemd, terraform\npack_errors: 0\nschema_errors: 0\nrisk_rule_errors: 0\ntemplate_errors: 0\nresource_parity_errors: 0\ngraph_nodes: 497\ngraph_edges: 540\ngraph_errors: 0\nmissing_schema: 0\nduplicate_commands: 0\nok: true\n",
+  "limitations": [
+    "Local Windows/Python version only; no remote CI result implied."
+  ],
+  "schema_version": "ordin.assurance_wheel_check.v1",
+  "smoke": {
+    "assurance_schemas": 10,
+    "exports": [
+      "ApprovedSecurityProfile",
+      "AttackEdge",
+      "AttackNode",
+      "AttackPathEvidence",
+      "CounterexampleRecord",
+      "DelegationGrant",
+      "EvidenceLink",
+      "InvariantEvaluation",
+      "InvariantSelectors",
+      "LatencyDistribution",
+      "ModelAnswer",
+      "ModelRiskEvidence",
+      "PolicySimulationReport",
+      "ProtectedAsset",
+      "RepositoryScope",
+      "SecurityFinding",
+      "SecurityInvariant",
+      "SecurityProfile",
+      "SecurityProfileDraft",
+      "SimulationCase",
+      "SourceReference",
+      "TrustBoundary"
+    ],
+    "ok": true,
+    "schemas": 50,
+    "version": "0.4.0.dev0"
+  },
+  "timestamp": "2026-10-09T22:33:53.169782+00:00",
+  "wheel_entries": 238,
+  "wheel_sha256": "42ea8acb40c34396ca9ca7253aed48068724c18c92a65192a0c916d5929d512e"
+}

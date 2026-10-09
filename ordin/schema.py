@@ -27,6 +27,16 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "assurance_security_profile": "assurance-security-profile.v1.schema.json",
+    "assurance_security_profile_draft": "assurance-security-profile-draft.v1.schema.json",
+    "assurance_invariant": "assurance-invariant.v1.schema.json",
+    "assurance_invariant_evaluation": "assurance-invariant-evaluation.v1.schema.json",
+    "assurance_finding": "assurance-finding.v1.schema.json",
+    "assurance_attack_path": "assurance-attack-path.v1.schema.json",
+    "assurance_simulation": "assurance-simulation.v1.schema.json",
+    "assurance_counterexample": "assurance-counterexample.v1.schema.json",
+    "assurance_delegation": "assurance-delegation.v1.schema.json",
+    "assurance_model_evidence": "assurance-model-evidence.v1.schema.json",
     "runtime_request_contract": "runtime-request-contract.v1.schema.json",
     "runtime_request_boundary": "runtime-request-boundary.v1.schema.json",
     "runtime_request_contract_v2": "runtime-request-contract.v2.schema.json",
@@ -258,6 +268,11 @@ def validate_schema_files() -> list[str]:
 
         if name in runtime_schemas and schema != runtime_schemas[name]:
             errors.append(f"schema {filename}: differs from runtime validation definition")
+        if name.startswith("assurance_"):
+            from .assurance._schemas import SCHEMAS as assurance_schemas
+
+            if schema != assurance_schemas.get(name):
+                errors.append(f"schema {filename}: differs from assurance validation definition")
         if schema.get("$schema") != DRAFT_2020_12:
             errors.append(f"schema {filename}: expected Draft 2020-12 declaration")
         if not isinstance(schema.get("$id"), str) or not schema["$id"]:

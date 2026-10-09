@@ -1,5 +1,13 @@
 # JSON Schema Contracts
 
+The additive Assurance contracts are documented in
+[Assurance machine contracts](assurance/contracts.md): security-profile content,
+non-authoritative profile drafts, invariants/evaluations, findings, attack paths,
+simulation, counterexamples, delegation artifacts and model evidence. They use
+separate v1 schema names and do not change any existing v1 meaning. Doctor checks
+their root/package copies and in-memory validation definitions. JSON validity
+does not activate a profile, issue a grant or authenticate evidence.
+
 Ordin publishes machine-readable contracts for versioned JSON surfaces. The [v0.3 compatibility inventory](public-compatibility-0.3.md) distinguishes supported and experimental formats. Schemas use Draft 2020-12 under `schemas/`; installed packages carry the same files under `ordin/resources/schemas/`.
 
 ## Published contracts

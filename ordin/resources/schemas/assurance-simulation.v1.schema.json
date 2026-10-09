@@ -1,0 +1,294 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-simulation.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 17,
+  "properties": {
+    "activation_safe": {
+      "type": "boolean"
+    },
+    "baseline_latency": {
+      "additionalProperties": false,
+      "maxProperties": 4,
+      "properties": {
+        "p50_ms": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "p95_ms": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "p99_ms": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "samples": {
+          "maximum": 1000000000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "p50_ms",
+        "p95_ms",
+        "p99_ms",
+        "samples"
+      ],
+      "type": "object"
+    },
+    "baseline_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "benign_false_denials": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "benign_false_escalations": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "candidate_latency": {
+      "additionalProperties": false,
+      "maxProperties": 4,
+      "properties": {
+        "p50_ms": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "p95_ms": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "p99_ms": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "samples": {
+          "maximum": 1000000000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "p50_ms",
+        "p95_ms",
+        "p99_ms",
+        "samples"
+      ],
+      "type": "object"
+    },
+    "candidate_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "cases": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 12,
+        "properties": {
+          "action_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "authority_delta": {
+            "enum": [
+              "unchanged",
+              "narrowed",
+              "widened",
+              "unsupported",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "baseline_core": {
+            "enum": [
+              "execute",
+              "escalate",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "baseline_final": {
+            "enum": [
+              "execute",
+              "escalate",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "baseline_ms": {
+            "maximum": 86400000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "candidate_core": {
+            "enum": [
+              "execute",
+              "escalate",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "candidate_final": {
+            "enum": [
+              "execute",
+              "escalate",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "candidate_ms": {
+            "maximum": 86400000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "case_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "change": {
+            "enum": [
+              "newly_denied",
+              "newly_escalated",
+              "newly_executable",
+              "unchanged",
+              "unassessable"
+            ],
+            "type": "string"
+          },
+          "label": {
+            "enum": [
+              "benign",
+              "adversarial",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "reason_codes": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array"
+          }
+        },
+        "required": [
+          "case_id",
+          "action_digest",
+          "baseline_core",
+          "candidate_core",
+          "baseline_final",
+          "candidate_final",
+          "change",
+          "reason_codes",
+          "authority_delta",
+          "label",
+          "baseline_ms",
+          "candidate_ms"
+        ],
+        "type": "object"
+      },
+      "maxItems": 4096,
+      "type": "array"
+    },
+    "corpus_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "coverage": {
+      "enum": [
+        "complete",
+        "partial",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "critical_misses": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "environment": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 256,
+      "type": "array"
+    },
+    "new_policy_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "old_policy_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "report_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_simulation.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "report_id",
+    "corpus_digest",
+    "baseline_revision",
+    "candidate_revision",
+    "old_policy_digest",
+    "new_policy_digest",
+    "cases",
+    "critical_misses",
+    "benign_false_escalations",
+    "benign_false_denials",
+    "baseline_latency",
+    "candidate_latency",
+    "coverage",
+    "activation_safe",
+    "environment",
+    "limitations"
+  ],
+  "title": "Ordin assurance simulation v1",
+  "type": "object"
+}
