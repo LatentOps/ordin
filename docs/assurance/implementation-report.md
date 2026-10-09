@@ -3,6 +3,7 @@
 - Baseline SHA: `9f2568f70c677f607d631e252f609207f6a2cd60`.
 - Feature branch: `feat/ordin-assurance`.
 - Contract foundation SHA: `3773f23b08f1cd9b78a7b8aa041f952bd52d47cc`.
+- Repository/profile implementation SHA: `bec1037d64fd0c52e043343c3ea1c960819ecb58`.
 - Full implementation SHA: pending; M3–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
