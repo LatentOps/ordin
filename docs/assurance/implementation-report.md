@@ -2,14 +2,15 @@
 
 - Baseline SHA: `9f2568f70c677f607d631e252f609207f6a2cd60`.
 - Feature branch: `feat/ordin-assurance`.
-- Implemented SHA: pending; current changes are uncommitted.
+- Contract foundation SHA: `3773f23b08f1cd9b78a7b8aa041f952bd52d47cc`.
+- Full implementation SHA: pending; M2–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
 - Optional providers/scanners: none installed or invoked for this work.
 
 | Milestone | Status | Evidence / next gate |
 | --- | --- | --- |
-| M0 | baseline_captured_with_failures | Frozen inventory, doctor, isolated baseline wheel and nine corpus cases pass; original suite: 1359 passed, 16 failed, 39 skipped; failed-case recheck pending |
+| M0 | baseline_captured_with_failures | Frozen inventory, doctor, isolated baseline wheel and nine corpus cases pass; original suite: 1359 passed, 16 failed, 39 skipped; installed baseline recheck: 11 passed, 5 failed |
 | M1 | contract_foundation_verified | Ten immutable artifact contracts and schema pairs; 61 hostile/round-trip tests; source/schema/security/API gate 90 passed, 1 platform skip; agent/policy/entrypoint compatibility gate 108 passed; installed wheel and metadata gates pass |
 | M2 | not_started | Source inventory, draft/approved profiles and compiler |
 | M3 | not_started | Invariant evaluator and monotonic AssuranceGate |
@@ -76,7 +77,7 @@ All shell invocations use the required RTK prefix.
 | `python -m twine check .assurance-work/m1-dist/ordin-0.4.0.dev0-py3-none-any.whl .assurance-work/m1-dist/ordin-0.4.0.dev0.tar.gz` | Pass for both artifacts |
 | `python scripts/check_assurance_wheel.py --wheel .assurance-work/m1-dist/ordin-0.4.0.dev0-py3-none-any.whl --venv .assurance-work/m1-wheel-venv --report docs/assurance/evidence/m1-wheel-check.json` | First smoke harness failed: replacing the socket class with a function broke SSL import; no package defect indicated |
 | Same wheel command with corrected socket subclass and fresh `.assurance-work/m1-wheel-venv-2` | Pass; isolated installed wheel with 50 schemas and 23 Assurance exports; evidence contains exact wheel SHA-256 |
-| `python scripts/recheck_assurance_baseline.py --python .assurance-work/baseline-recheck-venv/Scripts/python.exe --output .assurance-work/baseline-recheck-1` | Running: 16 original failed cases against the frozen 40-schema installed baseline, with fresh workspace fixtures |
+| `python scripts/recheck_assurance_baseline.py --python .assurance-work/baseline-recheck-venv/Scripts/python.exe --output .assurance-work/baseline-recheck-1` | Exit 1: 11 passed, 5 failed in 383.57 seconds against the frozen 40-schema installed baseline; no skips |
 | `python -m ruff format --check` for all new Python files; `git diff --check` | Pass |
 
 ## Baseline failures and measurements
@@ -90,9 +91,11 @@ existing core/runtime source and original schema bytes remained unchanged.
 - Latency gates: two integration evaluation tests, safety benchmark, and
   promoted-regression replay. The separately recorded benchmark runs executed
   concurrently with the original suite; these measurements include contention.
-- A five-second MCP malformed-output shutdown test timed out.
-- Concurrent session-store transactions produced one SQLite error; exact cause
-  needs a focused recheck.
+- A five-second MCP malformed-output shutdown test timed out in the first run;
+  it passes in the installed-baseline recheck.
+- Concurrent session-store transactions fail in both runs with SQLite
+  `database is locked` at `BEGIN IMMEDIATE`. This is confirmed on the original
+  installed wheel, independently of the new Assurance modules.
 - Skip reasons were not printed by the initial `-q` command; the 39 skips are
   recorded as unverified platform coverage, not counted as passes.
 
@@ -106,6 +109,15 @@ Exact baseline benchmark JSON and report digests are retained in
 [benchmark context](evidence/baseline-benchmark-context.json),
 [safety report](evidence/baseline-safety.json) and
 [integration report](evidence/baseline-integration.json).
+
+The [installed baseline recheck](evidence/baseline-failed-case-recheck.json)
+confirms 11 previously failing tests pass with correct package installation and
+workspace-scoped escalation, including installed hook/runtime smoke tests and
+promoted regression replay. The five remaining failures are two integration
+latency tests, one safety latency test, SQLite concurrent-session contention,
+and the existing quickstart's missing `sh` executable on Windows. Private raw
+test/JUnit output remains in `.assurance-work/baseline-recheck-1`; the tracked
+summary omits the machine hostname and retains exact case IDs and hashes.
 
 ## Outstanding limitations
 
@@ -132,3 +144,13 @@ Exact baseline benchmark JSON and report digests are retained in
 The final implementation needs ordinary code review before integration. This
 work does not authorize scanner uploads, hosted inference, remediation
 installation, publication or deployment.
+
+## Next implementation actions
+
+Implement M2: authorized read-only repository inventory, source-verified draft
+threat models, protected host-selected profile loading, exact restriction
+compilation and negative tests. Then implement M3's conservative gate against
+the frozen baseline, with no automatic execution from missing authority.
+Carry the existing Windows shell/latency/SQLite failures into the compatibility
+audit; they must be resolved or explicitly verified on supported platforms
+before any full completion claim. No background evaluation remains running.
