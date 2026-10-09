@@ -3,7 +3,7 @@
 - Baseline SHA: `9f2568f70c677f607d631e252f609207f6a2cd60`.
 - Feature branch: `feat/ordin-assurance`.
 - Contract foundation SHA: `3773f23b08f1cd9b78a7b8aa041f952bd52d47cc`.
-- Full implementation SHA: pending; M2–M12 remain open.
+- Full implementation SHA: pending; M3–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
 - Optional providers/scanners: none installed or invoked for this work.
@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | M0 | baseline_captured_with_failures | Frozen inventory, doctor, isolated baseline wheel and nine corpus cases pass; original suite: 1359 passed, 16 failed, 39 skipped; installed baseline recheck: 11 passed, 5 failed |
 | M1 | contract_foundation_verified | Ten immutable artifact contracts and schema pairs; 61 hostile/round-trip tests; source/schema/security/API gate 90 passed, 1 platform skip; agent/policy/entrypoint compatibility gate 108 passed; installed wheel and metadata gates pass |
-| M2 | not_started | Source inventory, draft/approved profiles and compiler |
+| M2 | implemented_offline_verified | Scoped read-only inventory, four frozen source-backed drafts, protected profile loader/compiler; 162 passed / 2 POSIX skips; final installed wheel, metadata and SDK example pass |
 | M3 | not_started | Invariant evaluator and monotonic AssuranceGate |
 | M4 | not_started | Independent policy replay/simulation |
 | M5 | not_started | Seeded, minimized, replayed safe counterexamples |
@@ -80,7 +80,50 @@ All shell invocations use the required RTK prefix.
 | `python scripts/recheck_assurance_baseline.py --python .assurance-work/baseline-recheck-venv/Scripts/python.exe --output .assurance-work/baseline-recheck-1` | Exit 1: 11 passed, 5 failed in 383.57 seconds against the frozen 40-schema installed baseline; no skips |
 | `python -m ruff format --check` for all new Python files; `git diff --check` | Pass |
 
-## Baseline failures and measurements
+## M2 actual verification on 2026-10-09
+
+The runtime/core/OpenShell implementations remain unchanged. M2 adds
+`inventory.py`, `inventory_models.py`, `profiles.py` and scoped read-only
+`_files.py`, plus three new versioned contracts (53 total registered schemas).
+The static model always remains a hypothesis/draft; approved handles require
+host-owned selection, exact raw-file/content digests, repository/version and
+active-policy identity. Compiler plans reconstruct their restrictions from
+approved content and reject omitted/tampered constraints. No `allow` rules are
+generated. All nine invariant kinds remain represented; host/evidence checks
+are explicitly deferred to the M3 wrapper rather than dropped.
+
+| Command (after RTK prefix) | Actual result |
+| --- | --- |
+| `python -m pytest -q tests/assurance/test_inventory.py ...` initial run | 12 failed / 1 passed: cached Windows enumeration omitted link counts; fixed by checking actual opened handle before reading, plus a test-helper argument correction |
+| Inventory recheck with fresh basetemp | 13 passed; four repositories, references, injection, sensitive files, malformed/large inputs, links and snapshot drift |
+| Profile loader/compiler initial runs | Constructor source-schema mismatch corrected; legacy literal-prefix behavior exposed `/prod2` false match and was corrected in new-profile projection without changing old v1 semantics |
+| `python -m pytest -q tests/assurance tests/test_schemas.py tests/test_action_policy.py tests/test_public_api.py ...` | 126 passed before the additional hardening cases |
+| Windows directory path-pinning negative test | Initially failed because metadata-only handles did not block rename; read handles now pin directory names; 15 inventory tests pass |
+| Final source gate: `python -m pytest -q tests/assurance tests/test_schemas.py tests/test_public_api.py tests/test_action_policy.py tests/test_agent.py tests/test_policy.py tests/test_entrypoint.py tests/test_security_integrity.py tests/test_docs_links.py -p no:cacheprovider --basetemp=.assurance-work/m2-verified-tests --junitxml=.assurance-work/m2-verified-tests.xml` | 162 passed, 2 skipped in 23.06 seconds; skipped ownership/mode checks require POSIX |
+| `python -m mypy --platform linux ordin/assurance` | Pass: eight source files |
+| `python -m ruff check` and `ruff format --check` on changed Python files | Pass |
+| `python -m ordin doctor` | Pass: 53 schemas; no errors or resource differences |
+| `python -m scripts.freeze_assurance_inventories --output docs/assurance/evidence/m2-inventories` | Pass: documentation/payment/MCP/monorepo snapshots, verified citations, hypotheses, counterevidence, manifests |
+| `python -m examples.assurance.profile_inventory --repository-root tests/assurance/fixtures/repositories/payment --repository-id fixture/payment --revision fixture-v1 --virtual-root /fixture/payment --output .assurance-work/m2-sdk-example` | Pass: four inspected files, ten facts, one compiled restriction; draft non-authoritative, no actions executed, synthetic host protection explicitly labeled |
+| Initial candidate wheel/sdist build and twine check | Pass; wheel imported independently with 53 schemas and no socket creation |
+| Final build after fixing directory-handle access: `python -m build --no-isolation --outdir .assurance-work/m2-final-dist` | Pass; output retained in `.assurance-work/m2-final-build.log` |
+| `python scripts/check_assurance_wheel.py --wheel .assurance-work/m2-final-dist/ordin-0.4.0.dev0-py3-none-any.whl --venv .assurance-work/m2-final-wheel-venv --report docs/assurance/evidence/m2-wheel-check.json` | Pass: source-independent imports/inventory, 53 schemas, 37 Assurance exports, no socket construction; exact wheel SHA-256 retained |
+| `python -m twine check` for the final wheel and sdist | Pass for both artifacts |
+| Final installed wheel interpreter with `-I examples/assurance/profile_inventory.py` and the documented synthetic payment arguments | Pass: same snapshot digest, four files/ten facts, one restriction; no execution |
+| Frozen fixture hash and original public export/schema registration comparisons | Pass; original API, schema names/filenames and synthetic source bytes unchanged |
+
+The frozen [M2 inventory manifest](evidence/m2-inventories/manifest.json) records
+exact synthetic source bytes. Static completeness means selected files were
+inspected, not complete deployment/security coverage. Threat-model drafts retain
+open questions even for harmless fixtures. No arbitrary repository code was
+executed, no model/scanner invoked and no real runtime protection installed.
+The final [source gate](evidence/m2-source-gate.json) and
+[installed wheel gate](evidence/m2-wheel-check.json) are current. The earlier
+`m2-wheel-check-before-directory-fix.json` is historical and does not verify the
+final directory-handle implementation. POSIX/multi-version CI remains required;
+this milestone has been exercised locally only on Windows/Python 3.13.
+
+## Baseline failures and measurements (original source)
 
 The original suite failed before any package or schema registration changed.
 Additive unregistered Assurance files/docs were created while the suite ran;
@@ -121,12 +164,12 @@ summary omits the machine hostname and retains exact case IDs and hashes.
 
 ## Outstanding limitations
 
-- The common artifact foundation is verified; it is not a working complete
-  Assurance system. M2–M12 are not implemented. All AT-01–AT-35 require
+- The artifact/profile foundation is verified; it is not a working complete
+  Assurance system. M3–M12 are not implemented. All AT-01–AT-35 require
   integrated implementation and current evidence before overall completion.
-- `ApprovedSecurityProfile` is a protected selection handle contract. Its
-  protected file loader/compiler is M2 work. Graph/finding/delegation/model
-  records likewise do not implement their later analysis/issuance/provider
+- `ApprovedSecurityProfile` now has a protected selection loader/compiler.
+  Host-declared filesystem guarantees/mappings still require actual external
+  enforcement. Graph/finding/delegation/model records do not implement their later analysis/issuance/provider
   workflows. No feature milestone is complete merely because its record exists.
 - Installed tooling differs from requested development minimums: pytest 9.0.3,
   mypy 1.20.2, ruff 0.15.11, twine 6.2.0; build 1.5.0 is available. CI must test
@@ -147,9 +190,7 @@ installation, publication or deployment.
 
 ## Next implementation actions
 
-Implement M2: authorized read-only repository inventory, source-verified draft
-threat models, protected host-selected profile loading, exact restriction
-compilation and negative tests. Then implement M3's conservative gate against
+Implement M3's conservative gate against
 the frozen baseline, with no automatic execution from missing authority.
 Carry the existing Windows shell/latency/SQLite failures into the compatibility
 audit; they must be resolved or explicitly verified on supported platforms

@@ -41,6 +41,15 @@ assert SecurityProfile.from_json(json.dumps(profile.as_dict())) == profile
 assert AgentGate().evaluate_action(ActionEnvelope.shell("git status --short")).disposition == "execute"
 assert AgentGate().evaluate_action(ActionEnvelope.shell("rm -rf /")).disposition == "deny"
 assert ModelAnswer("risk", 0.5).p_yes == 0.5
+from pathlib import Path
+from ordin.assurance import AuthorizedRepository, build_threat_model, inventory_repository
+fixture = Path.cwd() / "wheel-fixture-source"
+fixture.mkdir()
+(fixture / "main.py").write_text("def main():\n    pass\n", encoding="utf-8")
+scope = AuthorizedRepository(fixture.resolve(), RepositoryScope("fixture/wheel", "snapshot-1"), "/fixture/wheel")
+inventory = inventory_repository(scope)
+assert len(inventory.files) == 1 and inventory.facts[0].source.symbol == "main"
+assert build_threat_model(scope, inventory).draft.authoritative is False
 print(json.dumps({"ok": True, "version": ordin.__version__, "schemas": len(SCHEMA_FILES),
                   "assurance_schemas": len(SCHEMAS), "exports": sorted(assurance.__all__),
                   "loaded_from": ordin.__file__}))

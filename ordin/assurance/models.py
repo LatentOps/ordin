@@ -284,6 +284,11 @@ class ApprovedSecurityProfile:
     def digest(self) -> str:
         return self.profile.digest
 
+    @property
+    def runtime_policy_digest(self) -> str | None:
+        assert isinstance(self._authority, _ProfileAuthority)
+        return self._authority.runtime_policy_digest
+
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> ApprovedSecurityProfile:
         raise ValueError("JSON cannot activate an approved profile")
@@ -294,6 +299,7 @@ class _ProfileAuthority:
     profile_digest: str
     selection_digest: str
     operator_identity: str
+    runtime_policy_digest: str | None = None
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,26 @@
+{
+  "schema_version": "ordin.assurance_test_gate.v1",
+  "results": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "2",
+    "tests": "164",
+    "time": "22.903",
+    "timestamp": "2026-10-09T19:48:31.234219-04:00"
+  },
+  "skips": [
+    {
+      "case": "tests.assurance.test_profiles.test_group_readable_selected_profile_is_not_a_private_configuration",
+      "reason": "POSIX ownership/mode checks require POSIX CI"
+    },
+    {
+      "case": "tests.test_security_integrity.test_audit_rejects_public_modes_and_symlinks",
+      "reason": "POSIX mode and symlink controls"
+    }
+  ],
+  "junit_sha256": "868d46aadeb493f3dcbea0cbcf92258a65c3d29dd64d7902f75f2fe056c6d198",
+  "limitations": [
+    "Focused source/profile/core compatibility gate; full release validation remains open."
+  ]
+}

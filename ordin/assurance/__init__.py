@@ -25,7 +25,38 @@ from .models import (
     TrustBoundary,
 )
 
+from .inventory import (
+    AuthorizedRepository,
+    build_threat_model,
+    inventory_repository,
+    render_threat_model,
+    verify_source_reference,
+)
+from .inventory_models import InventoryLimits, RepositoryInventory, RepositoryThreatModel
+from .profiles import (
+    CompiledSecurityProfile,
+    ProtectedProfileSelection,
+    compile_approved_profile,
+    inspect_profile,
+    load_approved_profile,
+    propose_profile,
+)
+
 __all__ = [
+    "AuthorizedRepository",
+    "InventoryLimits",
+    "RepositoryInventory",
+    "RepositoryThreatModel",
+    "CompiledSecurityProfile",
+    "ProtectedProfileSelection",
+    "build_threat_model",
+    "inventory_repository",
+    "render_threat_model",
+    "verify_source_reference",
+    "compile_approved_profile",
+    "inspect_profile",
+    "load_approved_profile",
+    "propose_profile",
     "ApprovedSecurityProfile",
     "AttackEdge",
     "AttackNode",

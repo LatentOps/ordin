@@ -27,6 +27,9 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "assurance_repository_inventory": "assurance-repository-inventory.v1.schema.json",
+    "assurance_repository_threat_model": "assurance-repository-threat-model.v1.schema.json",
+    "assurance_profile_compilation": "assurance-profile-compilation.v1.schema.json",
     "assurance_security_profile": "assurance-security-profile.v1.schema.json",
     "assurance_security_profile_draft": "assurance-security-profile-draft.v1.schema.json",
     "assurance_invariant": "assurance-invariant.v1.schema.json",

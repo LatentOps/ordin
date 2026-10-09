@@ -342,7 +342,84 @@ MODEL = artifact(
     consent_ref=nullable(ID),
 )
 
+INVENTORY_FILE = obj(
+    path=SOURCE["properties"]["path"],
+    content_digest=DIGEST,
+    bytes={"type": "integer", "minimum": 0, "maximum": MAX_BYTES},
+    lines=COUNT,
+    language=choice("python", "javascript", "configuration", "text"),
+)
+INVENTORY_FACT = obj(
+    fact_id=ID,
+    kind=choice("entrypoint", "sink", "control", "transformation", "instruction_data", "asset"),
+    category=ID,
+    source=SOURCE,
+    enclosing_symbol=nullable(ID),
+)
+INVENTORY_ISSUE = obj(code=ID, path_digest=nullable(DIGEST))
+INVENTORY_LIMITS = obj(
+    max_files={"type": "integer", "minimum": 1, "maximum": 256},
+    max_total_bytes={"type": "integer", "minimum": 1, "maximum": 16_777_216},
+    max_depth={"type": "integer", "minimum": 0, "maximum": 16},
+)
+INVENTORY = artifact(
+    "assurance_repository_inventory",
+    repository=REPOSITORY,
+    snapshot_digest=DIGEST,
+    root_identity_digest=DIGEST,
+    files=array(INVENTORY_FILE),
+    facts=array(INVENTORY_FACT),
+    assets=array(ASSET),
+    issues=array(INVENTORY_ISSUE),
+    limits=INVENTORY_LIMITS,
+    completeness=choice("complete", "partial", "unknown"),
+    generator={"type": "string", "const": "ordin.static_inventory.v1"},
+)
+ROUTE = obj(
+    hypothesis_id=ID,
+    actor=ID,
+    entrypoint_ref=nullable(ID),
+    sink_ref=ID,
+    transformation_refs=array(ID, 32),
+    control_refs=array(ID, 32),
+    boundary_id=ID,
+    status={"type": "string", "const": "hypothesis"},
+    proof_gaps=array(text(), 32),
+)
+THREAT_MODEL = artifact(
+    "assurance_repository_threat_model",
+    model_id=ID,
+    inventory=INVENTORY,
+    draft=DRAFT,
+    actors=array(ID, 32),
+    routes=array(ROUTE),
+    counterevidence_refs=array(ID),
+    assumptions=array(text(), 32),
+    open_questions=array(text(), 32),
+)
+RULE_COMPILATION = obj(
+    invariant_id=ID,
+    status=choice("compiled", "wrapper_required", "unsupported"),
+    rule_id=nullable(ID),
+    reason_code=ID,
+)
+PROFILE_COMPILATION = artifact(
+    "assurance_profile_compilation",
+    repository=REPOSITORY,
+    profile_id=ID,
+    version=ID,
+    profile_digest=DIGEST,
+    selection_digest=DIGEST,
+    compiled_policy_digest=DIGEST,
+    rules=array(RULE_COMPILATION),
+    source_references=array(SOURCE),
+    limitations=array(text(), 32),
+)
+
 SCHEMAS = {
+    "assurance_repository_inventory": INVENTORY,
+    "assurance_repository_threat_model": THREAT_MODEL,
+    "assurance_profile_compilation": PROFILE_COMPILATION,
     "assurance_security_profile": PROFILE,
     "assurance_security_profile_draft": DRAFT,
     "assurance_invariant": INVARIANT,
@@ -355,6 +432,12 @@ SCHEMAS = {
     "assurance_model_evidence": MODEL,
 }
 SHAPES = {
+    "inventory_file": INVENTORY_FILE,
+    "inventory_fact": INVENTORY_FACT,
+    "inventory_issue": INVENTORY_ISSUE,
+    "inventory_limits": INVENTORY_LIMITS,
+    "route_hypothesis": ROUTE,
+    "invariant_compilation": RULE_COMPILATION,
     "source_reference": SOURCE,
     "repository_scope": REPOSITORY,
     "protected_asset": ASSET,
