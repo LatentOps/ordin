@@ -13,6 +13,7 @@
 - Delegation implementation SHA: `edd661204ae8426aa4d491e8df1cd3dd31c69b3b`.
 - Offline Codex importer SHA: `7fa6d65c646619986d4e96043a3209ea8ad44e81`.
 - Scanner/diff/optional CI implementation SHA: `4d3fb8d8879c230b7c9e6c2970b91cecafd5dc4f`.
+- Optional semantic protocol/routing/TypeSafe SHA: `ea3d4778c3ad83ed20bb660a6a96232f9f30d3dc`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -830,6 +831,17 @@ while allowing normal library import. The permissive-core-ask fixture was made
 explicit with an actual core policy rule so a low model score cannot silently
 execute it. No validator, privacy guard, time budget or baseline restriction was
 weakened. Model effectiveness has not been evaluated and M9 is not complete.
+
+The [pinned protocol/TypeSafe evidence](evidence/m9-protocol-typesafe.json) records
+source `ea3d4778c3ad83ed20bb660a6a96232f9f30d3dc`, actual final test cases and
+the fresh optional package smoke. Nine packaged optional Python/JSON files match
+source; the offline example has zero default calls, shadow parity and enforced
+escalation, with SDK socket/process creation rejected and heavy model imports
+absent. The [fresh core wheel evidence](evidence/m9-protocol-core-wheel.json)
+matches 286 packaged Python/JSON files to that source and checks installed doctor
+with **74 schemas / 34 Assurance schemas**. Core dependencies remain empty.
+All checkpoint handles are terminal. No real model, credential, source upload,
+scanner, execution grant, remote runner, publication or deployment was used.
 See [decision models](decision-models.md).
 
 ## Outstanding limitations
