@@ -23,6 +23,7 @@
 - Offline acceptance plan/CI SHA: `604f8db5bf0ea5a83053ddd941a131cc55a62781`.
 - Installed-fixture correction SHA: `36e6392010eb2f3b2e014697bf2c43a90c7d6f1e`.
 - M12 measured candidate / portable quickstart SHA: `cba13c975b0b780de2fdbf67e995f47952e2f5d9`.
+- Review-scoped catalog snapshot / current measured candidate SHA: `04f40d05d85aeab244c149757a6a0a0e655ad060`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -42,7 +43,7 @@
 | M9 | provider_sdk_async_measurements_provisional_workload_verified_real_acceptance_pending | Protected protocol/routing, TypeSafe and pinned local worker, measured threshold provenance, sync/async replay and 24-case provisional sample; source gate 432 passed / 1 skip; actual model/hardware and independently labeled effectiveness acceptance remain unverified |
 | M10 | vetted_source_fix_external_claim_import_verified_physical_broker_broader_lifecycle_pending | Vetted source/policy proof plus offline validation/patch/fix/risk claims, manifest scope and separate reported verdicts; 510 passed / 1 skip; physical isolation, generic predicates and integrated lifecycle remain open |
 | M11 | offline_cli_api_quickstart_adapter_composition_verified_platform_acceptance_open | Fresh wheel, six diagnostic contracts, typed host composition and five-minute offline quickstart; 525 passed / 1 skip; affected host source suite 198 passed / 1 environment failure / 3 skips; installed process evaluation 17/17; OpenShell 363 passed / 13 unavailable-prover skips |
-| M12 | offline_acceptance_ci_candidate_evidence_verified_original_latency_broader_acceptance_open | 35 mapped fixture scenarios / 89 tests pass, six partial scopes; authored Linux/Windows 3.10–3.13 offline CI; final installed all-suite 1890 passed / 1 latency failure / 40 skips; maintained decision/corpus/process checks pass their functional assertions; original core and added-overhead latency gates fail |
+| M12 | current_full_suite_integration_pass_catalog_snapshot_verified_remaining_latency_acceptance_open | 35 mapped fixture scenarios / 89 tests pass, six partial scopes; authored Linux/Windows 3.10–3.13 offline CI; current installed all-suite 1904 passed / 40 skips / zero failures; integration and functional corpus/process gates pass; standalone safety p95 and added-overhead latency remain failed |
 
 ## Verified contract preservation
 
@@ -1401,6 +1402,72 @@ physical brokers, independent labels and broader scenario acceptance remain open
 All local process handles are terminal. No upload, live exploit, real inference,
 scanner, policy activation, patch installation, push or publication occurred.
 
+## Fresh catalog snapshot and current candidate verification
+
+Candidate `04f40d05d85aeab244c149757a6a0a0e655ad060` adds a bounded
+`_catalog_snapshot.py` scope to deterministic risk, command and action reviews.
+It reuses raw catalog bytes only within that review, returns independently
+decoded data and rechecks each retained byte stream before returning. Directory
+membership, missing-file selections, `ORDIN_PACKS`/`ORDIN_INDEX`, cwd and loader
+roots are checked as well. Changed source raises a coarse `ValueError`, which
+the existing host adapters refuse. Success/error cleanup clears retained state;
+thread and async-task owners cannot reuse another review's snapshot. Up to 256
+files / 4 MiB / 512 KiB per file are retained; extra data follows the original
+fresh-read behavior. No global persistent cache or mtime-only shortcut is used.
+
+Thirteen added tests exercise equal-size/equal-mtime changes, removal/expansion,
+new manifests/files, environment/root changes, returned-value mutation,
+exception cleanup, limits, copied thread/task contexts and a real review whose
+configuration changes during analysis. All 34 safety fixtures, including generic
+actions and history, have exact cached/uncached review/disposition parity.
+The first test loader incorrectly assumed every fixture was a shell command;
+the corrected loader covers the complete corpus. Initial deep-copy reuse was
+replaced by independent JSON decoding from retained bytes after profiling showed
+copy cost. The final broad source focus passes **484 tests / 2 platform skips**;
+Linux-target mypy passes **52 source files** and full Ruff is clean.
+
+The first fresh-wheel smoke failed because eagerly importing `asyncio` on Windows
+tried to subclass the harness's deliberately replaced `subprocess.Popen`.
+Ordinary imports now consult `asyncio` only if already loaded; a running task
+necessarily supplies that module. Task isolation is preserved without importing
+event-loop machinery for plain reviews. The corrected import/API/namespace
+focus passes **21 tests**, and the new fresh wheel passes the original network/
+process refusal spies, quickstart and doctor. Wheel and sdist metadata pass;
+there are **322 Python/JSON package files** and the same **94 total / 54 Assurance
+schemas**, with empty core dependencies and unchanged public exports/entrypoints.
+
+| Current installed candidate gate | Actual result |
+| --- | --- |
+| Complete root + Assurance + OpenShell + decision-model suites | **1904 passed, 40 skipped, zero failures**; all original assertions and latency limits preserved |
+| Maintained safety benchmark, 20 repetitions | **34/34 decisions**, zero false allows/critical misses/false blocks/semantic/policy/fuzz errors; p50/p95/p99 **124.1612 / 354.8028 / 359.6124 ms**; original p95 250 ms limit still fails, p99 500 ms passes |
+| Maintained integration evaluation, 20 repetitions | **No errors**, zero false allows/blocks/critical misses/unnecessary escalations; 18 live-session and 36 conformance checks pass; core p50/p95/p99 **0.3417 / 111.7797 / 137.6177 ms**, integration boundary **2.3987 / 160.9246 / 449.9257 ms** |
+| Trajectory / regression / Agent Safety Corpus | **11/11 trajectories, 21/21 decisions; 9/9 regressions; 9/9 corpus cases**, no errors |
+| Runtime process evaluation, five repetitions | **17/17 cases**, 85 subprocess samples, 7/7 applicable observations linked, no errors; p50/p95/p99 **605.2403 / 919.2874 / 1061.0867 ms** |
+
+Three sequential quiet repeats use the same four actions, ten warmup rounds and
+100 repetitions (400 samples per series), preserving the original 5 ms budget:
+
+| Run | Core p50 / p95 / p99 ms | Added paired p50 / p95 / p99 ms | Intrinsic p50 / p95 / p99 ms |
+| --- | --- | --- | --- |
+| 1 | 54.9632 / 100.0906 / 122.2729 | 2.3754 / 20.7309 / 52.7010 | 1.9922 / 3.8321 / 5.1545 |
+| 2 | 51.3863 / 95.0715 / 121.2738 | 2.1989 / 17.5003 / 47.7272 | 1.8415 / 3.1956 / 4.1406 |
+| 3 | 46.7359 / 78.5264 / 102.5097 | 2.0026 / 13.3919 / 33.4418 | 3.2436 / 5.1329 / 6.9335 |
+
+Each has zero disposition mismatches. **All paired 5 ms p95 gates still fail**;
+the first two intrinsic p95 passes do not replace that acceptance, and the third
+intrinsic p95 also fails. Local distributions vary across runs and do not prove
+universal latency or independent effectiveness. Historical failed candidates are
+preserved; the latest full-suite pass does not erase their failures.
+
+[Current catalog evidence](evidence/catalog-snapshot.json) pins the actual source,
+wheel and JUnit/report hashes, current passing suites and failed metrics. Exact
+overhead files were copied byte-for-byte. The Agent Safety Corpus entry retains
+the actual completed tool stdout and claims no unread raw-report hash. Only
+Windows/Python 3.13 and existing local tooling are exercised; remote CI and six
+partial acceptance scenarios remain open. All local handles are terminal. No
+provider/scanner, physical broker, credentials, upload, policy installation,
+patch application, push or publication occurred.
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
@@ -1439,7 +1506,10 @@ budget. M6 graph/source-flow, M7 delegation/lifecycle and M8 importer, scanner
 wrapper, fake-process gates and offline diff/CI example are implemented. Live
 external scanner/runner behavior is unverified. Continue with a measured core/
 Assurance latency optimization that preserves fresh configuration reads and all
-security thresholds, then rerun exact-candidate release gates. Complete the six
+security thresholds. Fresh review-scoped catalog reuse now passes the full suite
+and integration gates, while standalone safety p95 and paired added-overhead
+gates remain failed. Address remaining measured costs, then rerun exact-candidate
+release gates. Complete the six
 partial minimum scenarios and supported-platform CI; the authored workflow is
 not a CI result. Complete physical broker acceptance, broader M10
 validation/code-fix predicates and integrated lifecycle examples when actual
