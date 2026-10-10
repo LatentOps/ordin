@@ -24,7 +24,7 @@ from .policy import Decision, DecisionResultMixin, ENFORCEMENT_ORDER, stronger_d
 from .provenance import DecisionProvenance, ProvenanceRecord, ProvenanceResource
 from .review import review_command
 from .risk import RiskReview, check_command, decision_for_risk, max_risk
-from .semantics import semantic_evidence_for_command
+from .semantics import SemanticEvidenceSet, semantic_evidence_for_command
 
 if TYPE_CHECKING:
     from .tool_calls import CompiledToolSemanticsRegistry, ToolSemanticsRegistry
@@ -312,10 +312,7 @@ class ActionReview(DecisionResultMixin):
         return payload
 
 
-def _resources_from_semantics(
-    command: str, context: ExecutionContext | None
-) -> list[ActionResource]:
-    resolved = semantic_evidence_for_command(command, context=context)
+def _resources_from_evidence(resolved: SemanticEvidenceSet) -> list[ActionResource]:
     seen: set[tuple[str, str]] = set()
     resources: list[ActionResource] = []
     for item in resolved.evidence:
@@ -741,7 +738,7 @@ def _review_action_base(
         )
         semantics = semantic_evidence_for_command(command, context=action.context)
         effects = list(semantics.effects)
-        resources = _resources_from_semantics(command, action.context)
+        resources = _resources_from_evidence(semantics)
         return _with_base_provenance(
             ActionReview(
                 action=action,

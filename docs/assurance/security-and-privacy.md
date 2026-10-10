@@ -16,6 +16,14 @@ async tasks. Extra or oversized catalogs use the original fresh-read path rather
 than extending the bounded retained state. This is not a persistent data cache
 or execution authority, and the host still rechecks current resources at use.
 
+Search ranking can prefilter PATH directories within one search using bounded
+directory-name snapshots. Final executable resolution still uses stdlib
+`shutil.which`, including platform extension/cwd behavior. Source membership and
+lookup environment are rechecked before return. Large, inaccessible, missing,
+remote/device or otherwise unsupported directory selections retain original
+probing, and injected resolvers are unchanged. No executable result is cached
+across searches; availability remains a ranking hint rather than authority.
+
 The offline path creates analysis data. The pre-execution path uses separately
 protected configuration and host facts, then preserves the host's own approval,
 execution and observation boundaries:

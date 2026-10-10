@@ -104,6 +104,7 @@ class _Snapshot:
     def close(self):
         self.active = False
         self.owner = (None, None)
+        self.environment = ()
         self.files.clear()
         self.directories.clear()
         self.anchors.clear()
