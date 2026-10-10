@@ -76,7 +76,7 @@ jobs:
       - name: Replay the complete versioned Agent Safety Corpus
         run: python scripts/run_agent_safety_corpus.py --revision "${GITHUB_SHA}" --output agent-safety-corpus-report
       - name: Upload safety benchmark reports
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ordin-safety-benchmark
           path: |
@@ -188,7 +188,7 @@ jobs:
           assert output["permissionDecision"] == "allow"
           PY
       - name: Upload distribution artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ordin-dist
           path: dist/*
@@ -196,7 +196,7 @@ jobs:
       - name: Verify documented quickstarts against the isolated wheel
         run: /tmp/ordin-wheel/bin/python -I scripts/check_quickstarts.py --json-out quickstarts-report.json
       - name: Upload quickstart verification
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ordin-quickstarts
           path: quickstarts-report.json
