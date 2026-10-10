@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import platform
 import subprocess
 import sys
 import venv
@@ -314,9 +315,13 @@ def run(wheel: Path, environment: Path) -> dict:
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "wheel_sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
         "wheel_entries": len(names),
+        "environment": {
+            "python": platform.python_version(),
+            "platform": platform.platform(),
+        },
         "smoke": smoke,
         "doctor": doctor.stdout,
-        "limitations": ["Local Windows/Python version only; no remote CI result implied."],
+        "limitations": ["Single local platform/Python run; no remote CI result implied."],
     }
 
 

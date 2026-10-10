@@ -1,0 +1,405 @@
+{
+  "schema_version": "ordin.assurance_acceptance_plan.v1",
+  "provenance": "Owned, authored synthetic test fixtures; assertions remain in the referenced tests.",
+  "independently_labeled": false,
+  "effectiveness_acceptance_eligible": false,
+  "source_permissions": "Repository test sources and synthetic fixtures only; no real attack or third-party scan/inference.",
+  "cases": [
+    {
+      "id": "AT-01",
+      "family": "core_disposition",
+      "test_nodes": [
+        "tests/assurance/test_invariants.py::test_disabled_gate_preserves_complete_baseline_review_and_disposition"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-02",
+      "family": "core_denial",
+      "test_nodes": [
+        "integrations/decision_models/tests/test_routing.py::test_hard_block_never_calls_provider"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-03",
+      "family": "unknown_tool",
+      "test_nodes": [
+        "tests/test_mcp_proxy.py::test_unknown_tool_requires_approval_without_reaching_upstream"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-04",
+      "family": "exact_workflow_asset",
+      "test_nodes": [
+        "tests/assurance/test_minimum_acceptance.py::test_exact_protected_deploy_asset_and_unrelated_documentation"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-05",
+      "family": "benign_documentation",
+      "test_nodes": [
+        "tests/assurance/test_minimum_acceptance.py::test_exact_protected_deploy_asset_and_unrelated_documentation"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-06",
+      "family": "url_authority",
+      "test_nodes": [
+        "tests/test_runtime_observation.py::test_resource_urls_cannot_carry_credentials"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-07",
+      "family": "request_authority",
+      "test_nodes": [
+        "tests/assurance/test_minimum_acceptance.py::test_unregistered_rest_cannot_borrow_declared_get_authority",
+        "tests/assurance/test_invariants.py::test_exact_request_subset_does_not_reuse_changed_body_or_protocol"
+      ],
+      "coverage": "partial",
+      "limitations": [
+        "Native http.request and exact REST body commitments are unsupported; changed GraphQL bodies are covered separately."
+      ]
+    },
+    {
+      "id": "AT-08",
+      "family": "tool_contract_pin",
+      "test_nodes": [
+        "tests/test_mcp_contracts.py::test_unchanged_contract_allows_and_changed_contract_requires_approval"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-09",
+      "family": "temporal_evidence",
+      "test_nodes": [
+        "tests/test_runtime_observation.py::test_completed_backend_evidence_strengthens_existing_temporal_rule",
+        "tests/assurance/test_invariants.py::test_temporal_guard_requires_exact_retained_history_and_preserves_core_detection"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-10",
+      "family": "forged_evidence",
+      "test_nodes": [
+        "tests/test_runtime_observation.py::test_plain_json_and_constructor_cannot_self_declare_strong_trust",
+        "tests/test_runtime_observation.py::test_normal_review_json_cannot_import_backend_labels"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-11",
+      "family": "source_instruction",
+      "test_nodes": [
+        "tests/assurance/test_minimum_acceptance.py::test_untrusted_readme_cannot_mutate_configuration_or_execute"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-12",
+      "family": "policy_widening",
+      "test_nodes": [
+        "tests/assurance/test_simulation.py::test_approval_becomes_execution_and_critical_miss_rejects_guard"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-13",
+      "family": "policy_narrowing",
+      "test_nodes": [
+        "tests/assurance/test_simulation.py::test_tighter_threshold_reports_new_escalation_and_benign_friction"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-14",
+      "family": "concrete_counterexample",
+      "test_nodes": [
+        "tests/assurance/test_challenge.py::test_seeded_defect_is_found_minimized_and_replayed_with_benign_controls"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-15",
+      "family": "abstraction_limit",
+      "test_nodes": [
+        "tests/assurance/test_challenge.py::test_replay_requires_same_revision_and_does_not_trust_claimed_failure"
+      ],
+      "coverage": "partial",
+      "limitations": [
+        "No actual external solver or abstract-to-concrete solver candidate is exercised."
+      ]
+    },
+    {
+      "id": "AT-16",
+      "family": "delegation_all_domains",
+      "test_nodes": [
+        "tests/assurance/test_delegation.py::test_child_subset_requires_all_parent_operator_task_domains"
+      ],
+      "coverage": "partial",
+      "limitations": [
+        "Full typed domain excess is tested; a native database-delete action/contract remains unsupported."
+      ]
+    },
+    {
+      "id": "AT-17",
+      "family": "network_intersection",
+      "test_nodes": [
+        "tests/assurance/test_delegation.py::test_overlapping_network_rights_permit_only_a_verified_exact_intersection"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-18",
+      "family": "revocation_at_use",
+      "test_nodes": [
+        "tests/assurance/test_delegating_gate.py::test_pending_operation_refuses_expired_or_revoked_parent"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-19",
+      "family": "sibling_isolation",
+      "test_nodes": [
+        "tests/assurance/test_delegating_gate.py::test_sibling_sessions_do_not_share_actions_or_observations"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-20",
+      "family": "provider_outage",
+      "test_nodes": [
+        "integrations/decision_models/tests/test_routing.py::test_default_disabled_bitwise_review_parity_and_no_provider_calls",
+        "integrations/decision_models/tests/test_routing.py::test_mandatory_provider_failures_fail_closed"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-21",
+      "family": "model_monotonicity",
+      "test_nodes": [
+        "integrations/decision_models/tests/test_routing.py::test_hard_block_never_calls_provider"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-22",
+      "family": "invalid_score",
+      "test_nodes": [
+        "integrations/decision_models/tests/test_routing.py::test_mandatory_provider_failures_fail_closed"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-23",
+      "family": "imported_finding",
+      "test_nodes": [
+        "tests/assurance/test_codex_import.py::test_complete_json_preserves_vendor_claim_fields_without_confirmation"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-24",
+      "family": "partial_scan",
+      "test_nodes": [
+        "tests/assurance/test_codex_import.py::test_incomplete_zero_findings_never_implies_complete_or_clean"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-25",
+      "family": "inert_threat_model",
+      "test_nodes": [
+        "tests/assurance/test_codex_import.py::test_threatmodel_instructions_remain_inert_and_public_summary_redacts_values"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-26",
+      "family": "counterevidence",
+      "test_nodes": [
+        "tests/assurance/test_validation.py::test_existing_control_refutes_only_the_tested_path",
+        "tests/assurance/test_validation.py::test_authenticated_host_outcomes_have_scoped_closure"
+      ],
+      "coverage": "partial",
+      "limitations": [
+        "Pure gate scope and synthetic host receipts are tested, not a physical production authorization backend."
+      ]
+    },
+    {
+      "id": "AT-27",
+      "family": "test_preservation",
+      "test_nodes": [
+        "tests/assurance/test_remediation.py::test_test_suppression_and_missing_provenance_do_not_verify"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-28",
+      "family": "scoped_fix",
+      "test_nodes": [
+        "tests/assurance/test_remediation.py::test_narrow_policy_fix_and_benign_counterpart_verified_without_application"
+      ],
+      "coverage": "partial",
+      "limitations": [
+        "Policy replay is verified; a general target-code fix/real sandbox lifecycle remains outside this fixture."
+      ]
+    },
+    {
+      "id": "AT-29",
+      "family": "wheel_surface",
+      "test_nodes": [
+        "tests/test_schemas.py",
+        "tests/test_public_api.py"
+      ],
+      "coverage": "partial",
+      "limitations": [
+        "Selected public contracts and supplied fresh-wheel smoke are checked; all documented standalone examples still require release audit."
+      ]
+    },
+    {
+      "id": "AT-30",
+      "family": "default_privacy",
+      "test_nodes": [
+        "tests/assurance/test_quickstart.py::test_owned_quickstart_protects_and_explains_without_execution"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-31",
+      "family": "partial_state",
+      "test_nodes": [
+        "tests/test_mcp_proxy.py::test_failed_trace_write_does_not_consume_response",
+        "tests/test_session.py::test_store_rolls_back_failed_reviews"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-32",
+      "family": "reset_epoch",
+      "test_nodes": [
+        "tests/test_runtime_observation.py::test_reset_and_reused_action_id_cannot_attach_stale_runtime_evidence",
+        "tests/assurance/test_simulation.py::test_sessions_and_epochs_do_not_reuse_state"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-33",
+      "family": "use_binding",
+      "test_nodes": [
+        "tests/assurance/test_delegating_gate.py::test_changed_argument_policy_or_action_id_cannot_reuse_ticket",
+        "tests/assurance/test_invariants.py::test_binding_rechecks_action_host_epoch_policy_profile_and_original_review"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-34",
+      "family": "scanner_availability",
+      "test_nodes": [
+        "tests/assurance/test_codex_scanner.py::test_missing_changed_and_unexecutable_selection",
+        "tests/assurance/test_codex_scanner.py::test_installed_version_and_metadata_refuse_drift"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    },
+    {
+      "id": "AT-35",
+      "family": "public_redaction",
+      "test_nodes": [
+        "tests/assurance/test_invariants.py::test_default_report_has_no_raw_arguments_paths_session_or_profile_source",
+        "tests/assurance/test_validation.py::test_public_review_and_validation_omit_secret_looking_metadata"
+      ],
+      "coverage": "finite_fixture",
+      "limitations": [
+        "All fixtures are synthetic; physical enforcement, live host/provider and multi-platform acceptance are separate."
+      ]
+    }
+  ]
+}
