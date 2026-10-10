@@ -26,7 +26,7 @@
 | M5 | expanded_challengers_verified_dependent_gates_open | Ten-property suite, 320 generated fixtures, 244 assessed / 76 unresolved; 172 seeded failures / 80 minimized replayed records; final source gate 200 passed / 1 POSIX skip; protocol compatibility 98 passed, broader core compatibility 79 passed; pinned wheel/doctor/metadata and SDK/CLI parity pass; dependent/optional gates remain open |
 | M6 | graph_flow_sdk_verified_cross_agent_added | Bounded graph/source-flow SDK; original gate 230 passed / 1 POSIX skip; authenticated M7 cross-agent composition added; combined gate 258 passed / 1 POSIX skip; new wheel pending |
 | M7 | sdk_lifecycle_verified_release_gates_open | Full-domain containment, private issuance/revocation, current use tickets, per-child sessions and cross-agent graphs; source gate 258 passed / 1 POSIX skip; core compatibility 140 passed / 1 skip; pinned example/graph/wheel/doctor/metadata pass; external enforcement/release gates remain open |
-| M8 | not_started | Offline Codex Security import and optional scanner |
+| M8 | offline_import_verified_live_wrapper_pending | Pinned native JSON and bounded SARIF importer, claims/coverage/integrity, source-validated draft conversion and redacted CLI; source gate 294 passed / 1 POSIX skip; core/parity gate 19 passed; fresh wheel pending; scanner/diff/CI slice pending |
 | M9 | not_started | Optional mock/TypeSafe/Laya evidence |
 | M10 | not_started | Finding validation and patch-risk verification |
 | M11 | not_started | Complete CLI/API/docs/examples |
@@ -604,13 +604,73 @@ and wheel/sdist metadata checks pass. Capture/example mypy also passes. No live
 credentials, OS permission grant, physical execution boundary, scanner/model,
 publication or deployment occurred. All checkpoint handles are terminal.
 
+## M8 offline Codex Security importer
+
+Official OpenAI documentation was searched and opened first using the OpenAI Docs
+skill. The referenced repository commit
+`6f4c62875baa310c6f18608035309e77bc8e808b` was then fetched read-only: SDK package
+version `0.2.0`, exact native schemas/examples and Apache-2.0 license. Individual
+schema Git blobs are pinned and checked at load; upstream code is never imported
+or executed. The pinned repository supports both positional export directories
+and `--scan`, policy and threat-model exports; the online reference describes the
+positional export shape. These are distinct inspected contracts, not guessed CLI
+flags. No scanner, Node install, API key or provider call occurred.
+
+The normal wheel includes the zero-dependency data-only API at
+`ordin.assurance.codex_security`; the requested adapter path
+`integrations/codex_security/ordin_codex_security/importer.py` reexports it in a
+separate optional namespace. Native documents and sealed byte hashes are checked
+under a bounded, unlinked authorized output root. JSON duplicate/nonfinite/
+depth/unsafe-control/unknown-field checks, reference/link validation, scan identity,
+source revision and coverage checks refuse malformed or conflicting artifacts.
+SARIF 2.1.0 uses a bounded claim-only subset with no external URI/property loads.
+Lossless private captures retain severity/confidence/scores, all occurrences and
+duplicates, code/locations, validation/counterevidence, attack paths, remediation,
+links and metadata. Public summaries omit raw narrative, paths, vendor IDs and
+threat-model instructions. Imported findings remain `imported`/`imported_claim`
+with no independent verification; a vendor `confirmed` field cannot close one.
+
+`ordin-assure codex import` runs without scanner/credentials/network. Complete
+valid import is exit 0; partial/unknown/malformed is 2. An explicit reported
+severity threshold can return 1 for complete imports without claiming Ordin
+confirmation. Missing/renamed source references and failed/partial/unknown scans
+never imply complete coverage. Source-validated conversion yields only draft
+restriction suggestions; untrusted Markdown cannot select policy or execute code.
+
+Actual checks:
+
+| Gate | Result |
+| --- | --- |
+| Native JSON focused recheck, `.assurance-work/m8-preserved-byte-text` | 17 passed, 0.92 s |
+| JSON/SARIF, `.assurance-work/m8-json-sarif-import` | 27 passed, 2.58 s |
+| Import/schema/audit, `.assurance-work/m8-import-contract-gate` | 41 passed, 5.82 s |
+| CLI/hostile import gate, `.assurance-work/m8-cli-hostile-import` | 50 passed, 5.10 s |
+| Source-backed draft conversion, `.assurance-work/m8-source-draft-conversion` | 26 passed, 2.28 s |
+| Pinned-schema hash recheck, `.assurance-work/m8-pinned-schema-integrity` | 36 passed, 4.32 s |
+| Full assurance/audit, `.assurance-work/m8-importer-source-gate` | 294 passed, 1 POSIX skip, 124.09 s |
+| Core API/agent/schema/package compatibility, `.assurance-work/m8-source-resource-parity` | 19 passed, 7.55 s |
+| Linux-target mypy importer/CLI | 6 source files clean |
+| Ruff/diff checks | Passed |
+| `python -m examples.assurance.codex_import --output .assurance-work/m8-offline-example` | Zero findings with partial coverage remains partial/unconfirmed |
+
+Initial native mapping exposed that the finding schema lacked the explicitly
+required `imported` status; it was added while confirmation remains private-host
+gated. The Markdown comparison initially differed due to Windows CRLF writes;
+the test now compares the exact bytes supplied, without text normalization.
+Core resource parity initially found three extra packaged vendor schemas; exact
+source copies were added under `data/codex_security` and the core gate rechecked
+green. No validation limit was relaxed or failure hidden. Current parity totals
+**27 Assurance contracts / 67 registered schemas**. The live optional wrapper,
+offline diff triage, optional CI example and final M8 acceptance remain pending.
+See [the integration contract](codex-security-integration.md).
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
   Assurance system. M3 acceptance gates remain open; M4 simulator is functional;
   M5 has expanded generated properties, M6 has graph/source-flow SDKs and M7
   has delegation/lifecycle integration. Dependent provider/optional proof work
-  and M8–M12 remain unimplemented. All AT-01–AT-35 require
+  and remaining M8–M12 work is incomplete. All AT-01–AT-35 require
   integrated implementation and current evidence before overall completion.
 - `ApprovedSecurityProfile` now has a protected selection loader/compiler.
   Host-declared filesystem guarantees/mappings still require actual external

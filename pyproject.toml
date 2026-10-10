@@ -55,10 +55,10 @@ ordin-mcp-proxy = "ordin.mcp_proxy:main"
 ordin-mcp-http = "ordin.mcp_http:main"
 
 [tool.setuptools]
-packages = ["ordin", "ordin.analyzers", "ordin.assurance"]
+packages = ["ordin", "ordin.analyzers", "ordin.assurance", "ordin.assurance.codex_security"]
 
 [tool.setuptools.package-data]
-ordin = ["resources/*.json", "resources/**/*.json", "plugin_assets/ordin/.codex-plugin/*.json", "plugin_assets/ordin/hooks/*.json", "plugin_assets/ordin/scripts/*.py"]
+ordin = ["resources/*.json", "resources/**/*.json", "resources/codex_security/LICENSE.upstream", "plugin_assets/ordin/.codex-plugin/*.json", "plugin_assets/ordin/hooks/*.json", "plugin_assets/ordin/scripts/*.py"]
 
 [tool.ruff]
 target-version = "py310"

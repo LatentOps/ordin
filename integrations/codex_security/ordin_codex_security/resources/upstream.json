@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/openai/codex-security",
+  "commit": "6f4c62875baa310c6f18608035309e77bc8e808b",
+  "sdk_version": "0.2.0",
+  "schema_blobs": {
+    "findings": "c2012259f7b485837daa6b53f869da93a2b4460a",
+    "scan-manifest": "bf614d85f19926a1347377ad8037925109de1def",
+    "coverage": "21e0877db08d4cccc8fe5616feab7f8ef8da50af"
+  },
+  "license_blob": "4606e72e042564097e8780d66c1d4dcb611869bd",
+  "readme_blob": "18d7776e53e8434b6f3a18b928ebb2c25615e77b",
+  "cli_docs_blob": "076a54f3ce028e97c8442b30d1dae6dc391b423e",
+  "official_reference": "https://learn.chatgpt.com/docs/security/cli/reference",
+  "verified_on": "2026-10-10"
+}

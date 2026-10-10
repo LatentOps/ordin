@@ -21,6 +21,7 @@ from ordin.assurance.delegation import (
     verify_delegation_subset,
 )
 from ordin.assurance.delegating_gate import DelegatingAssuranceGate
+from ordin.assurance.codex_security import import_codex_json
 from ordin.runtime_boundary import RuntimeCapabilityBoundary
 from ordin.assurance.origins import (
     register_instruction_origin,
@@ -34,6 +35,14 @@ from .test_profiles import POLICY_HASH, REPO, approve, config_profile, selected
 
 def assurance_contract_examples(tmp_path):
     samples = {record.SCHEMA: record.as_dict() for record in examples()}
+    from .test_codex_import import bundle
+
+    scan_directory = tmp_path / "scan-import-fixture"
+    scan_directory.mkdir()
+    scan_scope, _, _, _ = bundle(scan_directory)
+    imported_scan = import_codex_json(scan_scope)
+    samples["assurance_scan_import"] = imported_scan.as_dict()
+    samples["assurance_imported_finding"] = imported_scan.findings[0].as_dict()
     scope = AuthorizedRepository(
         (Path(__file__).parent / "fixtures/repositories/payment").resolve(),
         RepositoryScope("fixture/payment", "fixture-v1"),

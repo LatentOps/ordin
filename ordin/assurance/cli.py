@@ -149,6 +149,26 @@ def _parser() -> argparse.ArgumentParser:
     replay.add_argument("path")
     replay.add_argument("--revision", required=True)
     replay.add_argument("--report")
+    codex = groups.add_parser("codex").add_subparsers(dest="command", required=True)
+    imported = codex.add_parser(
+        "import", help="read saved scanner artifacts without credentials or scanner execution"
+    )
+    imported.add_argument("--artifact-root", required=True)
+    imported.add_argument("--repository", required=True)
+    imported.add_argument("--revision", required=True)
+    imported.add_argument("--format", choices=("json", "sarif"), default="json")
+    imported.add_argument("--findings-path", default="findings.json")
+    imported.add_argument("--sarif-path", default="results.sarif")
+    imported.add_argument("--threat-model-path")
+    imported.add_argument("--expected-plugin-version")
+    imported.add_argument("--expected-target-id")
+    imported.add_argument("--fail-on-severity", choices=("critical", "high", "medium", "low"))
+    imported.add_argument(
+        "--include-details",
+        action="store_true",
+        help="explicit sensitive vendor capture; keep output private",
+    )
+    imported.add_argument("--report")
     return parser
 
 
@@ -166,6 +186,43 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "reason_code": "assurance.profile_content_valid",
             }
             code = PASS
+        elif args.group == "codex":
+            from .codex_security import ImportScope, import_codex_json, import_sarif
+            from .models import RepositoryScope
+
+            scope = ImportScope(
+                Path(args.artifact_root).absolute(),
+                RepositoryScope(args.repository, args.revision),
+                expected_target_id=args.expected_target_id,
+                expected_plugin_version=args.expected_plugin_version,
+            )
+            imported_report = (
+                import_codex_json(
+                    scope,
+                    findings_path=args.findings_path,
+                    threat_model_path=args.threat_model_path,
+                )
+                if args.format == "json"
+                else import_sarif(scope, sarif_path=args.sarif_path)
+            )
+            packet = (
+                imported_report.as_dict() if args.include_details else imported_report.public_dict()
+            )
+            code = PASS if imported_report.conclusive_import else PARTIAL_OR_MALFORMED
+            if code == PASS and args.fail_on_severity:
+                ranks = {
+                    "critical": 4,
+                    "high": 3,
+                    "medium": 2,
+                    "low": 1,
+                    "informational": 0,
+                    "unknown": -1,
+                }
+                if any(
+                    ranks[v.reported_severity] >= ranks[args.fail_on_severity]
+                    for v in imported_report.findings
+                ):
+                    code = SECURITY_REGRESSION
         elif args.group == "challenge":
             if args.command == "run":
                 if args.suite:

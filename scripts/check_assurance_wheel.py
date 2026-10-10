@@ -119,6 +119,27 @@ delegated_read = delegating.evaluate_action(adapter.adapt("read_file", {"path": 
 assert delegated_read.may_execute
 issuer.revoke(root)
 assert not delegating.commit_use(delegated_read, delegated_read.assurance.review.action)
+from ordin.assurance.codex_security import ImportScope, import_codex_json, import_sarif
+scan_root = Path.cwd() / "wheel-saved-scan"
+scan_root.mkdir()
+scan_findings = {"documentType":"codex-security.findings","schemaVersion":"1.0","scanId":"wheel-scan","findings":[]}
+scan_coverage = {"documentType":"codex-security.coverage","schemaVersion":"1.0","scanId":"wheel-scan","mode":"repository",
+    "completeness":"partial","inventoryStrategy":"repository","includePaths":["."],"excludePaths":[],"surfaces":[],"explicitExclusions":[],
+    "deferred":[{"id":"pending","reason":"Synthetic incomplete scan."}]}
+scan_manifest = {"documentType":"codex-security.scan-manifest","schemaVersion":"1.0","scan":{"id":"wheel-scan",
+    "producer":{"name":"codex-security-plugin","version":"0.1.0"},"status":"completed","startedAt":"2026-10-10T00:00:00Z",
+    "completedAt":"2026-10-10T00:01:00Z","sealedAt":"2026-10-10T00:01:00Z","target":{"kind":"git_revision","targetId":"fixture-target",
+    "displayName":"fixture/repo","revision":"snapshot-1"},"scope":{"includePaths":["."],"excludePaths":[]},"coverageRef":"coverage.json",
+    "findingsRef":"findings.json","artifacts":[]}}
+for name,packet in (("findings.json",scan_findings),("coverage.json",scan_coverage)):
+    raw = (json.dumps(packet)+"\n").encode()
+    (scan_root/name).write_bytes(raw)
+    scan_manifest["scan"]["artifacts"].append({"path":name,"sha256":hashlib.sha256(raw).hexdigest(),"mediaType":"application/json"})
+(scan_root/"scan-manifest.json").write_bytes(json.dumps(scan_manifest).encode())
+imported = import_codex_json(ImportScope(scan_root.resolve(),RepositoryScope("fixture/repo","snapshot-1")))
+assert imported.completeness == "partial" and not imported.conclusive_import and imported.findings == ()
+(scan_root/"results.sarif").write_bytes(json.dumps({"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Codex Security"}},"results":[]}]}).encode())
+assert import_sarif(ImportScope(scan_root.resolve(),RepositoryScope("fixture/repo","snapshot-1"))).completeness == "unknown"
 import contextlib, io
 from pathlib import Path
 Path("wheel-profile.json").write_text(json.dumps(profile.as_dict()), encoding="utf-8")
@@ -168,6 +189,10 @@ def run(wheel: Path, environment: Path) -> dict:
             "ordin/assurance/delegation.py",
             "ordin/assurance/delegating_gate.py",
             "ordin/assurance/delegated_paths.py",
+            "ordin/assurance/codex_security/importer.py",
+            "ordin/assurance/codex_security/sarif.py",
+            "ordin/assurance/codex_security/_validation.py",
+            "ordin/resources/codex_security/findings.schema.json",
         }
         if not required <= names:
             raise ValueError("wheel is missing assurance modules")

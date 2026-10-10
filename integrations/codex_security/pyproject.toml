@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ordin-codex-security"
+version = "0.1.0"
+description = "Explicit offline Codex Security artifact adapter for Ordin Assurance."
+requires-python = ">=3.10"
+dependencies = ["ordin>=0.4.0.dev0,<0.5"]
+license = { text = "Apache-2.0" }
+readme = "README.md"
+
+[tool.setuptools]
+packages = ["ordin_codex_security"]
+
+[tool.setuptools.package-data]
+ordin_codex_security = ["resources/*.json", "resources/LICENSE.upstream"]

@@ -511,6 +511,7 @@
     },
     "status": {
       "enum": [
+        "imported",
         "hypothesis",
         "confirmed",
         "refuted",
