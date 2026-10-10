@@ -12,7 +12,13 @@ from typing import Sequence
 from ._files import _directory, read_scoped_file, relative_parts
 from ._json import canonical_json, loads
 from .models import CounterexampleRecord, PolicySimulationReport, SecurityProfile
-from .challenge import challenge_authority_subset, replay_counterexample
+from .challenge import ChallengeRun, challenge_authority_subset, replay_counterexample
+from .property_challenge import (
+    ChallengeSuite,
+    REQUIRED_PROPERTIES,
+    challenge_property,
+    challenge_security_properties,
+)
 from .simulation import FrozenCorpus, SimulationPolicy, simulate_policy_change
 
 PASS = 0
@@ -122,8 +128,19 @@ def _parser() -> argparse.ArgumentParser:
     run = challenge.add_parser("run", help="bounded synthetic authority-subset challenger")
     run.add_argument("--seed", type=int, required=True)
     run.add_argument("--revision", required=True)
-    run.add_argument("--trials", type=int, default=64)
-    run.add_argument("--variant", choices=("actual", "seeded_prefix_bug"), default="actual")
+    run.add_argument("--trials", type=int)
+    run.add_argument(
+        "--variant",
+        choices=("actual", "seeded_prefix_bug", "seeded_unsafe_checker"),
+        default="actual",
+    )
+    selection = run.add_mutually_exclusive_group()
+    selection.add_argument("--property", choices=REQUIRED_PROPERTIES, default="authority_subset")
+    selection.add_argument(
+        "--suite",
+        action="store_true",
+        help="retain all ten required properties and incomplete integrations",
+    )
     run.add_argument("--time-budget-ms", type=float, default=10_000)
     run.add_argument("--report")
     replay = challenge.add_parser(
@@ -138,6 +155,7 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     packet: dict
+    result: ChallengeRun | ChallengeSuite
     try:
         if args.group == "profile":
             profile = SecurityProfile.from_dict(_read(args.path))
@@ -150,19 +168,37 @@ def main(argv: Sequence[str] | None = None) -> int:
             code = PASS
         elif args.group == "challenge":
             if args.command == "run":
-                result = challenge_authority_subset(
-                    seed=args.seed,
-                    revision=args.revision,
-                    trials=args.trials,
-                    variant=args.variant,
-                    time_budget_ms=args.time_budget_ms,
-                )
+                if args.suite:
+                    result = challenge_security_properties(
+                        seed=args.seed,
+                        revision=args.revision,
+                        trials_per_property=args.trials if args.trials is not None else 32,
+                        variant=args.variant,
+                        time_budget_ms=args.time_budget_ms,
+                    )
+                elif args.property == "authority_subset":
+                    result = challenge_authority_subset(
+                        seed=args.seed,
+                        revision=args.revision,
+                        trials=args.trials if args.trials is not None else 64,
+                        variant=args.variant,
+                        time_budget_ms=args.time_budget_ms,
+                    )
+                else:
+                    result = challenge_property(
+                        property_id=args.property,
+                        seed=args.seed,
+                        revision=args.revision,
+                        trials=args.trials if args.trials is not None else 32,
+                        variant=args.variant,
+                        time_budget_ms=args.time_budget_ms,
+                    )
                 packet = result.as_dict()
                 code = (
                     SECURITY_REGRESSION
                     if result.failures
                     else PARTIAL_OR_MALFORMED
-                    if result.unresolved
+                    if result.status == "inconclusive"
                     else PASS
                 )
             else:

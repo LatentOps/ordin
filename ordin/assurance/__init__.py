@@ -54,6 +54,8 @@ from .host import (
 )
 from .invariants import evaluate_approved_invariants
 from .challenge import ChallengeRun, challenge_authority_subset, replay_counterexample
+from .property_challenge import ChallengeSuite, challenge_property, challenge_security_properties
+from .requests import verify_assurance_capability, verify_assurance_request_authority
 from .simulation import (
     FrozenCase,
     FrozenCorpus,
@@ -66,6 +68,11 @@ from .simulation import (
 )
 
 __all__ = [
+    "ChallengeSuite",
+    "challenge_property",
+    "challenge_security_properties",
+    "verify_assurance_request_authority",
+    "verify_assurance_capability",
     "ChallengeRun",
     "challenge_authority_subset",
     "replay_counterexample",

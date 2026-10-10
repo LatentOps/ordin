@@ -2,7 +2,7 @@
   "$id": "https://latentops.space/ordin/schemas/assurance-challenge-run.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "maxProperties": 18,
+  "maxProperties": 20,
   "properties": {
     "benign_controls": {
       "maximum": 1000000000,
@@ -175,7 +175,8 @@
     },
     "generator_version": {
       "enum": [
-        "authority-paths-v1"
+        "authority-paths-v1",
+        "security-properties-v1"
       ],
       "type": "string"
     },
@@ -199,9 +200,28 @@
       "maxItems": 32,
       "type": "array"
     },
+    "missing_scenarios": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
     "property_id": {
       "enum": [
-        "authority_subset"
+        "authority_subset",
+        "monotonicity",
+        "exact_request_commitment",
+        "protocol_separation",
+        "tool_identity",
+        "history_observations",
+        "delegation_subset",
+        "trust_origin",
+        "optional_failure_mode",
+        "review_to_use_binding"
       ],
       "type": "string"
     },
@@ -215,6 +235,123 @@
       "minLength": 1,
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
       "type": "string"
+    },
+    "samples": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 13,
+        "properties": {
+          "action_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "actual": {
+            "enum": [
+              "accepted",
+              "rejected",
+              "unsupported"
+            ],
+            "type": "string"
+          },
+          "assessable": {
+            "type": "boolean"
+          },
+          "benign": {
+            "type": "boolean"
+          },
+          "case_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "comparison": {
+            "enum": [
+              "none",
+              "expected_policy_difference",
+              "not_comparable",
+              "confirmed_bug"
+            ],
+            "type": "string"
+          },
+          "expected": {
+            "enum": [
+              "accepted",
+              "rejected",
+              "unsupported"
+            ],
+            "type": "string"
+          },
+          "input_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "legacy_actual": {
+            "anyOf": [
+              {
+                "enum": [
+                  "accepted",
+                  "rejected"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "policy_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "reason_code": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "relation": {
+            "enum": [
+              "equivalent",
+              "expected_difference",
+              "non_decreasing",
+              "control",
+              "unsupported"
+            ],
+            "type": "string"
+          },
+          "scenario": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_id",
+          "scenario",
+          "input_digest",
+          "action_digest",
+          "policy_digest",
+          "expected",
+          "actual",
+          "assessable",
+          "reason_code",
+          "relation",
+          "benign",
+          "comparison",
+          "legacy_actual"
+        ],
+        "type": "object"
+      },
+      "maxItems": 256,
+      "type": "array"
     },
     "schema_version": {
       "const": "ordin.assurance_challenge_run.v1",
@@ -241,7 +378,8 @@
     "variant": {
       "enum": [
         "actual",
-        "seeded_prefix_bug"
+        "seeded_prefix_bug",
+        "seeded_unsafe_checker"
       ],
       "type": "string"
     }
@@ -264,7 +402,9 @@
     "property_id",
     "generator_version",
     "host_boundary_exercised",
-    "limitations"
+    "limitations",
+    "missing_scenarios",
+    "samples"
   ],
   "title": "Ordin assurance challenge run v1",
   "type": "object"

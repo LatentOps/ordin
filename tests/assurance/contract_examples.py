@@ -14,6 +14,7 @@ from ordin.assurance import (
 )
 from ordin.runtime_contract import CredentialBinding
 from ordin.assurance.challenge import challenge_authority_subset
+from ordin.assurance.property_challenge import challenge_security_properties
 
 from .test_models import examples
 from .test_profiles import POLICY_HASH, REPO, approve, config_profile, selected
@@ -63,6 +64,9 @@ def assurance_contract_examples(tmp_path):
             "assurance_host_credential_use": routing.as_dict(),
             "assurance_host_context": host.as_dict(),
             "assurance_decision": decision.as_dict(),
+            "assurance_challenge_suite": challenge_security_properties(
+                seed=14, revision="fixture-v1", trials_per_property=1, properties=("trust_origin",)
+            ).as_dict(),
             "assurance_challenge_run": challenge_authority_subset(
                 seed=14, revision="fixture-v1", trials=2
             ).as_dict(),

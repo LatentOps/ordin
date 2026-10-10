@@ -58,6 +58,16 @@ challenged = challenge_authority_subset(seed=14, revision="wheel-fixture-v1", tr
 assert challenged.failures == 4 and challenged.benign_controls == 4
 assert all(replay_counterexample(record, expected_revision="wheel-fixture-v1") == "verified_failure"
            for record in challenged.counterexamples)
+from ordin.assurance import challenge_property, ChallengeRun
+request_checks = challenge_property(property_id="exact_request_commitment", seed=14,
+                                   revision="wheel-fixture-v1", trials=16)
+assert request_checks.status == "passed" and request_checks.failures == 0
+assert ChallengeRun.from_json(json.dumps(request_checks.as_dict())) == request_checks
+seeded_requests = challenge_property(property_id="exact_request_commitment", seed=14,
+                                    revision="wheel-fixture-v1", trials=16, variant="seeded_unsafe_checker")
+assert seeded_requests.failures == 12
+assert all(replay_counterexample(record, expected_revision="wheel-fixture-v1") == "verified_failure"
+           for record in seeded_requests.counterexamples)
 import contextlib, io
 from pathlib import Path
 Path("wheel-profile.json").write_text(json.dumps(profile.as_dict()), encoding="utf-8")
@@ -98,6 +108,9 @@ def run(wheel: Path, environment: Path) -> dict:
             "ordin/assurance/cli.py",
             "ordin/assurance/challenge.py",
             "ordin/assurance/_environment.py",
+            "ordin/assurance/property_challenge.py",
+            "ordin/assurance/_property_challenges.py",
+            "ordin/assurance/requests.py",
         }
         if not required <= names:
             raise ValueError("wheel is missing assurance modules")

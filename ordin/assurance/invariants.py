@@ -20,12 +20,12 @@ from ordin.runtime_contract import (
 )
 from ordin.runtime_requests_v2 import (
     derive_runtime_request_contract_v2,
-    verify_runtime_request_authority,
 )
 
 from .host import AssuranceHostContext
 from .models import ApprovedSecurityProfile, InvariantEvaluation, SecurityInvariant
 from .profiles import MUTATION_EFFECTS
+from .requests import verify_assurance_capability, verify_assurance_request_authority
 
 
 def profile_scope_error(
@@ -269,7 +269,7 @@ def evaluate_approved_invariants(
                 )
                 continue
             current_contract = runtime_contract()
-            check = verify_runtime_capability(current_contract, authority.boundary)
+            check = verify_assurance_capability(current_contract, authority.boundary)
             if rule.kind == "credential_binding" and not current_contract.credentials:
                 evaluations.append(
                     result(
@@ -365,20 +365,22 @@ def evaluate_approved_invariants(
             try:
                 request = derive_runtime_request_contract_v2(review)
                 request = replace(request, capability=runtime_contract(), request_contract_id="")
-                check = verify_runtime_request_authority(request, request_authority.boundary)
+                request_check = verify_assurance_request_authority(
+                    request, request_authority.boundary
+                )
                 status = {
                     "within_boundary": "satisfied",
                     "exceeds_boundary": "violated",
                     "unsupported": "unsupported",
                     "inconclusive": "inconclusive",
-                }[check.result]
+                }[request_check.result]
                 evaluations.append(
                     result(
                         rule,
                         status,
-                        check.reason_code,
+                        request_check.reason_code,
                         matched=matched,
-                        unknowns=tuple(check.unsupported_fields)[:32],
+                        unknowns=tuple(request_check.unsupported_fields)[:32],
                     )
                 )
             except ValueError:

@@ -19,7 +19,7 @@
 | M2 | implemented_offline_verified | Scoped read-only inventory, four frozen source-backed drafts, protected profile loader/compiler; 162 passed / 2 POSIX skips; final installed wheel, metadata and SDK example pass |
 | M3 | functional_sdk_verified_gates_open | Pure evaluator/gate and sealed host facts; 240 passed / 1 POSIX skip; wheel/SDK pass; full run 1135 passed / 5 failed / 27 skipped; two audit gaps fixed with 14-test recheck; end-to-end latency still failed |
 | M4 | functional_sdk_cli_verified_final_scenarios_open | Independent frozen replay, advisory change guard, local CLI, 22 synthetic cases; final source gate 168 passed / 1 POSIX skip; core compatibility 60 passed / 1 POSIX skip; final committed-source wheel/doctor/CLI/metadata pass; SDK/CLI parity captured |
-| M5 | finite_challenger_verified_broader_properties_open | Seeded filesystem-subset defect found/minimized/replayed, benign controls and partial coverage; CLI/schema; assurance/audit gate 183 passed / 1 POSIX skip, 18 core compatibility passes; final wheel/doctor/metadata and no-network/no-subprocess smoke pass; broader generators, solver and promotion pending |
+| M5 | expanded_challengers_verified_dependent_gates_open | Ten-property suite, 320 generated fixtures, 244 assessed / 76 unresolved; seeded defects minimized/replayed; final source gate 200 passed / 1 POSIX skip; protocol/legacy compatibility gate 98 passed; expanded wheel pending; delegation/provider, optional solver and promotion gates remain open |
 | M6 | not_started | Bounded attack paths and authenticated origins |
 | M7 | not_started | Delegation subset and lifecycle |
 | M8 | not_started | Offline Codex Security import and optional scanner |
@@ -313,6 +313,60 @@ API/agent/schema tests: **18 passed** in 8.37 seconds. Capture helpers also pass
 Linux-target mypy; this is type checking, not POSIX runtime evidence. All local
 test/build/capture processes for this checkpoint are terminal.
 
+## M5 expanded property challengers and protocol isolation
+
+The SDK/CLI now generate and concretely check monotonicity, exact request
+commitments, protocol separation, tool identity/discovery, history/observations,
+trust origin and review-to-use binding. Shell flags/quoting/nesting/compound and
+unsupported-syntax fixtures, URL authority/path/method/port changes, GraphQL
+variables/aliases/fragments/batches, RPC ID controls, tool semantics/schema drift,
+32-entry queue eviction, stale epoch/source/policy/sandbox correlation, denied
+reformulation and secret-read/upload controls run against the actual core APIs.
+Untrusted README/model/scan-style instruction text remains inert fixture data.
+
+`ChallengeSuite` retains all ten required property names. Runs retain every
+missing declared scenario and cannot declare passing coverage for a short,
+skipped or timed-out selection. At seed 14 / 32 trials per property the actual
+suite generates **320** cases, assesses **244** with zero disagreement and
+keeps **76** unresolved: ambiguous finite path preconditions and the M7/M9
+integrations. The suite is inconclusive. This is property-test coverage, not the
+later required 100-adversarial/100-benign effectiveness corpus. Counterexample
+captures retain action/authority-material and policy digests; shrinking cannot
+change them, the property, scenario, assumptions or failure signature.
+
+The differential check identified the existing core's intentional REST-within-
+broader-TCP rule. New Assurance request/capability wrappers verify every existing
+constraint first, then require a separate exact protocol maximum. They are
+wired into approved resource/request invariants. Legacy APIs remain unchanged;
+the difference is recorded as `expected_policy_difference`, not an invented
+runtime vulnerability. Existing files, credentials, processes, tools and exact
+body constraints cannot be dropped by the internal additional projection.
+
+Actual checks:
+
+| Command | Result |
+| --- | --- |
+| `python -m pytest -q tests/assurance tests/test_contract_audit.py -p no:cacheprovider --basetemp=.assurance-work/m5-expanded-final-source-gate` | 200 passed, 1 POSIX skip, 65.54 s |
+| `python -m pytest -q tests/assurance/test_request_protocols.py tests/assurance/test_invariants.py tests/test_request_authority.py tests/test_runtime_boundary.py -p no:cacheprovider --basetemp=.assurance-work/m5-protocol-isolation` | 98 passed, 14.19 s |
+| `python -m pytest -q tests/assurance/test_property_challenge.py::test_generators_preserve_every_declared_scenario_and_seed_digest -p no:cacheprovider --basetemp=.assurance-work/m5-all-declared-scenarios` | 7 passed, 8.77 s |
+| `python -m pytest -q tests/assurance/test_property_challenge.py::test_cli_property_selection_and_general_counterexample_replay tests/assurance/test_property_challenge.py::test_seeded_defects_shrink_replay_and_preserve_action_and_policy -p no:cacheprovider --basetemp=.assurance-work/m5-bounded-seeded-completion` | 2 passed, 23.11 s |
+| `python -m mypy --platform linux ordin/assurance` | 18 source files clean |
+| `python -m ruff check ordin/assurance tests/assurance/test_property_challenge.py tests/assurance/test_request_protocols.py` | Passed |
+
+The first expanded full source gate had one CLI coverage failure (199 passed,
+1 failed, 1 skip): a 16-trial selection omitted the new semantics-drift scenario.
+The test now requests complete 32-trial coverage. An isolated seeded-suite
+recheck also exposed legitimate 30-second budget exhaustion before later
+properties. Duplicate minimization was moved after signature deduplication,
+and decorative noise removal relies on the closed input contract while both
+captures still get independent concrete replay. The observed complete seeded
+suite then took **14,419 ms** with the unchanged 30-second budget. No timeout
+was relabeled success and no resource limit was raised. Z3 and Hypothesis are
+absent; no dependency installation or solver result is claimed.
+
+Expanded schema/source/package pairs now total 20 Assurance contracts and
+60 registered schemas. Wheel smoke and pinned evidence capture are next.
+
 ## Baseline failures and measurements (original source, continued)
 
 The original suite failed before any package or schema registration changed.
@@ -384,9 +438,10 @@ installation, publication or deployment.
 
 Retain the completed full-suite failures/skips and verify the audit fixes at the
 next full release gate. Resolve end-to-end latency without weakening the declared budget. The next
-independent work is to broaden M5's generated monotonicity, request/protocol, tool,
-history and trust-origin checks with concrete replay and benign counterparts,
-then proceed through M6–M12. Do not treat the finite seeded slice as all of M5.
+independent feature is M6 bounded evidence/attack-path reconstruction and source
+flow assessment, followed by M7–M12. Keep dependent M5 delegation/provider checks,
+optional finite solver/promotion work and the release gates open; expanded
+generated checks are not proof of the full objective.
 Carry the existing Windows shell/latency/SQLite failures into the compatibility
 audit; they must be resolved or explicitly verified on supported platforms
 before any full completion claim. No background evaluation remains running.

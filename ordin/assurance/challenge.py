@@ -144,11 +144,17 @@ class ChallengeRun(JsonRecord):
     limitations: tuple[str, ...] = (
         "Finite synthetic path/read rights only; no claim about symlinks, other domains, live enforcement or untested invariants.",
     )
+    samples: tuple[Mapping, ...] = ()
+    missing_scenarios: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         super().__post_init__()
         expected_status = (
-            "failing" if self.failures else "inconclusive" if self.unresolved else "passed"
+            "failing"
+            if self.failures
+            else "inconclusive"
+            if self.unresolved or self.missing_scenarios
+            else "passed"
         )
         if (
             not 1 <= self.requested_trials <= MAX_TRIALS
@@ -160,12 +166,41 @@ class ChallengeRun(JsonRecord):
             or self.status != expected_status
         ):
             raise ValueError("challenger summary must account for failures, coverage and limits")
+        if self.generator_version == "security-properties-v1":
+            from ._property_challenges import SCENARIOS
+
+            expected_missing = tuple(
+                v
+                for v in SCENARIOS[self.property_id]
+                if v not in {s["scenario"] for s in self.samples}
+            )
+            if (
+                expected_missing != self.missing_scenarios
+                or len({v["case_id"] for v in self.samples}) != self.generated
+                or any(v["scenario"] not in SCENARIOS[self.property_id] for v in self.samples)
+                or len(self.samples) != self.generated
+                or sum(v["assessable"] for v in self.samples) != self.evaluated
+                or sum(v["assessable"] and v["expected"] != v["actual"] for v in self.samples)
+                != self.failures
+            ):
+                raise ValueError("property samples must agree with run counts")
+        elif (
+            self.property_id != PROPERTY
+            or self.variant == "seeded_unsafe_checker"
+            or self.samples
+            or self.missing_scenarios
+        ):
+            raise ValueError("finite path generator cannot represent another property")
 
 
 def replay_counterexample(record: CounterexampleRecord, *, expected_revision: str) -> str:
     """Recheck both captures; a forged status/digest cannot establish reproduction."""
     if not isinstance(record, CounterexampleRecord) or record.revision != expected_revision:
         raise ValueError("counterexample replay requires the exact pinned revision")
+    if record.generator_version == "security-properties-v1":
+        from .property_challenge import replay_property_counterexample
+
+        return replay_property_counterexample(record, expected_revision=expected_revision)
     if (
         record.claimed_property != PROPERTY
         or record.generator_version != GENERATOR_VERSION

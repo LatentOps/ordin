@@ -347,7 +347,7 @@ CHALLENGE_RUN = artifact(
     "assurance_challenge_run",
     seed={"type": "integer", "minimum": 0, "maximum": 2**63 - 1},
     revision=REVISION,
-    variant=choice("actual", "seeded_prefix_bug"),
+    variant=choice("actual", "seeded_prefix_bug", "seeded_unsafe_checker"),
     requested_trials=COUNT,
     generated=COUNT,
     evaluated=COUNT,
@@ -358,10 +358,57 @@ CHALLENGE_RUN = artifact(
     input_manifest_digest=DIGEST,
     elapsed_ms=MILLISECONDS,
     status=choice("passed", "failing", "inconclusive"),
-    property_id=choice("authority_subset"),
-    generator_version=choice("authority-paths-v1"),
+    property_id=choice(
+        "authority_subset",
+        "monotonicity",
+        "exact_request_commitment",
+        "protocol_separation",
+        "tool_identity",
+        "history_observations",
+        "delegation_subset",
+        "trust_origin",
+        "optional_failure_mode",
+        "review_to_use_binding",
+    ),
+    generator_version=choice("authority-paths-v1", "security-properties-v1"),
     host_boundary_exercised={"type": "boolean", "const": False},
     limitations=array(text(), 32),
+    missing_scenarios=array(ID, 64),
+    samples=array(
+        obj(
+            case_id=ID,
+            scenario=ID,
+            input_digest=DIGEST,
+            action_digest=DIGEST,
+            policy_digest=DIGEST,
+            expected=choice("accepted", "rejected", "unsupported"),
+            actual=choice("accepted", "rejected", "unsupported"),
+            assessable=BOOLEAN,
+            reason_code=ID,
+            relation=choice(
+                "equivalent", "expected_difference", "non_decreasing", "control", "unsupported"
+            ),
+            benign=BOOLEAN,
+            comparison=choice(
+                "none", "expected_policy_difference", "not_comparable", "confirmed_bug"
+            ),
+            legacy_actual=nullable(choice("accepted", "rejected")),
+        ),
+        256,
+    ),
+)
+CHALLENGE_SUITE = artifact(
+    "assurance_challenge_suite",
+    seed={"type": "integer", "minimum": 0, "maximum": 2**63 - 1},
+    revision=REVISION,
+    runs=array(CHALLENGE_RUN, 10),
+    status=choice("passed", "failing", "inconclusive"),
+    elapsed_ms=MILLISECONDS,
+    required_properties=array(ID, 10),
+    missing_properties=array(ID, 10),
+    unresolved_properties=array(ID, 10),
+    failures=COUNT,
+    host_boundary_exercised={"type": "boolean", "const": False},
 )
 MODEL_ANSWER = obj(question_id=ID, p_yes=PROBABILITY)
 MODEL = artifact(
@@ -540,6 +587,7 @@ ASSURANCE_DECISION = artifact(
 )
 
 SCHEMAS = {
+    "assurance_challenge_suite": CHALLENGE_SUITE,
     "assurance_challenge_run": CHALLENGE_RUN,
     "assurance_host_credential_use": CREDENTIAL_USE,
     "assurance_host_approval": HOST_APPROVAL,
