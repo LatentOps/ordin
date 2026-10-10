@@ -558,6 +558,7 @@ HOST_ASSESSMENT = artifact(
         "delegated_authority_subset",
         "scanner_isolation",
         "semantic_hosted_scope",
+        "semantic_local_scope",
     ),
     status=choice("satisfied", "violated", "unsupported", "inconclusive"),
     contract_id=nullable(ID),

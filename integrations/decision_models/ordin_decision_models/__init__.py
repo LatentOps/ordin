@@ -16,6 +16,14 @@ from .privacy import (
 from .mock import MockDecisionModel
 from .routing import RoutingPolicy, SemanticInspectionRouter
 from .fusion import SemanticDecision
+from .checkpoints import LocalCheckpoint
+from .laya import (
+    LayaDecisionModel,
+    LocalModelRuntime,
+    LocalModelScope,
+    authorize_local_model,
+    local_setup_action,
+)
 
 __all__ = [
     "AsyncDecisionModel",
@@ -31,4 +39,10 @@ __all__ = [
     "RoutingPolicy",
     "SemanticInspectionRouter",
     "SemanticDecision",
+    "LocalCheckpoint",
+    "LayaDecisionModel",
+    "LocalModelRuntime",
+    "LocalModelScope",
+    "authorize_local_model",
+    "local_setup_action",
 ]

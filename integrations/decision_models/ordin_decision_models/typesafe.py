@@ -120,6 +120,9 @@ def disclosure_action(
             "destination": "https://api.typesafe.ai:443",
             "configuration_digest": config.digest,
             "input_digest": state.digest if state else None,
+            "provider_input_digest": digest("semantic_provider_input", state.provider_input())
+            if state
+            else None,
             "host_source_key": state.host_source_key if state else None,
             "question_set_digest": questions.digest if questions else None,
             "requested_model": requested_model,
@@ -495,7 +498,7 @@ class TypeSafeDecisionModel:
         ):
             return evidence(self.descriptor, state, questions, error_class="refused")
         body = {
-            "state": state.as_dict(),
+            "state": state.provider_input(),
             "model": self._requested,
             "questions": questions.provider_questions(),
         }

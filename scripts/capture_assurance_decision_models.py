@@ -18,6 +18,9 @@ def main() -> int:
     parser.add_argument("--junit", type=Path, required=True)
     parser.add_argument("--adapter-check", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--slice", choices=("protocol_typesafe", "laya_evaluation"), default="protocol_typesafe"
+    )
     args = parser.parse_args()
     result = subprocess.run(
         [
@@ -68,7 +71,7 @@ def main() -> int:
     ):
         raise ValueError("optional wheel smoke lacks default-path evidence")
     report = {
-        "schema_version": "ordin.assurance_m9_protocol_typesafe_evidence.v1",
+        "schema_version": "ordin.assurance_m9_" + args.slice + "_evidence.v1",
         "implemented_revision": args.revision,
         "source_gate": {
             "junit_sha256": hashlib.sha256(raw).hexdigest(),
@@ -79,7 +82,7 @@ def main() -> int:
         "optional_wheel_check": adapter,
         "limitations": [
             "Offline mocks, fake transports and simulated HTTP streams only; no real TypeSafe account/TLS API or Laya checkpoint loaded.",
-            "Laya backend, held-out calibration/effectiveness/friction/latency evaluation and full release gates remain incomplete.",
+            "Actual local/hosted model, independently labeled frozen workloads, effectiveness/friction/latency acceptance and full release gates remain unverified.",
         ],
     }
     with args.output.open("x", encoding="utf-8") as output:

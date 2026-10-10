@@ -108,6 +108,21 @@ class SanitizedDecisionState(JsonRecord):
     def from_dict(cls, payload):
         raise ValueError("JSON cannot authenticate semantic state or trusted task context")
 
+    def provider_input(self) -> dict:
+        """Semantic content only; opaque audit hashes need not consume context."""
+        return {
+            "context_version": "ordin.semantic_context.v1",
+            "authorized_task": self.authorized_task,
+            "action_kind": self.action_kind,
+            "risk": self.risk,
+            "effects": list(self.effects),
+            "snippets": [
+                {key: snippet[key] for key in ("text", "origin_kind", "classification")}
+                for snippet in self.snippets
+            ],
+            "signals": list(self.signals),
+        }
+
     def public_dict(self) -> dict:
         return {
             "state_digest": self.digest,

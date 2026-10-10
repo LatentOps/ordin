@@ -2,9 +2,9 @@
 
 The separate `integrations/decision_models` package implements provider-neutral
 typed input, privacy selection, offline mocks, conservative routing and an
-explicit asynchronous TypeSafe adapter. It is separate from command-search
-reranking and absent from Ordin's default runtime. Laya activation and full
-effectiveness/calibration evaluation remain unfinished M9 work.
+explicit asynchronous TypeSafe adapter and explicit local Laya worker. It is
+separate from command-search reranking and absent from Ordin's default runtime.
+Real model/hardware effectiveness and full calibration acceptance remain open.
 
 The host builds `SanitizedDecisionState` from a current `AssuranceDecision` using
 `sanitize_decision_state`. It checks action/profile/history/context binding.
@@ -65,14 +65,54 @@ assessment. The primitive receipt contains no host issuance/execution interface.
 It is not a physical sandbox or billing controller. The service contract offers
 no request currency cap, and observed token counts cannot prove spend enforcement.
 
-Laya package/version/source blobs and model-card license have been inspected;
-upstream code/weights were not loaded. A future local backend must select/hash a
-complete local checkpoint outside untrusted roots, exclude auto-download and
-custom executable model code, isolate inference and verify actual hardware and
-security task performance. Upstream generic claims are not Ordin acceptance
-results. Do not install the Laya extra or infer from a checkpoint automatically.
+Laya package/version/source blobs and model-card license were inspected; no actual
+weights/ML package were loaded during these checks. The local backend requires a
+native pinned Python interpreter and fixed `_laya_worker.py`, private home/trusted
+working directory and reviewed complete installed dependency tree. Checkpoint
+artifacts consist of safetensors, RL/encoder config and local tokenizer files;
+unknown executable artifacts, links/hardlinks, custom remote-code configuration,
+changed byte hashes and unsupported tokenizer mutation refuse setup. Selected
+runtime/checkpoint paths must stay outside target and enclosing Git worktrees.
+The operator prepares any tokenizer correction separately, reviews it and pins
+the resulting bytes. Model input contains selected semantic text/signals rather
+than opaque audit hashes; the complete sanitized record still binds the request.
 
-Current verified scope is protocol/privacy/routing and fake HTTP/API behavior.
-Thresholds are provisional operator configuration. Frozen development/held-out
-corpora, calibration metrics and actual effectiveness/friction/latency acceptance
-remain open. Synthetic mock probabilities do not demonstrate threat detection.
+`authorize_local_model` requires protected setup approval and a satisfied host
+assessment with kind/invariant `semantic_local_scope` / `semantic.local_scope`.
+The host must actually isolate the worker: no network or credentials, read-only
+checkpoint and immutable runtime, no target/private asset mounts, and bounded
+CPU/memory/process lifetime. A primitive one-use setup scope reaches the provider;
+it contains no host issuance object. Offline/telemetry flags and stripped child
+environment support this boundary but do not establish physical enforcement.
+
+`LayaDecisionModel.initialize` is explicit. It verifies hashes/version/device and
+starts a persistent bounded JSON worker only after approval. Laya imports/loads
+occur in that worker. Unexpected version/device, tokenizer/loader mutation or
+truncated state/options remain unresolved, never successful predictions. Requests
+bind state/question/checkpoint digests and monotonic request IDs. Call quotas,
+scope expiry/configuration change, setup/call timeout, output overflow and async
+cancellation end the process and ordinary descendants. Windows uses suspended
+creation plus a Job Object; POSIX process execution is unverified locally. Broker
+isolation is still needed against privileged process escape and native resource
+abuse. Routine telemetry contains hashes/counts/device, not source or diagnostics.
+
+The real-provider recipes in `ordin_decision_models.examples` default to disabled.
+Enable them only with an actual selected checkpoint/runtime or consented hosted
+provider and current sanitized state/questions. No ordinary example downloads
+weights, discovers accounts, infers automatically or executes a reviewed action.
+
+`evaluation.py` supports bounded synthetic `SemanticCorpus` partitions. Duplicate
+content is detected independently of renamed IDs/labels; fitting accepts only
+complete unambiguous development controls. A frozen threshold binds the provider
+and development/prediction digests; held-out/shift evaluation rejects overlap or
+version/threshold drift. Precision/recall, ROC and step-wise PR average precision,
+ECE/Brier and Wilson rate intervals are independent calculations. Empty/one-class
+samples retain undefined metrics. Per-model metrics include only supported scored
+cases; aggregate results retain deterministic denials, abstentions, ambiguous
+cases, critical misses and developer friction. Timing includes fixture input
+review and routing; per-family coverage/misses remain explicit.
+
+Current verified scope is protocol/privacy/routing, fake HTTP/API and synthetic
+worker/metric behavior. Live inference/hardware, independently labeled frozen
+workloads and actual effectiveness/friction/latency acceptance remain open.
+Synthetic mock probabilities do not demonstrate threat detection.

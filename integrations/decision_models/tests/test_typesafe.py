@@ -144,6 +144,8 @@ def test_discovery_and_batched_typed_answers_are_current_and_non_authoritative(t
     assert model.metrics == {"calls": 1, "input_tokens": 20, "output_tokens": 2}
     assert transport.requests[0][:2] == ("POST", "/v1/systemone")
     assert set(transport.requests[0][2]) == {"state", "model", "questions"}
+    assert transport.requests[0][2]["state"] == state.provider_input()
+    assert "action_digest" not in transport.requests[0][2]["state"]
     assert "synthetic-test-key" not in json.dumps(result.as_dict())
     assert result.model_evidence.consent_ref == "explicit-disclosure"
     again = asyncio.run(model.evaluate_async(state, questions, deadline_ms=250))

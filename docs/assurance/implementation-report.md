@@ -30,7 +30,7 @@
 | M6 | graph_flow_sdk_verified_cross_agent_added | Bounded graph/source-flow SDK; original gate 230 passed / 1 POSIX skip; authenticated M7 cross-agent composition added; combined gate 258 passed / 1 POSIX skip; new wheel pending |
 | M7 | sdk_lifecycle_verified_release_gates_open | Full-domain containment, private issuance/revocation, current use tickets, per-child sessions and cross-agent graphs; source gate 258 passed / 1 POSIX skip; core compatibility 140 passed / 1 skip; pinned example/graph/wheel/doctor/metadata pass; external enforcement/release gates remain open |
 | M8 | offline_sdk_mock_diff_verified_live_boundary_unverified | Pinned importer, explicit scanner selection/configuration/consent/isolation, fake-process tests, offline source/authority diff and optional private CI example; source gate 335 passed / 1 POSIX skip; core compatibility 47 passed / 2 skips; pinned core/adapter wheel/doctor/metadata checks pass; real scanner/host isolation/CI unverified |
-| M9 | protocol_privacy_routing_typesafe_mock_verified_laya_evals_pending | Separate optional package, protected state/inspection inputs, conservative sync/async routing and explicit TypeSafe contract; fake API/HTTP and package checks pass; Laya activation and full held-out/calibration/friction/latency acceptance incomplete |
+| M9 | provider_sdk_mock_worker_metrics_verified_real_evals_pending | Separate optional package, protected state/inspection, conservative routing, TypeSafe contract and pinned local Laya worker; source gate 424 passed / 1 skip; metrics/disjointness tests pass; actual model/hardware/workload/effectiveness acceptance remains unverified |
 | M10 | not_started | Finding validation and patch-risk verification |
 | M11 | not_started | Complete CLI/API/docs/examples |
 | M12 | not_started | Complete acceptance, corpus, CI and release gates |
@@ -844,6 +844,75 @@ All checkpoint handles are terminal. No real model, credential, source upload,
 scanner, execution grant, remote runner, publication or deployment was used.
 See [decision models](decision-models.md).
 
+## M9 local checkpoint/worker and evaluation SDK
+
+`LocalCheckpoint` pins an explicit complete local artifact set, revision label,
+device, token and byte budgets. Bounded readonly readers reject linked/hardlinked/
+special files, unexpected executable artifacts, duplicate/nonfinite JSON, changed
+hashes and custom remote-code config. Tokenizer vocabularies have separate bounded
+file/structure limits; ordinary advisory JSON limits are unchanged. Tokenizer
+config requiring upstream mutation refuses; the host prepares/reviews/pins it
+separately. Published checkpoint metadata URLs were attempted read-only but were
+inaccessible to the web tool; no missing bytes/hashes were invented or downloaded.
+
+`LocalModelRuntime` selects pinned native Python and fixed worker, trusted cwd,
+fresh private home, reviewed transitive installation and target exclusions. Local
+setup requires actual protected approval plus conclusive broker assessment of
+no-egress/read-only/credential/resource isolation. The primitive setup receipt is
+one-use, expires and grants no tools/host issuance interface. Paths outside target
+and enclosing Git roots are required. Offline child environment excludes ambient
+keys and model Hub downloads; those flags do not create physical isolation.
+
+Explicit initialization verifies version/device/hash handshake and starts a
+persistent worker. Only that worker imports Laya/torch and loads selected files.
+Bounded JSON requests/replies bind IDs, input/questions/checkpoint. Truncation or
+collapsed options refuse support. Runtime configuration drift, quota/expiry,
+malformed/oversized output, setup/call timeout and cancellation stop the worker
+and ordinary descendants. Windows uses its existing Job Object management; POSIX
+execution remains unverified. Routine diagnostics remain hashes/counts. No actual
+ML package or weight file was loaded in the tests; the worker fixtures are trusted
+synthetic Python programs and their claims are not real inference evidence.
+
+Semantic providers now receive selected semantic content without opaque audit
+hashes consuming model context. The complete sanitized record/digests still bind
+the current review and hosted disclosure. Real-provider API recipes default to
+disabled and require externally obtained current scope/provider/inputs.
+
+`evaluation.py` has frozen synthetic corpus partitions, content duplicate/overlap
+checks independent of renamed IDs, development-only threshold selection and
+provider/threshold drift refusal. Independent precision/recall, tie-aware ROC,
+step PR average precision, ECE/Brier and Wilson rate intervals retain undefined
+empty/one-class metrics. Per-model metrics omit unsupported scores while aggregate
+coverage retains hard deterministic blocks, abstentions, ambiguous cases, critical
+misses and friction. Timing includes input review/routing; families retain coverage
+and miss counts. These are harness capabilities, not an independently labeled
+frozen security corpus or effectiveness result. Actual frozen workloads, async
+held-out driver, hardware/resource metrics and acceptance remain open.
+
+Actual checks:
+
+| Gate | Result |
+| --- | --- |
+| Synthetic local worker first gate, `.assurance-work/m9-laya-worker-first-gate` | 16 passed, 14.33 s |
+| Pin/configuration/quota/cancel gate, `.assurance-work/m9-laya-binding-gate` | 21 passed, 11.82 s |
+| Hand-calculated metrics, `.assurance-work/m9-semantic-evaluation-first-gate` | 6 passed, 3.59 s |
+| Semantic provider projection/API/routing, `.assurance-work/m9-minimal-provider-context-gate` | 54 passed, 8.13 s |
+| Local worker/evaluation/contracts, `.assurance-work/m9-local-worker-evaluation-gate` | 88 passed, 31.89 s |
+| Full Assurance/audit/providers, `.assurance-work/m9-laya-evaluation-source-gate` | 424 passed, 1 POSIX skip, 159.46 s |
+| Core API/agent/schema/security/Codex compatibility, `.assurance-work/m9-laya-core-compatibility` | 47 passed, 2 skips, 13.77 s |
+| Linux-target mypy, Assurance/optional provider package | 45 files clean; capture/wheel helpers also clean |
+| Ruff/diff | Passed |
+| Fresh core and optional wheel smoke | Passed with socket/process creation rejected, zero default calls, no heavy model imports/weights/actions |
+| Core/optional wheel/sdist twine | All four passed |
+
+Initial type annotations and metric accumulator naming were corrected; no validator
+was weakened. Input writes gained deadline management, setup receipts became
+one-use, expiry/configuration changes stop the worker, and precanceled setup
+refuses before launch. A broader tokenizer parser was necessary for actual-sized
+vocabularies; its limits are explicit and do not relax advisory records. This
+checkpoint proves local SDK/fake IPC and metric behavior only. M9 acceptance is
+incomplete, and no real model efficacy/calibration claim is made.
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
@@ -881,8 +950,8 @@ next full release gate. Resolve end-to-end latency without weakening the declare
 budget. M6 graph/source-flow, M7 delegation/lifecycle and M8 importer, scanner
 wrapper, fake-process gates and offline diff/CI example are implemented. Live
 external scanner/runner behavior is unverified. The next independent feature is
-M9 Laya activation and held-out semantic evaluation after the verified protocol/
-privacy/routing/TypeSafe slice. Keep dependent M5 provider checks,
+M9 frozen semantic workloads, async evaluation, actual model/hardware acceptance
+after the verified provider SDK/worker/metric slice. Keep dependent M5 provider checks,
 optional finite solver/promotion work and the release gates open; expanded
 generated checks are not proof of the full objective.
 Carry the existing Windows shell/latency/SQLite failures into the compatibility

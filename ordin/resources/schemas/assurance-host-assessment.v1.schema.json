@@ -40,7 +40,8 @@
         "source_flow_guard",
         "delegated_authority_subset",
         "scanner_isolation",
-        "semantic_hosted_scope"
+        "semantic_hosted_scope",
+        "semantic_local_scope"
       ],
       "type": "string"
     },

@@ -51,10 +51,24 @@ recording approval. A JSON consent flag or digest alone is insufficient.
 The API exposes no per-request currency cap; the host must verify the actual
 account/gateway spend ceiling. Token accounting cannot establish that ceiling.
 
-Laya release 0.4.1 and its checkpoint APIs/license have been inspected and recorded
-in `resources/upstream.json`. Its default Router can download models. Local
-checkpoint activation, worker isolation and evaluation remain pending; this
-package does not yet provide a working Laya backend. No weights are downloaded.
+Laya release 0.4.1 and its checkpoint APIs/license are pinned in resources.
+`LocalCheckpoint`, `LocalModelRuntime`, `authorize_local_model` and
+`LayaDecisionModel` provide explicit local setup and persistent inference. The
+native interpreter, worker, complete checkpoint and transitive installation are
+host selected and pinned outside target/Git roots. Safe tensors and local
+tokenizer/encoder files are required; unknown executable artifacts, changed
+hashes and tokenizer configurations requiring mutation refuse setup. No weights
+are downloaded. The host must verify actual no-egress/read-only/resource isolation
+before issuing the protected local assessment. Offline environment flags support
+that isolation; they do not replace the physical broker. See the local API
+details and limitations in the main documentation.
+
+`evaluation.py` provides frozen development/held-out/shift corpora, content-based
+disjointness checks, development-only threshold selection, per-model calibration/
+ROC/PR metrics and aggregate restrictions/coverage/friction/latency. Synthetic
+metric tests verify calculations without claiming model threat effectiveness.
+`examples.py` contains opt-in local/hosted recipes requiring actual host-supplied
+scope, selected inputs and provider configuration; disabled examples do nothing.
 
 The full held-out security evaluation, calibration/friction/latency acceptance
 and live TypeSafe/Laya checks remain open. Fake transports/mocks prove contract
