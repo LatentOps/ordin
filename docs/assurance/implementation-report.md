@@ -18,6 +18,7 @@
 - Async measurement/frozen workload SHA: `261685d28e0de3fb9e0ff500e8aa4964c44610f5`.
 - Scoped finding/policy-fix SDK SHA: `d24ccd4978a8ff6bb41dbe160425eca5cff21068`.
 - Vetted synthetic broker/source-fix SDK SHA: `4da87e3d4ba0f500133febedc96cf54095a97410`; capture-summary correction: `e55dd9acd31c24c53a3e187a529504227741e9aa`.
+- Offline external workflow claim SDK/CLI SHA: `17423386c9662cfc85a0ed1a4dbb66ba85e9572c`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -35,7 +36,7 @@
 | M7 | sdk_lifecycle_verified_release_gates_open | Full-domain containment, private issuance/revocation, current use tickets, per-child sessions and cross-agent graphs; source gate 258 passed / 1 POSIX skip; core compatibility 140 passed / 1 skip; pinned example/graph/wheel/doctor/metadata pass; external enforcement/release gates remain open |
 | M8 | offline_sdk_mock_diff_verified_live_boundary_unverified | Pinned importer, explicit scanner selection/configuration/consent/isolation, fake-process tests, offline source/authority diff and optional private CI example; source gate 335 passed / 1 POSIX skip; core compatibility 47 passed / 2 skips; pinned core/adapter wheel/doctor/metadata checks pass; real scanner/host isolation/CI unverified |
 | M9 | provider_sdk_async_measurements_provisional_workload_verified_real_acceptance_pending | Protected protocol/routing, TypeSafe and pinned local worker, measured threshold provenance, sync/async replay and 24-case provisional sample; source gate 432 passed / 1 skip; actual model/hardware and independently labeled effectiveness acceptance remain unverified |
-| M10 | vetted_synthetic_source_fix_sdk_verified_physical_broker_broader_validation_pending | Source/policy review plus explicit vetted broker, measured synthetic source execution and preserved code-fix controls; 485 passed / 1 skip; physical isolation, general predicates, external validation reports and integrated CLI remain open |
+| M10 | vetted_source_fix_external_claim_import_verified_physical_broker_broader_lifecycle_pending | Vetted source/policy proof plus offline validation/patch/fix/risk claims, manifest scope and separate reported verdicts; 510 passed / 1 skip; physical isolation, generic predicates and integrated lifecycle remain open |
 | M11 | not_started | Complete CLI/API/docs/examples |
 | M12 | not_started | Complete acceptance, corpus, CI and release gates |
 
@@ -1171,6 +1172,83 @@ external Codex validate/patch/verify-fix claim imports and integrated lifecycle
 CLI still need implementation or verification. M9 real-model/independent-workload
 acceptance, M11/M12 and the original full release/performance gates remain open.
 
+## M10 offline external workflow claims and CLI
+
+Source `17423386c9662cfc85a0ed1a4dbb66ba85e9572c` adds saved external
+validation, patch, fix-verification and patch-risk import through the core SDK,
+optional adapter facade and `ordin-assure codex import-workflow`. It starts no
+scanner, model, exploit, reported command, patch, PR or upload. Native labels
+including `reportable`, `verified`, `fixed`, `merge` and `auto_merge_candidate`
+remain imported claims, with `closure=not_performed` and `authority_change=none`.
+
+Primary contracts were inspected at the existing external pin
+`6f4c62875baa310c6f18608035309e77bc8e808b`, not inferred from command names:
+SDK validation disposition/report plus optional outputDir/threadId; CLI
+repository/scan/result fix-verification; saved and supplied patch summaries;
+and structured patch-risk schema. CLI validation prose is preserved without
+inferring a verdict from headings. Supplied patch file changes do not establish
+a verified fix. Unsupported embedded risk prose is retained privately with a gap.
+The [contract guide](external-workflow-claims.md) links exact pinned sources.
+
+The risk schema's exact Git blob is
+`b89b932582bd31e3f0dcf7ddaff3b9366157b579`; source data, packaged and optional
+copies match, under the retained Apache license. Source pin metadata also records
+CLI/API/verification-contract blobs. The external schema parser now enforces
+JSON const/enum numeric-type distinction, unique collections and property-count
+limits. Artifact references never fetch alternative schemas or files.
+
+An operator-saved companion capture records declared workflow, repository/revision,
+tool/version, scan identity where applicable, native repository mapping, ordered
+finding IDs, original artifact SHA-256, terminal status/exit and patch SHA where
+needed. Missing/mismatched bytes, scope/version/scan/patch, incomplete or repeated
+coverage and cancellation retain partial/unknown capture. A matching manifest is
+internally consistent imported metadata, not runtime attestation or permission.
+Fix-verification exit 0/1/2 is checked against reported fixed/vulnerable/inconclusive
+results. Inconclusive results remain explicit claims rather than disappearing.
+
+Private payload fragments preserve complete native evidence, multiline report,
+code/path/instruction text and original metadata. Routine summaries hash identifiers,
+scope, version and scan values and omit raw payloads. Altered payload/summary or
+terminal-failure-to-complete relabeling is rejected. Duplicate occurrences keep
+separate record identities. Explicit `--include-details` remains a private export;
+no imported severity, result or risk recommendation activates policy or proves an
+Ordin finding/fix.
+
+Actual gates:
+
+| Gate | Result |
+| --- | --- |
+| Native workflow + prior Codex/SARIF importer focus | 56 passed, 4.31 s; bound-summary rerun 56 passed, 3.75 s |
+| CLI/schema/contract focus | 65 passed, 10.84 s |
+| Prose/native/schema/audit focus | 76 passed, 6.42 s |
+| Final workflow terminal/capture behavior | 25 passed, 1.77 s |
+| Complete Assurance/audit/providers | 510 passed, 1 POSIX skip, 203.50 s |
+| Core compatibility after parity repair | 47 passed, 2 skips, 10.15 s |
+| Linux-target mypy | 66 source/helper files clean |
+| Ruff/diff checks | Passed |
+| Core and optional wheel/sdist builds + twine | All four artifacts passed |
+| Fresh core wheel/doctor/import CLI | 312 Python/JSON package files matched; 88 schemas / 48 Assurance schemas; SDK/CLI claims remain imported under network/process spies |
+| Fresh optional adapter wheel | 10 source files matched; workflow facade/pinned schema import passed with network/process rejection; no real scanner/model |
+
+The initial compatibility run had **45 passed, 2 failed, 2 skips** because the
+new risk schema was packaged without its matching `data/codex_security` source
+copy. The source copy repaired parity and the unchanged compatibility assertions
+passed. The core sdist contains the packaged schema; its source `data/` tree is
+excluded by the existing packaging layout, as with previous resources. No rule,
+label, mandatory check or original release/performance budget was weakened.
+
+[Pinned workflow evidence](evidence/m10-external-workflow.json) captures the
+candidate/source gate and fresh core smoke. [Optional adapter evidence](evidence/m10-workflow-adapter-wheel.json)
+pins both wheel hashes and its namespace/facade checks. Synthetic private fixture
+values and source-derived parameter strings are absent from public evidence.
+No live external workflow, credentials, uploads, model weights, policy activation,
+patch application or publication occurred. All process handles are terminal.
+
+M10 still needs physical broker acceptance, broader finding/source-fix predicates
+and integrated lifecycle CLI/examples. Saved external claims are now supported;
+actual external workflow exercise remains opt-in and unverified. M9 effectiveness,
+M11/M12 and the full original release/latency gates remain open.
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
@@ -1209,7 +1287,7 @@ budget. M6 graph/source-flow, M7 delegation/lifecycle and M8 importer, scanner
 wrapper, fake-process gates and offline diff/CI example are implemented. Live
 external scanner/runner behavior is unverified. The next independent feature is
 Continue M10 with physical broker acceptance, broader validation
-and code-fix predicates, offline external workflow claim import and integrated
+and code-fix predicates and integrated
 lifecycle examples. Then complete M11/M12 integration, corpus, CI and full
 acceptance. M9 async replay and a provisional
 frozen sample are verified, while actual model/hardware and independent
