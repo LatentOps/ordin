@@ -9,6 +9,7 @@
 - Finite-challenger functional implementation SHA: `699b5f8185e42693b47e8263c4e5c51ef4ca09ef`.
 - Expanded-property implementation SHA: `9c472242f566c5eb4f9cc00ee005eef58a5537d7`.
 - Host-source handle implementation SHA: `7a9804cc897bcdf4bd4733ec1af2279615e5aa87`.
+- Attack-path/source-flow implementation SHA: `763b73161cd2ed7bb3657d3b9d20795d43ef049e`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -22,7 +23,7 @@
 | M3 | functional_sdk_verified_gates_open | Pure evaluator/gate and sealed host facts; 240 passed / 1 POSIX skip; wheel/SDK pass; full run 1135 passed / 5 failed / 27 skipped; two audit gaps fixed with 14-test recheck; end-to-end latency still failed |
 | M4 | functional_sdk_cli_verified_final_scenarios_open | Independent frozen replay, advisory change guard, local CLI, 22 synthetic cases; final source gate 168 passed / 1 POSIX skip; core compatibility 60 passed / 1 POSIX skip; final committed-source wheel/doctor/CLI/metadata pass; SDK/CLI parity captured |
 | M5 | expanded_challengers_verified_dependent_gates_open | Ten-property suite, 320 generated fixtures, 244 assessed / 76 unresolved; 172 seeded failures / 80 minimized replayed records; final source gate 200 passed / 1 POSIX skip; protocol compatibility 98 passed, broader core compatibility 79 passed; pinned wheel/doctor/metadata and SDK/CLI parity pass; dependent/optional gates remain open |
-| M6 | graph_flow_sdk_verified_delegation_path_pending | Bounded same-host graph, private source/coverage handles, exact source-flow guard, renderer and draft suggestions; final source gate 230 passed / 1 POSIX skip; core evidence compatibility 68 passed; 21-module mypy clean; wheel pending; cross-agent graphs await M7 |
+| M6 | graph_flow_sdk_verified_delegation_path_pending | Bounded same-host graph, private source/coverage handles, exact source-flow guard, renderer and draft suggestions; final source gate 230 passed / 1 POSIX skip; core evidence compatibility 68 passed; pinned wheel/doctor/metadata pass; cross-agent graphs await M7 |
 | M7 | not_started | Delegation subset and lifecycle |
 | M8 | not_started | Offline Codex Security import and optional scanner |
 | M9 | not_started | Optional mock/TypeSafe/Laya evidence |
@@ -478,6 +479,21 @@ gate: **34 passed** in 6.29 seconds. The installed-wheel smoke now exercises the
 graph and source-provenance APIs with socket/subprocess creation rejected; its
 fresh run and pinned graph capture follow.
 
+The [pinned graph capture](evidence/m6-attack-paths.json) records source revision
+`763b73161cd2ed7bb3657d3b9d20795d43ef049e` and three actual SDK scenarios:
+predicted secret exposure remains **hypothesis**, an authenticated completed
+read establishes the scoped read exposure while upload completion remains
+unproven, and an authenticated denial reports **blocked** reachability. Those
+are synthetic protected-channel fixtures, not physical secret access or runtime
+exploitation. Raw source/argument values are omitted.
+
+The [final graph/source-flow wheel evidence](evidence/m6-graph-wheel.json)
+byte-matches **261** packaged Python/JSON files to that source. A fresh isolated
+install exercises graph construction and provenance handles with network and
+subprocess creation rejected inside the SDK smoke; **63 schemas / 23 Assurance
+schemas**, installed doctor and wheel/sdist metadata checks pass. Private doctor
+output is retained only by hash. All checkpoint handles are terminal.
+
 The original suite failed before any package or schema registration changed.
 Additive unregistered Assurance files/docs were created while the suite ran;
 existing core/runtime source and original schema bytes remained unchanged.
@@ -548,7 +564,9 @@ installation, publication or deployment.
 Retain the completed full-suite failures/skips and verify the audit fixes at the
 next full release gate. Resolve end-to-end latency without weakening the declared budget. The next
 independent feature is M6 bounded evidence/attack-path reconstruction and source
-flow assessment, followed by M7–M12. Keep dependent M5 delegation/provider checks,
+flow assessment, followed by M7–M12. Same-host graph/source-flow SDK work is now
+verified; the next independent feature is M7 pure delegation containment and
+host issuance/revocation, followed by cross-agent graph correlation. Keep dependent M5 delegation/provider checks,
 optional finite solver/promotion work and the release gates open; expanded
 generated checks are not proof of the full objective.
 Carry the existing Windows shell/latency/SQLite failures into the compatibility

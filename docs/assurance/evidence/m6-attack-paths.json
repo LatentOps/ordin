@@ -1,0 +1,1205 @@
+{
+  "implemented_revision": "763b73161cd2ed7bb3657d3b9d20795d43ef049e",
+  "limitations": [
+    "Synthetic protected host-channel fixtures only; no physical secret, live kernel enforcement, causal exploit, provider or scanner exercised."
+  ],
+  "paths": {
+    "authenticated_read": {
+      "boundary_digest": "627a1233b6e50b68bc85aa25d3d002ace017c039a6b9d6c851b16ccf3364bbeb",
+      "counterevidence": [
+        {
+          "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+          "contract_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+          "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": null
+        }
+      ],
+      "edges": [
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:182527c53762d3e3ecaae6f4",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "review:0f76c55f9d3e9431b9ce1ee8",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "requires_capability",
+          "proof_gaps": [],
+          "source_id": "action:0d42fbd1da53474ce7356d76",
+          "target_id": "capability:48fb53b1c4330c448e00ce97"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+          "edge_id": "edge:2f1d7b4c0c6d665fe332ed62",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "crosses_boundary",
+          "proof_gaps": [
+            "Declared software maxima require external enforcement at execution time."
+          ],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "boundary:861192d4d45a90f3821a004b"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:378d3529858a94c606373b83",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "review:0f76c55f9d3e9431b9ce1ee8",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "proposed_by",
+          "proof_gaps": [],
+          "source_id": "action:0d42fbd1da53474ce7356d76",
+          "target_id": "principal:818f2bbb3ed67fce1550751e"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+          "edge_id": "edge:3ec4efd725f6b8a8c057a73b",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "temporally_precedes",
+          "proof_gaps": [
+            "Ordering establishes a temporal relation, not causal influence."
+          ],
+          "source_id": "action:0d42fbd1da53474ce7356d76",
+          "target_id": "action:9b70f50cb6637d142d8ad0d7"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:4f62a68dc761664d55ee189e",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "review:0f76c55f9d3e9431b9ce1ee8",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "requires_capability",
+          "proof_gaps": [],
+          "source_id": "action:0d42fbd1da53474ce7356d76",
+          "target_id": "tool_or_server:d4027bb3d3a60b10f6f2622a"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:582d6e1ff8bebe5c4879489b",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "review:0f76c55f9d3e9431b9ce1ee8",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "crosses_boundary",
+          "proof_gaps": [
+            "Declared software maxima require external enforcement at execution time."
+          ],
+          "source_id": "action:0d42fbd1da53474ce7356d76",
+          "target_id": "boundary:861192d4d45a90f3821a004b"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:6b59b645ed5e51cbebbd9544",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "review:0f76c55f9d3e9431b9ce1ee8",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "read_from",
+          "proof_gaps": [],
+          "source_id": "resource:c9ea05945b84aa42263cbee8",
+          "target_id": "action:0d42fbd1da53474ce7356d76"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:7b6a6b30fb403e63be1205fe",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "observation:8032f8f5e0e27cb74381c788",
+            "origin": "runtime_backend_observed",
+            "proof_gaps": [],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "host_observed",
+          "kind": "correlates_to",
+          "proof_gaps": [],
+          "source_id": "observation:753477532eddcf3eef375124",
+          "target_id": "action:0d42fbd1da53474ce7356d76"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+          "edge_id": "edge:7d41c6ca1a1bb852d5f39e24",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "enforced_by",
+          "proof_gaps": [
+            "A review disposition records the caller-facing decision, not kernel enforcement."
+          ],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "control:09f01ad07987e2668df570fa"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+          "edge_id": "edge:887cf3437374b308740c9eae",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "sent_to",
+          "proof_gaps": [],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "sink:8b053ec07c66c105aeda94bb"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+          "edge_id": "edge:cc16556e1e8522e299da1159",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "requires_capability",
+          "proof_gaps": [],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "tool_or_server:840ba1fdefa3ae648472de61"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+          "edge_id": "edge:dd986d2fc557052efead11c8",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "requires_capability",
+          "proof_gaps": [],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "capability:b65f3ceca2bdd0c6ad4e0414"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+          "edge_id": "edge:eacc37db4e213d6f4d459c0b",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "sent_to",
+          "proof_gaps": [
+            "A reviewed endpoint is an intended request target, not proof of transfer."
+          ],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "resource:4cfd1aaad792ae3ed0fe18ba"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+          "edge_id": "edge:fc8ae57d15040e384a740ca3",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "proposed_by",
+          "proof_gaps": [],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "principal:818f2bbb3ed67fce1550751e"
+        }
+      ],
+      "exposure": "established",
+      "max_depth": 64,
+      "nodes": [
+        {
+          "category": "tool",
+          "kind": "action",
+          "node_id": "action:0d42fbd1da53474ce7356d76",
+          "value_digest": "219c88f6f1dc23dc0861a78b259c047dee702f19e6b6b00705b34768df5e4b5b"
+        },
+        {
+          "category": "shell",
+          "kind": "action",
+          "node_id": "action:9b70f50cb6637d142d8ad0d7",
+          "value_digest": "c285b52421b38b3ac673c6f208b103c1be316d8fa2dd40fc11b95b4246896bdc"
+        },
+        {
+          "category": "authority_unknown",
+          "kind": "boundary",
+          "node_id": "boundary:861192d4d45a90f3821a004b",
+          "value_digest": "a61232b2c67708dc2567ddb71f6271d8b600d884eddd1c04e617a554470ba6b9"
+        },
+        {
+          "category": "reviewed_requirements",
+          "kind": "capability",
+          "node_id": "capability:48fb53b1c4330c448e00ce97",
+          "value_digest": "580e41083974a9f87103e37fd00a5b444dfd214481cccd91ab7a4f7f85c918aa"
+        },
+        {
+          "category": "reviewed_requirements",
+          "kind": "capability",
+          "node_id": "capability:b65f3ceca2bdd0c6ad4e0414",
+          "value_digest": "c700f44173c7e891b5ee7f1b8b603ff637cce7a842d8b3c3a4ba744ba93c47ab"
+        },
+        {
+          "category": "approval_required",
+          "kind": "control",
+          "node_id": "control:09f01ad07987e2668df570fa",
+          "value_digest": "e818082c220842aa4d1a58126ca441efefec15beecdd0fd6d18604ed4862d106"
+        },
+        {
+          "category": "runtime_completed",
+          "kind": "observation",
+          "node_id": "observation:753477532eddcf3eef375124",
+          "value_digest": "787eb305a6c311244de6efbc96857e2feaf7ffab5292c1ea0b03fc95b7c51667"
+        },
+        {
+          "category": "host_principal",
+          "kind": "principal",
+          "node_id": "principal:818f2bbb3ed67fce1550751e",
+          "value_digest": "bc8950a931b69900cc0d1af752d20bf9a022976efa9293ababf7ff13b0651b6a"
+        },
+        {
+          "category": "url",
+          "kind": "resource",
+          "node_id": "resource:4cfd1aaad792ae3ed0fe18ba",
+          "value_digest": "5d4c3f24551465e9157584b58ff57d18595b2496a70c3e79cb9034a74b8ebb89"
+        },
+        {
+          "category": "path",
+          "kind": "resource",
+          "node_id": "resource:c9ea05945b84aa42263cbee8",
+          "value_digest": "fea88755498e408fe742275bcb8cbc57ee74fa9050fdff937c9cadf844df0189"
+        },
+        {
+          "category": "network.upload",
+          "kind": "sink",
+          "node_id": "sink:8b053ec07c66c105aeda94bb",
+          "value_digest": "9892735aef5717e0f270f6752eb31a2a917e48894fdee4b6b7d9881f1da18b7d"
+        },
+        {
+          "category": "normalized_identity",
+          "kind": "tool_or_server",
+          "node_id": "tool_or_server:840ba1fdefa3ae648472de61",
+          "value_digest": "547c0eb01615cabc49b146f13db38940ce9db85a9fad5b918728a4396c36d7f3"
+        },
+        {
+          "category": "normalized_identity",
+          "kind": "tool_or_server",
+          "node_id": "tool_or_server:d4027bb3d3a60b10f6f2622a",
+          "value_digest": "b18377ac086fabae97c70e43be0e2fad8146379f33258c3479dc16c928e3b0f2"
+        }
+      ],
+      "occurrence_ids": [
+        "occurrence:a2ed3f2d4ce061aeba3eabdd"
+      ],
+      "path_id": "path:26454efb3cf51471ec7296d8",
+      "permissions": "unknown",
+      "possible_impact": [
+        "possible_sensitive_data_egress"
+      ],
+      "proof_gaps": [
+        "Instruction/data origin spans are unavailable; influence remains unknown_origin.",
+        "Temporal ordering and predicted effects do not prove a causal exploitation chain.",
+        "The focus action has no authenticated completed execution observation."
+      ],
+      "reachability": "hypothesis",
+      "repository": {
+        "id": "fixture",
+        "revision": "763b73161cd2ed7bb3657d3b9d20795d43ef049e"
+      },
+      "root_cause_digest": "7c33b1ba99c196497d759dc56f1c8dbac8575b6833f2e01a8da352596e701792",
+      "schema_version": "ordin.assurance_attack_path.v1",
+      "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "supporting_evidence": [
+        {
+          "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+          "contract_id": "rc:ad25f21374ce452f9ce5d61c3d1bc29d7cc74529ac6dc7f266d1c559854971af",
+          "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": null
+        },
+        {
+          "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+          "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "evidence_id": "review:0f76c55f9d3e9431b9ce1ee8",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": null
+        },
+        {
+          "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+          "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "evidence_id": "observation:8032f8f5e0e27cb74381c788",
+          "origin": "runtime_backend_observed",
+          "proof_gaps": [],
+          "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": null
+        }
+      ]
+    },
+    "backend_denied": {
+      "boundary_digest": "627a1233b6e50b68bc85aa25d3d002ace017c039a6b9d6c851b16ccf3364bbeb",
+      "counterevidence": [
+        {
+          "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+          "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "evidence_id": "observation:77e83db8a331eb0151ec43eb",
+          "origin": "runtime_backend_observed",
+          "proof_gaps": [],
+          "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": null
+        }
+      ],
+      "edges": [
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:182527c53762d3e3ecaae6f4",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "review:0f76c55f9d3e9431b9ce1ee8",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "requires_capability",
+          "proof_gaps": [],
+          "source_id": "action:0d42fbd1da53474ce7356d76",
+          "target_id": "capability:48fb53b1c4330c448e00ce97"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:378d3529858a94c606373b83",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "review:0f76c55f9d3e9431b9ce1ee8",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "proposed_by",
+          "proof_gaps": [],
+          "source_id": "action:0d42fbd1da53474ce7356d76",
+          "target_id": "principal:818f2bbb3ed67fce1550751e"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:4f62a68dc761664d55ee189e",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "review:0f76c55f9d3e9431b9ce1ee8",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "requires_capability",
+          "proof_gaps": [],
+          "source_id": "action:0d42fbd1da53474ce7356d76",
+          "target_id": "tool_or_server:d4027bb3d3a60b10f6f2622a"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:582d6e1ff8bebe5c4879489b",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "review:0f76c55f9d3e9431b9ce1ee8",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "crosses_boundary",
+          "proof_gaps": [
+            "Declared software maxima require external enforcement at execution time."
+          ],
+          "source_id": "action:0d42fbd1da53474ce7356d76",
+          "target_id": "boundary:861192d4d45a90f3821a004b"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:6b59b645ed5e51cbebbd9544",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "review:0f76c55f9d3e9431b9ce1ee8",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "read_from",
+          "proof_gaps": [],
+          "source_id": "resource:c9ea05945b84aa42263cbee8",
+          "target_id": "action:0d42fbd1da53474ce7356d76"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:912c98b704f8bd26ddf58f38",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "observation:77e83db8a331eb0151ec43eb",
+            "origin": "runtime_backend_observed",
+            "proof_gaps": [],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "host_observed",
+          "kind": "correlates_to",
+          "proof_gaps": [],
+          "source_id": "observation:a99fb817e7d490e91513a076",
+          "target_id": "action:0d42fbd1da53474ce7356d76"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "edge_id": "edge:e54a8091862b97e680d52abb",
+          "evidence": {
+            "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+            "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+            "evidence_id": "observation:77e83db8a331eb0151ec43eb",
+            "origin": "runtime_backend_observed",
+            "proof_gaps": [],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "host_observed",
+          "kind": "enforced_by",
+          "proof_gaps": [],
+          "source_id": "action:0d42fbd1da53474ce7356d76",
+          "target_id": "control:beed7086aac09a0478fd7d34"
+        }
+      ],
+      "exposure": "unknown",
+      "max_depth": 64,
+      "nodes": [
+        {
+          "category": "tool",
+          "kind": "action",
+          "node_id": "action:0d42fbd1da53474ce7356d76",
+          "value_digest": "219c88f6f1dc23dc0861a78b259c047dee702f19e6b6b00705b34768df5e4b5b"
+        },
+        {
+          "category": "authority_unknown",
+          "kind": "boundary",
+          "node_id": "boundary:861192d4d45a90f3821a004b",
+          "value_digest": "a61232b2c67708dc2567ddb71f6271d8b600d884eddd1c04e617a554470ba6b9"
+        },
+        {
+          "category": "reviewed_requirements",
+          "kind": "capability",
+          "node_id": "capability:48fb53b1c4330c448e00ce97",
+          "value_digest": "580e41083974a9f87103e37fd00a5b444dfd214481cccd91ab7a4f7f85c918aa"
+        },
+        {
+          "category": "backend_denied",
+          "kind": "control",
+          "node_id": "control:beed7086aac09a0478fd7d34",
+          "value_digest": "20c2323c2c707b8e84609196edc2b98b106a56434e75b76ea248746d7a3d4d0d"
+        },
+        {
+          "category": "runtime_denied",
+          "kind": "observation",
+          "node_id": "observation:a99fb817e7d490e91513a076",
+          "value_digest": "ed57ccaa9de6cc79cbb7510a62a5c0d37b26bb5783431c6db4b8d19b88e18d97"
+        },
+        {
+          "category": "host_principal",
+          "kind": "principal",
+          "node_id": "principal:818f2bbb3ed67fce1550751e",
+          "value_digest": "bc8950a931b69900cc0d1af752d20bf9a022976efa9293ababf7ff13b0651b6a"
+        },
+        {
+          "category": "path",
+          "kind": "resource",
+          "node_id": "resource:c9ea05945b84aa42263cbee8",
+          "value_digest": "fea88755498e408fe742275bcb8cbc57ee74fa9050fdff937c9cadf844df0189"
+        },
+        {
+          "category": "normalized_identity",
+          "kind": "tool_or_server",
+          "node_id": "tool_or_server:d4027bb3d3a60b10f6f2622a",
+          "value_digest": "b18377ac086fabae97c70e43be0e2fad8146379f33258c3479dc16c928e3b0f2"
+        }
+      ],
+      "occurrence_ids": [
+        "occurrence:0f76c55f9d3e9431b9ce1ee8"
+      ],
+      "path_id": "path:4f92d87fca1ca62fbb802821",
+      "permissions": "unknown",
+      "possible_impact": [],
+      "proof_gaps": [
+        "Instruction/data origin spans are unavailable; influence remains unknown_origin.",
+        "Temporal ordering and predicted effects do not prove a causal exploitation chain.",
+        "The focus action has no authenticated completed execution observation."
+      ],
+      "reachability": "blocked",
+      "repository": {
+        "id": "fixture",
+        "revision": "763b73161cd2ed7bb3657d3b9d20795d43ef049e"
+      },
+      "root_cause_digest": "fa3e67262fd50949b387646efda5ad0aa2ba57db2978fda994378a16486f0f84",
+      "schema_version": "ordin.assurance_attack_path.v1",
+      "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "supporting_evidence": [
+        {
+          "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+          "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "evidence_id": "observation:77e83db8a331eb0151ec43eb",
+          "origin": "runtime_backend_observed",
+          "proof_gaps": [],
+          "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": null
+        },
+        {
+          "action_digest": "0f76c55f9d3e9431b9ce1ee8bfd7b4d58be342fc3a7c84aafaae63f0d472ff42",
+          "contract_id": "rc:eda436ca7d20323502445c06d01b2d2611b11a7ccea816f7eeb00a4a79d18a97",
+          "evidence_id": "review:0f76c55f9d3e9431b9ce1ee8",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": null
+        }
+      ]
+    },
+    "predicted": {
+      "boundary_digest": "627a1233b6e50b68bc85aa25d3d002ace017c039a6b9d6c851b16ccf3364bbeb",
+      "counterevidence": [
+        {
+          "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+          "contract_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+          "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": null
+        },
+        {
+          "action_digest": "cffb359fb264ba98b3aa8f5791f81f54ede36bd814e2c6a38128e005ef01e823",
+          "contract_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+          "evidence_id": "review:cffb359fb264ba98b3aa8f57",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": null
+        }
+      ],
+      "edges": [
+        {
+          "confidence": null,
+          "correlation_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+          "edge_id": "edge:04520096a560763345389d98",
+          "evidence": {
+            "action_digest": "cffb359fb264ba98b3aa8f5791f81f54ede36bd814e2c6a38128e005ef01e823",
+            "contract_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+            "evidence_id": "review:cffb359fb264ba98b3aa8f57",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "requires_capability",
+          "proof_gaps": [],
+          "source_id": "action:9d1d101621de8890f2046b6b",
+          "target_id": "capability:5eb200c2a5b810c702944275"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+          "edge_id": "edge:0ad74e48a81ab70bc2e3d689",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "correlates_to",
+          "proof_gaps": [
+            "A temporal policy match is risk evidence, not causal or execution proof."
+          ],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "control:61189d2df78881a64500bf00"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+          "edge_id": "edge:27252c6f30aa46d4b65195be",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "proposed_by",
+          "proof_gaps": [],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "principal:818f2bbb3ed67fce1550751e"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+          "edge_id": "edge:2eeb3b195c3169f31143bd18",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "temporally_precedes",
+          "proof_gaps": [
+            "Ordering establishes a temporal relation, not causal influence."
+          ],
+          "source_id": "action:9d1d101621de8890f2046b6b",
+          "target_id": "action:9b70f50cb6637d142d8ad0d7"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+          "edge_id": "edge:41c03aabfa3a1dcf457d0783",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "enforced_by",
+          "proof_gaps": [
+            "A review disposition records the caller-facing decision, not kernel enforcement."
+          ],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "control:168d1dabe793cec85c0563b6"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+          "edge_id": "edge:452931ae21e1a8e0b16e834e",
+          "evidence": {
+            "action_digest": "cffb359fb264ba98b3aa8f5791f81f54ede36bd814e2c6a38128e005ef01e823",
+            "contract_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+            "evidence_id": "review:cffb359fb264ba98b3aa8f57",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "crosses_boundary",
+          "proof_gaps": [
+            "Declared software maxima require external enforcement at execution time."
+          ],
+          "source_id": "action:9d1d101621de8890f2046b6b",
+          "target_id": "boundary:861192d4d45a90f3821a004b"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+          "edge_id": "edge:4d01a0538166f00392f1b7b8",
+          "evidence": {
+            "action_digest": "cffb359fb264ba98b3aa8f5791f81f54ede36bd814e2c6a38128e005ef01e823",
+            "contract_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+            "evidence_id": "review:cffb359fb264ba98b3aa8f57",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "read_from",
+          "proof_gaps": [],
+          "source_id": "resource:f52b798bd55e56a102a77e9a",
+          "target_id": "action:9d1d101621de8890f2046b6b"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+          "edge_id": "edge:4d85aa8a36f511c2d942d729",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "requires_capability",
+          "proof_gaps": [],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "capability:1f3376cdf4a2b5d8bc76c15d"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+          "edge_id": "edge:5d896675c9d2f78dd8934c7c",
+          "evidence": {
+            "action_digest": "cffb359fb264ba98b3aa8f5791f81f54ede36bd814e2c6a38128e005ef01e823",
+            "contract_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+            "evidence_id": "review:cffb359fb264ba98b3aa8f57",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "enforced_by",
+          "proof_gaps": [
+            "A review disposition records the caller-facing decision, not kernel enforcement."
+          ],
+          "source_id": "action:9d1d101621de8890f2046b6b",
+          "target_id": "control:1fa585861c3f3694da564bc9"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+          "edge_id": "edge:5fce273641d51f65e7b54c80",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "sent_to",
+          "proof_gaps": [
+            "A reviewed endpoint is an intended request target, not proof of transfer."
+          ],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "resource:4cfd1aaad792ae3ed0fe18ba"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+          "edge_id": "edge:6c3129ac95a134c7698419e6",
+          "evidence": {
+            "action_digest": "cffb359fb264ba98b3aa8f5791f81f54ede36bd814e2c6a38128e005ef01e823",
+            "contract_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+            "evidence_id": "review:cffb359fb264ba98b3aa8f57",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "requires_capability",
+          "proof_gaps": [],
+          "source_id": "action:9d1d101621de8890f2046b6b",
+          "target_id": "tool_or_server:840ba1fdefa3ae648472de61"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+          "edge_id": "edge:7abae476a8536a6e0a28070a",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "crosses_boundary",
+          "proof_gaps": [
+            "Declared software maxima require external enforcement at execution time."
+          ],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "boundary:861192d4d45a90f3821a004b"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+          "edge_id": "edge:873f923b730ee710588a76b0",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "requires_capability",
+          "proof_gaps": [],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "tool_or_server:840ba1fdefa3ae648472de61"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+          "edge_id": "edge:8e02903d6717a7751fe15f0e",
+          "evidence": {
+            "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+            "contract_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+            "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "sent_to",
+          "proof_gaps": [],
+          "source_id": "action:9b70f50cb6637d142d8ad0d7",
+          "target_id": "sink:8b053ec07c66c105aeda94bb"
+        },
+        {
+          "confidence": null,
+          "correlation_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+          "edge_id": "edge:e0ce59958e7a573ead75c04a",
+          "evidence": {
+            "action_digest": "cffb359fb264ba98b3aa8f5791f81f54ede36bd814e2c6a38128e005ef01e823",
+            "contract_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+            "evidence_id": "review:cffb359fb264ba98b3aa8f57",
+            "origin": "deterministically_derived",
+            "proof_gaps": [
+              "Reviewed effects predict requirements; they do not establish execution."
+            ],
+            "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "source": null
+          },
+          "evidence_kind": "deterministic_inference",
+          "kind": "proposed_by",
+          "proof_gaps": [],
+          "source_id": "action:9d1d101621de8890f2046b6b",
+          "target_id": "principal:818f2bbb3ed67fce1550751e"
+        }
+      ],
+      "exposure": "hypothesis",
+      "max_depth": 64,
+      "nodes": [
+        {
+          "category": "shell",
+          "kind": "action",
+          "node_id": "action:9b70f50cb6637d142d8ad0d7",
+          "value_digest": "c285b52421b38b3ac673c6f208b103c1be316d8fa2dd40fc11b95b4246896bdc"
+        },
+        {
+          "category": "shell",
+          "kind": "action",
+          "node_id": "action:9d1d101621de8890f2046b6b",
+          "value_digest": "976a7a7e4d2692eb6aea9562d4a218d893faf46439d3bfca9eb994de696383d9"
+        },
+        {
+          "category": "authority_unknown",
+          "kind": "boundary",
+          "node_id": "boundary:861192d4d45a90f3821a004b",
+          "value_digest": "a61232b2c67708dc2567ddb71f6271d8b600d884eddd1c04e617a554470ba6b9"
+        },
+        {
+          "category": "reviewed_requirements",
+          "kind": "capability",
+          "node_id": "capability:1f3376cdf4a2b5d8bc76c15d",
+          "value_digest": "0e4d9d2d0c270f4a2799d69ff6a2526b502b74f13d22ccb4173b559a13ab5d20"
+        },
+        {
+          "category": "reviewed_requirements",
+          "kind": "capability",
+          "node_id": "capability:5eb200c2a5b810c702944275",
+          "value_digest": "8f4d360be755356ee72800cb9c19150769e393b78c61f85cb8e7d3ed635f4d84"
+        },
+        {
+          "category": "review_denied",
+          "kind": "control",
+          "node_id": "control:168d1dabe793cec85c0563b6",
+          "value_digest": "25cea2440bc8ef1dc6087c745e717082f31e0296af4ec90e775cf2359962dc63"
+        },
+        {
+          "category": "approval_required",
+          "kind": "control",
+          "node_id": "control:1fa585861c3f3694da564bc9",
+          "value_digest": "bedd6a336f87d14f184c4e624eea0c4537dfb001a470b5da311e78f6106154b3"
+        },
+        {
+          "category": "temporal_signal",
+          "kind": "control",
+          "node_id": "control:61189d2df78881a64500bf00",
+          "value_digest": "2a2e0c6726b59e2a8c5ba365f653cec2cce1174928ae91d1221b29b99a1ce33b"
+        },
+        {
+          "category": "host_principal",
+          "kind": "principal",
+          "node_id": "principal:818f2bbb3ed67fce1550751e",
+          "value_digest": "bc8950a931b69900cc0d1af752d20bf9a022976efa9293ababf7ff13b0651b6a"
+        },
+        {
+          "category": "url",
+          "kind": "resource",
+          "node_id": "resource:4cfd1aaad792ae3ed0fe18ba",
+          "value_digest": "5d4c3f24551465e9157584b58ff57d18595b2496a70c3e79cb9034a74b8ebb89"
+        },
+        {
+          "category": "path",
+          "kind": "resource",
+          "node_id": "resource:f52b798bd55e56a102a77e9a",
+          "value_digest": "bb57a2e7108afc880b01bf7d7adf78b8c800cf32201a5efb47967f2309f7294e"
+        },
+        {
+          "category": "network.upload",
+          "kind": "sink",
+          "node_id": "sink:8b053ec07c66c105aeda94bb",
+          "value_digest": "9892735aef5717e0f270f6752eb31a2a917e48894fdee4b6b7d9881f1da18b7d"
+        },
+        {
+          "category": "normalized_identity",
+          "kind": "tool_or_server",
+          "node_id": "tool_or_server:840ba1fdefa3ae648472de61",
+          "value_digest": "547c0eb01615cabc49b146f13db38940ce9db85a9fad5b918728a4396c36d7f3"
+        }
+      ],
+      "occurrence_ids": [
+        "occurrence:a2ed3f2d4ce061aeba3eabdd"
+      ],
+      "path_id": "path:745907aea56969c1e6716771",
+      "permissions": "unknown",
+      "possible_impact": [
+        "possible_sensitive_data_egress"
+      ],
+      "proof_gaps": [
+        "A temporal secret-flow signal alone does not establish authenticated secret exposure.",
+        "Instruction/data origin spans are unavailable; influence remains unknown_origin.",
+        "Temporal ordering and predicted effects do not prove a causal exploitation chain.",
+        "The focus action has no authenticated completed execution observation."
+      ],
+      "reachability": "blocked",
+      "repository": {
+        "id": "fixture",
+        "revision": "763b73161cd2ed7bb3657d3b9d20795d43ef049e"
+      },
+      "root_cause_digest": "7c33b1ba99c196497d759dc56f1c8dbac8575b6833f2e01a8da352596e701792",
+      "schema_version": "ordin.assurance_attack_path.v1",
+      "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "supporting_evidence": [
+        {
+          "action_digest": "a2ed3f2d4ce061aeba3eabdd60833782e09fb7d677eccfcfdf43ecc00a5f8ce0",
+          "contract_id": "rc:9883b94f09bfe36a7e90999ba8c21c44f237c1d43293aab834275e364445b945",
+          "evidence_id": "review:a2ed3f2d4ce061aeba3eabdd",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": null
+        },
+        {
+          "action_digest": "cffb359fb264ba98b3aa8f5791f81f54ede36bd814e2c6a38128e005ef01e823",
+          "contract_id": "rc:77a783ee735d0d53ddad82c036e4444bb95c4b0b885d55ad08b468e779299b6b",
+          "evidence_id": "review:cffb359fb264ba98b3aa8f57",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source": null
+        }
+      ]
+    }
+  },
+  "schema_version": "ordin.assurance_m6_graph_evidence.v1"
+}
