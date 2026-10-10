@@ -15,6 +15,13 @@ from ordin.assurance import (
 from ordin.runtime_contract import CredentialBinding
 from ordin.assurance.challenge import challenge_authority_subset
 from ordin.assurance.property_challenge import challenge_security_properties
+from ordin.assurance.delegation import (
+    DelegationAuthority,
+    DelegationIssuer,
+    verify_delegation_subset,
+)
+from ordin.assurance.delegating_gate import DelegatingAssuranceGate
+from ordin.runtime_boundary import RuntimeCapabilityBoundary
 from ordin.assurance.origins import (
     register_instruction_origin,
     correlate_source_use,
@@ -59,6 +66,12 @@ def assurance_contract_examples(tmp_path):
         approvals=(approval,), assessments=(assessment,), credential_uses=(routing,)
     )
     decision = AssuranceGate(approved_profile=approved).evaluate_action(action, host_context=host)
+    maximum = DelegationAuthority(RuntimeCapabilityBoundary("fixture"))
+    issuer = DelegationIssuer(source, approved, maximum, maximum, clock=lambda: 100)
+    grant = issuer.authorize_root(maximum, grant_id="fixture-root", expires_at=200)
+    delegated = DelegatingAssuranceGate(
+        AssuranceGate(approved_profile=approved), issuer, grant, source
+    ).evaluate_action(action)
     origin = register_instruction_origin(
         source,
         origin_id="fixture-origin",
@@ -84,6 +97,10 @@ def assurance_contract_examples(tmp_path):
             "assurance_host_credential_use": routing.as_dict(),
             "assurance_host_context": host.as_dict(),
             "assurance_decision": decision.as_dict(),
+            "assurance_delegated_decision": delegated.as_dict(),
+            "assurance_delegation_verification": verify_delegation_subset(
+                *([DelegationAuthority(RuntimeCapabilityBoundary("fixture"))] * 4)
+            ).as_dict(),
             "assurance_instruction_origin": origin.as_dict(),
             "assurance_source_use": use.as_dict(),
             "assurance_source_provenance": record_source_provenance(

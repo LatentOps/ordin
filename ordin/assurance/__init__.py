@@ -73,6 +73,16 @@ from .attack_paths import (
     render_attack_path,
 )
 from .source_flow import assess_source_flow
+from .delegation import (
+    DelegationAuthority,
+    DelegationVerification,
+    DelegationIssuer,
+    DelegationLimits,
+    IssuedDelegation,
+    verify_delegation_subset,
+)
+from .delegating_gate import DelegatedDecision, DelegatingAssuranceGate
+from .delegated_paths import build_delegated_attack_path
 from .simulation import (
     FrozenCase,
     FrozenCorpus,
@@ -85,6 +95,15 @@ from .simulation import (
 )
 
 __all__ = [
+    "build_delegated_attack_path",
+    "DelegatedDecision",
+    "DelegatingAssuranceGate",
+    "DelegationAuthority",
+    "DelegationVerification",
+    "DelegationIssuer",
+    "DelegationLimits",
+    "IssuedDelegation",
+    "verify_delegation_subset",
     "SourceProvenance",
     "record_source_provenance",
     "assess_source_flow",

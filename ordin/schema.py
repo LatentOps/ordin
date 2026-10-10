@@ -47,6 +47,8 @@ SCHEMA_FILES = {
     "assurance_instruction_origin": "assurance-instruction-origin.v1.schema.json",
     "assurance_source_use": "assurance-source-use.v1.schema.json",
     "assurance_source_provenance": "assurance-source-provenance.v1.schema.json",
+    "assurance_delegation_verification": "assurance-delegation-verification.v1.schema.json",
+    "assurance_delegated_decision": "assurance-delegated-decision.v1.schema.json",
     "assurance_counterexample": "assurance-counterexample.v1.schema.json",
     "assurance_delegation": "assurance-delegation.v1.schema.json",
     "assurance_model_evidence": "assurance-model-evidence.v1.schema.json",

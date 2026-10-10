@@ -88,16 +88,19 @@ def _evidence(
 
 
 class _Graph:
-    def __init__(self, max_nodes, max_edges):
+    def __init__(self, max_nodes, max_edges, scope):
         self.nodes: dict[str, AttackNode] = {}
         self.edges: dict[str, AttackEdge] = {}
         self.max_nodes, self.max_edges = max_nodes, max_edges
+        self.scope = scope
         self.gaps: set[str] = set()
 
     def node(self, kind, category, value, *, namespace=""):
         value_digest = core_digest(value)
         identity = (
-            kind + ":" + digest("attack_node", [namespace, kind, category, value_digest])[:24]
+            kind
+            + ":"
+            + digest("attack_node", [self.scope, namespace, kind, category, value_digest])[:24]
         )
         if identity not in self.nodes and len(self.nodes) >= self.max_nodes:
             self.gaps.add("Graph node budget reached; omitted relations remain unknown.")
@@ -223,7 +226,7 @@ def build_attack_path(
             o.outcome != "denied" for o in correlated.get(row.decision.review.action.action_id, ())
         ):
             raise ValueError("completed/allowed observation cannot follow an Assurance denial")
-    graph = _Graph(max_nodes, max_edges)
+    graph = _Graph(max_nodes, max_edges, source.key)
     catalog = frozenset(load_effect_catalog())
     support: dict[str, EvidenceLink] = {}
     counter: dict[str, EvidenceLink] = {}
@@ -659,6 +662,7 @@ def build_attack_path(
         root_cause_digest=cause_digest,
         boundary_digest=boundary_digest,
         occurrence_ids=("occurrence:" + focus_hash[:24],),
+        session_digests=(source.session_digest,),
     )
 
 
@@ -770,6 +774,8 @@ def render_attack_path(path: AttackPathEvidence) -> str:
             "runtime_allowed",
             "runtime_unknown",
             "host_classified_public",
+            "delegation_denied",
+            "delegation_approval",
             "network.upload",
             "filesystem.write",
             "filesystem.delete",

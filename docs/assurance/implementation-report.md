@@ -23,8 +23,8 @@
 | M3 | functional_sdk_verified_gates_open | Pure evaluator/gate and sealed host facts; 240 passed / 1 POSIX skip; wheel/SDK pass; full run 1135 passed / 5 failed / 27 skipped; two audit gaps fixed with 14-test recheck; end-to-end latency still failed |
 | M4 | functional_sdk_cli_verified_final_scenarios_open | Independent frozen replay, advisory change guard, local CLI, 22 synthetic cases; final source gate 168 passed / 1 POSIX skip; core compatibility 60 passed / 1 POSIX skip; final committed-source wheel/doctor/CLI/metadata pass; SDK/CLI parity captured |
 | M5 | expanded_challengers_verified_dependent_gates_open | Ten-property suite, 320 generated fixtures, 244 assessed / 76 unresolved; 172 seeded failures / 80 minimized replayed records; final source gate 200 passed / 1 POSIX skip; protocol compatibility 98 passed, broader core compatibility 79 passed; pinned wheel/doctor/metadata and SDK/CLI parity pass; dependent/optional gates remain open |
-| M6 | graph_flow_sdk_verified_delegation_path_pending | Bounded same-host graph, private source/coverage handles, exact source-flow guard, renderer and draft suggestions; final source gate 230 passed / 1 POSIX skip; core evidence compatibility 68 passed; pinned wheel/doctor/metadata pass; cross-agent graphs await M7 |
-| M7 | not_started | Delegation subset and lifecycle |
+| M6 | graph_flow_sdk_verified_cross_agent_added | Bounded graph/source-flow SDK; original gate 230 passed / 1 POSIX skip; authenticated M7 cross-agent composition added; combined gate 258 passed / 1 POSIX skip; new wheel pending |
+| M7 | lifecycle_gate_verified_wheel_pending | Full-domain containment, private issuance/revocation, current use tickets, per-child sessions and cross-agent graphs; source gate 258 passed / 1 POSIX skip; core compatibility 140 passed / 1 skip; final wheel/evidence pending |
 | M8 | not_started | Offline Codex Security import and optional scanner |
 | M9 | not_started | Optional mock/TypeSafe/Laya evidence |
 | M10 | not_started | Finding validation and patch-risk verification |
@@ -531,12 +531,68 @@ and the existing quickstart's missing `sh` executable on Windows. Private raw
 test/JUnit output remains in `.assurance-work/baseline-recheck-1`; the tracked
 summary omits the machine hostname and retains exact case IDs and hashes.
 
+## M7 delegation containment, lifecycle and child integration
+
+`DelegationAuthority` is data only. The pure verifier retains filesystem,
+network/protocol/method/path/exact request, tool, process/privilege/credential and
+approval rights, checking the child against parent/operator/task maxima. Accepted
+rights are the requested subset of their intersection; broader proposals refuse
+issuance. Unrepresentable child wildcard languages and any-executable rights
+remain unsupported rather than dropped. A protected host issuer checks current
+ancestry, policy/profile/source identity, lifetime/depth/cycles/duplicate IDs and
+quotas before creating a private immutable `IssuedDelegation`. JSON artifacts
+cannot restore current authority.
+
+Revocation invalidates descendants and pending/cached uses. Clock rollback and
+host configuration changes fail closed. Per-child `IntegrationSession` state
+retains denied proposals and is isolated across concurrent siblings. The wrapper
+preserves core/profile requirements and checks complete derived operation
+requirements, supplies current delegated-profile assessments through a fresh
+review, and reserves bounded use tickets only for executable results. Final use
+binding is rechecked under the issuer lock and consumed once. No credential/OS
+permission or atomic kernel execution is minted; the external broker must enforce
+rights and exact bytes when forwarding.
+
+Cross-agent graphs require current private parent/child relationships and sealed
+delegated child results. Node identities include host scope; local IDs/tool names
+cannot collapse siblings. Delegation denials remain counterevidence. Explicit
+source lineage references retained parent actions and exact child bytes; causation
+and completed transfer remain unproven. Typed collectors reject JSON/fabricated/
+sibling backend observations. See [delegation](delegation.md).
+
+Actual checks:
+
+| Gate | Result |
+| --- | --- |
+| Pure subset/lifecycle, `.assurance-work/m7-lifecycle-recheck` | 8 passed, 1.01 s |
+| Child gate/issuer/schema, `.assurance-work/m7-child-gate` | 17 passed, 3.96 s |
+| Commit/configuration races, `.assurance-work/m7-use-binding-races` | 19 passed, 2.96 s |
+| Exact MCP args, collector identity, normal test controls, `.assurance-work/m7-runtime-identity` | 3 passed, 1.18 s |
+| Cross-agent and existing graph tests, `.assurance-work/m7-cross-agent-evidence` | 18 passed, 8.08 s |
+| Integrated delegation/property gate, `.assurance-work/m7-integrated-delegation` | 43 passed, 81.45 s |
+| Full assurance/audit, `.assurance-work/m7-full-source-gate` | 258 passed, 1 POSIX skip, 100.29 s |
+| Existing public API/agent/session/boundary/request/runtime-observation compatibility, `.assurance-work/m7-core-session-compatibility` | 140 passed, 1 POSIX skip, 92.72 s |
+| Linux-target mypy | 24 source files clean; no POSIX runtime result implied |
+| Ruff and diff checks | Passed |
+
+The first cycle assertion received the conservative ambiguous-parent rejection;
+self/cycle detection now precedes that check and the lifecycle recheck passes.
+Concurrent reviews and commit-time mutation tests inspect actual issuer/session
+state. M5's delegation generator now assesses 32 all-domain cases with zero
+disagreement and detects 24 failures in the explicit synthetic overlap checker.
+The full suite now assesses **276/320** with **44** ambiguous-path/provider cases
+unresolved. Earlier pinned M5 evidence remains unchanged at its original SHA.
+Parity totals **25 Assurance contracts / 65 registered schemas**. New wheel,
+example and pinned evidence checks follow; full release/latency, scanner/model
+and final acceptance gates remain open.
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
   Assurance system. M3 acceptance gates remain open; M4 simulator is functional;
-  M5 has an initial finite challenger; its broader properties and M6–M12
-  remain unimplemented. All AT-01–AT-35 require
+  M5 has expanded generated properties, M6 has graph/source-flow SDKs and M7
+  has delegation/lifecycle integration. Dependent provider/optional proof work
+  and M8–M12 remain unimplemented. All AT-01–AT-35 require
   integrated implementation and current evidence before overall completion.
 - `ApprovedSecurityProfile` now has a protected selection loader/compiler.
   Host-declared filesystem guarantees/mappings still require actual external

@@ -63,9 +63,9 @@ ordin-assure challenge run --seed 14 --revision fixture-v1 --suite --trials 32 -
 ```
 
 The suite preserves all ten required property names. At 32 trials per property,
-it generates 320 fixtures. The current actual run assesses 244 without a
-disagreement; 76 remain unresolved, including deliberately ambiguous path cases,
-delegation lifecycle and provider-failure integrations not yet implemented.
+it generates 320 fixtures. With M7 containment integration the current actual
+run assesses 276 without a disagreement; 44 remain unresolved, including deliberately
+ambiguous path cases and provider-failure integrations not yet implemented.
 The result stays `inconclusive`. These are property fixtures, not the later
 100-adversarial/100-benign effectiveness benchmark. A short run also retains
 every missing declared scenario and cannot report complete coverage.
@@ -102,14 +102,14 @@ The property inventory and remaining integration work are:
 | Protocol separation | Distinct REST/GraphQL/MCP/JSON-RPC/TCP domains and exact authorities | One domain borrows another's grant; generated protocol/URL checks and stricter Assurance checks implemented |
 | Tool identity | Protected registry, contract pin and complete discovery | A drifted identity inherits trusted semantics; schema/identity/discovery/semantics-digest checks implemented |
 | History/observations | Retained non-denied action, exact session/epoch/event correlation | Unknown/stale/denied/cross-session evidence is accepted; generated queue/reset/source/temporal checks implemented |
-| Delegation subset | Issued current parent/child grants, expiry/depth/revocation, all domains | A child gains broader current authority; requires M7 verifier |
+| Delegation subset | Issued current parent/child grants, expiry/depth/revocation, all domains | A child gains broader current authority; generated all-domain containment checks and separate lifecycle/runtime tests implemented |
 | Trust origin | Authenticated host records and protected profile handles | Imported/model/agent data becomes host or operator authority; generated import/text-claim checks implemented |
 | Optional failure mode | Configured required provider/scanner and declared outage behavior | Failed optional validation improves permission; requires M8/M9 integrations |
 | Review-to-use binding | Exact reviewed action/resource/arguments/policy/session commitment | A changed request reuses authorization; generated nested-argument/identity/history/policy/receipt checks implemented |
 
 All these need faithful preconditions, concrete replay and benign counterparts.
 Z3 and Hypothesis are not installed on this host; no installation was attempted.
-Optional solver-backed integration, dependent delegation/provider checks, safe
+Optional solver-backed integration, dependent provider checks, safe
 promotion and the complete effectiveness corpus remain pending. The finite
 seeded checker is a test of the assurance harness, not a discovered Ordin
 vulnerability. M5 remains in progress.

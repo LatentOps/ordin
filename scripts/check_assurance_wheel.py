@@ -85,6 +85,40 @@ path = build_attack_path(host_source, (ReviewedAction(graph_decision, context),)
 assert path.reachability == "hypothesis" and path.proof_gaps
 provenance = record_source_provenance(host_source, source_action, origins=(origin,), uses=(source_use,))
 assert provenance.completeness == "partial"
+from ordin.assurance import DelegationAuthority, DelegationIssuer, DelegatingAssuranceGate, ProtectedProfileSelection, load_approved_profile
+from ordin.runtime_boundary import RuntimeCapabilityBoundary
+from ordin.runtime_contract import FilesystemCapability, ToolCapability
+from ordin.runtime_observation import RuntimeEvidenceSource
+from ordin import Ordin, ToolCallAdapter, ToolSemanticRule, ToolResourceBinding, ToolSemanticsRegistry
+from pathlib import Path
+from dataclasses import replace
+import hashlib
+protected = Path.cwd() / "wheel-delegation-profile"
+protected.mkdir(mode=0o700)
+protected_file = protected / "profile.json"
+protected_file.write_text(json.dumps(profile.as_dict()), encoding="utf-8")
+protected_file.chmod(0o600)
+selection = ProtectedProfileSelection(protected.resolve(), "profile.json", "/operator/profile.json", profile.repository,
+    profile.digest, hashlib.sha256(protected_file.read_bytes()).hexdigest(), "1", "fixture-operator",
+    RuntimeCapabilityBoundary("fixture-protection", filesystem=(FilesystemCapability("read", "/fixture", "prefix"),),
+        filesystem_semantics="lexical_prefix", runtime_filesystem_guarantees=True),
+    RuntimeEvidenceSource("fixture", "a" * 64, "fixture-sandbox", "b" * 64))
+approved = load_approved_profile(selection, current_repository=profile.repository, active_runtime_policy_digest="b" * 64)
+parent_source = HostEvidenceSource("parent", profile.repository, "a" * 64, 0, "b" * 64, selection.digest)
+child_source = replace(parent_source, principal="child", session_digest="d" * 64)
+authority = DelegationAuthority(RuntimeCapabilityBoundary("fixture-authority", filesystem=(FilesystemCapability("read", "/fixture/source", "exact"),),
+    tools=(ToolCapability("fixture", None, "read_file"),)))
+issuer = DelegationIssuer(parent_source, approved, authority, authority, clock=lambda: 100)
+root = issuer.authorize_root(authority, grant_id="root", expires_at=200)
+child = issuer.issue_child(root, child_source, authority, grant_id="child", expires_at=150)
+semantics = ToolSemanticsRegistry("fixture-tools", "1", (ToolSemanticRule("read", "tool", "read_file", ("filesystem.read",),
+    runtime="fixture", resources=(ToolResourceBinding("path", "path"),)),))
+delegating = DelegatingAssuranceGate(AssuranceGate(AgentGate(Ordin(tool_semantics=semantics)), approved), issuer, child, child_source)
+adapter = ToolCallAdapter("fixture")
+delegated_read = delegating.evaluate_action(adapter.adapt("read_file", {"path": "/fixture/source"}, action_id="delegated-read"))
+assert delegated_read.may_execute
+issuer.revoke(root)
+assert not delegating.commit_use(delegated_read, delegated_read.assurance.review.action)
 import contextlib, io
 from pathlib import Path
 Path("wheel-profile.json").write_text(json.dumps(profile.as_dict()), encoding="utf-8")
@@ -131,6 +165,9 @@ def run(wheel: Path, environment: Path) -> dict:
             "ordin/assurance/origins.py",
             "ordin/assurance/attack_paths.py",
             "ordin/assurance/source_flow.py",
+            "ordin/assurance/delegation.py",
+            "ordin/assurance/delegating_gate.py",
+            "ordin/assurance/delegated_paths.py",
         }
         if not required <= names:
             raise ValueError("wheel is missing assurance modules")

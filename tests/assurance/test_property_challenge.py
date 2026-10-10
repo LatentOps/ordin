@@ -32,11 +32,10 @@ def test_actual_suite_accounts_for_all_required_properties_and_uncertainty(actua
     assert actual_suite.status == "inconclusive" and actual_suite.failures == 0
     assert actual_suite.unresolved_properties == (
         "authority_subset",
-        "delegation_subset",
         "optional_failure_mode",
     )
     assert sum(v.generated for v in actual_suite.runs) == 320
-    assert sum(v.evaluated for v in actual_suite.runs) == 244
+    assert sum(v.evaluated for v in actual_suite.runs) == 276
     assert ChallengeSuite.from_json(canonical_json(actual_suite.as_dict())) == actual_suite
     for run in actual_suite.runs:
         assert ChallengeRun.from_json(canonical_json(run.as_dict())) == run
@@ -48,7 +47,7 @@ def test_actual_suite_accounts_for_all_required_properties_and_uncertainty(actua
 def test_seeded_defects_shrink_replay_and_preserve_action_and_policy(seeded_suite):
     assert seeded_suite.status == "failing" and seeded_suite.failures > 0
     for run in seeded_suite.runs:
-        if run.property_id in {"delegation_subset", "optional_failure_mode"}:
+        if run.property_id == "optional_failure_mode":
             assert run.unresolved == 32 and run.failures == 0
             continue
         assert run.failures and run.benign_controls and run.counterexamples
@@ -143,9 +142,7 @@ def test_fixture_suite_performs_no_subprocess_network_or_fixture_file_reads(monk
     assert result.failures == 0 and result.status == "inconclusive"
 
 
-@pytest.mark.parametrize(
-    "property_id", [v for v in SCENARIOS if v not in {"delegation_subset", "optional_failure_mode"}]
-)
+@pytest.mark.parametrize("property_id", [v for v in SCENARIOS if v != "optional_failure_mode"])
 def test_generators_preserve_every_declared_scenario_and_seed_digest(property_id):
     first = challenge_property(
         property_id=property_id,

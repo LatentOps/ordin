@@ -38,6 +38,7 @@ the [policy simulator](simulation.md),
 the [bounded challengers](challengers.md),
 the [host instruction/data origins](instruction-origins.md),
 the [bounded attack paths and source-flow guards](attack-paths.md),
+the [host delegation lifecycle](delegation.md),
 and [the implementation report](implementation-report.md) for verified scope.
 No scanner, model, network account or new mandatory dependency is needed to
 use these records. No artifact executes actions or grants OS permissions.

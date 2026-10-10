@@ -229,6 +229,7 @@ ATTACK_PATH = artifact(
     boundary_digest=nullable(DIGEST),
     occurrence_ids=array(ID, 128),
     max_depth={"type": "integer", "minimum": 1, "maximum": 64},
+    session_digests=array(DIGEST, 32),
 )
 FINDING = artifact(
     "assurance_finding",
@@ -642,8 +643,42 @@ SOURCE_PROVENANCE = artifact(
     use_digests=array(DIGEST, 128),
     completeness=choice("complete", "partial", "unknown"),
 )
+DELEGATION_VERIFICATION = artifact(
+    "assurance_delegation_verification",
+    result=choice("within_boundary", "exceeds_boundary", "unsupported", "inconclusive"),
+    reason_codes=array(ID, 64),
+    child_authority_digest=DIGEST,
+    parent_authority_digest=DIGEST,
+    operator_authority_digest=DIGEST,
+    task_authority_digest=DIGEST,
+    coverage=obj(
+        filesystem=BOOLEAN,
+        network=BOOLEAN,
+        tools=BOOLEAN,
+        process=BOOLEAN,
+        privilege=BOOLEAN,
+        credentials=BOOLEAN,
+        requests=BOOLEAN,
+        approval=BOOLEAN,
+    ),
+    proof_gaps=array(text(), 32),
+)
+DELEGATED_DECISION = artifact(
+    "assurance_delegated_decision",
+    disposition=choice("execute", "escalate", "deny"),
+    baseline_disposition=choice("execute", "escalate", "deny"),
+    assurance_digest=DIGEST,
+    grant_digest=DIGEST,
+    action_digest=DIGEST,
+    contract_digest=nullable(DIGEST),
+    issuer_generation=COUNT,
+    verification=nullable(DELEGATION_VERIFICATION),
+    reason_codes=array(ID, 64),
+)
 
 SCHEMAS = {
+    "assurance_delegated_decision": DELEGATED_DECISION,
+    "assurance_delegation_verification": DELEGATION_VERIFICATION,
     "assurance_source_provenance": SOURCE_PROVENANCE,
     "assurance_instruction_origin": INSTRUCTION_ORIGIN,
     "assurance_source_use": SOURCE_USE,

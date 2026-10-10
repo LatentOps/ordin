@@ -2,7 +2,7 @@
   "$id": "https://latentops.space/ordin/schemas/assurance-attack-path.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "maxProperties": 17,
+  "maxProperties": 18,
   "properties": {
     "boundary_digest": {
       "anyOf": [
@@ -582,6 +582,16 @@
         }
       ]
     },
+    "session_digests": {
+      "items": {
+        "maxLength": 64,
+        "minLength": 1,
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
     "supporting_evidence": {
       "items": {
         "additionalProperties": false,
@@ -745,7 +755,8 @@
     "root_cause_digest",
     "boundary_digest",
     "occurrence_ids",
-    "max_depth"
+    "max_depth",
+    "session_digests"
   ],
   "title": "Ordin assurance attack path v1",
   "type": "object"

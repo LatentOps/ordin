@@ -159,7 +159,24 @@ SCENARIOS = {
         "nested_arguments",
         "forged_decision",
     ),
-    "delegation_subset": ("integration_unavailable",),
+    "delegation_subset": (
+        "filesystem_same",
+        "filesystem_narrow",
+        "filesystem_neighbor",
+        "filesystem_delete",
+        "rest_same",
+        "rest_method",
+        "rest_path",
+        "rest_protocol",
+        "tool_same",
+        "tool_write",
+        "process_unbounded",
+        "credential_extra",
+        "privilege_extra",
+        "approval_removed",
+        "task_narrowed",
+        "child_wildcard",
+    ),
     "optional_failure_mode": ("integration_unavailable",),
 }
 
@@ -248,7 +265,7 @@ def outcome(packet: Mapping[str, Any]) -> Outcome:
         original["value"],
         original["variant"],
     )
-    if prop in {"delegation_subset", "optional_failure_mode"}:
+    if prop == "optional_failure_mode":
         return Outcome(
             "unsupported",
             "unsupported",
@@ -267,8 +284,116 @@ def outcome(packet: Mapping[str, Any]) -> Outcome:
         "monotonicity": _monotonicity,
         "trust_origin": _origin,
         "review_to_use_binding": _binding,
+        "delegation_subset": _delegation,
     }
     return checks[prop](scenario, value, variant)
+
+
+def _delegation(scenario, value, variant):
+    from ordin.runtime_contract import (
+        FilesystemCapability,
+        ToolCapability,
+        CredentialBinding,
+        PrivilegeCapability,
+    )
+    from ordin.runtime_requests_v2 import NetworkAuthorityGrant
+    from .delegation import DelegationAuthority, verify_delegation_subset
+
+    parent_cap = RuntimeCapabilityBoundary(
+        "parent",
+        filesystem=(FilesystemCapability("read", "/fixture", "prefix"),),
+        filesystem_semantics="lexical_prefix",
+        runtime_filesystem_guarantees=True,
+    )
+    child_cap = replace(
+        parent_cap,
+        boundary_id="child",
+        filesystem=(FilesystemCapability("read", "/fixture/source", "exact"),),
+    )
+    if scenario == "filesystem_same":
+        child_cap = parent_cap
+    elif scenario == "filesystem_neighbor":
+        child_cap = replace(
+            child_cap, filesystem=(FilesystemCapability("read", "/fixture2/source", "exact"),)
+        )
+    elif scenario == "filesystem_delete":
+        child_cap = replace(
+            child_cap, filesystem=(FilesystemCapability("delete", "/fixture/source", "exact"),)
+        )
+    elif scenario.startswith("rest_"):
+        network = NetworkCapability("fixture.invalid", 443, "rest", "read", ("GET",), ("/docs",))
+        parent_cap = RuntimeCapabilityBoundary("parent", network=(network,))
+        child_cap = parent_cap
+        if scenario == "rest_method":
+            child_cap = replace(
+                child_cap, network=(replace(network, access="write", methods=("POST",)),)
+            )
+        elif scenario == "rest_path":
+            child_cap = replace(child_cap, network=(replace(network, paths=("/deploy",)),))
+        elif scenario == "rest_protocol":
+            child_cap = replace(
+                child_cap, network=(NetworkCapability("fixture.invalid", 443, "tcp", "write"),)
+            )
+    elif scenario.startswith("tool_"):
+        parent_cap = RuntimeCapabilityBoundary(
+            "parent", tools=(ToolCapability("fixture", None, "read_file"),)
+        )
+        child_cap = replace(
+            parent_cap,
+            tools=(
+                ToolCapability(
+                    "fixture", None, "write_file" if scenario == "tool_write" else "read_file"
+                ),
+            ),
+        )
+    elif scenario == "process_unbounded":
+        child_cap = replace(child_cap, allow_any_executable=True)
+    elif scenario == "credential_extra":
+        child_cap = replace(
+            child_cap, credentials=(CredentialBinding("fixture-key", "outside.invalid", 443),)
+        )
+    elif scenario == "privilege_extra":
+        child_cap = replace(child_cap, privilege=PrivilegeCapability(True, 0))
+    parent = DelegationAuthority(parent_cap, requires_approval=scenario == "approval_removed")
+    child = DelegationAuthority(child_cap)
+    operator = DelegationAuthority(parent_cap)
+    task = (
+        operator
+        if scenario != "task_narrowed"
+        else DelegationAuthority(
+            replace(
+                parent_cap, filesystem=(FilesystemCapability("read", "/fixture/docs", "prefix"),)
+            )
+        )
+    )
+    if scenario == "child_wildcard":
+        child = replace(
+            child,
+            network_grants=(
+                NetworkAuthorityGrant(
+                    "*.fixture.invalid", 443, "rest", "read", ("GET",), ("/docs",)
+                ),
+            ),
+        )
+    checked = verify_delegation_subset(child, parent, operator, task)
+    actual = checked.ok
+    if variant == "seeded_unsafe_checker":
+        actual = bool(
+            child_cap.filesystem
+            and parent_cap.filesystem
+            or child_cap.network
+            and parent_cap.network
+            or child_cap.tools
+            and parent_cap.tools
+        )
+    expected = scenario in {"filesystem_same", "filesystem_narrow", "rest_same", "tool_same"}
+    return _result(
+        expected,
+        actual,
+        child.as_dict(),
+        {"parent": parent.as_dict(), "operator": operator.as_dict(), "task": task.as_dict()},
+        relation="control" if expected else "expected_difference",
+    )
 
 
 def _result(

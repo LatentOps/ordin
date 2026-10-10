@@ -390,6 +390,7 @@ class AttackPathEvidence(JsonRecord):
     boundary_digest: str | None = None
     occurrence_ids: tuple[str, ...] = ()
     max_depth: int = 64
+    session_digests: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -399,9 +400,12 @@ class AttackPathEvidence(JsonRecord):
         if any(edge.source_id not in nodes or edge.target_id not in nodes for edge in self.edges):
             raise ValueError("assurance graph references an undefined node")
         if any(
-            edge.evidence.session_digest not in {None, self.session_digest} for edge in self.edges
+            edge.evidence.session_digest not in {None, self.session_digest, *self.session_digests}
+            for edge in self.edges
         ):
             raise ValueError("assurance graph session mismatch")
+        if len(set(self.session_digests)) != len(self.session_digests):
+            raise ValueError("duplicate graph session scope")
         # A bounded topological walk rejects cycles and excess depth without
         # recursion. JSON diagrams cannot introduce unbounded causal chains.
         incoming = dict.fromkeys(nodes, 0)

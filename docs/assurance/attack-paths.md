@@ -6,8 +6,8 @@ Every record's decision, baseline review and host context are checked before and
 after construction. Runtime observations reuse `RuntimeObservationHistory`'s
 exact action/contract/source correlation. Completed/allowed observations after
 an Assurance denial are refused. Sibling, stale epoch/session and changed policy
-sources cannot be silently combined. Cross-agent paths await M7's authenticated
-delegation integration.
+sources cannot be silently combined. Cross-agent composition uses the separate
+[current issued-delegation verifier](delegation.md).
 
 The graph retains principals, sources, actions, normalized tool/server identities,
 resources, intended capabilities, boundaries, observations, sinks and controls.
@@ -78,4 +78,5 @@ instructions, denied/failed execution, download/chmod/execute with an install
 control, duplicate/foreign/stale evidence, review mutation, cycle/depth/resource
 bounds, privacy, proposals and source-flow guard re-review. These are synthetic
 offline host-channel fixtures; no real kernel or remote exploitation is claimed.
-Cross-agent graphs and finding closure remain M7/M10 work.
+Cross-agent graphs use `build_delegated_attack_path`; finding closure remains M10
+work. Neither graph builder enforces physical process isolation.
