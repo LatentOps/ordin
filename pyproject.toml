@@ -47,6 +47,7 @@ dev = [
 
 [project.scripts]
 ordin = "ordin.entrypoint:main"
+ordin-assure = "ordin.assurance.cli:main"
 ordin-claude-hook = "ordin.claude_code:main"
 ordin-codex-hook = "ordin.codex:main"
 ordin-cursor-hook = "ordin.cursor:main"

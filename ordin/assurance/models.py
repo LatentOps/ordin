@@ -442,6 +442,38 @@ class SimulationCase(JsonRecord):
     label: str = "unknown"
     baseline_ms: float = 0
     candidate_ms: float = 0
+    baseline_core_ms: float = 0
+    candidate_core_ms: float = 0
+    baseline_wrapper_ms: float = 0
+    candidate_wrapper_ms: float = 0
+    expected: str = "escalate"
+    critical: bool = False
+    action_kind: str = "tool"
+    assessable: bool = True
+    baseline_effects: tuple[str, ...] = ()
+    candidate_effects: tuple[str, ...] = ()
+    baseline_temporal: tuple[str, ...] = ()
+    candidate_temporal: tuple[str, ...] = ()
+    baseline_capability_digest: str | None = None
+    candidate_capability_digest: str | None = None
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        order = {"execute": 0, "escalate": 1, "deny": 2}
+        if (
+            order[self.baseline_final] < order[self.baseline_core]
+            or order[self.candidate_final] < order[self.candidate_core]
+        ):
+            raise ValueError("simulation final decisions cannot weaken their core decisions")
+        expected_change = "unchanged" if self.assessable else "unassessable"
+        if self.baseline_final != self.candidate_final:
+            expected_change = {
+                "execute": "newly_executable",
+                "escalate": "newly_escalated",
+                "deny": "newly_denied",
+            }[self.candidate_final]
+        if self.change != expected_change:
+            raise ValueError("simulation change does not match its decisions and coverage")
 
 
 @dataclass(frozen=True)
@@ -459,10 +491,24 @@ class LatencyDistribution(JsonRecord):
 
 
 @dataclass(frozen=True)
+class ActionKindCoverage(JsonRecord):
+    SCHEMA = "action_kind_coverage"
+    action_kind: str
+    total: int
+    assessable: int
+    unresolved: int
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.assessable + self.unresolved != self.total:
+            raise ValueError("action kind coverage counts must account for every case")
+
+
+@dataclass(frozen=True)
 class PolicySimulationReport(JsonRecord):
     SCHEMA = "assurance_simulation"
     NESTED = {"baseline_latency": LatencyDistribution, "candidate_latency": LatencyDistribution}
-    MANY = {"cases": SimulationCase}
+    MANY = {"cases": SimulationCase, "coverage_by_kind": ActionKindCoverage}
     report_id: str
     corpus_digest: str
     baseline_revision: str
@@ -479,15 +525,80 @@ class PolicySimulationReport(JsonRecord):
     coverage: str = "unknown"
     activation_safe: bool = False
     limitations: tuple[str, ...] = ()
+    newly_denied: tuple[str, ...] = ()
+    newly_escalated: tuple[str, ...] = ()
+    newly_executable: tuple[str, ...] = ()
+    unassessable: tuple[str, ...] = ()
+    missing_required_cases: tuple[str, ...] = ()
+    policy_authority_delta: str = "unknown"
+    source_permissions: str = "unknown"
+    old_profile_digest: str | None = None
+    new_profile_digest: str | None = None
+    old_profile_selection_digest: str | None = None
+    new_profile_selection_digest: str | None = None
+    critical_caught: int = 0
+    coverage_by_kind: tuple[ActionKindCoverage, ...] = ()
 
     def __post_init__(self) -> None:
         super().__post_init__()
         _unique(self.cases, "case_id")
+        _unique(self.coverage_by_kind, "action_kind")
+        if self.activation_safe:
+            order = {"execute": 0, "escalate": 1, "deny": 2}
+            if (
+                self.baseline_revision in {"unspecified", "unknown"}
+                or self.candidate_revision in {"unspecified", "unknown"}
+                or self.baseline_latency.samples != len(self.cases)
+                or self.candidate_latency.samples != len(self.cases)
+                or any(v.unresolved or v.assessable != v.total for v in self.coverage_by_kind)
+                or any(
+                    v.critical
+                    and order[v.candidate_final] < max(order[v.expected], order[v.baseline_final])
+                    for v in self.cases
+                )
+                or self.newly_denied
+                != tuple(v.case_id for v in self.cases if v.change == "newly_denied")
+                or self.newly_escalated
+                != tuple(v.case_id for v in self.cases if v.change == "newly_escalated")
+                or self.newly_executable
+                != tuple(v.case_id for v in self.cases if v.change == "newly_executable")
+                or self.benign_false_escalations
+                != sum(
+                    v.label == "benign"
+                    and v.expected == "execute"
+                    and v.candidate_final == "escalate"
+                    for v in self.cases
+                )
+                or self.benign_false_denials
+                != sum(
+                    v.label == "benign" and v.expected == "execute" and v.candidate_final == "deny"
+                    for v in self.cases
+                )
+                or self.critical_caught
+                != sum(
+                    v.critical and v.assessable and order[v.candidate_final] >= order[v.expected]
+                    for v in self.cases
+                )
+                or {v.action_kind: v.total for v in self.coverage_by_kind}
+                != {
+                    kind: sum(v.action_kind == kind for v in self.cases)
+                    for kind in {v.action_kind for v in self.cases}
+                }
+            ):
+                raise ValueError("incomplete passing simulation summary must match complete replay cases")
         if self.activation_safe and (
-            self.coverage != "complete"
+            not self.cases
+            or self.coverage != "complete"
             or self.critical_misses
+            or self.unassessable
+            or self.missing_required_cases
+            or self.policy_authority_delta in {"widened", "unsupported", "unknown"}
+            or self.source_permissions == "unknown"
             or any(
                 case.change in {"newly_executable", "unassessable"}
+                or not case.assessable
+                or case.label == "unknown"
+                or "assurance.simulation_critical_downgrade" in case.reason_codes
                 or case.authority_delta in {"widened", "unsupported", "unknown"}
                 for case in self.cases
             )

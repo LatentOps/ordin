@@ -9,8 +9,8 @@ models, validation and CLI examples. See the actual milestone state in
 
 The implemented slices provide bounded immutable machine contracts, scoped
 source inventory/threat-model drafts, protected profile selection and exact
-restriction compilation, and a conservative runtime invariant wrapper. Simulation
-and the remaining evidence integrations are subsequent milestones.
+restriction compilation, a conservative runtime invariant wrapper, and independent
+policy simulation. The remaining evidence integrations are subsequent milestones.
 For example, this creates validated profile **content**, without activating it:
 
 ```python
@@ -34,6 +34,7 @@ trusted host process.
 Read [machine contracts](contracts.md), [the baseline inventory](baseline-inventory.md),
 the [profile lifecycle](profiles.md), [security/privacy](security-and-privacy.md),
 the [invariant gate](invariants.md),
+the [policy simulator](simulation.md),
 and [the implementation report](implementation-report.md) for verified scope.
 No scanner, model, network account or new mandatory dependency is needed to
 use these records. No artifact executes actions or grants OS permissions.

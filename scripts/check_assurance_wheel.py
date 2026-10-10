@@ -33,6 +33,8 @@ from ordin.schema import SCHEMA_FILES, validate_schema_files, resource_parity_er
 from ordin.assurance._schemas import SCHEMAS
 from ordin.assurance import SecurityProfile, RepositoryScope, ModelAnswer
 from ordin import ActionEnvelope, AgentGate
+from ordin.assurance import FrozenCase, FrozenCorpus, SimulationPolicy, simulate_policy_change
+from ordin.assurance.cli import main as assure_cli
 assert all(name in SCHEMA_FILES for name in SCHEMAS)
 assert validate_schema_files() == []
 assert resource_parity_errors() == []
@@ -41,6 +43,18 @@ assert SecurityProfile.from_json(json.dumps(profile.as_dict())) == profile
 assert AgentGate().evaluate_action(ActionEnvelope.shell("git status --short")).disposition == "execute"
 assert AgentGate().evaluate_action(ActionEnvelope.shell("rm -rf /")).disposition == "deny"
 assert ModelAnswer("risk", 0.5).p_yes == 0.5
+corpus = FrozenCorpus.synthetic((FrozenCase("wheel-safe", ActionEnvelope.shell("git status --short"),
+                                          expected="execute", label="benign"),))
+simulation = simulate_policy_change(SimulationPolicy(), SimulationPolicy(), corpus,
+                                   baseline_revision="wheel-fixture-v1", candidate_revision="wheel-fixture-v1")
+assert simulation.activation_safe and simulation.cases[0].candidate_final == "execute"
+import contextlib, io
+from pathlib import Path
+Path("wheel-profile.json").write_text(json.dumps(profile.as_dict()), encoding="utf-8")
+with contextlib.redirect_stdout(io.StringIO()):
+    assert assure_cli(["profile", "validate", "wheel-profile.json"]) == 0
+import importlib.metadata
+assert any(ep.name == "ordin-assure" for ep in importlib.metadata.distribution("ordin").entry_points)
 from pathlib import Path
 from ordin.assurance import AuthorizedRepository, build_threat_model, inventory_repository
 fixture = Path.cwd() / "wheel-fixture-source"

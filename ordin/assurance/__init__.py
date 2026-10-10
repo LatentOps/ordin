@@ -1,6 +1,7 @@
 """Optional local Assurance artifacts. Import does not select policy or providers."""
 
 from .models import (
+    ActionKindCoverage,
     ApprovedSecurityProfile,
     AttackEdge,
     AttackNode,
@@ -52,8 +53,27 @@ from .host import (
     HostRequestAuthority,
 )
 from .invariants import evaluate_approved_invariants
+from .simulation import (
+    FrozenCase,
+    FrozenCorpus,
+    SimulationPolicy,
+    compare_capability_boundaries,
+    freeze_trajectory,
+    freeze_trace_candidate,
+    policy_authority_delta,
+    simulate_policy_change,
+)
 
 __all__ = [
+    "ActionKindCoverage",
+    "FrozenCase",
+    "FrozenCorpus",
+    "SimulationPolicy",
+    "compare_capability_boundaries",
+    "freeze_trajectory",
+    "freeze_trace_candidate",
+    "policy_authority_delta",
+    "simulate_policy_change",
     "AssuranceDecision",
     "AssuranceGate",
     "AssuranceHostContext",

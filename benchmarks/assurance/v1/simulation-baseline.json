@@ -1,0 +1,68 @@
+{
+  "capability_authorities": [],
+  "core": {
+    "action_policy": null,
+    "context": null,
+    "fail_on": "warn",
+    "runtime_requirements": null,
+    "temporal_policy": null,
+    "tool_semantics": {
+      "registry_id": "assurance-simulation-fixture",
+      "rules": [
+        {
+          "effects": [
+            "filesystem.read"
+          ],
+          "id": "read",
+          "kind": "tool",
+          "resources": [
+            {
+              "argument": "path",
+              "type": "path"
+            }
+          ],
+          "runtime": "fixture",
+          "tool": "read_file"
+        },
+        {
+          "effects": [
+            "filesystem.write"
+          ],
+          "id": "write",
+          "kind": "tool",
+          "resources": [
+            {
+              "argument": "path",
+              "type": "path"
+            }
+          ],
+          "runtime": "fixture",
+          "tool": "write_file"
+        },
+        {
+          "effects": [
+            "secret.read",
+            "filesystem.read"
+          ],
+          "id": "secret",
+          "kind": "tool",
+          "resources": [
+            {
+              "argument": "path",
+              "type": "path"
+            }
+          ],
+          "runtime": "fixture",
+          "tool": "read_credential"
+        }
+      ],
+      "schema_version": "ordin.tool_semantics.v1",
+      "version": "1"
+    }
+  },
+  "profile_digest": null,
+  "profile_selection_digest": null,
+  "request_authorities": [],
+  "require_profile": false,
+  "schema_version": "ordin.assurance_replay_policy.v1"
+}

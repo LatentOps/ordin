@@ -5,7 +5,7 @@
 - Contract foundation SHA: `3773f23b08f1cd9b78a7b8aa041f952bd52d47cc`.
 - Repository/profile implementation SHA: `bec1037d64fd0c52e043343c3ea1c960819ecb58`.
 - Invariant-gate functional implementation SHA: `aa5345d6fa18ed9d6f9f6ff62995f1c9eec6dd38`.
-- Full implementation SHA: pending; M3 full-regression/performance gates and M4–M12 remain open.
+- Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
 - Optional providers/scanners: none installed or invoked for this work.
@@ -16,7 +16,7 @@
 | M1 | contract_foundation_verified | Ten immutable artifact contracts and schema pairs; 61 hostile/round-trip tests; source/schema/security/API gate 90 passed, 1 platform skip; agent/policy/entrypoint compatibility gate 108 passed; installed wheel and metadata gates pass |
 | M2 | implemented_offline_verified | Scoped read-only inventory, four frozen source-backed drafts, protected profile loader/compiler; 162 passed / 2 POSIX skips; final installed wheel, metadata and SDK example pass |
 | M3 | functional_sdk_verified_gates_open | Pure evaluator/gate and sealed host facts; 240 passed / 1 POSIX skip; wheel/SDK pass; full run 1135 passed / 5 failed / 27 skipped; two audit gaps fixed with 14-test recheck; end-to-end latency still failed |
-| M4 | not_started | Independent policy replay/simulation |
+| M4 | functional_sdk_cli_verified_final_scenarios_open | Independent frozen replay, advisory change guard, local CLI, 22 synthetic cases; final source gate 168 passed / 1 POSIX skip; core compatibility 60 passed / 1 POSIX skip; wheel smoke passed before final report-validation tightening, final wheel recheck pending |
 | M5 | not_started | Seeded, minimized, replayed safe counterexamples |
 | M6 | not_started | Bounded attack paths and authenticated origins |
 | M7 | not_started | Delegation subset and lifecycle |
@@ -193,6 +193,55 @@ remain visible.
 
 ## Baseline failures and measurements (original source, continued)
 
+## M4 policy replay and advisory CLI
+
+Frozen policies/cases/corpora use detached bounded JSON and content/version
+manifests. Independent existing `IntegrationSession` instances preserve proposal
+ordering, refused proposals, bounded observations, principals and epochs. The
+report retains core/final outcomes, effect/temporal/capability differences,
+profile/selection/policy/corpus/action digests, fixture misses/friction, coverage
+by action kind and separate local core/wrapper latency. Arbitrary changed policy
+algebra remains `unknown`; exact domain comparison reuses the existing full
+capability verifier and preserves protocol request/grant identities.
+
+The additive `ordin-assure` CLI validates profile content without approval,
+simulates local frozen JSON inputs, and diffs same-corpus reports. No output file
+is created without `--report`; existing files are refused. Exit codes distinguish
+complete/pass (0), regression (1), and malformed/partial/unproved (2). No actions,
+providers, scanners, approvals, runtime receipts or delegation grants are issued.
+
+Actual checks:
+
+| Command | Result |
+| --- | --- |
+| `python -m pytest -q tests/assurance tests/test_contract_audit.py -p no:cacheprovider --basetemp=.assurance-work/m4-final-source-gate` | 168 passed, 1 POSIX skip, 22.07 s |
+| `python -m pytest -q tests/test_public_api.py tests/test_agent.py tests/test_schemas.py tests/test_action_policy.py tests/test_session.py -p no:cacheprovider --basetemp=.assurance-work/m4-core-compatibility` | 60 passed, 1 POSIX skip, 75.52 s |
+| `python -m mypy --platform linux ordin/assurance scripts/freeze_assurance_simulation.py` | 14 source files clean; typing target only, no POSIX execution implied |
+| `python -m ruff check ordin/assurance scripts/check_assurance_wheel.py scripts/freeze_assurance_simulation.py tests/assurance examples/assurance/policy_simulation.py` | Passed |
+| `python -m scripts.generate_assurance_schemas` | 18 source/package schema pairs regenerated identically |
+| `python -m scripts.freeze_assurance_simulation` | 22 synthetic cases, 11 families; corpus digest `161f1c05003fa0c51761200e8a9b4bb2eac8e73e4098fc5322616d824400a978` |
+| `python -m examples.assurance.policy_simulation` | Detected newly executable unknown MCP tool after removed approval threshold; guard false, authority widened, coverage partial |
+| `python -m build --no-isolation --outdir .assurance-work/m4-build` and `python -m twine check ...` | Wheel/sdist built; metadata checks passed |
+| `python -m scripts.check_assurance_wheel --wheel .assurance-work/m4-build/ordin-0.4.0.dev0-py3-none-any.whl --venv .assurance-work/m4-wheel-venv --report .assurance-work/m4-wheel-check.json` | Fresh isolated wheel, simulator, CLI entrypoint, doctor, no-network smoke passed; 58 schemas, 18 assurance schemas |
+
+The final model guard additionally rejects contradictory changes, weakened core
+outcomes and inconsistent passing summaries. One existing assertion initially
+failed because the strengthened validation used a different error message; the
+original `incomplete` diagnostic was retained and the entire final source gate
+passed. Earlier invocation errors (incorrect test filename, uninstalled direct
+example execution, inaccessible generated wheel) were corrected; no passing
+result is inferred from those attempts. Workspace-scoped escalation was needed
+to read the generated wheel; ACLs were not changed.
+
+The golden replay catches production and protected-policy mutations as two new
+denials, with three benign escalations and no declared critical misses. It stays
+partial: untrusted MCP semantics, delegation lifecycle (M7), and optional model
+uncertainty (M9) are not fabricated. A separate actual principal/maxima test
+produces `deny` and `execute` for two principals proposing the same read. M4's
+full integrated golden scenarios remain open until those later verifiers exist.
+The 22 cases are a simulator smoke corpus, not the required later 200-case
+effectiveness benchmark. Exact-SHA final wheel/evidence capture follows.
+
 The original suite failed before any package or schema registration changed.
 Additive unregistered Assurance files/docs were created while the suite ran;
 existing core/runtime source and original schema bytes remained unchanged.
@@ -233,7 +282,8 @@ summary omits the machine hostname and retains exact case IDs and hashes.
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
-  Assurance system. M3 acceptance gates remain open; M4–M12 are not implemented. All AT-01–AT-35 require
+  Assurance system. M3 acceptance gates remain open; M4 simulator is functional;
+  M5–M12 are not implemented. All AT-01–AT-35 require
   integrated implementation and current evidence before overall completion.
 - `ApprovedSecurityProfile` now has a protected selection loader/compiler.
   Host-declared filesystem guarantees/mappings still require actual external
@@ -260,7 +310,7 @@ installation, publication or deployment.
 
 Retain the completed full-suite failures/skips and verify the audit fixes at the
 next full release gate. Resolve end-to-end latency without weakening the declared budget. The next
-independent feature is M4 frozen policy replay/simulation using the actual gate.
+independent feature is M5 seeded counterexample generation, minimization and exact property replay.
 Carry the existing Windows shell/latency/SQLite failures into the compatibility
 audit; they must be resolved or explicitly verified on supported platforms
 before any full completion claim. No background evaluation remains running.
