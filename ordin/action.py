@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import math
 from ._catalog_snapshot import snapshot_review
+from ._rest_semantics import RestSemantics, prepare_rest
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
@@ -508,8 +509,37 @@ def _review_action_base(
     action: ActionEnvelope,
     *,
     tool_semantics: "ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None" = None,
+    rest_semantics: RestSemantics | None = None,
 ) -> ActionReview:
     """Review one action without applying temporal history."""
+
+    if (
+        rest_semantics is not None
+        and action.kind == "network"
+        and action.operation == "http.request"
+    ):
+        try:
+            _, method, _, reading = prepare_rest(action.parameters)
+            if method in rest_semantics.methods:
+                effects = ["network.download" if reading else "network.upload"]
+                resources = [ActionResource("url", action.parameters["url"])]
+                return _with_base_provenance(
+                    ActionReview(
+                        action=action,
+                        decision="allow" if reading else "warn",
+                        risk="low" if reading else "medium",
+                        reasons=[
+                            "Host-selected literal REST semantics require exact request authority."
+                        ],
+                        safer_next_step=None,
+                        effects=effects,
+                        resources=resources,
+                        adapter="network.rest",
+                        capabilities=derive_capabilities(action.kind, effects, resources),
+                    )
+                )
+        except (ValueError, TypeError):
+            pass
 
     if action.kind == "mcp" and action.operation == "protocol.request":
         import re
@@ -787,6 +817,7 @@ def _temporal_evidence_for_action(
     observation: ActionObservation | None = None,
     runtime_observations: "tuple[RuntimeObservation, ...]" = (),
     tool_semantics: "ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None" = None,
+    rest_semantics: RestSemantics | None = None,
 ) -> TemporalActionEvidence:
     if action.kind == "shell" and action.operation == "execute":
         command = action.parameters.get("command")
@@ -796,7 +827,9 @@ def _temporal_evidence_for_action(
         else:
             signals = set()
     else:
-        base = review or _review_action_base(action, tool_semantics=tool_semantics)
+        base = review or _review_action_base(
+            action, tool_semantics=tool_semantics, rest_semantics=rest_semantics
+        )
         signals = {f"effect:{effect}" for effect in base.effects}
 
     predicted_effects = tuple(
@@ -917,10 +950,11 @@ def review_action(
     runtime_observations: "RuntimeObservationHistory | None" = None,
     temporal_policy: TemporalPolicySet | CompiledTemporalPolicySet | None = None,
     tool_semantics: "ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None" = None,
+    rest_semantics: RestSemantics | None = None,
 ) -> ActionReview:
     """Review an action and optionally apply bounded temporal history."""
 
-    base = _review_action_base(action, tool_semantics=tool_semantics)
+    base = _review_action_base(action, tool_semantics=tool_semantics, rest_semantics=rest_semantics)
     observation_map = _observations_for_history(history, observations)
     runtime_map = (
         runtime_observations.correlate(history) if runtime_observations is not None else {}
@@ -948,6 +982,7 @@ def review_action(
             observation=observation_map.get(item.action_id) if item.action_id else None,
             runtime_observations=runtime_map.get(item.action_id, ()) if item.action_id else (),
             tool_semantics=tool_semantics,
+            rest_semantics=rest_semantics,
         )
         for item in history.actions
     )
@@ -955,6 +990,7 @@ def review_action(
         action,
         review=base,
         tool_semantics=tool_semantics,
+        rest_semantics=rest_semantics,
     )
     if runtime_map:
         from .runtime_reasoning import current_runtime_signals

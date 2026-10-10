@@ -62,6 +62,12 @@ assert quickstart["protected_profile_demo"]["safe_disposition"] == "execute"
 assert quickstart["protected_profile_demo"]["network_disposition"] == "deny"
 assert quickstart["offline_finding_import"]["finding_count"] == 1
 assert quickstart["offline_finding_import"]["finding_confirmation"] == "not_performed"
+from ordin.assurance.rest_demo import run_demo as rest_demo
+rest_example = rest_demo()
+assert rest_example["default_disposition"] == "escalate"
+assert rest_example["selected_disposition"] == "execute"
+assert rest_example["network_called"] is False and rest_example["actions_executed"] is False
+assert all(row["disposition"] == "deny" and not row["old_binding_matches"] for row in rest_example["changes"])
 from ordin.assurance.codex_security import WorkflowCapture, WorkflowImportScope, import_workflow_claims
 from ordin.assurance import (SyntheticPathCase, SyntheticPathSuite, VettedSandboxRuntime,
                              load_vetted_program, load_synthetic_suite, run_sandbox_test)
@@ -227,6 +233,7 @@ print(json.dumps({"ok": True, "version": ordin.__version__, "schemas": len(SCHEM
                   "vetted_test_no_execution": True,
                   "offline_workflow_claims": True,
                   "offline_quickstart": quickstart,
+                  "rest_example": rest_example,
                   "loaded_from": ordin.__file__}))
 """
 

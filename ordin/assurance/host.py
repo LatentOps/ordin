@@ -17,6 +17,7 @@ from ordin._runtime_json import digest as core_digest
 from ordin.runtime_boundary import RuntimeCapabilityBoundary
 from ordin.runtime_contract import CredentialBinding
 from ordin.runtime_requests_v2 import RuntimeRequestBoundaryV2
+from .rest import RestRequestBoundary
 
 from ._json import digest, validate
 from .models import ApprovedSecurityProfile, JsonRecord, RepositoryScope, _unique
@@ -121,11 +122,11 @@ class HostCredentialUse(JsonRecord):
 @dataclass(frozen=True)
 class HostRequestAuthority:
     authority_id: str
-    boundary: RuntimeRequestBoundaryV2
+    boundary: RuntimeRequestBoundaryV2 | RestRequestBoundary
 
     def __post_init__(self) -> None:
-        if not isinstance(self.boundary, RuntimeRequestBoundaryV2):
-            raise ValueError("request authority requires an exact operator-owned v2 boundary")
+        if not isinstance(self.boundary, (RuntimeRequestBoundaryV2, RestRequestBoundary)):
+            raise ValueError("request authority requires an exact operator-owned request boundary")
         validate("assurance_authority_ref", self.as_dict())
 
     def as_dict(self) -> dict:

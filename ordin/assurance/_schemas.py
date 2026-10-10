@@ -1276,7 +1276,39 @@ CHALLENGE_CATALOG = artifact(
     optional_providers={"type": "string", "const": "not_called"},
 )
 
+from ordin._runtime_schemas import SCHEMAS as _CORE_RUNTIME_SCHEMAS
+
+REST_METHOD = choice("GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE")
+REST_SEMANTICS = artifact("assurance_rest_semantics", methods=array(REST_METHOD, 7))
+REST_SEMANTICS["properties"]["methods"].update({"minItems": 1, "uniqueItems": True})
+REST_AUTHORITY = artifact(
+    "assurance_rest_authority",
+    scheme=choice("http", "https"),
+    host=text(253),
+    port={"type": "integer", "minimum": 1, "maximum": 65535},
+    path=text(4096),
+    method=REST_METHOD,
+    access=choice("read", "write"),
+    body_present=BOOLEAN,
+    commitment=DIGEST,
+    algorithm=choice("ordin.authority-json.sha256.v1"),
+)
+REST_BOUNDARY = artifact(
+    "assurance_rest_boundary",
+    capability=_CORE_RUNTIME_SCHEMAS["runtime_capability_boundary"],
+    requests=array(REST_AUTHORITY, 128),
+)
+REST_CONTRACT = artifact(
+    "assurance_rest_contract",
+    capability=_CORE_RUNTIME_SCHEMAS["runtime_capability"],
+    request=REST_AUTHORITY,
+)
+
 SCHEMAS = {
+    "assurance_rest_semantics": REST_SEMANTICS,
+    "assurance_rest_authority": REST_AUTHORITY,
+    "assurance_rest_boundary": REST_BOUNDARY,
+    "assurance_rest_contract": REST_CONTRACT,
     "assurance_profile_inspection": PROFILE_INSPECTION,
     "assurance_invariant_preview": INVARIANT_PREVIEW,
     "assurance_attack_path_inspection": PATH_INSPECTION,

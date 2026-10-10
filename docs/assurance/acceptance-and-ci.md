@@ -35,8 +35,9 @@ not mark overall acceptance complete: the report always retains
 means a test, collection, coverage selection or observation failed. Setup errors
 refuse execution rather than substituting a source checkout or weaker test.
 
-Coverage still open includes native REST/body commitments (the current
-`http.request` action is unregistered), a real abstract-to-concrete solver
+Host-selected literal REST and exact typed JSON body/header scope now have
+dedicated AT-07 assertions; ordinary default HTTP remains unregistered. Coverage
+still open includes a real abstract-to-concrete solver
 candidate, native database-delete integration, physical authorization/broker
 receipts, general target-code fix verification and all standalone example audits.
 Changed GraphQL/MCP requests, declared full-domain containment, synthetic host

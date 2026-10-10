@@ -26,6 +26,7 @@ from .host import AssuranceHostContext
 from .models import ApprovedSecurityProfile, InvariantEvaluation, SecurityInvariant
 from .profiles import MUTATION_EFFECTS
 from .requests import verify_assurance_capability, verify_assurance_request_authority
+from .rest import RestRequestBoundary, derive_rest_request_contract, verify_rest_request_authority
 
 
 def profile_scope_error(
@@ -363,11 +364,17 @@ def evaluate_approved_invariants(
                 )
                 continue
             try:
-                request = derive_runtime_request_contract_v2(review)
-                request = replace(request, capability=runtime_contract(), request_contract_id="")
-                request_check = verify_assurance_request_authority(
-                    request, request_authority.boundary
-                )
+                if isinstance(request_authority.boundary, RestRequestBoundary):
+                    rest = derive_rest_request_contract(review, capability=runtime_contract())
+                    request_check = verify_rest_request_authority(rest, request_authority.boundary)
+                else:
+                    request = derive_runtime_request_contract_v2(review)
+                    request = replace(
+                        request, capability=runtime_contract(), request_contract_id=""
+                    )
+                    request_check = verify_assurance_request_authority(
+                        request, request_authority.boundary
+                    )
                 status = {
                     "within_boundary": "satisfied",
                     "exceeds_boundary": "violated",

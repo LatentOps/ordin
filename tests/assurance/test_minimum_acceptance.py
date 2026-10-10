@@ -76,8 +76,8 @@ def test_unregistered_rest_cannot_borrow_declared_get_authority(tmp_path):
         action_id="rest-get",
     )
     request = derive_runtime_request_contract_v2(gate.baseline_gate.evaluate_action(action).review)
-    # The current core has no native HTTP action adapter or exact REST body
-    # commitment. Retain this unsupported case rather than claiming AT-07 done.
+    # Default core keeps HTTP unregistered. Only a typed host selection enables
+    # REST classification; ordinary proposal/authority JSON cannot activate it.
     assert request.requests == ()
     maximum = RuntimeCapabilityBoundary(
         "rest",

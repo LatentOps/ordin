@@ -229,4 +229,23 @@ def assurance_contract_examples(tmp_path):
             ).as_dict(),
         }
     )
+    from ordin import AgentGate, Ordin
+    from ordin.assurance import RestSemantics, RestRequestBoundary, derive_rest_request_contract
+
+    rest_gate = AgentGate(Ordin(rest_semantics=RestSemantics()))
+    rest_action = ActionEnvelope(
+        "network", "http.request", {"url": "https://fixture.invalid/docs", "method": "GET"}
+    )
+    rest = derive_rest_request_contract(rest_gate.evaluate_action(rest_action).review)
+    samples.update(
+        {
+            "assurance_rest_semantics": RestSemantics().as_dict(),
+            "assurance_rest_authority": rest.request.as_dict(),
+            "assurance_rest_contract": rest.as_dict(),
+            "assurance_rest_boundary": RestRequestBoundary(
+                RuntimeCapabilityBoundary("rest-maximum", network=rest.capability.network),
+                (rest.request,),
+            ).as_dict(),
+        }
+    )
     return samples

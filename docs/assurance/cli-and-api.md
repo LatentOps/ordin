@@ -60,6 +60,13 @@ profile/version/repository/runtime bindings and a protected host source. Arbitra
 files, JSON flags and profile digests cannot activate a profile. Strong SDK
 receipts cannot be reconstructed from ordinary JSON.
 
+Optional `RestSemantics` is an explicit typed host selection for literal REST
+actions. `RestRequestAuthority`, `RestRequestBoundary`, `RestRequestContract`,
+`derive_rest_request_contract` and `verify_rest_request_authority` preserve exact
+method/URL/headers/JSON-body requirements beside unchanged core v1/v2 schemas.
+Read the [REST scope reference](rest-requests.md); ordinary CLI preview does not
+activate these semantics or a transport.
+
 The registered schema list is reported by `python -m ordin doctor` and
 `ordin.schema.SCHEMA_FILES`; source schemas and packaged copies are byte-checked.
 CLI preview/inspection schemas include profile inspection, invariant preview,

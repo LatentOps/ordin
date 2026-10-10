@@ -123,6 +123,8 @@ def configuration_digest(gate: AgentGate) -> str:
     }
     if ordin.runtime_requirements is not None:
         configuration["runtime_requirements"] = ordin.runtime_requirements.as_dict()
+    if ordin.rest_semantics is not None:
+        configuration["rest_semantics"] = ordin.rest_semantics.as_dict()
     extension = getattr(gate, "session_configuration_binding", None)
     if extension is not None:
         # Optional host-owned gate composition must not restore history across

@@ -12,6 +12,7 @@ from ordin.action import ActionEnvelope, ActionHistory
 from ordin.action_policy import ActionPolicySet
 from ordin.agent import AgentDecision, AgentGate
 from ordin.api import Ordin
+from ordin._rest_semantics import RestSemantics
 from ordin.context import ExecutionContext
 from ordin.execution import ActionObservation
 from ordin.mcp_contracts import MCPContractCheck
@@ -63,7 +64,7 @@ def _record(value: Any, attr: str) -> dict | None:
 def _core_packet(core: Ordin) -> dict:
     if type(core) is not Ordin or core.audit is not None or core.trace is not None:
         raise ValueError("simulation requires ordinary Ordin without an audit sink or trace")
-    return {
+    packet = {
         "fail_on": core.policy.fail_on,
         "context": core.context.as_dict() if core.context else None,
         "action_policy": _record(core.action_policy, "policy"),
@@ -71,6 +72,9 @@ def _core_packet(core: Ordin) -> dict:
         "tool_semantics": _record(core.tool_semantics, "registry"),
         "runtime_requirements": _record(core.runtime_requirements, "profile"),
     }
+    if core.rest_semantics is not None:
+        packet["rest_semantics"] = core.rest_semantics.as_dict()
+    return packet
 
 
 def _core_from_packet(packet: Mapping[str, Any]) -> Ordin:
@@ -83,6 +87,7 @@ def _core_from_packet(packet: Mapping[str, Any]) -> Ordin:
             "temporal_policy",
             "tool_semantics",
             "runtime_requirements",
+            "rest_semantics",
         },
     )
     requirements = packet.get("runtime_requirements")
@@ -108,7 +113,14 @@ def _core_from_packet(packet: Mapping[str, Any]) -> Ordin:
             mcp_endpoints=requirements.get("mcp_endpoints", {}),
             mcp_versions=requirements.get("mcp_versions", {}),
         )
+    selected_rest = packet.get("rest_semantics")
+    if selected_rest is not None:
+        _closed(selected_rest, {"schema_version", "methods"})
+        if selected_rest.get("schema_version") != "ordin.assurance_rest_semantics.v1":
+            raise ValueError("unknown REST semantic replay version")
+        selected_rest = RestSemantics(tuple(selected_rest["methods"]))
     return Ordin(
+        rest_semantics=selected_rest,
         policy=ReviewPolicy(packet.get("fail_on", "warn")),
         context=ExecutionContext.from_dict(packet.get("context")),
         action_policy=ActionPolicySet.from_dict(packet["action_policy"])

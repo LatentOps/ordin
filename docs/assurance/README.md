@@ -37,6 +37,7 @@ trusted host process.
 Read [machine contracts](contracts.md), [the baseline inventory](baseline-inventory.md),
 the [profile lifecycle](profiles.md), [security/privacy](security-and-privacy.md),
 the [invariant gate](invariants.md),
+the [host-selected exact REST request scope](rest-requests.md),
 the [policy simulator](simulation.md),
 the [bounded challengers](challengers.md),
 the [host instruction/data origins](instruction-origins.md),

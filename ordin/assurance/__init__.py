@@ -56,6 +56,14 @@ from .invariants import evaluate_approved_invariants
 from .challenge import ChallengeRun, challenge_authority_subset, replay_counterexample
 from .property_challenge import ChallengeSuite, challenge_property, challenge_security_properties
 from .requests import verify_assurance_capability, verify_assurance_request_authority
+from .rest import (
+    RestSemantics,
+    RestRequestAuthority,
+    RestRequestBoundary,
+    RestRequestContract,
+    derive_rest_request_contract,
+    verify_rest_request_authority,
+)
 from .origins import (
     SourceProvenance,
     record_source_provenance,
@@ -147,6 +155,12 @@ from .simulation import (
 )
 
 __all__ = [
+    "RestSemantics",
+    "RestRequestAuthority",
+    "RestRequestBoundary",
+    "RestRequestContract",
+    "derive_rest_request_contract",
+    "verify_rest_request_authority",
     "AssuranceAdapterGate",
     "inspect_profile_content",
     "preview_invariants",

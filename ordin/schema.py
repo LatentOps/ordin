@@ -27,6 +27,10 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "assurance_rest_semantics": "assurance-rest-semantics.v1.schema.json",
+    "assurance_rest_authority": "assurance-rest-authority.v1.schema.json",
+    "assurance_rest_boundary": "assurance-rest-boundary.v1.schema.json",
+    "assurance_rest_contract": "assurance-rest-contract.v1.schema.json",
     "assurance_profile_inspection": "assurance-profile-inspection.v1.schema.json",
     "assurance_invariant_preview": "assurance-invariant-preview.v1.schema.json",
     "assurance_attack_path_inspection": "assurance-attack-path-inspection.v1.schema.json",

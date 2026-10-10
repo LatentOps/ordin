@@ -1,0 +1,525 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-rest-contract.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 3,
+  "properties": {
+    "capability": {
+      "$id": "https://latentops.space/ordin/schemas/runtime-capability.v1.schema.json",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "properties": {
+        "action_digest": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "action_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "contract_id": {
+          "maxLength": 67,
+          "minLength": 1,
+          "pattern": "^rc:[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "credentials": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "binding": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/@-]*$",
+                "type": "string"
+              },
+              "host": {
+                "maxLength": 253,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9.:-]*$",
+                "type": "string"
+              },
+              "port": {
+                "maximum": 65535,
+                "minimum": 1,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "binding",
+              "host",
+              "port"
+            ],
+            "type": "object"
+          },
+          "maxItems": 128,
+          "type": "array"
+        },
+        "decision": {
+          "enum": [
+            "allow",
+            "warn",
+            "ask",
+            "block"
+          ],
+          "type": "string"
+        },
+        "filesystem": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "access": {
+                "enum": [
+                  "read",
+                  "write",
+                  "delete",
+                  "metadata",
+                  "execute",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "path": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "scope": {
+                "enum": [
+                  "exact",
+                  "prefix",
+                  "unknown"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "access",
+              "path",
+              "scope"
+            ],
+            "type": "object"
+          },
+          "maxItems": 128,
+          "type": "array"
+        },
+        "grant_state": {
+          "enum": [
+            "eligible",
+            "requires_approval",
+            "diagnostic"
+          ],
+          "type": "string"
+        },
+        "network": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "access": {
+                "enum": [
+                  "read",
+                  "write",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "host": {
+                "maxLength": 253,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9.:-]*$",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "methods": {
+                "items": {
+                  "enum": [
+                    "GET",
+                    "HEAD",
+                    "POST",
+                    "PUT",
+                    "PATCH",
+                    "DELETE",
+                    "OPTIONS",
+                    "CONNECT",
+                    "TRACE"
+                  ],
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "type": "array"
+              },
+              "paths": {
+                "items": {
+                  "maxLength": 4096,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "maxItems": 128,
+                "type": "array"
+              },
+              "port": {
+                "maximum": 65535,
+                "minimum": 1,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "protocol": {
+                "enum": [
+                  "rest",
+                  "mcp",
+                  "json-rpc",
+                  "graphql",
+                  "websocket",
+                  "tcp",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "tool_identity": {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "host",
+              "port",
+              "protocol",
+              "access",
+              "methods",
+              "paths",
+              "tool_identity"
+            ],
+            "type": "object"
+          },
+          "maxItems": 128,
+          "type": "array"
+        },
+        "privilege": {
+          "additionalProperties": false,
+          "properties": {
+            "escalation": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "required_euid": {
+              "minimum": 0,
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "escalation",
+            "required_euid"
+          ],
+          "type": "object"
+        },
+        "process": {
+          "additionalProperties": false,
+          "properties": {
+            "executables": {
+              "items": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              },
+              "maxItems": 128,
+              "type": "array"
+            },
+            "execution": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "spawn_children": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "execution",
+            "executables",
+            "spawn_children"
+          ],
+          "type": "object"
+        },
+        "risk": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "critical",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "ordin.runtime_capability.v1"
+        },
+        "source": {
+          "additionalProperties": false,
+          "properties": {
+            "adapter": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "effects": {
+              "items": {
+                "maxLength": 256,
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9_.-]*$",
+                "type": "string"
+              },
+              "maxItems": 128,
+              "type": "array"
+            },
+            "kind": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "operation": {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            "provenance_digest": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-f0-9]{64}$",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "operation",
+            "adapter",
+            "effects",
+            "provenance_digest"
+          ],
+          "type": "object"
+        },
+        "tools": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "operation": {
+                "const": "call",
+                "type": "string"
+              },
+              "runtime": {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              "server": {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "tool": {
+                "maxLength": 256,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "runtime",
+              "server",
+              "tool",
+              "operation"
+            ],
+            "type": "object"
+          },
+          "maxItems": 128,
+          "type": "array"
+        },
+        "unknowns": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "domain": {
+                "enum": [
+                  "filesystem",
+                  "network",
+                  "process",
+                  "privilege",
+                  "credential",
+                  "tool",
+                  "semantics"
+                ],
+                "type": "string"
+              },
+              "reason": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "type": "string"
+              },
+              "reason_code": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/@-]*$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "domain",
+              "reason_code",
+              "reason"
+            ],
+            "type": "object"
+          },
+          "maxItems": 128,
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema_version",
+        "contract_id",
+        "action_id",
+        "action_digest",
+        "decision",
+        "risk",
+        "grant_state",
+        "filesystem",
+        "network",
+        "tools",
+        "process",
+        "privilege",
+        "credentials",
+        "unknowns",
+        "source"
+      ],
+      "title": "Ordin runtime capability contract v1",
+      "type": "object"
+    },
+    "request": {
+      "$id": "https://latentops.space/ordin/schemas/assurance-rest-authority.v1.schema.json",
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false,
+      "maxProperties": 10,
+      "properties": {
+        "access": {
+          "enum": [
+            "read",
+            "write"
+          ],
+          "type": "string"
+        },
+        "algorithm": {
+          "enum": [
+            "ordin.authority-json.sha256.v1"
+          ],
+          "type": "string"
+        },
+        "body_present": {
+          "type": "boolean"
+        },
+        "commitment": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "host": {
+          "maxLength": 253,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "method": {
+          "enum": [
+            "GET",
+            "HEAD",
+            "OPTIONS",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE"
+          ],
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 4096,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "port": {
+          "maximum": 65535,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "ordin.assurance_rest_authority.v1",
+          "type": "string"
+        },
+        "scheme": {
+          "enum": [
+            "http",
+            "https"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "scheme",
+        "host",
+        "port",
+        "path",
+        "method",
+        "access",
+        "body_present",
+        "commitment",
+        "algorithm"
+      ],
+      "title": "Ordin assurance rest authority v1",
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_rest_contract.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "capability",
+    "request"
+  ],
+  "title": "Ordin assurance rest contract v1",
+  "type": "object"
+}

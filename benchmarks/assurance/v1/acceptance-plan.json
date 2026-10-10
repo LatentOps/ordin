@@ -76,11 +76,14 @@
       "family": "request_authority",
       "test_nodes": [
         "tests/assurance/test_minimum_acceptance.py::test_unregistered_rest_cannot_borrow_declared_get_authority",
-        "tests/assurance/test_invariants.py::test_exact_request_subset_does_not_reuse_changed_body_or_protocol"
+        "tests/assurance/test_invariants.py::test_exact_request_subset_does_not_reuse_changed_body_or_protocol",
+        "tests/assurance/test_rest.py::test_approved_get_and_unknown_maximum_refuse_without_transport",
+        "tests/assurance/test_rest.py::test_method_path_scheme_headers_or_body_cannot_reuse_get",
+        "tests/assurance/test_rest.py::test_material_post_body_change_fails_after_network_scope_matches"
       ],
-      "coverage": "partial",
+      "coverage": "finite_fixture",
       "limitations": [
-        "Native http.request and exact REST body commitments are unsupported; changed GraphQL bodies are covered separately."
+        "Host-selected REST and exact typed JSON request scope are tested offline; transport/backend enforcement, arbitrary raw HTTP and URI query/alias forms remain outside this fixture."
       ]
     },
     {

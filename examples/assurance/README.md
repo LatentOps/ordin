@@ -52,10 +52,14 @@ Optional extended workflows remain explicit:
 
 ```bash
 python -I -m ordin.assurance.validation_demo
+python -I -m ordin.assurance.rest_demo
 python -I -m ordin_decision_models.demo
 ```
 
-The first is an owned synthetic finding/policy-fix example. The second requires
+The first is an owned synthetic finding/policy-fix example. The REST example
+reviews an exact allowed GET and changed method/path/body proposals without
+sending any request; see [REST scope](../../docs/assurance/rest-requests.md).
+The decision-model example requires
 installing the separate decision-model wheel and uses predetermined offline mock
 values for disabled/shadow/escalation modes. It neither loads Laya nor contacts
 TypeSafe. Real local setup and hosted disclosure require actual protected host
