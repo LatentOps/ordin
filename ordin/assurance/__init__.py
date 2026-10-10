@@ -53,6 +53,7 @@ from .host import (
     HostRequestAuthority,
 )
 from .invariants import evaluate_approved_invariants
+from .challenge import ChallengeRun, challenge_authority_subset, replay_counterexample
 from .simulation import (
     FrozenCase,
     FrozenCorpus,
@@ -65,6 +66,9 @@ from .simulation import (
 )
 
 __all__ = [
+    "ChallengeRun",
+    "challenge_authority_subset",
+    "replay_counterexample",
     "ActionKindCoverage",
     "FrozenCase",
     "FrozenCorpus",

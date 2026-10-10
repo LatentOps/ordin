@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import platform
 from dataclasses import dataclass, field
 from functools import cached_property
 from time import perf_counter
@@ -30,6 +29,7 @@ from ordin.tool_calls import ToolSemanticsRegistry
 from ordin.trajectory_corpus import AgentTrajectory
 
 from ._json import canonical_json, digest, freeze, thaw, validate
+from ._environment import environment_label
 from .gate import AssuranceDecision, AssuranceGate, DISPOSITION_ORDER
 from .host import HostCapabilityAuthority, HostEvidenceSource, HostRequestAuthority
 from .models import (
@@ -892,8 +892,7 @@ def simulate_policy_change(
         proposed_policy.digest,
         _latency([v[1] for v in baseline]),
         _latency([v[1] for v in candidate]),
-        environment
-        or f"Python {platform.python_version()}; {platform.system()} {platform.release()}",
+        environment or environment_label(),
         cases=tuple(rows),
         critical_misses=misses,
         benign_false_escalations=sum(

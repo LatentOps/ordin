@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 SMOKE = r"""
 import json, socket
+import subprocess
 def refuse_network(*args, **kwargs):
     raise AssertionError("default assurance attempted network access")
 class NoNetworkSocket(socket.socket):
@@ -27,6 +28,9 @@ class NoNetworkSocket(socket.socket):
         return refuse_network(*args, **kwargs)
 socket.create_connection = refuse_network
 socket.socket = NoNetworkSocket
+def refuse_process(*args, **kwargs):
+    raise AssertionError("default assurance attempted subprocess execution")
+subprocess.Popen = refuse_process
 import ordin
 import ordin.assurance as assurance
 from ordin.schema import SCHEMA_FILES, validate_schema_files, resource_parity_errors
@@ -48,6 +52,12 @@ corpus = FrozenCorpus.synthetic((FrozenCase("wheel-safe", ActionEnvelope.shell("
 simulation = simulate_policy_change(SimulationPolicy(), SimulationPolicy(), corpus,
                                    baseline_revision="wheel-fixture-v1", candidate_revision="wheel-fixture-v1")
 assert simulation.activation_safe and simulation.cases[0].candidate_final == "execute"
+from ordin.assurance import challenge_authority_subset, replay_counterexample
+challenged = challenge_authority_subset(seed=14, revision="wheel-fixture-v1", trials=16,
+                                        variant="seeded_prefix_bug")
+assert challenged.failures == 4 and challenged.benign_controls == 4
+assert all(replay_counterexample(record, expected_revision="wheel-fixture-v1") == "verified_failure"
+           for record in challenged.counterexamples)
 import contextlib, io
 from pathlib import Path
 Path("wheel-profile.json").write_text(json.dumps(profile.as_dict()), encoding="utf-8")
@@ -84,6 +94,10 @@ def run(wheel: Path, environment: Path) -> dict:
             "ordin/assurance/models.py",
             "ordin/assurance/_json.py",
             "ordin/assurance/_schemas.py",
+            "ordin/assurance/simulation.py",
+            "ordin/assurance/cli.py",
+            "ordin/assurance/challenge.py",
+            "ordin/assurance/_environment.py",
         }
         if not required <= names:
             raise ValueError("wheel is missing assurance modules")

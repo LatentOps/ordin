@@ -18,7 +18,7 @@
 | M2 | implemented_offline_verified | Scoped read-only inventory, four frozen source-backed drafts, protected profile loader/compiler; 162 passed / 2 POSIX skips; final installed wheel, metadata and SDK example pass |
 | M3 | functional_sdk_verified_gates_open | Pure evaluator/gate and sealed host facts; 240 passed / 1 POSIX skip; wheel/SDK pass; full run 1135 passed / 5 failed / 27 skipped; two audit gaps fixed with 14-test recheck; end-to-end latency still failed |
 | M4 | functional_sdk_cli_verified_final_scenarios_open | Independent frozen replay, advisory change guard, local CLI, 22 synthetic cases; final source gate 168 passed / 1 POSIX skip; core compatibility 60 passed / 1 POSIX skip; final committed-source wheel/doctor/CLI/metadata pass; SDK/CLI parity captured |
-| M5 | not_started | Seeded, minimized, replayed safe counterexamples |
+| M5 | finite_challenger_verified_broader_properties_open | Seeded filesystem-subset defect found/minimized/replayed, benign controls and partial coverage; CLI/schema; assurance/audit gate 183 passed / 1 POSIX skip; other property generators, solver and promotion pending |
 | M6 | not_started | Bounded attack paths and authenticated origins |
 | M7 | not_started | Delegation subset and lifecycle |
 | M8 | not_started | Offline Codex Security import and optional scanner |
@@ -253,6 +253,52 @@ weakening public contract limits. One automatic permission review timed out;
 normal access still could not read the generated wheel. The permitted single
 retry succeeded. No ACL was changed and no pending approval remains.
 
+## M5 initial finite challenger
+
+`challenge_authority_subset` uses seeded standard-library generation and a
+faithful finite read/path oracle, compared to the existing full capability
+verifier. A closed `seeded_prefix_bug` fixture deliberately accepts lexical
+neighbors of `/fixture`; no target plugin or arbitrary code can be selected.
+Bounded deletion shrinking retains the exact property, fixed maximum/access,
+variant and mismatch signature. Original/minimized captures are rechecked
+before immutable counterexample records are emitted. The CLI requires explicit
+seed/revision and supports independent replay. A closed immutable run contract
+and source/package schema reject inconsistent counts/status and host-enforcement
+claims. Schema registration has 59 entries, including 19 Assurance contracts.
+
+Seed 14 / 16 fixtures: four seeded failures shrink to two distinct counterexamples,
+four benign controls remain valid, and six unsupported path-precondition cases
+remain unresolved. The actual verifier has no disagreement in ten supported
+cases; the report stays inconclusive for the six unsupported cases. These are
+fixture-harness results, not confirmed Ordin vulnerabilities or live enforcement.
+
+Actual checks:
+
+| Command | Result |
+| --- | --- |
+| `python -m pytest -q tests/assurance/test_challenge.py tests/assurance/test_simulation.py -p no:cacheprovider --basetemp=.assurance-work/m5-pure-environment` | 29 passed, 17.33 s |
+| `python -m pytest -q tests/assurance tests/test_contract_audit.py -p no:cacheprovider --basetemp=.assurance-work/m5-finite-source-gate` | 183 passed, 1 POSIX skip, 36.14 s |
+| `python -m mypy --platform linux ordin/assurance` | 15 source files clean |
+| `python -m ruff check ordin/assurance tests/assurance/test_challenge.py` | Passed |
+
+The privacy assertion exposed Windows `platform.system/release` occasionally
+launching `ver`. Both simulation and challenger now read environment metadata
+from Python/system APIs with no subprocess fallback. The failed assertion was
+retained as evidence and passes after this correction. Initial schema coverage
+failed because the new run schema was not yet registered in the core registry;
+explicit additive registration corrected it and the complete source/audit gate
+passes. The wheel smoke now also rejects subprocess execution inside the
+installed default SDK and exercises discovery/shrink/replay; its new run is
+pending. No fixture command, network endpoint, external scanner/model, permission
+grant or host boundary was exercised.
+
+M5 remains open: the [property inventory](challengers.md) lists generated
+monotonicity, exact request/protocol, tool, history, trust-origin, delegation and
+provider failure checks, broader differential/adversarial generation, optional
+solver encoding and safe reviewed promotion still required. M4's archived
+evidence remains pinned to its earlier source SHA; the subprocess-free metadata
+correction is part of this later source revision.
+
 ## Baseline failures and measurements (original source, continued)
 
 The original suite failed before any package or schema registration changed.
@@ -296,7 +342,8 @@ summary omits the machine hostname and retains exact case IDs and hashes.
 
 - The artifact/profile/gate foundation is functional; it is not a complete
   Assurance system. M3 acceptance gates remain open; M4 simulator is functional;
-  M5–M12 are not implemented. All AT-01–AT-35 require
+  M5 has an initial finite challenger; its broader properties and M6–M12
+  remain unimplemented. All AT-01–AT-35 require
   integrated implementation and current evidence before overall completion.
 - `ApprovedSecurityProfile` now has a protected selection loader/compiler.
   Host-declared filesystem guarantees/mappings still require actual external

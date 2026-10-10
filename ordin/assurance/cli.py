@@ -11,7 +11,8 @@ from typing import Sequence
 
 from ._files import _directory, read_scoped_file, relative_parts
 from ._json import canonical_json, loads
-from .models import PolicySimulationReport, SecurityProfile
+from .models import CounterexampleRecord, PolicySimulationReport, SecurityProfile
+from .challenge import challenge_authority_subset, replay_counterexample
 from .simulation import FrozenCorpus, SimulationPolicy, simulate_policy_change
 
 PASS = 0
@@ -117,6 +118,20 @@ def _parser() -> argparse.ArgumentParser:
     diff.add_argument("--baseline", required=True)
     diff.add_argument("--candidate", required=True)
     diff.add_argument("--report")
+    challenge = groups.add_parser("challenge").add_subparsers(dest="command", required=True)
+    run = challenge.add_parser("run", help="bounded synthetic authority-subset challenger")
+    run.add_argument("--seed", type=int, required=True)
+    run.add_argument("--revision", required=True)
+    run.add_argument("--trials", type=int, default=64)
+    run.add_argument("--variant", choices=("actual", "seeded_prefix_bug"), default="actual")
+    run.add_argument("--time-budget-ms", type=float, default=10_000)
+    run.add_argument("--report")
+    replay = challenge.add_parser(
+        "replay", help="recheck both captures for the exact property failure"
+    )
+    replay.add_argument("path")
+    replay.add_argument("--revision", required=True)
+    replay.add_argument("--report")
     return parser
 
 
@@ -133,6 +148,38 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "reason_code": "assurance.profile_content_valid",
             }
             code = PASS
+        elif args.group == "challenge":
+            if args.command == "run":
+                result = challenge_authority_subset(
+                    seed=args.seed,
+                    revision=args.revision,
+                    trials=args.trials,
+                    variant=args.variant,
+                    time_budget_ms=args.time_budget_ms,
+                )
+                packet = result.as_dict()
+                code = (
+                    SECURITY_REGRESSION
+                    if result.failures
+                    else PARTIAL_OR_MALFORMED
+                    if result.unresolved
+                    else PASS
+                )
+            else:
+                record = CounterexampleRecord.from_dict(_read(args.path))
+                outcome = replay_counterexample(record, expected_revision=args.revision)
+                packet = {
+                    "record_digest": record.digest,
+                    "replay_outcome": outcome,
+                    "host_boundary_exercised": False,
+                }
+                code = (
+                    PASS
+                    if outcome == "verified_failure"
+                    else SECURITY_REGRESSION
+                    if outcome == "not_reproduced"
+                    else PARTIAL_OR_MALFORMED
+                )
         elif args.command == "simulate":
             report = simulate_policy_change(
                 SimulationPolicy.from_dict(_read(args.baseline)),

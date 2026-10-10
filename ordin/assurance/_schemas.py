@@ -343,6 +343,26 @@ DELEGATION = artifact(
     depth={"type": "integer", "minimum": 0, "maximum": 16},
     status=choice("proposal", "issued", "revoked"),
 )
+CHALLENGE_RUN = artifact(
+    "assurance_challenge_run",
+    seed={"type": "integer", "minimum": 0, "maximum": 2**63 - 1},
+    revision=REVISION,
+    variant=choice("actual", "seeded_prefix_bug"),
+    requested_trials=COUNT,
+    generated=COUNT,
+    evaluated=COUNT,
+    unresolved=COUNT,
+    failures=COUNT,
+    benign_controls=COUNT,
+    counterexamples=array(COUNTEREXAMPLE, 256),
+    input_manifest_digest=DIGEST,
+    elapsed_ms=MILLISECONDS,
+    status=choice("passed", "failing", "inconclusive"),
+    property_id=choice("authority_subset"),
+    generator_version=choice("authority-paths-v1"),
+    host_boundary_exercised={"type": "boolean", "const": False},
+    limitations=array(text(), 32),
+)
 MODEL_ANSWER = obj(question_id=ID, p_yes=PROBABILITY)
 MODEL = artifact(
     "assurance_model_evidence",
@@ -520,6 +540,7 @@ ASSURANCE_DECISION = artifact(
 )
 
 SCHEMAS = {
+    "assurance_challenge_run": CHALLENGE_RUN,
     "assurance_host_credential_use": CREDENTIAL_USE,
     "assurance_host_approval": HOST_APPROVAL,
     "assurance_host_assessment": HOST_ASSESSMENT,
