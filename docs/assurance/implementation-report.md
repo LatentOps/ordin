@@ -15,6 +15,7 @@
 - Scanner/diff/optional CI implementation SHA: `4d3fb8d8879c230b7c9e6c2970b91cecafd5dc4f`.
 - Optional semantic protocol/routing/TypeSafe SHA: `ea3d4778c3ad83ed20bb660a6a96232f9f30d3dc`.
 - Local model worker/evaluation SDK SHA: `26297fcc98d0a9cfdb4c61fbe343685fe0ffbeee`.
+- Async measurement/frozen workload SHA: `261685d28e0de3fb9e0ff500e8aa4964c44610f5`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -31,7 +32,7 @@
 | M6 | graph_flow_sdk_verified_cross_agent_added | Bounded graph/source-flow SDK; original gate 230 passed / 1 POSIX skip; authenticated M7 cross-agent composition added; combined gate 258 passed / 1 POSIX skip; new wheel pending |
 | M7 | sdk_lifecycle_verified_release_gates_open | Full-domain containment, private issuance/revocation, current use tickets, per-child sessions and cross-agent graphs; source gate 258 passed / 1 POSIX skip; core compatibility 140 passed / 1 skip; pinned example/graph/wheel/doctor/metadata pass; external enforcement/release gates remain open |
 | M8 | offline_sdk_mock_diff_verified_live_boundary_unverified | Pinned importer, explicit scanner selection/configuration/consent/isolation, fake-process tests, offline source/authority diff and optional private CI example; source gate 335 passed / 1 POSIX skip; core compatibility 47 passed / 2 skips; pinned core/adapter wheel/doctor/metadata checks pass; real scanner/host isolation/CI unverified |
-| M9 | provider_sdk_mock_worker_metrics_verified_real_evals_pending | Separate optional package, protected state/inspection, conservative routing, TypeSafe contract and pinned local Laya worker; source gate 424 passed / 1 skip; metrics/disjointness tests pass; actual model/hardware/workload/effectiveness acceptance remains unverified |
+| M9 | provider_sdk_async_measurements_provisional_workload_verified_real_acceptance_pending | Protected protocol/routing, TypeSafe and pinned local worker, measured threshold provenance, sync/async replay and 24-case provisional sample; source gate 432 passed / 1 skip; actual model/hardware and independently labeled effectiveness acceptance remain unverified |
 | M10 | not_started | Finding validation and patch-risk verification |
 | M11 | not_started | Complete CLI/API/docs/examples |
 | M12 | not_started | Complete acceptance, corpus, CI and release gates |
@@ -924,6 +925,77 @@ and **74 schemas / 34 Assurance schemas**, with SDK sockets/process creation
 rejected. All checkpoint handles are terminal. No actual checkpoint, credential,
 source upload, execution grant, remote runner, release or deployment was used.
 
+## M9 async measurements and frozen provisional workload
+
+Source `261685d28e0de3fb9e0ff500e8aa4964c44610f5` adds synchronous and
+asynchronous development collection in shadow mode. Immutable collector receipts
+bind actual case/evidence/state digests, provider and inspection configuration.
+Measured threshold fitting requires all unambiguous controls; refusals, timeouts,
+deterministic skips and exhausted budgets cannot disappear from calibration.
+Measured thresholds require an actual selection receipt; imported JSON or edited
+copies cannot attest a run. Lower-level supplied-score fitting remains explicitly
+identified as caller-supplied provenance. Mid-run routing/provider changes refuse
+collection, and held-out replay checks the frozen inspection selection.
+
+`evaluate_corpus_async` shares reporting with synchronous replay and retains
+router deadlines, cancellation, privacy and call limits. A host-side
+`AsyncProviderSessions` factory prepares a fresh actual disclosure receipt only
+after routing selects a call. It receives selected state/questions rather than
+case labels, host issuance objects or tool execution. Tests exercise two separate
+TypeSafe disclosures over fake HTTPS, wrong provider selection, factory timeout,
+cancellation and zero factory calls on deterministic denials.
+
+The frozen sample under `benchmarks/assurance/v1/semantic/` has **24 cases**:
+eight per development/held-out/shift partition, each with three harmful, three
+benign and two ambiguous labels. These are distinct authored task/control
+situations. Content/family overlap is rejected even after renaming labels/family
+IDs. The manifest binds bytes, schemas, provenance, source permissions, label
+protocol and supported coverage. Corpus-local Git attributes preserve LF hash
+bytes on Windows checkouts. Label adjudication is **not independent**, and the
+manifest explicitly refuses acceptance eligibility. This sample does not meet
+the full 100 harmful/100 benign acceptance corpus requirement.
+
+The installed mock-only driver ran both sync and async paths on the same frozen
+sample. Each had six mode/partition arms and 38 calls including development.
+Both fit threshold 1.0 from fixed mock scores; final dispositions matched.
+Held-out harmful executable count stayed **2/3** in disabled, shadow and enforced
+modes. Shift harmful executable count stayed **0/3** because deterministic rules
+already restricted those cases. New benign escalation rate was zero. These
+results demonstrate accounting without any semantic effectiveness improvement.
+Observed full harness p95 ranged from **358.67 to 1157.18 ms** across these single
+arms, including input preparation, repeated review and collection checks. They
+are not production provider latency measurements or matched repeated acceptance
+runs. The existing failed M3 added-latency budget is unchanged.
+
+Actual gates:
+
+| Gate | Result |
+| --- | --- |
+| Focused async/measurement/consent/freeze tests | 16 passed, 10.60 s; final selection-receipt check 16 passed, 9.69 s |
+| Final complete Assurance/audit/provider gate | 432 passed, 1 POSIX skip, 181.41 s |
+| Core API/agent/schema/security/Codex compatibility | 47 passed, 2 skips, 11.40 s; restricted pytest cache write warning |
+| Linux-target mypy | 51 source/helper files clean |
+| Ruff and Git diff checks | Passed |
+| Optional wheel/sdist build and twine | Passed |
+| Fresh offline optional wheel install | 17 packaged Python/JSON files matched; import/default/mock/frozen workflow passed with sockets/process creation rejected |
+| Installed frozen-workload CLI | Sync and async completed; disposition parity; no actions, weights, real model or network |
+
+The initial restricted full gate had **389 passed, 20 failed, 23 fixture errors,
+1 skipped**, because external temporary fixture ancestor handles were denied
+and a dependent challenger produced no cases. The final complete local fixture
+run passed with the needed access. No ACL was changed. A hosted test's nonexistent
+action digest property was corrected before the final source gate. The first
+adapter build preceded the selection-receipt hardening and was replaced by a
+fresh final build; only the final wheel is captured.
+
+[Pinned evaluation evidence](evidence/m9-frozen-evaluation.json) records the exact
+implementation revision, source-gate cases, wheel smoke, manifest and both
+redacted mock runs. Core code/schema/package configuration is unchanged from the
+previous local-worker source; the existing core wheel was reused for this fresh
+optional install. Real provider/hardware/memory/cost, independent labels,
+predeclared held-out benefit/friction/latency acceptance and M9 completion remain
+unverified. No background handles remain live.
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
@@ -935,8 +1007,8 @@ source upload, execution grant, remote runner, release or deployment was used.
   integrated implementation and current evidence before overall completion.
 - `ApprovedSecurityProfile` now has a protected selection loader/compiler.
   Host-declared filesystem guarantees/mappings still require actual external
-  enforcement. Graph/finding/delegation/model records do not implement their later analysis/issuance/provider
-  workflows. No feature milestone is complete merely because its record exists.
+  enforcement. Finding validation and broader integrated acceptance remain
+  incomplete. No feature milestone is complete merely because its record exists.
 - Installed tooling differs from requested development minimums: pytest 9.0.3,
   mypy 1.20.2, ruff 0.15.11, twine 6.2.0; build 1.5.0 is available. CI must test
   declared versions. Dependency installation failure must not be reported as
@@ -961,8 +1033,10 @@ next full release gate. Resolve end-to-end latency without weakening the declare
 budget. M6 graph/source-flow, M7 delegation/lifecycle and M8 importer, scanner
 wrapper, fake-process gates and offline diff/CI example are implemented. Live
 external scanner/runner behavior is unverified. The next independent feature is
-M9 frozen semantic workloads, async evaluation, actual model/hardware acceptance
-after the verified provider SDK/worker/metric slice. Keep dependent M5 provider checks,
+M10 finding validation/counterevidence/patch-risk work, followed by M11/M12
+integration, corpus, CI and full acceptance. M9 async replay and a provisional
+frozen sample are verified, while actual model/hardware and independent
+effectiveness/friction/latency acceptance remain open. Keep dependent M5 provider checks,
 optional finite solver/promotion work and the release gates open; expanded
 generated checks are not proof of the full objective.
 Carry the existing Windows shell/latency/SQLite failures into the compatibility
