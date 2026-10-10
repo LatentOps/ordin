@@ -108,6 +108,25 @@ from .remediation import (
     verify_fix,
 )
 from .source_patch import SourcePatchProposal, propose_source_patch
+from .synthetic_tests import (
+    SyntheticPathCase,
+    SyntheticPathSuite,
+    VettedProgram,
+    SelectedSyntheticSuite,
+    PATH_PROPERTY_DIGEST,
+    load_vetted_program,
+    load_synthetic_suite,
+)
+from .sandbox_tests import (
+    VettedSandboxRuntime,
+    SandboxTestScope,
+    SandboxTestRun,
+    sandbox_test_action,
+    authorize_sandbox_test,
+    run_sandbox_test,
+    run_sandbox_test_async,
+)
+from .sandbox_validation import SourceFixVerification, validate_finding_sandboxed, verify_source_fix
 from .simulation import (
     FrozenCase,
     FrozenCorpus,
@@ -120,6 +139,23 @@ from .simulation import (
 )
 
 __all__ = [
+    "SyntheticPathCase",
+    "SyntheticPathSuite",
+    "VettedProgram",
+    "SelectedSyntheticSuite",
+    "PATH_PROPERTY_DIGEST",
+    "load_vetted_program",
+    "load_synthetic_suite",
+    "VettedSandboxRuntime",
+    "SandboxTestScope",
+    "SandboxTestRun",
+    "sandbox_test_action",
+    "authorize_sandbox_test",
+    "run_sandbox_test",
+    "run_sandbox_test_async",
+    "SourceFixVerification",
+    "validate_finding_sandboxed",
+    "verify_source_fix",
     "FindingRubric",
     "FindingReview",
     "FindingValidation",

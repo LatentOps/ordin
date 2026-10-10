@@ -490,6 +490,7 @@ class SecurityFinding(JsonRecord):
             not in {
                 "gate_authority_subset",
                 "observed_contract_authorization",
+                "synthetic_path_boundary",
             }
         ):
             raise ValueError("finding closure must retain exact validation digest and tested scope")

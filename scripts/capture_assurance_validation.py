@@ -16,6 +16,9 @@ def main():
     parser.add_argument("--junit", type=Path, required=True)
     parser.add_argument("--wheel-check", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--slice", choices=("validation_replay", "vetted_source"), default="validation_replay"
+    )
     args = parser.parse_args()
     quiet = subprocess.run(
         [
@@ -84,7 +87,7 @@ def main():
             "installed wheel evidence lacks current schemas or the inert scoped validation example"
         )
     report = {
-        "schema_version": "ordin.assurance_m10_validation_replay_evidence.v1",
+        "schema_version": "ordin.assurance_m10_" + args.slice + "_evidence.v1",
         "implemented_revision": args.revision,
         "source_gate": {
             "junit_sha256": hashlib.sha256(raw).hexdigest(),
@@ -100,6 +103,24 @@ def main():
             "Sandboxed target-code tests, external Codex validation/fix reports, full CLI lifecycle, broader acceptance and release gates remain open.",
         ],
     }
+    if args.slice == "vetted_source":
+        if smoke.get("vetted_test_no_execution") is not True:
+            raise ValueError("installed wheel lacks the default no-execution vetted-test check")
+        report["limitations"] = [
+            "Vetted synthetic pure source ran through a fake approved broker; no real target exploitation or private assets were exercised.",
+            "Physical isolation/CPU/memory/egress/credential enforcement remains a protected host obligation and is not independently proved by local fake-broker tests.",
+            "Source fix verdicts cover the closed canonical lexical predicate and unchanged fixtures only; generic source-code remediation is unverified.",
+            "External Codex workflow claim reports, integrated CLI, full corpus/CI and original release/performance gates remain open.",
+        ]
+        # Pytest may derive parameter IDs from source text. Keep correlation
+        # through a digest while preserving the public test function identity.
+        for case in report["source_gate"]["cases"]:
+            name = case["name"] or ""
+            if "[" in name:
+                function = name.split("[", 1)[0]
+                case["name"] = (
+                    function + "[parameter:" + hashlib.sha256(name.encode()).hexdigest()[:16] + "]"
+                )
     with args.output.open("x", encoding="utf-8") as output:
         json.dump(report, output, indent=2, sort_keys=True)
         output.write("\n")

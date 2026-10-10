@@ -127,6 +127,7 @@ class FindingValidation(JsonRecord):
     safe_reproducer_ref: str | None
     tested_scope: str
     contract_authorization_digest: str | None
+    sandbox_test_digest: str | None
     limitations: tuple[str, ...]
     source_key: str
     advisory_only: bool = True
@@ -158,6 +159,12 @@ class FindingValidation(JsonRecord):
             raise ValueError("host confirmation requires the exact actual grant receipt")
         if self.result == "refuted" and not self.counterevidence:
             raise ValueError("refutation requires decisive scoped counterevidence")
+        if (
+            self.result != "inconclusive"
+            and self.mode == "sandboxed_test"
+            and self.sandbox_test_digest is None
+        ):
+            raise ValueError("sandbox closure requires the actual matched test run")
 
     def public_dict(self):
         from ._json import digest

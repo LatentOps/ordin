@@ -40,6 +40,9 @@ def assurance_contract_examples(tmp_path):
     from .semantic_contract_samples import semantic_contract_samples
 
     samples.update(semantic_contract_samples())
+    from .sandbox_contract_samples import sandbox_contract_samples
+
+    samples.update(sandbox_contract_samples(tmp_path))
     import json
     from .test_remediation import setup as remediation_setup
     from .test_validation import reference

@@ -2,7 +2,7 @@
   "$id": "https://latentops.space/ordin/schemas/assurance-finding-validation.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "maxProperties": 23,
+  "maxProperties": 24,
   "properties": {
     "action_digest": {
       "anyOf": [
@@ -517,6 +517,19 @@
         }
       ]
     },
+    "sandbox_test_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "schema_version": {
       "const": "ordin.assurance_finding_validation.v1",
       "type": "string"
@@ -531,7 +544,8 @@
       "enum": [
         "static_references",
         "gate_authority_subset",
-        "observed_contract_authorization"
+        "observed_contract_authorization",
+        "synthetic_path_boundary"
       ],
       "type": "string"
     },
@@ -563,6 +577,7 @@
     "safe_reproducer_ref",
     "tested_scope",
     "contract_authorization_digest",
+    "sandbox_test_digest",
     "limitations",
     "source_key",
     "advisory_only"

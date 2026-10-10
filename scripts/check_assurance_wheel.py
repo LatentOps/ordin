@@ -54,6 +54,30 @@ assert finding_demo["patch_applied"] is False
 assert finding_demo["validation"]["result"] == "confirmed"
 assert finding_demo["validation"]["tested_scope"] == "gate_authority_subset"
 assert finding_demo["fix"]["result"] == "fixed-verified" and finding_demo["fix"]["integrated"] is False
+from ordin.assurance import (SyntheticPathCase, SyntheticPathSuite, VettedSandboxRuntime,
+                             load_vetted_program, load_synthetic_suite, run_sandbox_test)
+import tempfile, threading, hashlib, sys
+from pathlib import Path
+with tempfile.TemporaryDirectory(prefix="ordin-vetted-noexec-") as directory:
+    root = Path(directory)
+    repo = RepositoryScope("fixture/vetted-wheel", "snapshot-1")
+    selected_scope = assurance.AuthorizedRepository(root, repo, "/fixture")
+    (root / "guard.py").write_bytes(b"def within_root(path, root):\n    return path.startswith(root)\n")
+    test_suite = SyntheticPathSuite("vetted-wheel", (
+        SyntheticPathCase("benign", "/synthetic/project/file", "/synthetic/project"),
+        SyntheticPathCase("collision", "/synthetic/project-other", "/synthetic/project")))
+    (root / "suite.json").write_bytes(json.dumps(test_suite.as_dict()).encode())
+    def source_ref(name):
+        return assurance.SourceReference(name, 1, repo.revision, hashlib.sha256((root / name).read_bytes()).hexdigest())
+    vetted = load_vetted_program(selected_scope, source_ref("guard.py"))
+    test_inputs = load_synthetic_suite(selected_scope, source_ref("suite.json"))
+    source = assurance.HostEvidenceSource("fixture-agent", repo, "a" * 64, 1, "b" * 64, "c" * 64)
+    worker = Path(assurance.__file__).parent / "_sandbox_worker.py"
+    selected_runtime = VettedSandboxRuntime(Path(sys.executable), "a" * 64, worker, "b" * 64,
+        (str(worker),), root, root, "c" * 64, (root,))
+    precanceled = threading.Event(); precanceled.set()
+    noexec = run_sandbox_test(selected_scope, source, selected_runtime, vetted, test_inputs, None, cancel=precanceled)
+    assert noexec.status == "canceled" and noexec.results == ()
 corpus = FrozenCorpus.synthetic((FrozenCase("wheel-safe", ActionEnvelope.shell("git status --short"),
                                           expected="execute", label="benign"),))
 simulation = simulate_policy_change(SimulationPolicy(), SimulationPolicy(), corpus,
@@ -173,6 +197,7 @@ assert build_threat_model(scope, inventory).draft.authoritative is False
 print(json.dumps({"ok": True, "version": ordin.__version__, "schemas": len(SCHEMA_FILES),
                   "assurance_schemas": len(SCHEMAS), "exports": sorted(assurance.__all__),
                   "finding_validation_demo": finding_demo,
+                  "vetted_test_no_execution": True,
                   "loaded_from": ordin.__file__}))
 """
 

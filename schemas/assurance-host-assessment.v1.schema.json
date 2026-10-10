@@ -41,7 +41,8 @@
         "delegated_authority_subset",
         "scanner_isolation",
         "semantic_hosted_scope",
-        "semantic_local_scope"
+        "semantic_local_scope",
+        "validation_isolation"
       ],
       "type": "string"
     },

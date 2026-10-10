@@ -258,6 +258,7 @@ def _result(
             safe_reproducer_ref=fixture.case_id if fixture else None,
             tested_scope=scope,
             contract_authorization_digest=authorization_digest,
+            sandbox_test_digest=None,
             source_key=source.key,
             limitations=(
                 "Closure is limited to this exact revision, fixture, bound and configuration.",

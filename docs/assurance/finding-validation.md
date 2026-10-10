@@ -62,10 +62,10 @@ Affected safety/unit/integration checks and full release validation remain
 separate requirements.
 
 Source-code patches remain inconclusive under policy replay because the changed
-target code was not executed. A vetted minimal sandboxed test runner, broader
-domain-specific reproduction predicates, independently exercised host setup and
-the optional external Codex validate/patch/verify-fix report workflows still need
-implementation or verification. No unsafe command or live exploit is a fixture.
+target code was not executed. The separate vetted source-test path below supports
+a finite synthetic predicate. Broader domain-specific predicates, independently
+exercised host setup and external Codex validate/patch/verify-fix claim reports
+still need implementation or verification. No unsafe command or live exploit is a fixture.
 Applying patches, creating PRs, integrating, publishing or deploying are separate
 explicit operator actions.
 
@@ -79,3 +79,54 @@ The example creates temporary synthetic fixture data, confirms a finite gate
 configuration violation and verifies a narrower policy with a preserved benign
 counterpart. It prints redacted summaries and applies no patch. It is not a
 security or effectiveness benchmark for a real repository.
+
+## Vetted synthetic source tests
+
+`load_vetted_program` accepts only a bounded function `within_root(path, root)`
+whose body is one return expression over its two string inputs. The closed AST
+grammar permits equality, boolean combination, string addition, `startswith`
+and `rstrip`. Imports, loops, decorators, arbitrary names/calls, dunder access,
+annotations and embedded source literals beyond slash/empty string are refused.
+Source comments are removed from the private worker payload. The exact original
+file hash and normalized executable program digest remain bound separately.
+
+`load_synthetic_suite` pins exact fixture bytes containing canonical paths only
+under `/synthetic`. It requires both benign and boundary controls, unique case
+IDs and distinct inputs. Expected behavior is computed independently from the
+declared lexical property; fixture labels cannot hide a failure. Physical paths,
+symlinks, relative/alias resolution and private assets are outside this domain.
+
+`VettedSandboxRuntime` selects a native broker and fixed `_sandbox_worker.py`
+outside target/enclosing Git roots. The complete argument list is the operator's
+explicit command allowlist. Native/worker byte hashes and reviewed installation
+digest, private home/working directory, deadline, output/CPU/memory/process
+limits and target exclusions are bound into the setup action. Broker code must
+actually enforce no egress, no credentials/private mounts, read-only installation
+and target separation plus resource limits. A Windows Job or POSIX process group
+provides lifetime cleanup; it does not implement those isolation guarantees.
+
+`authorize_sandbox_test` requires actual protected approval and a satisfied
+`validation_isolation` assessment for invariant `validation.sandbox`, matching
+the exact source/profile/setup. Host code must verify the controls before issuing
+this receipt. JSON consent or an operator-supplied digest alone is insufficient.
+The worker receives only the vetted code, fixed synthetic inputs, resource
+contract and correlation digests. No host issuance interface, raw history,
+repository mount, ambient environment keys or agent-selected command reaches it.
+Scopes are short-lived and single-use. Source/installation drift, expired scope,
+timeouts, malformed/partial answers, output overflow and cancellation prevent
+successful closure. Output contains measured booleans rather than a worker verdict.
+
+`validate_finding_sandboxed` currently supports `synthetic_path_boundary` and
+`PATH_PROPERTY_DIGEST`. It retains the actual `SandboxTestRun` digest in the
+finding. `verify_source_fix` repeats the original failing code before executing
+the exact proposed candidate bytes with unchanged test bytes, actor, profile and
+runtime. It retains benign regressions and false allows. A known canonical fix
+has a reviewed non-widening relation to the prefix bug across all supported
+canonical lexical inputs; changed semantics beyond those templates remain unknown.
+The result is `fixed-verified`, `still-vulnerable` or `inconclusive` within this
+finite source/test domain, with no automatic application or integration.
+
+Local process tests use a fake approved broker and constrained synthetic code.
+They measure worker behavior and cleanup; they do not independently establish a
+physical sandbox. Live broker verification, broader vulnerability predicates,
+full affected safety/unit/integration suites and release acceptance remain open.

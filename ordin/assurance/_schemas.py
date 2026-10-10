@@ -250,7 +250,12 @@ FINDING = artifact(
     verification_method=choice("none", "static", "replay", "sandboxed_test", "host_observation"),
     validation_digest=nullable(DIGEST),
     verification_scope=nullable(
-        choice("static_references", "gate_authority_subset", "observed_contract_authorization")
+        choice(
+            "static_references",
+            "gate_authority_subset",
+            "observed_contract_authorization",
+            "synthetic_path_boundary",
+        )
     ),
     proof_gaps=array(text()),
     safe_reproducer_ref=nullable(ID),
@@ -563,6 +568,7 @@ HOST_ASSESSMENT = artifact(
         "scanner_isolation",
         "semantic_hosted_scope",
         "semantic_local_scope",
+        "validation_isolation",
     ),
     status=choice("satisfied", "violated", "unsupported", "inconclusive"),
     contract_id=nullable(ID),
@@ -971,9 +977,13 @@ FINDING_VALIDATION = artifact(
     proof_gaps=array(text(), 64),
     safe_reproducer_ref=nullable(ID),
     tested_scope=choice(
-        "static_references", "gate_authority_subset", "observed_contract_authorization"
+        "static_references",
+        "gate_authority_subset",
+        "observed_contract_authorization",
+        "synthetic_path_boundary",
     ),
     contract_authorization_digest=nullable(DIGEST),
+    sandbox_test_digest=nullable(DIGEST),
     limitations=array(text(), 16),
     source_key=DIGEST,
     advisory_only={"type": "boolean", "const": True},
@@ -1043,7 +1053,75 @@ CONTRACT_AUTHORIZATION = artifact(
     authorization_scope={"type": "string", "const": "entire_contract"},
 )
 
+SYNTHETIC_PATH_CASE = obj(case_id=ID, path=text(256), root=text(256))
+SYNTHETIC_PATH_SUITE = artifact(
+    "assurance_synthetic_path_suite",
+    suite_id=ID,
+    cases=array(SYNTHETIC_PATH_CASE, 32),
+)
+VETTED_PROGRAM = artifact(
+    "assurance_vetted_program",
+    repository=REPOSITORY,
+    source=SOURCE,
+    program_digest=DIGEST,
+    predicate={"type": "string", "const": "synthetic_path_boundary"},
+)
+SANDBOX_TEST = artifact(
+    "assurance_sandbox_test",
+    request_digest=DIGEST,
+    source_digest=DIGEST,
+    suite_digest=DIGEST,
+    runtime_digest=DIGEST,
+    source_key=DIGEST,
+    setup_digest=DIGEST,
+    status=choice(
+        "completed",
+        "refused",
+        "unavailable",
+        "timeout",
+        "canceled",
+        "output_limit",
+        "malformed",
+        "error",
+    ),
+    exit_code=nullable({"type": "integer", "minimum": -2147483648, "maximum": 4294967295}),
+    results=array(obj(case_digest=DIGEST, expected=BOOLEAN, actual=BOOLEAN), 32),
+    stdout_digest=DIGEST,
+    stderr_digest=DIGEST,
+    stdout_bytes=COUNT,
+    stderr_bytes=COUNT,
+    elapsed_ms=MILLISECONDS,
+    proof_gaps=array(text(), 32),
+    authority_origin={"type": "string", "const": "protected_sandbox_test"},
+    advisory_only={"type": "boolean", "const": True},
+)
+
+SOURCE_FIX = artifact(
+    "assurance_source_fix",
+    proposal_digest=DIGEST,
+    original_validation_digest=DIGEST,
+    original_run_digest=nullable(DIGEST),
+    candidate_run_digest=nullable(DIGEST),
+    repository_before=REPOSITORY,
+    repository_after=REPOSITORY,
+    original_source_digest=DIGEST,
+    candidate_source_digest=DIGEST,
+    suite_digest=DIGEST,
+    result=choice("fixed-verified", "still-vulnerable", "inconclusive"),
+    authority_delta=choice("unchanged", "narrowed", "widened", "unknown"),
+    benign_regressions=COUNT,
+    false_allows=COUNT,
+    proof_gaps=array(text(), 32),
+    tested_scope={"type": "string", "const": "synthetic_path_boundary"},
+    integrated={"type": "boolean", "const": False},
+    limitations=array(text(), 16),
+)
+
 SCHEMAS = {
+    "assurance_source_fix": SOURCE_FIX,
+    "assurance_synthetic_path_suite": SYNTHETIC_PATH_SUITE,
+    "assurance_vetted_program": VETTED_PROGRAM,
+    "assurance_sandbox_test": SANDBOX_TEST,
     "assurance_contract_authorization": CONTRACT_AUTHORIZATION,
     "assurance_source_patch": SOURCE_PATCH_PROPOSAL,
     "assurance_remediation_proposal": REMEDIATION_PROPOSAL,
@@ -1087,6 +1165,7 @@ SCHEMAS = {
     "assurance_model_evidence": MODEL,
 }
 SHAPES = {
+    "synthetic_path_case": SYNTHETIC_PATH_CASE,
     "finding_rubric": FINDING_RUBRIC,
     "diff_file": DIFF_FILE,
     "imported_location": IMPORTED_LOCATION,

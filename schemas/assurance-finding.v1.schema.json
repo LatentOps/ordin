@@ -548,7 +548,8 @@
           "enum": [
             "static_references",
             "gate_authority_subset",
-            "observed_contract_authorization"
+            "observed_contract_authorization",
+            "synthetic_path_boundary"
           ],
           "type": "string"
         },
