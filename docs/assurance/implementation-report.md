@@ -27,7 +27,7 @@
 | M5 | expanded_challengers_verified_dependent_gates_open | Ten-property suite, 320 generated fixtures, 244 assessed / 76 unresolved; 172 seeded failures / 80 minimized replayed records; final source gate 200 passed / 1 POSIX skip; protocol compatibility 98 passed, broader core compatibility 79 passed; pinned wheel/doctor/metadata and SDK/CLI parity pass; dependent/optional gates remain open |
 | M6 | graph_flow_sdk_verified_cross_agent_added | Bounded graph/source-flow SDK; original gate 230 passed / 1 POSIX skip; authenticated M7 cross-agent composition added; combined gate 258 passed / 1 POSIX skip; new wheel pending |
 | M7 | sdk_lifecycle_verified_release_gates_open | Full-domain containment, private issuance/revocation, current use tickets, per-child sessions and cross-agent graphs; source gate 258 passed / 1 POSIX skip; core compatibility 140 passed / 1 skip; pinned example/graph/wheel/doctor/metadata pass; external enforcement/release gates remain open |
-| M8 | offline_import_verified_live_wrapper_pending | Pinned JSON/SARIF, claims/coverage/integrity, source-backed draft conversion and redacted CLI; source gate 294 passed / 1 POSIX skip; core/parity gate 19 passed; core/adapter wheel/doctor/metadata checks pass; scanner/diff/CI slice pending |
+| M8 | offline_sdk_mock_diff_verified_live_boundary_unverified | Pinned importer, explicit scanner selection/configuration/consent/isolation, fake-process tests, offline source/authority diff and optional private CI example; source gate 335 passed / 1 POSIX skip; core compatibility 47 passed / 2 skips; fresh wheels follow; real scanner/host isolation/CI unverified |
 | M9 | not_started | Optional mock/TypeSafe/Laya evidence |
 | M10 | not_started | Finding validation and patch-risk verification |
 | M11 | not_started | Complete CLI/API/docs/examples |
@@ -682,13 +682,78 @@ or model package is loaded. Both wheel/sdist pairs pass twine metadata checks.
 Capture/check helpers pass Linux-target mypy. All checkpoint handles are terminal;
 the optional live wrapper/diff/CI work remains M8 scope, not claimed complete.
 
+## M8 scanner wrapper, deterministic diff and optional private CI
+
+The optional scanner SDK pins native runtime/entrypoint/helper locations and
+hashes, inspects the actual version/help/metadata, requires immutable base/target
+Git objects, rejects unreviewed or changed configuration, and binds upload consent
+and actual protected host isolation assessment to that exact action. The broker
+must enforce read-only target, immutable installation/configuration, private
+state, credential routing, executable/MCP/hook restrictions and approved service
+egress. Those receipts cannot be restored from JSON; the SDK creates no physical
+sandbox or credentials. The current live command contract is pinned to 0.2.0.
+
+Fixed subprocess arrays use `shell=False`, isolated environment, bounded output/
+deadlines and cancellation. Windows starts suspended, joins a kill-on-close job
+and then resumes; POSIX uses a process session, with no POSIX execution result on
+this host. Ordinary descendants end after timeout/cancel/overflow and normal
+completion. Native exit 1 with a complete matched import remains severity
+violation. Partial/unknown/malformed exports never become success. Routine
+reports retain actual exit states and hashes/counts without raw source/tokens.
+The separate adapter exposes this API as `ordin_codex_security.provider`.
+
+Offline `triage_source_diff`/`source diff` compare authorized bounded snapshots,
+profiles and optional typed policy/authority. Protected surfaces, new subprocess/
+network/tool syntax, enforcement/MCP/host boundary and dependency changes require
+review. Authority deltas reuse the existing full-domain comparator; unsupported
+algebra and inspection gaps remain partial. Documentation-only and policy-only
+fixtures are distinct. These finite heuristics can miss aliases/dynamic dispatch
+and prove neither reachability nor exploitation. Profiles remain inspection
+data. `codex mock` preserves 0/1/2/130/143 without launching a process.
+
+The private CI example remains outside active workflows. It permits only an
+explicitly approved manual source upload on private protected main/environment,
+with a separately installed pinned scanner/Ordin and ephemeral isolated runner.
+It retains redacted advisory JSON with three-day private retention and propagates
+severity/incomplete/interrupted/timeout states after import. The local workflow
+guard passes; no remote workflow/scanner/upload was enabled or run.
+
+Actual checks:
+
+| Gate | Result |
+| --- | --- |
+| Fake-process consent/isolation recheck, `.assurance-work/m8-scanner-receipt-recheck` | 21 passed, 13.51 s |
+| Final scanner/diff/contract focus, `.assurance-work/m8-scanner-diff-reviewed-gate` | 42 passed, 23.35 s |
+| Diff/inventory/contract recheck, `.assurance-work/m8-diff-valid-network-recheck` | 30 passed, 5.59 s |
+| Full Assurance/audit, `.assurance-work/m8-final-scanner-diff-source-gate` | 335 passed, 1 POSIX skip, 142.05 s |
+| Existing API/agent/schema/security/Codex compatibility, `.assurance-work/m8-scanner-core-compatibility` | 47 passed, 2 skips, 13.35 s |
+| Linux-target mypy, Assurance/adapter/example/wheel helper | 35 files clean; capture helper also clean |
+| Ruff/diff/workflow checks | Passed |
+| Synthetic `examples.assurance.source_diff` | Documentation edit and new subprocess sink separately flagged; no target execution |
+| Actual `codex mock --exit-code 1` CLI | Exit 1, advisory severity-violation JSON, no process/network |
+
+The initial sandbox run could not pin Windows user/runtime ancestors (20 setup
+errors); authorized local tests with Windows handle access reached the cases.
+The wrong fixture assessment kind was replaced by an explicit scanner-isolation
+kind. A widening fixture initially supplied unknown protocol/access and correctly
+returned unsupported; it now supplies supported TCP/write rights, while unknown
+rights remain unsupported/partial. No validator/resource limit was weakened.
+Parity totals **29 Assurance contracts / 69 registered schemas**. The fresh core
+wheel/doctor passes with SDK socket/subprocess creation rejected; both core and
+adapter wheel/sdist pairs pass twine. The adapter's new smoke initially used an
+incorrect loader name; its corrected fresh environment passes namespace/provider,
+mock and pinned-schema imports with network/process creation rejected. Eight
+adapter package files match source bytes. Source-pinned captures follow.
+See [the integration contract](codex-security-integration.md).
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
   Assurance system. M3 acceptance gates remain open; M4 simulator is functional;
   M5 has expanded generated properties, M6 has graph/source-flow SDKs and M7
   has delegation/lifecycle integration. Dependent provider/optional proof work
-  and remaining M8–M12 work is incomplete. All AT-01–AT-35 require
+  and remaining M9–M12/release work is incomplete. M8 live scanner/host isolation
+  remains unverified. All AT-01–AT-35 require
   integrated implementation and current evidence before overall completion.
 - `ApprovedSecurityProfile` now has a protected selection loader/compiler.
   Host-declared filesystem guarantees/mappings still require actual external
@@ -714,12 +779,11 @@ installation, publication or deployment.
 ## Next implementation actions
 
 Retain the completed full-suite failures/skips and verify the audit fixes at the
-next full release gate. Resolve end-to-end latency without weakening the declared budget. The next
-independent feature is M6 bounded evidence/attack-path reconstruction and source
-flow assessment, followed by M7–M12. Same-host graph/source-flow SDK work is now
-verified; M7 containment/lifecycle and authenticated cross-agent graphs are now
-implemented. The next independent feature is M8 strict offline Codex Security
-JSON/SARIF import before any optional scanner wrapper. Keep dependent M5 provider checks,
+next full release gate. Resolve end-to-end latency without weakening the declared
+budget. M6 graph/source-flow, M7 delegation/lifecycle and M8 importer, scanner
+wrapper, fake-process gates and offline diff/CI example are implemented. Live
+external scanner/runner behavior is unverified. The next independent feature is
+M9 optional semantic providers and risk routing. Keep dependent M5 provider checks,
 optional finite solver/promotion work and the release gates open; expanded
 generated checks are not proof of the full objective.
 Carry the existing Windows shell/latency/SQLite failures into the compatibility

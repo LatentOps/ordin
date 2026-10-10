@@ -57,7 +57,20 @@ _SKIP_DIRS = {
     "dist",
 }
 _SECRET_FILES = {".env", ".npmrc", ".pypirc", "credentials", "id_rsa", "id_ed25519"}
-_SOURCE_SUFFIXES = {".py", ".js", ".ts", ".jsx", ".tsx", ".md", ".json", ".toml", ".yaml", ".yml"}
+_SOURCE_SUFFIXES = {
+    ".py",
+    ".js",
+    ".ts",
+    ".jsx",
+    ".tsx",
+    ".md",
+    ".json",
+    ".toml",
+    ".yaml",
+    ".yml",
+    ".txt",
+    ".lock",
+}
 _SYMBOL = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]{0,127}$")
 _SINKS = {
     "subprocess.run": "subprocess.execute",

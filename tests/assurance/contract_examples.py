@@ -22,6 +22,8 @@ from ordin.assurance.delegation import (
 )
 from ordin.assurance.delegating_gate import DelegatingAssuranceGate
 from ordin.assurance.codex_security import import_codex_json
+from ordin.assurance.codex_security.scanner import mock_scanner_run
+from ordin.assurance.diff_triage import triage_source_diff
 from ordin.runtime_boundary import RuntimeCapabilityBoundary
 from ordin.assurance.origins import (
     register_instruction_origin,
@@ -49,6 +51,8 @@ def assurance_contract_examples(tmp_path):
         "/fixture/payment",
     )
     inventory = inventory_repository(scope)
+    samples["assurance_scanner_run"] = mock_scanner_run().as_dict()
+    samples["assurance_diff_triage"] = triage_source_diff(scope, scope).as_dict()
     model = build_threat_model(scope, inventory)
     approved = approve(selected(tmp_path, config_profile()))
     source = HostEvidenceSource(

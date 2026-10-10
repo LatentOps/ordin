@@ -38,7 +38,8 @@
     "kind": {
       "enum": [
         "source_flow_guard",
-        "delegated_authority_subset"
+        "delegated_authority_subset",
+        "scanner_isolation"
       ],
       "type": "string"
     },

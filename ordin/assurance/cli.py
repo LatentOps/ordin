@@ -169,6 +169,30 @@ def _parser() -> argparse.ArgumentParser:
         help="explicit sensitive vendor capture; keep output private",
     )
     imported.add_argument("--report")
+    mock = codex.add_parser(
+        "mock", help="offline synthetic scanner state; no executable or credentials"
+    )
+    mock.add_argument("--exit-code", type=int, choices=(0, 1, 2, 130, 143), default=0)
+    mock.add_argument(
+        "--completeness", choices=("complete", "partial", "unknown"), default="complete"
+    )
+    mock.add_argument("--report")
+    source = groups.add_parser("source").add_subparsers(dest="command", required=True)
+    triage = source.add_parser(
+        "diff", help="read-only snapshot heuristics and deterministic authority deltas"
+    )
+    triage.add_argument("--baseline-root", required=True)
+    triage.add_argument("--candidate-root", required=True)
+    triage.add_argument("--repository", required=True)
+    triage.add_argument("--baseline-revision", required=True)
+    triage.add_argument("--candidate-revision", required=True)
+    triage.add_argument("--virtual-root", required=True)
+    triage.add_argument("--baseline-policy")
+    triage.add_argument("--candidate-policy")
+    triage.add_argument("--baseline-profile")
+    triage.add_argument("--candidate-profile")
+    triage.add_argument("--include-details", action="store_true")
+    triage.add_argument("--report")
     return parser
 
 
@@ -186,6 +210,57 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "reason_code": "assurance.profile_content_valid",
             }
             code = PASS
+        elif args.group == "source":
+            from .diff_triage import triage_source_diff
+            from .inventory import AuthorizedRepository
+            from .models import RepositoryScope
+
+            triaged = triage_source_diff(
+                AuthorizedRepository(
+                    Path(args.baseline_root).absolute(),
+                    RepositoryScope(args.repository, args.baseline_revision),
+                    args.virtual_root,
+                ),
+                AuthorizedRepository(
+                    Path(args.candidate_root).absolute(),
+                    RepositoryScope(args.repository, args.candidate_revision),
+                    args.virtual_root,
+                ),
+                baseline_policy=SimulationPolicy.from_dict(_read(args.baseline_policy))
+                if args.baseline_policy
+                else None,
+                candidate_policy=SimulationPolicy.from_dict(_read(args.candidate_policy))
+                if args.candidate_policy
+                else None,
+                baseline_profile=SecurityProfile.from_dict(_read(args.baseline_profile))
+                if args.baseline_profile
+                else None,
+                candidate_profile=SecurityProfile.from_dict(_read(args.candidate_profile))
+                if args.candidate_profile
+                else None,
+            )
+            packet = triaged.as_dict() if args.include_details else triaged.public_dict()
+            code = (
+                SECURITY_REGRESSION
+                if triaged.policy_authority_delta == "widened"
+                else PARTIAL_OR_MALFORMED
+                if triaged.completeness != "complete"
+                else PASS
+            )
+        elif args.group == "codex" and args.command == "mock":
+            from .codex_security.scanner import mock_scanner_run
+
+            mocked = mock_scanner_run(exit_code=args.exit_code, completeness=args.completeness)
+            packet = mocked.as_dict()
+            code = (
+                args.exit_code
+                if args.exit_code in {130, 143}
+                else PASS
+                if mocked.status == "completed"
+                else SECURITY_REGRESSION
+                if mocked.status == "severity_violation"
+                else PARTIAL_OR_MALFORMED
+            )
         elif args.group == "codex":
             from .codex_security import ImportScope, import_codex_json, import_sarif
             from .models import RepositoryScope

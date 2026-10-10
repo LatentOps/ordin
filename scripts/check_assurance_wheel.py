@@ -122,6 +122,13 @@ assert not delegating.commit_use(delegated_read, delegated_read.assurance.review
 from ordin.assurance.codex_security import ImportScope, import_codex_json, import_sarif
 scan_root = Path.cwd() / "wheel-saved-scan"
 scan_root.mkdir()
+from ordin.assurance.codex_security.scanner import mock_scanner_run
+from ordin.assurance.diff_triage import triage_source_diff
+from ordin.assurance import AuthorizedRepository
+assert mock_scanner_run(exit_code=1).status == "severity_violation"
+diff_scope = AuthorizedRepository(scan_root.resolve(), RepositoryScope("fixture/wheel-diff", "snapshot-1"), "/fixture")
+diff_report = triage_source_diff(diff_scope, diff_scope)
+assert diff_report.advisory_only and not diff_report.review_required
 scan_findings = {"documentType":"codex-security.findings","schemaVersion":"1.0","scanId":"wheel-scan","findings":[]}
 scan_coverage = {"documentType":"codex-security.coverage","schemaVersion":"1.0","scanId":"wheel-scan","mode":"repository",
     "completeness":"partial","inventoryStrategy":"repository","includePaths":["."],"excludePaths":[],"surfaces":[],"explicitExclusions":[],
@@ -192,6 +199,9 @@ def run(wheel: Path, environment: Path) -> dict:
             "ordin/assurance/codex_security/importer.py",
             "ordin/assurance/codex_security/sarif.py",
             "ordin/assurance/codex_security/_validation.py",
+            "ordin/assurance/codex_security/scanner.py",
+            "ordin/assurance/codex_security/_process_tree.py",
+            "ordin/assurance/diff_triage.py",
             "ordin/resources/codex_security/findings.schema.json",
         }
         if not required <= names:

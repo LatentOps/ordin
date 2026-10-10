@@ -1,0 +1,203 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-scanner-run.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 20,
+  "properties": {
+    "completeness": {
+      "enum": [
+        "complete",
+        "partial",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "elapsed_ms": {
+      "maximum": 86400000,
+      "minimum": 0,
+      "type": "number"
+    },
+    "entrypoint_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "executable_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "exit_code": {
+      "anyOf": [
+        {
+          "maximum": 4294967295,
+          "minimum": -2147483648,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "expected_cli_version": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+      "type": "string"
+    },
+    "imported_report_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "invocation_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
+    "model_or_network_enabled": {
+      "type": "boolean"
+    },
+    "observed_cli_version": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "operation": {
+      "enum": [
+        "inspect",
+        "dry_run",
+        "scan",
+        "export",
+        "mock"
+      ],
+      "type": "string"
+    },
+    "repository_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "run_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_scanner_run.v1",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "severity_violation",
+        "incomplete",
+        "unavailable",
+        "version_mismatch",
+        "timeout",
+        "canceled",
+        "output_limit",
+        "error"
+      ],
+      "type": "string"
+    },
+    "stderr_bytes": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "stderr_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "stdout_bytes": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "stdout_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "run_id",
+    "operation",
+    "status",
+    "exit_code",
+    "executable_digest",
+    "entrypoint_digest",
+    "invocation_digest",
+    "repository_digest",
+    "stdout_digest",
+    "stderr_digest",
+    "stdout_bytes",
+    "stderr_bytes",
+    "expected_cli_version",
+    "observed_cli_version",
+    "elapsed_ms",
+    "imported_report_digest",
+    "completeness",
+    "model_or_network_enabled",
+    "limitations"
+  ],
+  "title": "Ordin assurance scanner run v1",
+  "type": "object"
+}

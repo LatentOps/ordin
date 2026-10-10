@@ -25,5 +25,8 @@ are untrusted claim data. Source references and sealed content hashes can be
 verified, but never confer execution permission or finding confirmation.
 
 See [the main integration documentation](../../docs/assurance/codex-security-integration.md)
-for the supported import contract and privacy limits. Live scanner invocation,
-diff triage and the optional CI example remain subsequent M8 work.
+for the import contract, host-only scanner API, configuration/isolation review,
+offline diff triage and privacy limits. `ordin_codex_security.provider` reexports
+the optional wrapper; importing it never starts a process. The optional
+`examples/private-diff-scan.yml` is outside active workflows and requires a
+separately reviewed private runner, protected environment and installation.
