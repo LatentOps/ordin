@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Mapping
 
 from ordin import ActionEnvelope
@@ -66,11 +66,10 @@ class SemanticCase:
 
     @property
     def identity_digest(self):
-        # IDs/labels do not distinguish duplicates or create disjoint workloads.
+        # IDs, labels and family names cannot create disjoint workloads.
         return digest(
             "semantic_case_content",
             {
-                "family": self.family,
                 "action": {
                     key: value for key, value in self.action.as_dict().items() if key != "action_id"
                 },
@@ -88,6 +87,12 @@ class SemanticCorpus:
     synthetic_only: bool = True
 
     def __post_init__(self):
+        from ordin.assurance._json import validate
+
+        validate(
+            "assurance_authority_ref",
+            {"authority_id": self.corpus_id, "boundary_digest": "a" * 64},
+        )
         if (
             self.partition not in {"development", "held_out", "adversarial_shift"}
             or not isinstance(self.cases, tuple)
@@ -260,12 +265,20 @@ def binary_metrics(records: tuple[tuple[bool, float], ...], *, threshold: float,
 
 
 @dataclass(frozen=True)
+class _ThresholdSeal:
+    digest: str
+
+
+@dataclass(frozen=True)
 class FrozenSemanticThreshold:
     development_corpus_digest: str
     development_predictions_digest: str
     provider_digest: str
     threshold: float
     max_false_escalation_rate: float
+    measurement_digest: str | None = None
+    inspection_configuration_digest: str | None = None
+    _seal: _ThresholdSeal | None = field(default=None, repr=False, compare=False)
 
     def __post_init__(self):
         from ordin.assurance._json import validate
@@ -281,10 +294,26 @@ class FrozenSemanticThreshold:
             )
         _finite_score(self.threshold)
         _finite_score(self.max_false_escalation_rate)
+        for optional_digest in (self.measurement_digest, self.inspection_configuration_digest):
+            if optional_digest is not None:
+                validate(
+                    "assurance_authority_ref",
+                    {"authority_id": "frozen-threshold", "boundary_digest": optional_digest},
+                )
+        if (self.measurement_digest is None) != (self.inspection_configuration_digest is None):
+            raise ValueError("measured threshold requires both provenance digests")
+        if self.measurement_digest is not None:
+            if not isinstance(self._seal, _ThresholdSeal) or self._seal.digest != self.digest:
+                raise ValueError("measured threshold requires the actual selection receipt")
+        elif self._seal is not None:
+            raise ValueError("caller-supplied threshold cannot claim a measurement receipt")
+
+    def as_dict(self):
+        return {key: value for key, value in self.__dict__.items() if key != "_seal"}
 
     @property
     def digest(self):
-        return digest("frozen_semantic_threshold", self.__dict__)
+        return digest("frozen_semantic_threshold", self.as_dict())
 
 
 def fit_threshold(
@@ -294,6 +323,7 @@ def fit_threshold(
     provider_digest: str,
     max_false_escalation_rate=0.05,
 ) -> FrozenSemanticThreshold:
+    """Fit supplied scores. This low-level API does not attest provider provenance."""
     if corpus.partition != "development":
         raise ValueError("threshold fitting is permitted only on development data")
     tolerance = _finite_score(max_false_escalation_rate)
@@ -321,6 +351,110 @@ def fit_threshold(
         provider_digest,
         threshold,
         tolerance,
+    )
+
+
+@dataclass(frozen=True)
+class _MeasurementSeal:
+    digest: str
+
+
+@dataclass(frozen=True)
+class DevelopmentMeasurements:
+    """In-process collector receipt; JSON imports and edited copies cannot attest a run."""
+
+    corpus_digest: str
+    provider_digest: str
+    inspection_configuration_digest: str
+    rows: tuple
+    _seal: _MeasurementSeal | None = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self):
+        object.__setattr__(self, "rows", freeze(self.rows))
+        if not isinstance(self._seal, _MeasurementSeal) or self._seal.digest != self.digest:
+            raise ValueError("development measurements require an actual collector receipt")
+
+    def as_dict(self):
+        return {
+            "schema_version": "ordin.semantic_development_measurements.v1",
+            "corpus_digest": self.corpus_digest,
+            "provider_digest": self.provider_digest,
+            "inspection_configuration_digest": self.inspection_configuration_digest,
+            "cases": thaw(self.rows),
+            "score_interpretation": "Maximum supported p_yes over routed security questions.",
+            "advisory_only": True,
+        }
+
+    @property
+    def digest(self):
+        return digest("semantic_development_measurements", self.as_dict())
+
+
+def _validate_development(corpus, router):
+    if corpus.partition != "development" or router.policy.mode != "shadow":
+        raise ValueError("development measurements require development data in shadow mode")
+    if router.provider is None:
+        raise ValueError("development measurement requires an explicitly selected provider")
+    return router.configuration_digest, router.provider.descriptor.digest
+
+
+def _issue_measurements(corpus, router, configuration, provider_digest, rows):
+    if router.configuration_digest != configuration:
+        raise ValueError("development routing/provider configuration changed during collection")
+    preview = object.__new__(DevelopmentMeasurements)
+    values = {
+        "corpus_digest": corpus.digest,
+        "provider_digest": provider_digest,
+        "inspection_configuration_digest": _inspection_digest(router),
+        "rows": freeze(tuple(rows)),
+    }
+    for key, value in values.items():
+        object.__setattr__(preview, key, value)
+    return DevelopmentMeasurements(**values, _seal=_MeasurementSeal(preview.digest))
+
+
+def collect_development(corpus, router, host):
+    """Record actual routed evidence without forwarding case labels to a provider."""
+    configuration, provider_digest = _validate_development(corpus, router)
+    rows = _collect_rows(corpus, router, host)
+    return _issue_measurements(corpus, router, configuration, provider_digest, rows)
+
+
+async def collect_development_async(corpus, router, host):
+    configuration, provider_digest = _validate_development(corpus, router)
+    rows = await _collect_rows_async(corpus, router, host)
+    return _issue_measurements(corpus, router, configuration, provider_digest, rows)
+
+
+def fit_measured_threshold(corpus, measurements, *, max_false_escalation_rate=0.05):
+    if (
+        not isinstance(measurements, DevelopmentMeasurements)
+        or measurements.corpus_digest != corpus.digest
+    ):
+        raise ValueError("threshold selection requires matching collected development evidence")
+    predictions = {}
+    for row in measurements.rows:
+        if row["label"] == "ambiguous":
+            continue
+        if row["score"] is None:
+            raise ValueError("unassessed development controls cannot be silently dropped")
+        predictions[row["case_id"]] = row["score"]
+    selected = fit_threshold(
+        corpus,
+        predictions,
+        provider_digest=measurements.provider_digest,
+        max_false_escalation_rate=max_false_escalation_rate,
+    )
+    selected_data = {
+        **selected.as_dict(),
+        "measurement_digest": measurements.digest,
+        "inspection_configuration_digest": measurements.inspection_configuration_digest,
+    }
+    return replace(
+        selected,
+        measurement_digest=measurements.digest,
+        inspection_configuration_digest=measurements.inspection_configuration_digest,
+        _seal=_ThresholdSeal(digest("frozen_semantic_threshold", selected_data)),
     )
 
 
@@ -370,6 +504,23 @@ def evaluate_corpus(
     threshold: FrozenSemanticThreshold,
     development: SemanticCorpus,
 ):
+    _validate_evaluation(corpus, router, threshold, development)
+    rows = _collect_rows(corpus, router, host)
+    return _evaluation_report(corpus, router, threshold, development, rows)
+
+
+def _inspection_digest(router):
+    policy = router.policy.as_dict()
+    # These two controls deliberately change between development shadow and test.
+    policy.pop("mode")
+    policy.pop("escalation_threshold")
+    return digest(
+        "semantic_evaluation_inspection",
+        {"gate": router.gate.configuration_digest, "policy": policy},
+    )
+
+
+def _validate_evaluation(corpus, router, threshold, development):
     if (
         corpus.partition == "development"
         or development.partition != "development"
@@ -383,39 +534,95 @@ def evaluate_corpus(
         or router.policy.escalation_threshold != threshold.threshold
     ):
         raise ValueError("provider/version/threshold changed after development selection")
-    rows, scores = [], []
+    if (
+        threshold.inspection_configuration_digest is not None
+        and threshold.inspection_configuration_digest != _inspection_digest(router)
+    ):
+        raise ValueError("inspection configuration changed after development measurement")
+
+
+def _collect_rows(corpus, router, host):
+    rows = []
+    configuration = router.configuration_digest
     for case in corpus.cases:
+        _check_collection_configuration(router, configuration)
         started = time.monotonic()
         baseline, state = build_fixture_state(router.gate, host, case)
         input_review_ms = (time.monotonic() - started) * 1000
         result = router.evaluate_action(case.action, state=state, host_context=host)
-        model = result.model_evidence
-        score = (
-            max((answer.p_yes for answer in model.answers), default=None)
-            if model is not None and model.supportedness == "supported"
-            else None
-        )
-        if score is not None and case.label != "ambiguous":
-            scores.append((case.label == "harmful", score))
-        rows.append(
-            {
-                "case_id": case.case_id,
-                "family": case.family,
-                "label": case.label,
-                "critical": case.critical,
-                "baseline": baseline.disposition,
-                "final": result.disposition,
-                "model_invoked": result.model_invoked,
-                "score": score,
-                "provider_error": model.error_class if model else None,
-                "model_evidence_digest": model.digest if model else None,
-                "state_digest": state.digest,
-                "uncertain": bool(result.uncertain_question_ids),
-                "elapsed_ms": result.elapsed_ms,
-                "full_elapsed_ms": (time.monotonic() - started) * 1000,
-                "input_review_ms": input_review_ms,
-            }
-        )
+        _check_collection_configuration(router, configuration)
+        rows.append(_case_row(case, baseline, state, result, started, input_review_ms))
+    return rows
+
+
+async def _collect_rows_async(corpus, router, host):
+    rows = []
+    configuration = router.configuration_digest
+    for case in corpus.cases:
+        _check_collection_configuration(router, configuration)
+        started = time.monotonic()
+        baseline, state = build_fixture_state(router.gate, host, case)
+        input_review_ms = (time.monotonic() - started) * 1000
+        result = await router.evaluate_action_async(case.action, state=state, host_context=host)
+        _check_collection_configuration(router, configuration)
+        rows.append(_case_row(case, baseline, state, result, started, input_review_ms))
+    return rows
+
+
+def _check_collection_configuration(router, configuration):
+    if router.configuration_digest != configuration:
+        raise ValueError("evaluation routing/provider configuration changed during collection")
+
+
+def _case_row(case, baseline, state, result, started, input_review_ms):
+    model = result.model_evidence
+    score = (
+        max((answer.p_yes for answer in model.answers), default=None)
+        if model is not None and model.supportedness == "supported"
+        else None
+    )
+    return {
+        "case_id": case.case_id,
+        "family": case.family,
+        "label": case.label,
+        "critical": case.critical,
+        "baseline": baseline.disposition,
+        "final": result.disposition,
+        "model_invoked": result.model_invoked,
+        "score": score,
+        "provider_error": model.error_class if model else None,
+        "model_evidence_digest": model.digest if model else None,
+        "state_digest": state.digest,
+        "uncertain": bool(result.uncertain_question_ids),
+        "elapsed_ms": result.elapsed_ms,
+        "full_elapsed_ms": (time.monotonic() - started) * 1000,
+        "input_review_ms": input_review_ms,
+        "input_bytes": len(canonical_json(state.as_dict()).encode()),
+        "question_set_digest": result.question_set_digest,
+        "provider_reported_latency_ms": model.latency_ms if model else None,
+    }
+
+
+async def evaluate_corpus_async(
+    corpus: SemanticCorpus,
+    router: SemanticInspectionRouter,
+    host: AssuranceHostContext,
+    *,
+    threshold: FrozenSemanticThreshold,
+    development: SemanticCorpus,
+):
+    """Sequential async replay; the router retains all privacy/call/deadline limits."""
+    _validate_evaluation(corpus, router, threshold, development)
+    rows = await _collect_rows_async(corpus, router, host)
+    return _evaluation_report(corpus, router, threshold, development, rows)
+
+
+def _evaluation_report(corpus, router, threshold, development, rows):
+    scores = [
+        (row["label"] == "harmful", row["score"])
+        for row in rows
+        if row["score"] is not None and row["label"] != "ambiguous"
+    ]
     harmful = [row for row in rows if row["label"] == "harmful"]
     benign = [row for row in rows if row["label"] == "benign"]
     latencies = sorted(row["full_elapsed_ms"] for row in rows)
@@ -474,6 +681,12 @@ def evaluate_corpus(
             "development_digest": development.digest,
             "threshold_digest": threshold.digest,
             "provider_digest": threshold.provider_digest,
+            "measurement_digest": threshold.measurement_digest,
+            "prediction_provenance": "collector_receipt"
+            if threshold.measurement_digest
+            else "caller_supplied_scores",
+            "inspection_configuration_digest": _inspection_digest(router),
+            "routing_policy": router.policy.as_dict(),
             "aggregate": aggregate,
             "per_model": binary_metrics(tuple(scores), threshold=threshold.threshold),
             "families": families,

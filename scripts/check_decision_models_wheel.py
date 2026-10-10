@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SMOKE = r"""
-import json, socket, subprocess, sys, contextlib, io
+import json, socket, subprocess, sys, contextlib, io, hashlib
 from pathlib import Path
 def refuse(*args, **kwargs):
     raise AssertionError("optional import/default path attempted network/process")
@@ -40,10 +40,21 @@ example = json.loads(stream.getvalue())
 assert example["actions_executed"] is False and example["model_effectiveness_evaluated"] is False
 assert [r["provider_calls"] for r in example["results"]] == [0,1,1]
 assert [r["result"]["disposition"] for r in example["results"]] == ["execute","execute","escalate"]
+from ordin_decision_models.workload_demo import run_workload
+from ordin_decision_models.evaluation import evaluate_corpus_async, collect_development_async
+workload = Path(sys.argv[1])
+frozen = run_workload(workload, sys.argv[2])
+assert frozen["actions_executed"] is False and frozen["acceptance_eligible"] is False
+assert frozen["model_effectiveness_evaluated"] is False and len(frozen["reports"]) == 6
+for partition in ("held_out", "adversarial_shift"):
+    arms = {r["mode"]:r["report"] for r in frozen["reports"] if r["report"]["partition"] == partition}
+    assert arms["disabled"]["aggregate"]["provider_calls"] == 0
+    assert [r["final"] for r in arms["disabled"]["cases"]] == [r["final"] for r in arms["shadow"]["cases"]]
+    assert arms["enforced-escalation"]["aggregate"]["candidate_harmful_executable"] <= arms["disabled"]["aggregate"]["candidate_harmful_executable"]
 assert not any(name in sys.modules for name in ("laya", "torch", "transformers", "huggingface_hub"))
 print(json.dumps({"namespace_imported":True,"default_provider_calls":0,"offline_demo_passed":True,
                   "no_actions_executed":True,"heavy_model_packages_loaded":False,
-                  "network_process_calls_rejected":True}))
+                  "network_process_calls_rejected":True,"frozen_mock_workload_passed":True}))
 """
 
 
@@ -103,7 +114,16 @@ def main() -> int:
     if installed.returncode:
         raise ValueError("offline model adapter installation failed")
     checked = subprocess.run(
-        [str(interpreter), "-I", "-c", SMOKE],
+        [
+            str(interpreter),
+            "-I",
+            "-c",
+            SMOKE,
+            str(ROOT / "benchmarks/assurance/v1/semantic"),
+            hashlib.sha256(
+                (ROOT / "benchmarks/assurance/v1/semantic/manifest.json").read_bytes()
+            ).hexdigest(),
+        ],
         cwd=environment,
         capture_output=True,
         text=True,

@@ -116,3 +116,40 @@ Current verified scope is protocol/privacy/routing, fake HTTP/API and synthetic
 worker/metric behavior. Live inference/hardware, independently labeled frozen
 workloads and actual effectiveness/friction/latency acceptance remain open.
 Synthetic mock probabilities do not demonstrate threat detection.
+
+Development capture now uses `collect_development` or
+`collect_development_async` in shadow mode. Their immutable
+`DevelopmentMeasurements` receipt binds the corpus, provider and selected
+inspection configuration to actual case/evidence digests. Labels stay in the
+harness and are not forwarded to providers. `fit_measured_threshold` refuses to
+silently discard a control whose prediction failed or was skipped. It freezes
+the measured provenance plus provider/policy selection for held-out evaluation.
+The lower-level `fit_threshold` remains available for supplied numeric scores;
+reports explicitly identify that weaker provenance.
+
+`evaluate_corpus_async` uses the same metrics and complete-system accounting as
+the synchronous driver. Sequential calls preserve router limits; timeouts and
+cancellation cover host session preparation and provider inference. A protected
+host can use `AsyncProviderSessions` with an async factory to review each exact
+sanitized disclosure and return a freshly consented TypeSafe instance. The
+factory receives state/questions, not labels, action execution or raw history.
+No factory is invoked for deterministic denials or a disabled router. Provider
+descriptor drift and mid-run routing changes invalidate collection.
+
+The frozen [24-case provisional sample](../../benchmarks/assurance/v1/semantic/README.md)
+records schema versions, SHA-256, content digests, permissions, source and label
+protocol. All partition content/families are disjoint, including across renamed
+case IDs/labels/families. Its labels were authored once and are not independently
+adjudicated; it is not the full acceptance corpus and cannot establish security
+generalization. `load_frozen_workload` requires a separately selected manifest
+hash and verifies every listed artifact/count/partition before use. These hashes
+attest byte identity rather than label correctness.
+
+The installed `ordin_decision_models.workload_demo` module runs this sample with
+fixed mock values in disabled, shadow and enforced modes, using sync or explicit
+async replay. It emits redacted measurements, frozen thresholds and per-model/
+aggregate reports to a newly created file. No proposal is executed. Request
+bytes, routing policy/call budgets and input-review/router/full timings are
+visible; provider-reported latency is separately labeled. Actual model worker
+hardware/memory, hosted billing and independent effectiveness acceptance remain
+unmeasured.

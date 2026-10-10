@@ -67,6 +67,25 @@ details and limitations in the main documentation.
 disjointness checks, development-only threshold selection, per-model calibration/
 ROC/PR metrics and aggregate restrictions/coverage/friction/latency. Synthetic
 metric tests verify calculations without claiming model threat effectiveness.
+Development collectors run in shadow mode and issue immutable measurements from
+actual bound provider evidence. `fit_measured_threshold` retains those digests and
+rejects missing controls; the lower-level `fit_threshold` explicitly accepts
+caller-supplied scores without attesting their origin. Inspection configuration
+is frozen across fitting and evaluation. Async collectors/replay preserve router
+deadlines, cancellation, privacy and total call limits.
+
+`AsyncProviderSessions` lets a protected host factory create a fresh input-bound
+provider session after the router selects inference. The factory receives only
+sanitized state/questions, with no workload labels. It reviews the actual hosted
+disclosure and supplies a provider with a one-use receipt; version/configuration
+drift refuses inference. Deterministic denials never call the factory.
+
+The [frozen provisional sample](../../benchmarks/assurance/v1/semantic/README.md)
+has 24 authored cases and manifest hashes. It has no independent label review
+and cannot establish effectiveness acceptance. The installed offline driver is
+`python -I -m ordin_decision_models.workload_demo --workload ABSOLUTE_DIRECTORY
+--manifest-sha256 REVIEWED_SHA256 --output NEW_REPORT.json`, with optional
+`--async`. It uses predetermined mock answers and never executes proposals.
 `examples.py` contains opt-in local/hosted recipes requiring actual host-supplied
 scope, selected inputs and provider configuration; disabled examples do nothing.
 
