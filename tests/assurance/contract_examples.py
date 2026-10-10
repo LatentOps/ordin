@@ -43,6 +43,41 @@ def assurance_contract_examples(tmp_path):
     from .sandbox_contract_samples import sandbox_contract_samples
 
     samples.update(sandbox_contract_samples(tmp_path))
+    from ordin.assurance.offline import (
+        inspect_profile_content,
+        preview_invariants,
+        inspect_attack_path,
+        compare_delegation_data,
+        review_static_candidate,
+    )
+    from .test_validation import fixture as validation_fixture
+
+    inspection_directory = tmp_path / "offline-inspection-contracts"
+    inspection_directory.mkdir()
+    static_scope, _, static_candidate, static_review, *_ = validation_fixture(inspection_directory)
+    declared = DelegationAuthority(RuntimeCapabilityBoundary("declared-inspection"))
+    samples.update(
+        {
+            "assurance_profile_inspection": inspect_profile_content(config_profile()),
+            "assurance_invariant_preview": preview_invariants(
+                config_profile(), ActionEnvelope.shell("git status")
+            ),
+            "assurance_attack_path_inspection": inspect_attack_path(examples()[5].as_dict()),
+            "assurance_delegation_inspection": compare_delegation_data(
+                declared, declared, operator=declared, task=declared
+            ),
+            "assurance_static_finding_review": review_static_candidate(
+                static_scope, static_candidate, static_review.rubric
+            ),
+            "assurance_challenge_catalog": {
+                "schema_version": "ordin.assurance_challenge_catalog.v1",
+                "properties": ["authority_subset"],
+                "execution": "bounded_synthetic_only",
+                "proof_scope": "finite_tested_inputs",
+                "optional_providers": "not_called",
+            },
+        }
+    )
     from .test_workflow_import import bundle as workflow_bundle
     from ordin.assurance.codex_security.workflow import import_workflow_claims
 

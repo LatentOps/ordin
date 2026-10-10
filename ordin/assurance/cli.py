@@ -27,6 +27,9 @@ PARTIAL_OR_MALFORMED = 2
 
 
 def _read(path: str) -> dict:
+    if path == "-":
+        stream = getattr(sys.stdin, "buffer", sys.stdin)
+        return loads(stream.read(1_048_577))
     local = Path(path).absolute()
     return loads(read_scoped_file(local.parent, local.name, maximum=1_048_576))
 
@@ -109,6 +112,61 @@ def _parser() -> argparse.ArgumentParser:
     profile = groups.add_parser("profile").add_subparsers(dest="command", required=True)
     validate = profile.add_parser("validate", help="validate content without approving it")
     validate.add_argument("path")
+    inspect = profile.add_parser("inspect", help="inspect validated content without approving it")
+    inspect.add_argument("path")
+    inspect.add_argument("--include-details", action="store_true")
+    inspect.add_argument("--report")
+    invariants = groups.add_parser("invariants").add_subparsers(dest="command", required=True)
+    check = invariants.add_parser(
+        "check", help="data-only preview; host-dependent checks remain inconclusive"
+    )
+    check.add_argument("--profile", required=True)
+    check.add_argument("--action", required=True)
+    check.add_argument("--report")
+    attack = groups.add_parser("attack-path").add_subparsers(dest="command", required=True)
+    graph = attack.add_parser(
+        "analyze",
+        aliases=["inspect"],
+        help="inspect imported graph/source references without authenticating runtime claims",
+    )
+    graph.add_argument("--evidence", required=True)
+    graph.add_argument("--source-root")
+    graph.add_argument("--repository")
+    graph.add_argument("--revision")
+    graph.add_argument("--report")
+    delegation = groups.add_parser("delegation").add_subparsers(dest="command", required=True)
+    subset = delegation.add_parser(
+        "verify", help="compare declared maxima without issuing or restoring a grant"
+    )
+    subset.add_argument("--parent", required=True)
+    subset.add_argument("--child", required=True)
+    subset.add_argument("--operator")
+    subset.add_argument("--task")
+    subset.add_argument("--report")
+    finding = groups.add_parser("finding").add_subparsers(dest="command", required=True)
+    static = finding.add_parser(
+        "validate", help="static source review; runtime closure requires protected SDK evidence"
+    )
+    static.add_argument("--input", required=True, help="candidate/rubric JSON bundle")
+    static.add_argument("--mode", choices=("static",), default="static")
+    static.add_argument("--source-root", required=True)
+    static.add_argument("--repository", required=True)
+    static.add_argument("--revision", required=True)
+    static.add_argument("--report")
+    report = groups.add_parser("report").add_subparsers(dest="command", required=True)
+    compare = report.add_parser(
+        "compare", help="compare policy simulation reports with the same frozen corpus"
+    )
+    compare.add_argument("--before", required=True)
+    compare.add_argument("--after", required=True)
+    compare.add_argument("--report")
+    cases = groups.add_parser("counterexample").add_subparsers(dest="command", required=True)
+    counter = cases.add_parser(
+        "replay", help="replay a saved finite counterexample; never execute a proposed action"
+    )
+    counter.add_argument("path")
+    counter.add_argument("--revision", required=True)
+    counter.add_argument("--report")
     policy = groups.add_parser("policy").add_subparsers(dest="command", required=True)
     simulate = policy.add_parser(
         "simulate", help="replay independent baseline and candidate sessions"
@@ -125,6 +183,7 @@ def _parser() -> argparse.ArgumentParser:
     diff.add_argument("--candidate", required=True)
     diff.add_argument("--report")
     challenge = groups.add_parser("challenge").add_subparsers(dest="command", required=True)
+    challenge.add_parser("list", help="list the bounded property catalog and proof limits")
     run = challenge.add_parser("run", help="bounded synthetic authority-subset challenger")
     run.add_argument("--seed", type=int, required=True)
     run.add_argument("--revision", required=True)
@@ -216,6 +275,25 @@ def _parser() -> argparse.ArgumentParser:
     triage.add_argument("--candidate-profile")
     triage.add_argument("--include-details", action="store_true")
     triage.add_argument("--report")
+    visited = set()
+
+    def formats(current):
+        if id(current) in visited:
+            return
+        visited.add(id(current))
+        current.add_argument(
+            "--json", action="store_true", help="JSON is the deterministic default output"
+        )
+        if any(action.dest == "report" for action in current._actions):
+            current.add_argument(
+                "--output", dest="report", help="alias for explicit new report file"
+            )
+        for action in current._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                for child in action.choices.values():
+                    formats(child)
+
+    formats(parser)
     return parser
 
 
@@ -232,7 +310,107 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "approved": False,
                 "reason_code": "assurance.profile_content_valid",
             }
+            if args.command == "inspect":
+                from .offline import inspect_profile_content
+
+                packet = inspect_profile_content(profile, include_details=args.include_details)
             code = PASS
+        elif args.group == "invariants":
+            from ordin import ActionEnvelope
+            from .offline import preview_invariants
+
+            packet = preview_invariants(
+                SecurityProfile.from_dict(_read(args.profile)),
+                ActionEnvelope.from_dict(_read(args.action)),
+            )
+            code = (
+                SECURITY_REGRESSION
+                if packet["baseline_disposition"] == "deny"
+                or any(row["status"] == "violated" for row in packet["evaluations"])
+                else PARTIAL_OR_MALFORMED
+                if any(
+                    row["status"] in {"inconclusive", "unsupported"}
+                    for row in packet["evaluations"]
+                )
+                else PASS
+            )
+        elif args.group == "attack-path":
+            from .offline import inspect_attack_path
+            from .inventory import AuthorizedRepository
+            from .models import RepositoryScope
+
+            selected_source = None
+            if args.source_root:
+                if not args.repository or not args.revision:
+                    raise ValueError(
+                        "source graph references require explicit repository/revision mapping"
+                    )
+                selected_source = AuthorizedRepository(
+                    Path(args.source_root).absolute(),
+                    RepositoryScope(args.repository, args.revision),
+                    "/offline/source",
+                )
+            packet = inspect_attack_path(_read(args.evidence), source_scope=selected_source)
+            code = PARTIAL_OR_MALFORMED
+        elif args.group == "delegation":
+            from .offline import compare_delegation_data
+            from .delegation import DelegationAuthority
+
+            packet = compare_delegation_data(
+                DelegationAuthority.from_dict(_read(args.child)),
+                DelegationAuthority.from_dict(_read(args.parent)),
+                operator=DelegationAuthority.from_dict(_read(args.operator))
+                if args.operator
+                else None,
+                task=DelegationAuthority.from_dict(_read(args.task)) if args.task else None,
+            )
+            code = (
+                PASS
+                if packet["result"] == "within_boundary"
+                else SECURITY_REGRESSION
+                if packet["result"] == "exceeds_boundary"
+                else PARTIAL_OR_MALFORMED
+            )
+        elif args.group == "finding":
+            from .offline import review_static_candidate
+            from .inventory import AuthorizedRepository
+            from .models import RepositoryScope, SecurityFinding
+            from .validation_models import FindingRubric
+
+            candidate_input = _read(args.input)
+            if set(candidate_input) != {"candidate", "rubric"}:
+                raise ValueError("static review bundle requires exact candidate/rubric data")
+            candidate_scope = AuthorizedRepository(
+                Path(args.source_root).absolute(),
+                RepositoryScope(args.repository, args.revision),
+                "/offline/source",
+            )
+            packet = review_static_candidate(
+                candidate_scope,
+                SecurityFinding.from_dict(candidate_input["candidate"]),
+                FindingRubric.from_dict(candidate_input["rubric"]),
+            )
+            code = PARTIAL_OR_MALFORMED
+        elif args.group == "report":
+            packet, code = _diff(
+                PolicySimulationReport.from_dict(_read(args.before)),
+                PolicySimulationReport.from_dict(_read(args.after)),
+            )
+        elif args.group == "counterexample":
+            record = CounterexampleRecord.from_dict(_read(args.path))
+            outcome = replay_counterexample(record, expected_revision=args.revision)
+            packet = {
+                "record_digest": record.digest,
+                "replay_outcome": outcome,
+                "host_boundary_exercised": False,
+            }
+            code = (
+                PASS
+                if outcome == "verified_failure"
+                else SECURITY_REGRESSION
+                if outcome == "not_reproduced"
+                else PARTIAL_OR_MALFORMED
+            )
         elif args.group == "source":
             from .diff_triage import triage_source_diff
             from .inventory import AuthorizedRepository
@@ -341,7 +519,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 ):
                     code = SECURITY_REGRESSION
         elif args.group == "challenge":
-            if args.command == "run":
+            if args.command == "list":
+                packet = {
+                    "schema_version": "ordin.assurance_challenge_catalog.v1",
+                    "properties": list(REQUIRED_PROPERTIES),
+                    "execution": "bounded_synthetic_only",
+                    "proof_scope": "finite_tested_inputs",
+                    "optional_providers": "not_called",
+                }
+                code = PASS
+            elif args.command == "run":
                 if args.suite:
                     result = challenge_security_properties(
                         seed=args.seed,

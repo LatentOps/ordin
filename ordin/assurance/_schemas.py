@@ -1184,7 +1184,105 @@ WORKFLOW_IMPORT = artifact(
     origin={"type": "string", "const": "imported_claim"},
 )
 
+PROFILE_INSPECTION = artifact(
+    "assurance_profile_inspection",
+    profile_digest=DIGEST,
+    repository_digest=DIGEST,
+    assets=COUNT,
+    invariants=array(
+        obj(
+            invariant_digest=DIGEST,
+            kind=ID,
+            on_violation=choice("escalate", "block"),
+            host_authority_required=BOOLEAN,
+        )
+    ),
+    approved={"type": "boolean", "const": False},
+    activation_authorized={"type": "boolean", "const": False},
+    profile=nullable(PROFILE),
+)
+INVARIANT_PREVIEW = artifact(
+    "assurance_invariant_preview",
+    profile_digest=DIGEST,
+    action_digest=DIGEST,
+    baseline_disposition=choice("execute", "escalate", "deny"),
+    evaluations=array(
+        obj(
+            invariant_digest=DIGEST,
+            kind=ID,
+            status=choice("violated", "not_applicable", "inconclusive", "unsupported"),
+            reason_code=ID,
+            proposed_on_violation=choice("escalate", "block"),
+        )
+    ),
+    mode={"type": "string", "const": "unapproved_content_preview"},
+    activation_authorized={"type": "boolean", "const": False},
+    limitations=array(text(), 8),
+)
+PATH_INSPECTION = artifact(
+    "assurance_attack_path_inspection",
+    artifact_digest=DIGEST,
+    nodes=COUNT,
+    edges=COUNT,
+    source_references=COUNT,
+    verified_source_references=COUNT,
+    reported_exposure=ATTACK_PATH["properties"]["exposure"],
+    reported_reachability=ATTACK_PATH["properties"]["reachability"],
+    reported_permissions=ATTACK_PATH["properties"]["permissions"],
+    origin={"type": "string", "const": "imported_claim"},
+    runtime_evidence_authenticated={"type": "boolean", "const": False},
+    finding_confirmation={"type": "string", "const": "not_performed"},
+    limitations=array(text(), 8),
+)
+DELEGATION_INSPECTION = artifact(
+    "assurance_delegation_inspection",
+    result=choice("within_boundary", "exceeds_boundary", "unsupported", "inconclusive"),
+    child_digest=DIGEST,
+    parent_digest=DIGEST,
+    verification=nullable(DELEGATION_VERIFICATION),
+    proof_gaps=array(text(), 32),
+    grant_issued={"type": "boolean", "const": False},
+    lifecycle_checked={"type": "boolean", "const": False},
+    authority_origin={"type": "string", "const": "declared_data"},
+)
+STATIC_FINDING_REVIEW = artifact(
+    "assurance_static_finding_review",
+    review=obj(
+        schema_version={"type": "string", "const": "ordin.assurance_finding_review_summary.v1"},
+        report_digest=DIGEST,
+        finding_digest=DIGEST,
+        repository_digest=DIGEST,
+        rubric_digest=DIGEST,
+        source_snapshot_digest=DIGEST,
+        verified_source_digests=array(DIGEST, 128),
+        evidence_digests=array(DIGEST, 128),
+        counterevidence_digests=array(DIGEST, 32),
+        proof_gaps=array(text(), 64),
+        status=choice("reviewed", "inconclusive"),
+        advisory_only={"type": "boolean", "const": True},
+    ),
+    mode={"type": "string", "const": "static"},
+    result={"type": "string", "const": "inconclusive"},
+    finding_digest=DIGEST,
+    runtime_reproduction={"type": "boolean", "const": False},
+    closure={"type": "string", "const": "not_performed"},
+    proof_gaps=array(text(), 65),
+)
+CHALLENGE_CATALOG = artifact(
+    "assurance_challenge_catalog",
+    properties=array(ID, 10),
+    execution={"type": "string", "const": "bounded_synthetic_only"},
+    proof_scope={"type": "string", "const": "finite_tested_inputs"},
+    optional_providers={"type": "string", "const": "not_called"},
+)
+
 SCHEMAS = {
+    "assurance_profile_inspection": PROFILE_INSPECTION,
+    "assurance_invariant_preview": INVARIANT_PREVIEW,
+    "assurance_attack_path_inspection": PATH_INSPECTION,
+    "assurance_delegation_inspection": DELEGATION_INSPECTION,
+    "assurance_static_finding_review": STATIC_FINDING_REVIEW,
+    "assurance_challenge_catalog": CHALLENGE_CATALOG,
     "assurance_workflow_capture": WORKFLOW_CAPTURE,
     "assurance_workflow_claim": WORKFLOW_CLAIM,
     "assurance_workflow_import": WORKFLOW_IMPORT,

@@ -108,6 +108,14 @@ from .remediation import (
     verify_fix,
 )
 from .source_patch import SourcePatchProposal, propose_source_patch
+from .adapters import AssuranceAdapterGate
+from .offline import (
+    inspect_profile_content,
+    preview_invariants,
+    inspect_attack_path,
+    compare_delegation_data,
+    review_static_candidate,
+)
 from .synthetic_tests import (
     SyntheticPathCase,
     SyntheticPathSuite,
@@ -139,6 +147,12 @@ from .simulation import (
 )
 
 __all__ = [
+    "AssuranceAdapterGate",
+    "inspect_profile_content",
+    "preview_invariants",
+    "inspect_attack_path",
+    "compare_delegation_data",
+    "review_static_candidate",
     "SyntheticPathCase",
     "SyntheticPathSuite",
     "VettedProgram",

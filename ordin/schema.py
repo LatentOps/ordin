@@ -27,6 +27,12 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "assurance_profile_inspection": "assurance-profile-inspection.v1.schema.json",
+    "assurance_invariant_preview": "assurance-invariant-preview.v1.schema.json",
+    "assurance_attack_path_inspection": "assurance-attack-path-inspection.v1.schema.json",
+    "assurance_delegation_inspection": "assurance-delegation-inspection.v1.schema.json",
+    "assurance_static_finding_review": "assurance-static-finding-review.v1.schema.json",
+    "assurance_challenge_catalog": "assurance-challenge-catalog.v1.schema.json",
     "assurance_workflow_capture": "assurance-workflow-capture.v1.schema.json",
     "assurance_workflow_claim": "assurance-workflow-claim.v1.schema.json",
     "assurance_workflow_import": "assurance-workflow-import.v1.schema.json",

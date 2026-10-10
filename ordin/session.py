@@ -123,6 +123,24 @@ def configuration_digest(gate: AgentGate) -> str:
     }
     if ordin.runtime_requirements is not None:
         configuration["runtime_requirements"] = ordin.runtime_requirements.as_dict()
+    extension = getattr(gate, "session_configuration_binding", None)
+    if extension is not None:
+        # Optional host-owned gate composition must not restore history across
+        # profile/source changes. Default AgentGate digests stay unchanged.
+        import re
+
+        if (
+            not isinstance(extension, Mapping)
+            or set(extension) != {"namespace", "configuration_digest", "source_digest"}
+            or extension["namespace"] != "ordin.assurance.adapter.v1"
+            or any(
+                not isinstance(extension[key], str)
+                or re.fullmatch(r"[a-f0-9]{64}", extension[key]) is None
+                for key in ("configuration_digest", "source_digest")
+            )
+        ):
+            raise ValueError("invalid host gate session binding")
+        configuration["gate_extension"] = dict(extension)
     return _digest(configuration)
 
 

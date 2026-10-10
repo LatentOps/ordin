@@ -54,6 +54,13 @@ assert finding_demo["patch_applied"] is False
 assert finding_demo["validation"]["result"] == "confirmed"
 assert finding_demo["validation"]["tested_scope"] == "gate_authority_subset"
 assert finding_demo["fix"]["result"] == "fixed-verified" and finding_demo["fix"]["integrated"] is False
+from ordin.assurance.quickstart import run_quickstart
+quickstart = run_quickstart()
+assert quickstart["actions_executed"] is False and quickstart["model_or_scanner_called"] is False
+assert quickstart["protected_profile_demo"]["safe_disposition"] == "execute"
+assert quickstart["protected_profile_demo"]["network_disposition"] == "deny"
+assert quickstart["offline_finding_import"]["finding_count"] == 1
+assert quickstart["offline_finding_import"]["finding_confirmation"] == "not_performed"
 from ordin.assurance.codex_security import WorkflowCapture, WorkflowImportScope, import_workflow_claims
 from ordin.assurance import (SyntheticPathCase, SyntheticPathSuite, VettedSandboxRuntime,
                              load_vetted_program, load_synthetic_suite, run_sandbox_test)
@@ -218,6 +225,7 @@ print(json.dumps({"ok": True, "version": ordin.__version__, "schemas": len(SCHEM
                   "finding_validation_demo": finding_demo,
                   "vetted_test_no_execution": True,
                   "offline_workflow_claims": True,
+                  "offline_quickstart": quickstart,
                   "loaded_from": ordin.__file__}))
 """
 

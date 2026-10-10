@@ -1,0 +1,162 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-static-finding-review.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 8,
+  "properties": {
+    "closure": {
+      "const": "not_performed",
+      "type": "string"
+    },
+    "finding_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "mode": {
+      "const": "static",
+      "type": "string"
+    },
+    "proof_gaps": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 65,
+      "type": "array"
+    },
+    "result": {
+      "const": "inconclusive",
+      "type": "string"
+    },
+    "review": {
+      "additionalProperties": false,
+      "maxProperties": 12,
+      "properties": {
+        "advisory_only": {
+          "const": true,
+          "type": "boolean"
+        },
+        "counterevidence_digests": {
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "maxItems": 32,
+          "type": "array"
+        },
+        "evidence_digests": {
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "maxItems": 128,
+          "type": "array"
+        },
+        "finding_digest": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "proof_gaps": {
+          "items": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+            "type": "string"
+          },
+          "maxItems": 64,
+          "type": "array"
+        },
+        "report_digest": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "repository_digest": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "rubric_digest": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "ordin.assurance_finding_review_summary.v1",
+          "type": "string"
+        },
+        "source_snapshot_digest": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "reviewed",
+            "inconclusive"
+          ],
+          "type": "string"
+        },
+        "verified_source_digests": {
+          "items": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "maxItems": 128,
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema_version",
+        "report_digest",
+        "finding_digest",
+        "repository_digest",
+        "rubric_digest",
+        "source_snapshot_digest",
+        "verified_source_digests",
+        "evidence_digests",
+        "counterevidence_digests",
+        "proof_gaps",
+        "status",
+        "advisory_only"
+      ],
+      "type": "object"
+    },
+    "runtime_reproduction": {
+      "const": false,
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_static_finding_review.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "review",
+    "mode",
+    "result",
+    "finding_digest",
+    "runtime_reproduction",
+    "closure",
+    "proof_gaps"
+  ],
+  "title": "Ordin assurance static finding review v1",
+  "type": "object"
+}

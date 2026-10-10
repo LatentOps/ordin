@@ -6,6 +6,30 @@ instruction documents, imported artifacts and model output remain untrusted.
 Only separately protected host APIs select profiles or issue trusted evidence.
 Ordinary JSON decoding cannot activate authority.
 
+The offline path creates analysis data. The pre-execution path uses separately
+protected configuration and host facts, then preserves the host's own approval,
+execution and observation boundaries:
+
+```mermaid
+flowchart TD
+    U[Untrusted repository, saved scan or model output] --> O[Bounded offline inventory, import and replay]
+    O --> D[Drafts and claims with explicit proof limits]
+    D --> H[Protected operator selection and source checks]
+    H --> P[Approved profile and protected host facts]
+    A[Proposed action and session history] --> B[Existing deterministic AgentGate]
+    B --> G[AssuranceGate: preserve or strengthen disposition]
+    P --> G
+    G --> I[Existing host adapter and approval UI]
+    I --> E[Host rechecks current authority and enforces execution]
+    E --> R[Protected observations correlated to the exact action]
+```
+
+Offline records cannot supply the protected selection or enforcement shown in
+this diagram. Optional model/scanner calls need separate explicit host consent;
+their outputs enter as claims rather than operator authority. Unsupported scope
+and missing required evidence remain inconclusive or refuse execution according
+to the selected invariant's documented failure behavior.
+
 Repository/file readers anchor to an explicit authorized directory, reject
 traversal, symlinks/reparse points, hardlinks, remote/device namespaces and
 nonregular files, and bound bytes/nesting/counts. POSIX directory descriptors
@@ -43,3 +67,9 @@ The current source inventory is deliberately incomplete analysis. Imported or
 static claims do not become observed exploitation, and uninspected deployment
 context does not become safety. Real scanner/model setup, third-party licensing,
 hosted consent and patch workflows remain separate optional milestones.
+
+Report safety-sensitive vulnerabilities through the private route in
+[SECURITY.md](../../SECURITY.md). Keep live secrets, private traces and exploit
+details out of public issues and ordinary reports. Finding/fix verification does
+not authorize publication or installation; coordinate disclosure and affected
+operator review separately.

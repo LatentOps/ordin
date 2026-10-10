@@ -45,6 +45,8 @@ the [host delegation lifecycle](delegation.md),
 the [offline Codex Security importer](codex-security-integration.md),
 the [scoped finding and fix workflow](finding-validation.md),
 the [saved external workflow claims](external-workflow-claims.md),
+the [CLI/API reference](cli-and-api.md), [host adapter composition](adapter-composition.md),
+[the offline quickstart](../../examples/assurance/README.md),
 and [the implementation report](implementation-report.md) for verified scope.
 No scanner, model, network account or new mandatory dependency is needed to
 use these records. No artifact executes actions or grants OS permissions.
