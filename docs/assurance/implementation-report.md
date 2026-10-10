@@ -12,6 +12,7 @@
 - Attack-path/source-flow implementation SHA: `763b73161cd2ed7bb3657d3b9d20795d43ef049e`.
 - Delegation implementation SHA: `edd661204ae8426aa4d491e8df1cd3dd31c69b3b`.
 - Offline Codex importer SHA: `7fa6d65c646619986d4e96043a3209ea8ad44e81`.
+- Scanner/diff/optional CI implementation SHA: `4d3fb8d8879c230b7c9e6c2970b91cecafd5dc4f`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -27,7 +28,7 @@
 | M5 | expanded_challengers_verified_dependent_gates_open | Ten-property suite, 320 generated fixtures, 244 assessed / 76 unresolved; 172 seeded failures / 80 minimized replayed records; final source gate 200 passed / 1 POSIX skip; protocol compatibility 98 passed, broader core compatibility 79 passed; pinned wheel/doctor/metadata and SDK/CLI parity pass; dependent/optional gates remain open |
 | M6 | graph_flow_sdk_verified_cross_agent_added | Bounded graph/source-flow SDK; original gate 230 passed / 1 POSIX skip; authenticated M7 cross-agent composition added; combined gate 258 passed / 1 POSIX skip; new wheel pending |
 | M7 | sdk_lifecycle_verified_release_gates_open | Full-domain containment, private issuance/revocation, current use tickets, per-child sessions and cross-agent graphs; source gate 258 passed / 1 POSIX skip; core compatibility 140 passed / 1 skip; pinned example/graph/wheel/doctor/metadata pass; external enforcement/release gates remain open |
-| M8 | offline_sdk_mock_diff_verified_live_boundary_unverified | Pinned importer, explicit scanner selection/configuration/consent/isolation, fake-process tests, offline source/authority diff and optional private CI example; source gate 335 passed / 1 POSIX skip; core compatibility 47 passed / 2 skips; fresh wheels follow; real scanner/host isolation/CI unverified |
+| M8 | offline_sdk_mock_diff_verified_live_boundary_unverified | Pinned importer, explicit scanner selection/configuration/consent/isolation, fake-process tests, offline source/authority diff and optional private CI example; source gate 335 passed / 1 POSIX skip; core compatibility 47 passed / 2 skips; pinned core/adapter wheel/doctor/metadata checks pass; real scanner/host isolation/CI unverified |
 | M9 | not_started | Optional mock/TypeSafe/Laya evidence |
 | M10 | not_started | Finding validation and patch-risk verification |
 | M11 | not_started | Complete CLI/API/docs/examples |
@@ -660,9 +661,9 @@ gated. The Markdown comparison initially differed due to Windows CRLF writes;
 the test now compares the exact bytes supplied, without text normalization.
 Core resource parity initially found three extra packaged vendor schemas; exact
 source copies were added under `data/codex_security` and the core gate rechecked
-green. No validation limit was relaxed or failure hidden. Current parity totals
-**27 Assurance contracts / 67 registered schemas**. The live optional wrapper,
-offline diff triage, optional CI example and final M8 acceptance remain pending.
+green. No validation limit was relaxed or failure hidden. That importer checkpoint
+had **27 Assurance contracts / 67 registered schemas**. The subsequent scanner/
+diff/CI slice is recorded below; its external live boundary remains unverified.
 See [the integration contract](codex-security-integration.md).
 
 The [pinned offline import capture](evidence/m8-offline-import.json) records source
@@ -743,7 +744,19 @@ wheel/doctor passes with SDK socket/subprocess creation rejected; both core and
 adapter wheel/sdist pairs pass twine. The adapter's new smoke initially used an
 incorrect loader name; its corrected fresh environment passes namespace/provider,
 mock and pinned-schema imports with network/process creation rejected. Eight
-adapter package files match source bytes. Source-pinned captures follow.
+adapter package files match source bytes.
+
+The [pinned scanner/diff capture](evidence/m8-scanner-diff.json) retains actual
+source-gate cases and synthetic offline state/triage results at source revision
+`4d3fb8d8879c230b7c9e6c2970b91cecafd5dc4f`.
+The [fresh core wheel evidence](evidence/m8-scanner-diff-wheel.json) byte-matches
+281 packaged Python/JSON files, passes installed doctor, and exercises the new
+mock/diff APIs with socket/subprocess creation rejected inside the SDK.
+The [fresh optional adapter check](evidence/m8-provider-adapter-wheel.json)
+matches eight package files and verifies namespace/provider/pinned-schema/mock
+imports under `-I` with only local wheels and no index/dependencies.
+All checkpoint handles are terminal. No real scanner, model, account, upload,
+execution grant, publication, deployment or remote runner was used.
 See [the integration contract](codex-security-integration.md).
 
 ## Outstanding limitations
