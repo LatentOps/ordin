@@ -17,6 +17,7 @@
 - Local model worker/evaluation SDK SHA: `26297fcc98d0a9cfdb4c61fbe343685fe0ffbeee`.
 - Async measurement/frozen workload SHA: `261685d28e0de3fb9e0ff500e8aa4964c44610f5`.
 - Scoped finding/policy-fix SDK SHA: `d24ccd4978a8ff6bb41dbe160425eca5cff21068`.
+- Vetted synthetic broker/source-fix SDK SHA: `4da87e3d4ba0f500133febedc96cf54095a97410`; capture-summary correction: `e55dd9acd31c24c53a3e187a529504227741e9aa`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -34,7 +35,7 @@
 | M7 | sdk_lifecycle_verified_release_gates_open | Full-domain containment, private issuance/revocation, current use tickets, per-child sessions and cross-agent graphs; source gate 258 passed / 1 POSIX skip; core compatibility 140 passed / 1 skip; pinned example/graph/wheel/doctor/metadata pass; external enforcement/release gates remain open |
 | M8 | offline_sdk_mock_diff_verified_live_boundary_unverified | Pinned importer, explicit scanner selection/configuration/consent/isolation, fake-process tests, offline source/authority diff and optional private CI example; source gate 335 passed / 1 POSIX skip; core compatibility 47 passed / 2 skips; pinned core/adapter wheel/doctor/metadata checks pass; real scanner/host isolation/CI unverified |
 | M9 | provider_sdk_async_measurements_provisional_workload_verified_real_acceptance_pending | Protected protocol/routing, TypeSafe and pinned local worker, measured threshold provenance, sync/async replay and 24-case provisional sample; source gate 432 passed / 1 skip; actual model/hardware and independently labeled effectiveness acceptance remain unverified |
-| M10 | source_replay_host_receipts_policy_fix_sdk_verified_target_validation_pending | Source rubric/review, sealed scoped closure, preserved reproduction/benign/alternative replay, private patch artifacts and containment checks; 461 passed / 1 skip; target-code sandbox, broader predicates, external validation reports and integrated CLI remain open |
+| M10 | vetted_synthetic_source_fix_sdk_verified_physical_broker_broader_validation_pending | Source/policy review plus explicit vetted broker, measured synthetic source execution and preserved code-fix controls; 485 passed / 1 skip; physical isolation, general predicates, external validation reports and integrated CLI remain open |
 | M11 | not_started | Complete CLI/API/docs/examples |
 | M12 | not_started | Complete acceptance, corpus, CI and release gates |
 
@@ -1085,6 +1086,91 @@ validate/patch/verify-fix claim reports and integrated lifecycle CLI are open.
 The actual finite proof scope is retained instead of treating a green suite,
 source patch, imported verdict or compiled profile as complete security proof.
 
+## M10 vetted synthetic broker and measured source fixes
+
+Source `4da87e3d4ba0f500133febedc96cf54095a97410` adds an explicit
+`VettedSandboxRuntime`, one-use protected setup scopes, bounded worker protocol,
+synthetic source validation and code-fix verification. Capture-summary source
+`e55dd9acd31c24c53a3e187a529504227741e9aa` clarifies that vetted synthetic code
+executed while unvetted target code did not. No ordinary gate/import starts a
+test, downloads code or selects a broker.
+
+The host selects a pinned native broker, fixed installed `_sandbox_worker.py`,
+complete argument allowlist, installation digest, private directories, target
+exclusions and resource/output/deadline limits outside target/enclosing Git
+roots. Actual protected approval plus a satisfied `validation_isolation` /
+`validation.sandbox` assessment must bind the exact setup. The host must verify
+real egress, credential, mount, installation and CPU/memory/process isolation;
+environment stripping and Windows Job/POSIX group cleanup do not establish it.
+Local tests use a **fake approved broker**, so physical isolation remains
+unverified. No live scanner/model or privileged exploit was exercised.
+
+The worker executes only a vetted `within_root(path, root)` function with one
+return expression. Its bounded AST allows string inputs, slash/empty constants,
+equality, boolean composition, addition, `startswith` and `rstrip`. Imports,
+arbitrary calls/names, loops, decorators, annotations, dunder access and embedded
+secret literals are rejected before launch. Comments/private source text are
+stripped from the private code payload; original and normalized byte digests
+remain separate. Audit JSON control-character limits are unchanged; the fixed
+private transport explicitly carries vetted multiline code.
+
+Pinned suite bytes contain unique canonical `/synthetic` path/root cases and
+both benign and boundary controls. Expected behavior is independently computed,
+with no imported labels or worker verdict. Worker replies must contain exact
+request/source/suite bindings and ordered boolean results. Scope reuse/expiry,
+source/installation drift, malformed or partial results, output overflow,
+timeout and cancellation prevent closure. Output/diagnostics are retained as
+hashes/counts. A spawned inherited-pipe descendant was measured terminated after
+timeout; the result is not merely an inferred cleanup status.
+
+`validate_finding_sandboxed` supports only the explicit
+`synthetic_path_boundary` property. Findings retain the actual sandbox test
+digest and exact source/test/runtime scope. `verify_source_fix` repeats original
+execution before candidate execution, requires exact proposed file bytes and
+unchanged fixture bytes, and compares host actor, runtime policy and protected
+profile content. It distinguishes a correct canonical narrow fix, an ineffective
+patch and a patch breaking benign behavior. Unknown changed semantics cannot
+claim a non-widening proof. The known prefix-bug/canonical-fix relation applies
+to all supported canonical lexical inputs, with broader/physical paths outside
+coverage. No proposed patch is applied or integrated.
+
+Actual gates:
+
+| Gate | Result |
+| --- | --- |
+| Broker execution/protocol/lifetime gate | 17 passed, 6.17 s |
+| Measured source fix and preserved fixtures | 5 passed, 7.28 s |
+| Integrated source/finding/schema/audit gate | 67 passed, 23.89 s |
+| Final expiry/source/descendant/fix gate | 24 passed, 18.56 s |
+| Complete Assurance/audit/providers | 485 passed, 1 POSIX skip, 213.97 s |
+| Core API/agent/schema/security/Codex compatibility | 47 passed, 2 skips, 14.86 s |
+| Linux-target mypy | 60 source/helper files clean |
+| Ruff/diff | Passed |
+| Core wheel/sdist build and twine | Passed |
+| Fresh offline installed wheel/doctor | 307 Python/JSON package files matched; 85 schemas / 45 Assurance schemas; network/process spies active; unapproved precanceled source test launched no broker |
+
+Initial private transport reused audit JSON's newline ban and was replaced by a
+separate bounded typed code transport without weakening audit validation. Windows
+startup caused short parser/overflow fixture deadlines to report timeout; those
+fixtures now have a separate 2-second allowance, while the timeout fixture keeps
+300 ms. Descendant cleanup uses a measured child PID and its own 2-second limit.
+Candidate fixture writing initially translated LF into CRLF, and exact patch
+digest verification correctly refused it; writing the proposed bytes exactly
+resolved the fixture error. The first installed smoke had missing `Path`/`sys`
+imports in the smoke script; corrected fresh installation passed. No original
+release or M3 latency threshold was changed.
+
+[Pinned vetted-source evidence](evidence/m10-vetted-source.json) records the
+candidate revision, actual final cases and installed-wheel smoke. Parameter IDs
+derived from source text are replaced with correlation hashes in public evidence;
+private source/comment fixture values are absent. All known process/test/build
+handles are terminal and the tracked worktree is clean after checkpoint commits.
+
+M10 remains incomplete: real broker controls, broader source/finding predicates,
+external Codex validate/patch/verify-fix claim imports and integrated lifecycle
+CLI still need implementation or verification. M9 real-model/independent-workload
+acceptance, M11/M12 and the original full release/performance gates remain open.
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
@@ -1122,7 +1208,7 @@ next full release gate. Resolve end-to-end latency without weakening the declare
 budget. M6 graph/source-flow, M7 delegation/lifecycle and M8 importer, scanner
 wrapper, fake-process gates and offline diff/CI example are implemented. Live
 external scanner/runner behavior is unverified. The next independent feature is
-Continue M10 with a vetted minimal synthetic sandbox runner, broader validation
+Continue M10 with physical broker acceptance, broader validation
 and code-fix predicates, offline external workflow claim import and integrated
 lifecycle examples. Then complete M11/M12 integration, corpus, CI and full
 acceptance. M9 async replay and a provisional
