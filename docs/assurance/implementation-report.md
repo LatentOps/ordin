@@ -16,6 +16,7 @@
 - Optional semantic protocol/routing/TypeSafe SHA: `ea3d4778c3ad83ed20bb660a6a96232f9f30d3dc`.
 - Local model worker/evaluation SDK SHA: `26297fcc98d0a9cfdb4c61fbe343685fe0ffbeee`.
 - Async measurement/frozen workload SHA: `261685d28e0de3fb9e0ff500e8aa4964c44610f5`.
+- Scoped finding/policy-fix SDK SHA: `d24ccd4978a8ff6bb41dbe160425eca5cff21068`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -33,7 +34,7 @@
 | M7 | sdk_lifecycle_verified_release_gates_open | Full-domain containment, private issuance/revocation, current use tickets, per-child sessions and cross-agent graphs; source gate 258 passed / 1 POSIX skip; core compatibility 140 passed / 1 skip; pinned example/graph/wheel/doctor/metadata pass; external enforcement/release gates remain open |
 | M8 | offline_sdk_mock_diff_verified_live_boundary_unverified | Pinned importer, explicit scanner selection/configuration/consent/isolation, fake-process tests, offline source/authority diff and optional private CI example; source gate 335 passed / 1 POSIX skip; core compatibility 47 passed / 2 skips; pinned core/adapter wheel/doctor/metadata checks pass; real scanner/host isolation/CI unverified |
 | M9 | provider_sdk_async_measurements_provisional_workload_verified_real_acceptance_pending | Protected protocol/routing, TypeSafe and pinned local worker, measured threshold provenance, sync/async replay and 24-case provisional sample; source gate 432 passed / 1 skip; actual model/hardware and independently labeled effectiveness acceptance remain unverified |
-| M10 | not_started | Finding validation and patch-risk verification |
+| M10 | source_replay_host_receipts_policy_fix_sdk_verified_target_validation_pending | Source rubric/review, sealed scoped closure, preserved reproduction/benign/alternative replay, private patch artifacts and containment checks; 461 passed / 1 skip; target-code sandbox, broader predicates, external validation reports and integrated CLI remain open |
 | M11 | not_started | Complete CLI/API/docs/examples |
 | M12 | not_started | Complete acceptance, corpus, CI and release gates |
 
@@ -996,6 +997,94 @@ optional install. Real provider/hardware/memory/cost, independent labels,
 predeclared held-out benefit/friction/latency acceptance and M9 completion remain
 unverified. No background handles remain live.
 
+## M10 scoped finding validation and policy-fix SDK
+
+Source `d24ccd4978a8ff6bb41dbe160425eca5cff21068` adds explicit rubric,
+source-review, validation, remediation and fix receipts. Reviews retain the
+original candidate digest, actor/control/permission declarations, invariant and
+expected authority, source-to-sink references, existing controls, preconditions,
+changes and unknowns. Source byte/revision/symbol checks are read-only; declared
+whole-repository snapshot pins are also enforced. Static control references are
+counterevidence candidates rather than proof that a guard stops a path.
+
+Static validation remains inconclusive about reproduction. The currently vetted
+replay predicate is **gate_authority_subset**: an actual Assurance gate permits
+a proposed contract beyond the explicit tested bound. Bounded exact JSON fixture
+bytes become inert proposals; no target module or reviewed command runs. Missing
+references, changed fixtures, unresolved preconditions/mappings and unregistered
+vulnerability classes remain inconclusive. The resulting finding is about this
+finite gate/configuration property, not source-code reachability or a real
+repository exploit.
+
+Host observation validation preserves exact action/contract/session/policy
+correlation. Generic completion/allowance cannot establish an entire grant.
+A protected `HostContractAuthorization` receipt is required for successful grant
+closure, with exact event/contract/source binding; protected host code may issue
+it only after actual whole-grant verification. SDK tests use synthetic channels
+and do not independently establish physical backend enforcement. Denial can
+refute the tested attempt; failure/unknown execution stays inconclusive.
+
+Closed `SecurityFinding` records retain the validation digest and tested scope,
+without transferring the original imported confidence. The original imported
+record remains separate and unchanged. Source and test bytes are rechecked at
+closure. JSON cannot recreate strong review/grant/validation/fix handles.
+Duplicate grouping retains distinct occurrence-record digests, including when
+caller IDs match; it never selects the strongest verdict or merges proof.
+
+Remediation APIs return inert invariant drafts, detached policy proposals and
+exact bounded single-file diff artifacts. No patch is applied or policy activated.
+Private code/configuration review interfaces are explicit; public summaries
+replace source, repository, invariant, action-kind and reproducer metadata with
+digests as appropriate. Secret-looking synthetic metadata is absent from public
+review/validation output.
+
+`verify_fix` repeats the original failure first, then the candidate, preserved
+benign counterparts, supplied alternatives and actual affected policy simulation.
+Changed/deleted tests, missing provenance, widening/unknown containment, benign
+regressions and unresolved predicates prevent a verified result. Surviving paths
+produce `still-vulnerable`; a narrower policy plus preserved supported controls
+can produce `fixed-verified` within **policy_replay**. Source patches remain
+inconclusive because target code was not exercised. Reports retain measured
+latency samples and explicitly exclude matched performance/release acceptance.
+The existing M3 deterministic latency budget is unchanged and still failed.
+
+Actual gates:
+
+| Gate | Result |
+| --- | --- |
+| Pure validation predicate/source tests | 15 passed, 1.99 s |
+| Finding/fix adversarial cases | 25 passed, 6.25 s |
+| Final snapshot/closure/schema/audit focused gate | 45 passed, 12.25 s |
+| Initial complete Assurance/audit/provider gate | 460 passed, 1 POSIX skip, 160.60 s |
+| Final complete gate after snapshot-pin guard | 461 passed, 1 POSIX skip, 166.61 s |
+| Core API/agent/schema/security/Codex compatibility | 47 passed, 2 skips, 13.48 s |
+| Linux-target mypy | 55 source/helper files clean |
+| Ruff/diff checks | Passed |
+| Final core wheel/sdist build and twine | Passed |
+| Fresh offline core wheel install/doctor | 298 Python/JSON package files matched; 81 schemas / 41 Assurance schemas; synthetic finding/fix SDK example passed with sockets/process creation rejected |
+
+Initial fixture errors used the wrong tool capability argument order and an
+incorrect action-policy class name. They were corrected against actual core
+signatures; no policy/test bound was weakened. A default-threshold assertion was
+corrected to the existing `warn` value. An attempted generic backend metadata
+extension was rejected by the existing schema; the separate protected entire-
+grant receipt implements the needed optional fact without changing that runtime
+schema. Source/fixture closure provenance and explicit repository snapshot pins
+were tightened before the final gate/build. Only final artifacts are captured.
+
+[Pinned finding/replay evidence](evidence/m10-validation-replay.json) records the
+implementation revision, all final source-gate cases, fresh wheel/doctor output
+and the redacted installed example. It confirms a synthetic gate configuration
+violation and a narrow policy fix with preserved benign behavior; no target code,
+live exploit, scanner/model network, credentials, applied patch or publication
+was used. Every process/test/build handle is terminal.
+
+M10 remains incomplete: vetted sandboxed target-code tests, broader finding/fix
+predicates, independently exercised host setup, optional external Codex
+validate/patch/verify-fix claim reports and integrated lifecycle CLI are open.
+The actual finite proof scope is retained instead of treating a green suite,
+source patch, imported verdict or compiled profile as complete security proof.
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
@@ -1033,8 +1122,10 @@ next full release gate. Resolve end-to-end latency without weakening the declare
 budget. M6 graph/source-flow, M7 delegation/lifecycle and M8 importer, scanner
 wrapper, fake-process gates and offline diff/CI example are implemented. Live
 external scanner/runner behavior is unverified. The next independent feature is
-M10 finding validation/counterevidence/patch-risk work, followed by M11/M12
-integration, corpus, CI and full acceptance. M9 async replay and a provisional
+Continue M10 with a vetted minimal synthetic sandbox runner, broader validation
+and code-fix predicates, offline external workflow claim import and integrated
+lifecycle examples. Then complete M11/M12 integration, corpus, CI and full
+acceptance. M9 async replay and a provisional
 frozen sample are verified, while actual model/hardware and independent
 effectiveness/friction/latency acceptance remain open. Keep dependent M5 provider checks,
 optional finite solver/promotion work and the release gates open; expanded
