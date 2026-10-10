@@ -57,12 +57,22 @@ from .challenge import ChallengeRun, challenge_authority_subset, replay_countere
 from .property_challenge import ChallengeSuite, challenge_property, challenge_security_properties
 from .requests import verify_assurance_capability, verify_assurance_request_authority
 from .origins import (
+    SourceProvenance,
+    record_source_provenance,
     InstructionOrigin,
     SourceUse,
     register_instruction_origin,
     correlate_source_use,
     verify_source_use,
 )
+from .attack_paths import (
+    ReviewedAction,
+    build_attack_path,
+    deduplicate_attack_paths,
+    propose_attack_path_tests,
+    render_attack_path,
+)
+from .source_flow import assess_source_flow
 from .simulation import (
     FrozenCase,
     FrozenCorpus,
@@ -75,6 +85,14 @@ from .simulation import (
 )
 
 __all__ = [
+    "SourceProvenance",
+    "record_source_provenance",
+    "assess_source_flow",
+    "ReviewedAction",
+    "build_attack_path",
+    "deduplicate_attack_paths",
+    "propose_attack_path_tests",
+    "render_attack_path",
     "InstructionOrigin",
     "SourceUse",
     "register_instruction_origin",

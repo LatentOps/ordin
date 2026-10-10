@@ -129,7 +129,12 @@ class TrustBoundary(JsonRecord):
     sink: str
 
 
-_STRONG_ORIGINS = {"deterministically_derived", "policy_verified", "runtime_backend_observed"}
+_STRONG_ORIGINS = {
+    "deterministically_derived",
+    "policy_verified",
+    "runtime_backend_observed",
+    "host_authenticated_source",
+}
 
 
 @dataclass(frozen=True)
@@ -335,6 +340,28 @@ class AttackEdge(JsonRecord):
     kind: str
     evidence: EvidenceLink
     confidence: float | None = None
+    evidence_kind: str | None = None
+    correlation_id: str | None = None
+    proof_gaps: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.evidence, EvidenceLink):
+            raise ValueError("attack edge requires typed evidence")
+        expected = {
+            "runtime_backend_observed": "host_observed",
+            "host_authenticated_source": "host_observed",
+            "deterministically_derived": "deterministic_inference",
+            "policy_verified": "deterministic_inference",
+            "static_evidence": "deterministic_inference",
+            "model_hypothesis": "model_hypothesis",
+            "imported_claim": "imported_claim",
+            "caller_asserted": "caller_asserted",
+        }[self.evidence.origin]
+        if self.evidence_kind is None:
+            object.__setattr__(self, "evidence_kind", expected)
+        elif self.evidence_kind != expected:
+            raise ValueError("edge confidence/kind cannot promote evidence origin")
+        super().__post_init__()
 
 
 @dataclass(frozen=True)
@@ -358,6 +385,11 @@ class AttackPathEvidence(JsonRecord):
     exposure: str = "unknown"
     reachability: str = "unknown"
     possible_impact: tuple[str, ...] = ()
+    permissions: str = "unknown"
+    root_cause_digest: str | None = None
+    boundary_digest: str | None = None
+    occurrence_ids: tuple[str, ...] = ()
+    max_depth: int = 64
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -370,6 +402,27 @@ class AttackPathEvidence(JsonRecord):
             edge.evidence.session_digest not in {None, self.session_digest} for edge in self.edges
         ):
             raise ValueError("assurance graph session mismatch")
+        # A bounded topological walk rejects cycles and excess depth without
+        # recursion. JSON diagrams cannot introduce unbounded causal chains.
+        incoming = dict.fromkeys(nodes, 0)
+        outgoing: dict[str, list[str]] = {key: [] for key in nodes}
+        for edge in self.edges:
+            incoming[edge.target_id] += 1
+            outgoing[edge.source_id].append(edge.target_id)
+        pending = sorted(key for key, count in incoming.items() if count == 0)
+        depths = dict.fromkeys(nodes, 1)
+        visited = 0
+        for key in pending:
+            visited += 1
+            for target in outgoing[key]:
+                depths[target] = max(depths[target], depths[key] + 1)
+                if depths[target] > self.max_depth:
+                    raise ValueError("assurance graph depth limit exceeded")
+                incoming[target] -= 1
+                if incoming[target] == 0:
+                    pending.append(target)
+        if visited != len(nodes):
+            raise ValueError("assurance graph contains a cycle")
 
 
 @dataclass(frozen=True)
@@ -585,7 +638,9 @@ class PolicySimulationReport(JsonRecord):
                     for kind in {v.action_kind for v in self.cases}
                 }
             ):
-                raise ValueError("incomplete passing simulation summary must match complete replay cases")
+                raise ValueError(
+                    "incomplete passing simulation summary must match complete replay cases"
+                )
         if self.activation_safe and (
             not self.cases
             or self.coverage != "complete"

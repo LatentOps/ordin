@@ -22,7 +22,7 @@
 | M3 | functional_sdk_verified_gates_open | Pure evaluator/gate and sealed host facts; 240 passed / 1 POSIX skip; wheel/SDK pass; full run 1135 passed / 5 failed / 27 skipped; two audit gaps fixed with 14-test recheck; end-to-end latency still failed |
 | M4 | functional_sdk_cli_verified_final_scenarios_open | Independent frozen replay, advisory change guard, local CLI, 22 synthetic cases; final source gate 168 passed / 1 POSIX skip; core compatibility 60 passed / 1 POSIX skip; final committed-source wheel/doctor/CLI/metadata pass; SDK/CLI parity captured |
 | M5 | expanded_challengers_verified_dependent_gates_open | Ten-property suite, 320 generated fixtures, 244 assessed / 76 unresolved; 172 seeded failures / 80 minimized replayed records; final source gate 200 passed / 1 POSIX skip; protocol compatibility 98 passed, broader core compatibility 79 passed; pinned wheel/doctor/metadata and SDK/CLI parity pass; dependent/optional gates remain open |
-| M6 | source_handles_verified_graph_pending | Private host source/span and exact byte-use handles; source/audit gate 210 passed / 1 POSIX skip; 19-module mypy clean; final pinned wheel/doctor/metadata and no-network/no-subprocess SDK smoke pass; graph and source-flow assessment remain pending |
+| M6 | graph_flow_sdk_verified_delegation_path_pending | Bounded same-host graph, private source/coverage handles, exact source-flow guard, renderer and draft suggestions; final source gate 230 passed / 1 POSIX skip; core evidence compatibility 68 passed; 21-module mypy clean; wheel pending; cross-agent graphs await M7 |
 | M7 | not_started | Delegation subset and lifecycle |
 | M8 | not_started | Offline Codex Security import and optional scanner |
 | M9 | not_started | Optional mock/TypeSafe/Laya evidence |
@@ -416,6 +416,67 @@ operation, scanner/model, permission grant, upload, release or deployment occurr
 All checkpoint handles are terminal.
 
 ## Baseline failures and measurements (original source, continued)
+
+## M6 same-host attack-path builder and source-flow guards
+
+`ReviewedAction` checks the current gate result, baseline-review seal and exact
+host context. `build_attack_path` accepts at most 32 same-principal/session/epoch
+reviews, correlates runtime history through the existing core verifier, and
+rejects changed reviews, foreign sources and completed observations after an
+Assurance denial. Immutable graphs retain separate evidence kinds, correlations,
+proof gaps, exposure, permission state, reachability and possible impact. Node,
+edge and per-review detail truncation is explicit; a bounded nonrecursive DAG
+walk rejects cycles/depth overflow. Reordered/out-of-window histories do not
+claim authenticated chronology. Confidence cannot promote the evidence origin.
+
+The graph reuses actual temporal policy signals, preserves denials/failures and
+protected policy matches as counterevidence, distinguishes generic code
+execution from a download/permission/execute hypothesis, and requires matching
+completed effects before establishing sink reachability. An unrelated completed
+event cannot establish upload. Missing approval evidence after escalation remains
+an explicit gap. Sensitive source bytes establish only host-declared inclusion;
+untrusted instruction influence stays hypothetical. Tool prose cannot become
+`secret.read`. Private arguments, identities, endpoints and paths remain digests;
+the Mermaid renderer also uses a fixed vocabulary.
+
+`SourceProvenance` explicitly binds the host collector's completeness declaration
+to the exact action/source/use set. Unknown/transformed inputs remain partial.
+`assess_source_flow` produces a scope-bound profile assessment from a sealed
+review and exact byte/collection checks. Sensitive egress or untrusted instruction
+context violates the guard; absent/partial/unknown provenance cannot satisfy it.
+A fresh exact-action gate review consumes the assessment. Neither the receipt
+nor the earlier escalation grants execution. Graph test suggestions remain
+non-authoritative `SecurityProfileDraft` objects; no policy activation or finding
+confirmation is performed. See [attack paths](attack-paths.md).
+
+Actual checks:
+
+| Command / artifact | Result |
+| --- | --- |
+| `tests/assurance/test_attack_paths.py tests/assurance/test_source_flow.py tests/assurance/test_models.py tests/assurance/test_contract_coverage.py tests/test_contract_audit.py`, `.assurance-work/m6-evidence-origin-gate` | 92 passed, 5.69 s |
+| Attack/source-flow focused gate, `.assurance-work/m6-impact-distinction` | 19 passed, 4.63 s |
+| Matching sink-effect/approval focused gate, `.assurance-work/m6-sink-reachability` | 20 passed, 6.05 s |
+| Graph/flow/schema/audit focused gate, `.assurance-work/m6-counterevidence-scope` | 34 passed, 6.29 s |
+| Existing public API/agent/runtime-observation/schema compatibility, `.assurance-work/m6-core-evidence-compatibility` | 68 passed, 52.96 s |
+| Earlier broader source gate, `.assurance-work/m6-final-graph-source-gate` | 229 passed, 1 POSIX skip, 125.31 s; final post-review gate running |
+| `python -m mypy --platform linux ordin/assurance` | 21 source files clean |
+| `python -m ruff check ...` and `git diff --check` | Passed |
+| `python -m examples.assurance.attack_path` | Hypothesized sensitive exposure, blocked upload reachability, explicit missing causal/completed evidence |
+
+Initial secret-path expectation and benign-install labeling assertions exposed
+overstatement risks; the builder now preserves temporal hypotheses separately
+from observed effects and generic execution separately from untrusted execution.
+Those cases pass after correction. No limit or trust check was weakened.
+Source/package schema parity is regenerated for **23 Assurance contracts / 63
+registered schemas**. Cross-agent path construction is explicitly refused until
+M7 provides current authenticated delegation/correlation. Live kernel/remote
+execution, finding closure and full release gates remain unverified.
+
+Final post-review source gate: `.assurance-work/m6-final-reviewed-source-gate`,
+**230 passed / 1 POSIX skip** in 107.43 seconds. Final targeted sink/counterevidence
+gate: **34 passed** in 6.29 seconds. The installed-wheel smoke now exercises the
+graph and source-provenance APIs with socket/subprocess creation rejected; its
+fresh run and pinned graph capture follow.
 
 The original suite failed before any package or schema registration changed.
 Additive unregistered Assurance files/docs were created while the suite ran;

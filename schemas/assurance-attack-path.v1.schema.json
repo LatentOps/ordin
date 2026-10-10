@@ -2,8 +2,21 @@
   "$id": "https://latentops.space/ordin/schemas/assurance-attack-path.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "maxProperties": 12,
+  "maxProperties": 17,
   "properties": {
+    "boundary_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "counterevidence": {
       "items": {
         "additionalProperties": false,
@@ -49,7 +62,8 @@
               "model_hypothesis",
               "deterministically_derived",
               "policy_verified",
-              "runtime_backend_observed"
+              "runtime_backend_observed",
+              "host_authenticated_source"
             ],
             "type": "string"
           },
@@ -151,7 +165,7 @@
     "edges": {
       "items": {
         "additionalProperties": false,
-        "maxProperties": 6,
+        "maxProperties": 9,
         "properties": {
           "confidence": {
             "anyOf": [
@@ -159,6 +173,19 @@
                 "maximum": 1,
                 "minimum": 0,
                 "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "correlation_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                "type": "string"
               },
               {
                 "type": "null"
@@ -215,7 +242,8 @@
                   "model_hypothesis",
                   "deterministically_derived",
                   "policy_verified",
-                  "runtime_backend_observed"
+                  "runtime_backend_observed",
+                  "host_authenticated_source"
                 ],
                 "type": "string"
               },
@@ -311,6 +339,16 @@
             ],
             "type": "object"
           },
+          "evidence_kind": {
+            "enum": [
+              "host_observed",
+              "deterministic_inference",
+              "caller_asserted",
+              "model_hypothesis",
+              "imported_claim"
+            ],
+            "type": "string"
+          },
           "kind": {
             "enum": [
               "proposed_by",
@@ -327,6 +365,16 @@
               "hypothesized_influence"
             ],
             "type": "string"
+          },
+          "proof_gaps": {
+            "items": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "type": "array"
           },
           "source_id": {
             "maxLength": 128,
@@ -347,7 +395,10 @@
           "target_id",
           "kind",
           "evidence",
-          "confidence"
+          "confidence",
+          "evidence_kind",
+          "correlation_id",
+          "proof_gaps"
         ],
         "type": "object"
       },
@@ -361,6 +412,11 @@
         "unknown"
       ],
       "type": "string"
+    },
+    "max_depth": {
+      "maximum": 64,
+      "minimum": 1,
+      "type": "integer"
     },
     "nodes": {
       "items": {
@@ -419,10 +475,29 @@
       "maxItems": 256,
       "type": "array"
     },
+    "occurrence_ids": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 128,
+      "type": "array"
+    },
     "path_id": {
       "maxLength": 128,
       "minLength": 1,
       "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "permissions": {
+      "enum": [
+        "within_boundary",
+        "exceeds_boundary",
+        "unsupported",
+        "unknown"
+      ],
       "type": "string"
     },
     "possible_impact": {
@@ -476,6 +551,19 @@
         "revision"
       ],
       "type": "object"
+    },
+    "root_cause_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "schema_version": {
       "const": "ordin.assurance_attack_path.v1",
@@ -539,7 +627,8 @@
               "model_hypothesis",
               "deterministically_derived",
               "policy_verified",
-              "runtime_backend_observed"
+              "runtime_backend_observed",
+              "host_authenticated_source"
             ],
             "type": "string"
           },
@@ -651,7 +740,12 @@
     "proof_gaps",
     "exposure",
     "reachability",
-    "possible_impact"
+    "possible_impact",
+    "permissions",
+    "root_cause_digest",
+    "boundary_digest",
+    "occurrence_ids",
+    "max_depth"
   ],
   "title": "Ordin assurance attack path v1",
   "type": "object"

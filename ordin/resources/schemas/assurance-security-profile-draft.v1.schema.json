@@ -177,7 +177,8 @@
                     "model_hypothesis",
                     "deterministically_derived",
                     "policy_verified",
-                    "runtime_backend_observed"
+                    "runtime_backend_observed",
+                    "host_authenticated_source"
                   ],
                   "type": "string"
                 },

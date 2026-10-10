@@ -77,6 +77,14 @@ source_action = ActionEnvelope("tool", "call", {"body": "synthetic wheel data"})
 source_use = correlate_source_use(host_source, origin, source_action, use_id="wheel-use",
                                  argument_path=("parameters", "body"))
 assert verify_source_use(host_source, origin, source_use, source_action)
+from ordin.assurance import AssuranceGate, ReviewedAction, build_attack_path, record_source_provenance
+context = host_source.context()
+graph_decision = AssuranceGate().evaluate_action(ActionEnvelope.shell("git status --short", action_id="graph-action"),
+                                                host_context=context)
+path = build_attack_path(host_source, (ReviewedAction(graph_decision, context),))
+assert path.reachability == "hypothesis" and path.proof_gaps
+provenance = record_source_provenance(host_source, source_action, origins=(origin,), uses=(source_use,))
+assert provenance.completeness == "partial"
 import contextlib, io
 from pathlib import Path
 Path("wheel-profile.json").write_text(json.dumps(profile.as_dict()), encoding="utf-8")
@@ -121,6 +129,8 @@ def run(wheel: Path, environment: Path) -> dict:
             "ordin/assurance/_property_challenges.py",
             "ordin/assurance/requests.py",
             "ordin/assurance/origins.py",
+            "ordin/assurance/attack_paths.py",
+            "ordin/assurance/source_flow.py",
         }
         if not required <= names:
             raise ValueError("wheel is missing assurance modules")

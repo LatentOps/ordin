@@ -98,6 +98,38 @@ class SourceUse(JsonRecord):
         raise ValueError("JSON source-use claims cannot authenticate data flow")
 
 
+@dataclass(frozen=True)
+class SourceProvenance(JsonRecord):
+    """Explicit host collection coverage, not a conclusion from absent records."""
+
+    SCHEMA = "assurance_source_provenance"
+    source_key: str
+    action_digest: str
+    origin_digests: tuple[str, ...]
+    use_digests: tuple[str, ...]
+    completeness: str = "partial"
+    _authority: _OriginAuthority | None = field(
+        default=None, repr=False, compare=False, kw_only=True
+    )
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if len(set(self.origin_digests)) != len(self.origin_digests) or len(
+            set(self.use_digests)
+        ) != len(self.use_digests):
+            raise ValueError("duplicate provenance handle")
+        if (
+            not isinstance(self._authority, _OriginAuthority)
+            or self._authority.source_key != self.source_key
+            or self._authority.payload_digest != self.digest
+        ):
+            raise ValueError("provenance coverage requires a protected host collector")
+
+    @classmethod
+    def from_dict(cls, payload: Mapping[str, Any]) -> SourceProvenance:
+        raise ValueError("JSON cannot authenticate source collection completeness")
+
+
 def _seal(model, values, source_key):
     preview = object.__new__(model)
     for key, value in values.items():
@@ -251,3 +283,52 @@ def verify_source_use(
         )
     except ValueError:
         return False
+
+
+def record_source_provenance(
+    source: HostEvidenceSource,
+    action: ActionEnvelope,
+    *,
+    origins: tuple[InstructionOrigin, ...] = (),
+    uses: tuple[SourceUse, ...] = (),
+    completeness: str = "partial",
+) -> SourceProvenance:
+    """Protected host API; complete means actual instrumented input provenance.
+
+    Exact byte handles cannot model arbitrary transformations. If the collector
+    cannot cover derived/unknown inputs, it must declare partial or unknown.
+    Absence of a supplied handle never establishes absence of sensitive flow.
+    """
+    if (
+        not isinstance(source, HostEvidenceSource)
+        or not isinstance(action, ActionEnvelope)
+        or not isinstance(origins, (tuple, list))
+        or not isinstance(uses, (tuple, list))
+        or len(origins) > 128
+        or len(uses) > 128
+        or any(not isinstance(v, InstructionOrigin) for v in origins)
+        or any(not isinstance(v, SourceUse) for v in uses)
+    ):
+        raise ValueError("bounded typed source provenance required")
+    origin_map = {v.digest: v for v in origins}
+    if (
+        len(origin_map) != len(origins)
+        or any(v.source_key != source.key for v in origins)
+        or any(
+            use.origin_digest not in origin_map
+            or not verify_source_use(source, origin_map[use.origin_digest], use, action)
+            for use in uses
+        )
+    ):
+        raise ValueError("source provenance contains uncorrelated handles")
+    return _seal(
+        SourceProvenance,
+        dict(
+            source_key=source.key,
+            action_digest=core_digest(action.as_dict()),
+            origin_digests=tuple(sorted(origin_map)),
+            use_digests=tuple(sorted(v.digest for v in uses)),
+            completeness=completeness,
+        ),
+        source.key,
+    )

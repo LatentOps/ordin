@@ -212,9 +212,10 @@ class HostEvidenceSource:
 
     record_approval is called only after actual host-authorized approval.
     record_assessment is called only after authenticated, conclusive domain
-    verification. It does not infer causal flow or validate grant lifecycle.
-    M6/M7 verifier integrations must supply those real results; absence remains
-    inconclusive. This source issues neither credentials nor execution grants.
+    verification. It does not infer persuasion or validate grant lifecycle.
+    The M6 source-flow helper supplies exact byte/collection checks; current
+    delegation verification is still supplied by the M7 integration. Absence
+    remains inconclusive. This source issues neither credentials nor execution grants.
     """
 
     principal: str

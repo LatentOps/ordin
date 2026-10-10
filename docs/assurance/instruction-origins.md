@@ -48,6 +48,10 @@ use = correlate_source_use(
 assert verify_source_use(host_source, origin, use, action)
 ```
 
-M6 remains in progress. Attack-path construction, source-flow invariant
-assessment, causal proof limits, counterevidence collection and cross-agent
-delegation integration are not implemented by these handles alone.
+`record_source_provenance` additionally creates a private host declaration of
+collection coverage for the exact action and handle set. Partial/unknown coverage
+is the default. A host may declare complete only when its instrumentation really
+covers all input origins, including transformations; exact byte handles alone
+cannot prove that. See [attack paths and source-flow guards](attack-paths.md) for
+the implemented builder and guard assessment. Cross-agent delegation and finding
+closure remain separate milestones.

@@ -95,6 +95,7 @@ EVIDENCE = obj(
         "deterministically_derived",
         "policy_verified",
         "runtime_backend_observed",
+        "host_authenticated_source",
     ),
     source=nullable(SOURCE),
     action_digest=nullable(DIGEST),
@@ -200,6 +201,15 @@ EDGE = obj(
     ),
     evidence=EVIDENCE,
     confidence=nullable(PROBABILITY),
+    evidence_kind=choice(
+        "host_observed",
+        "deterministic_inference",
+        "caller_asserted",
+        "model_hypothesis",
+        "imported_claim",
+    ),
+    correlation_id=nullable(ID),
+    proof_gaps=array(text(), 32),
 )
 ATTACK_PATH = artifact(
     "assurance_attack_path",
@@ -214,6 +224,11 @@ ATTACK_PATH = artifact(
     exposure=choice("established", "hypothesis", "unknown"),
     reachability=choice("established", "hypothesis", "blocked", "unknown"),
     possible_impact=array(ID, 32),
+    permissions=choice("within_boundary", "exceeds_boundary", "unsupported", "unknown"),
+    root_cause_digest=nullable(DIGEST),
+    boundary_digest=nullable(DIGEST),
+    occurrence_ids=array(ID, 128),
+    max_depth={"type": "integer", "minimum": 1, "maximum": 64},
 )
 FINDING = artifact(
     "assurance_finding",
@@ -619,8 +634,17 @@ SOURCE_USE = artifact(
     value_digest=DIGEST,
     usage=choice("data_argument", "instruction_context"),
 )
+SOURCE_PROVENANCE = artifact(
+    "assurance_source_provenance",
+    source_key=DIGEST,
+    action_digest=DIGEST,
+    origin_digests=array(DIGEST, 128),
+    use_digests=array(DIGEST, 128),
+    completeness=choice("complete", "partial", "unknown"),
+)
 
 SCHEMAS = {
+    "assurance_source_provenance": SOURCE_PROVENANCE,
     "assurance_instruction_origin": INSTRUCTION_ORIGIN,
     "assurance_source_use": SOURCE_USE,
     "assurance_challenge_suite": CHALLENGE_SUITE,

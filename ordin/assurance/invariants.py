@@ -437,7 +437,7 @@ def evaluate_approved_invariants(
                         "assurance.host_assessment_missing",
                         matched=matched,
                         unknowns=(
-                            "Authenticated causal-flow or current delegation verification is absent.",
+                            "Authenticated source-byte provenance or current delegation verification is absent.",
                         ),
                     )
                 )
