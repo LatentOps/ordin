@@ -6,6 +6,7 @@
 - Repository/profile implementation SHA: `bec1037d64fd0c52e043343c3ea1c960819ecb58`.
 - Invariant-gate functional implementation SHA: `aa5345d6fa18ed9d6f9f6ff62995f1c9eec6dd38`.
 - Policy-simulator functional implementation SHA: `3d757a3d1f2a389d526f921c3a45ab3827e4202d`.
+- Finite-challenger functional implementation SHA: `699b5f8185e42693b47e8263c4e5c51ef4ca09ef`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -18,7 +19,7 @@
 | M2 | implemented_offline_verified | Scoped read-only inventory, four frozen source-backed drafts, protected profile loader/compiler; 162 passed / 2 POSIX skips; final installed wheel, metadata and SDK example pass |
 | M3 | functional_sdk_verified_gates_open | Pure evaluator/gate and sealed host facts; 240 passed / 1 POSIX skip; wheel/SDK pass; full run 1135 passed / 5 failed / 27 skipped; two audit gaps fixed with 14-test recheck; end-to-end latency still failed |
 | M4 | functional_sdk_cli_verified_final_scenarios_open | Independent frozen replay, advisory change guard, local CLI, 22 synthetic cases; final source gate 168 passed / 1 POSIX skip; core compatibility 60 passed / 1 POSIX skip; final committed-source wheel/doctor/CLI/metadata pass; SDK/CLI parity captured |
-| M5 | finite_challenger_verified_broader_properties_open | Seeded filesystem-subset defect found/minimized/replayed, benign controls and partial coverage; CLI/schema; assurance/audit gate 183 passed / 1 POSIX skip; other property generators, solver and promotion pending |
+| M5 | finite_challenger_verified_broader_properties_open | Seeded filesystem-subset defect found/minimized/replayed, benign controls and partial coverage; CLI/schema; assurance/audit gate 183 passed / 1 POSIX skip, 18 core compatibility passes; final wheel/doctor/metadata and no-network/no-subprocess smoke pass; broader generators, solver and promotion pending |
 | M6 | not_started | Bounded attack paths and authenticated origins |
 | M7 | not_started | Delegation subset and lifecycle |
 | M8 | not_started | Offline Codex Security import and optional scanner |
@@ -288,8 +289,8 @@ retained as evidence and passes after this correction. Initial schema coverage
 failed because the new run schema was not yet registered in the core registry;
 explicit additive registration corrected it and the complete source/audit gate
 passes. The wheel smoke now also rejects subprocess execution inside the
-installed default SDK and exercises discovery/shrink/replay; its new run is
-pending. No fixture command, network endpoint, external scanner/model, permission
+installed default SDK and exercises discovery/shrink/replay; the final run
+passed. No fixture command, network endpoint, external scanner/model, permission
 grant or host boundary was exercised.
 
 M5 remains open: the [property inventory](challengers.md) lists generated
@@ -298,6 +299,19 @@ provider failure checks, broader differential/adversarial generation, optional
 solver encoding and safe reviewed promotion still required. M4's archived
 evidence remains pinned to its earlier source SHA; the subprocess-free metadata
 correction is part of this later source revision.
+
+The [pinned finite-challenger evidence](evidence/m5-finite-challenge.json) records
+implementation revision `699b5f8185e42693b47e8263c4e5c51ef4ca09ef`, four seeded
+failures, two independently replayed minimized records, ten supported actual
+verifier cases and six unresolved cases. The final local wheel has **251**
+packaged Python/JSON files byte-matched to that source. Its installed smoke
+rejects both socket construction and subprocess creation while exercising core
+reviews, simulation, seeded challenge/minimization/replay, schema parity and CLI
+registration; the separate installed doctor also passed. Wheel and sdist metadata
+checks passed. No host security boundary was exercised. Supplementary core
+API/agent/schema tests: **18 passed** in 8.37 seconds. Capture helpers also pass
+Linux-target mypy; this is type checking, not POSIX runtime evidence. All local
+test/build/capture processes for this checkpoint are terminal.
 
 ## Baseline failures and measurements (original source, continued)
 
@@ -370,7 +384,9 @@ installation, publication or deployment.
 
 Retain the completed full-suite failures/skips and verify the audit fixes at the
 next full release gate. Resolve end-to-end latency without weakening the declared budget. The next
-independent feature is M5 seeded counterexample generation, minimization and exact property replay.
+independent work is to broaden M5's generated monotonicity, request/protocol, tool,
+history and trust-origin checks with concrete replay and benign counterparts,
+then proceed through M6–M12. Do not treat the finite seeded slice as all of M5.
 Carry the existing Windows shell/latency/SQLite failures into the compatibility
 audit; they must be resolved or explicitly verified on supported platforms
 before any full completion claim. No background evaluation remains running.
