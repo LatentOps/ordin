@@ -8,6 +8,12 @@ separate v1 schema names and do not change any existing v1 meaning. Doctor check
 their root/package copies and in-memory validation definitions. JSON validity
 does not activate a profile, issue a grant or authenticate evidence.
 
+Assurance adds independent `assurance-decision`, `assurance-host-context`,
+`assurance-host-approval`, `assurance-host-assessment`, and
+`assurance-host-credential-use` v1 audit contracts. Their JSON forms describe
+data only; loading them cannot authenticate host context or issue an executable
+decision. The gate keeps all original reviews and schema meanings intact.
+
 Ordin publishes machine-readable contracts for versioned JSON surfaces. The [v0.3 compatibility inventory](public-compatibility-0.3.md) distinguishes supported and experimental formats. Schemas use Draft 2020-12 under `schemas/`; installed packages carry the same files under `ordin/resources/schemas/`.
 
 ## Published contracts

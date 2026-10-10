@@ -27,6 +27,11 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "assurance_host_credential_use": "assurance-host-credential-use.v1.schema.json",
+    "assurance_host_approval": "assurance-host-approval.v1.schema.json",
+    "assurance_host_assessment": "assurance-host-assessment.v1.schema.json",
+    "assurance_host_context": "assurance-host-context.v1.schema.json",
+    "assurance_decision": "assurance-decision.v1.schema.json",
     "assurance_repository_inventory": "assurance-repository-inventory.v1.schema.json",
     "assurance_repository_threat_model": "assurance-repository-threat-model.v1.schema.json",
     "assurance_profile_compilation": "assurance-profile-compilation.v1.schema.json",

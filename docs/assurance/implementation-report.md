@@ -4,7 +4,7 @@
 - Feature branch: `feat/ordin-assurance`.
 - Contract foundation SHA: `3773f23b08f1cd9b78a7b8aa041f952bd52d47cc`.
 - Repository/profile implementation SHA: `bec1037d64fd0c52e043343c3ea1c960819ecb58`.
-- Full implementation SHA: pending; M3–M12 remain open.
+- Full implementation SHA: pending; M3 full-regression/performance gates and M4–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
 - Optional providers/scanners: none installed or invoked for this work.
@@ -14,7 +14,7 @@
 | M0 | baseline_captured_with_failures | Frozen inventory, doctor, isolated baseline wheel and nine corpus cases pass; original suite: 1359 passed, 16 failed, 39 skipped; installed baseline recheck: 11 passed, 5 failed |
 | M1 | contract_foundation_verified | Ten immutable artifact contracts and schema pairs; 61 hostile/round-trip tests; source/schema/security/API gate 90 passed, 1 platform skip; agent/policy/entrypoint compatibility gate 108 passed; installed wheel and metadata gates pass |
 | M2 | implemented_offline_verified | Scoped read-only inventory, four frozen source-backed drafts, protected profile loader/compiler; 162 passed / 2 POSIX skips; final installed wheel, metadata and SDK example pass |
-| M3 | not_started | Invariant evaluator and monotonic AssuranceGate |
+| M3 | functional_sdk_verified_gates_open | Pure evaluator and gate, sealed host approvals/assessments/routing/context, 240 passed / 1 POSIX skip, isolated wheel and SDK example pass; full regression live and end-to-end latency gate failed |
 | M4 | not_started | Independent policy replay/simulation |
 | M5 | not_started | Seeded, minimized, replayed safe counterexamples |
 | M6 | not_started | Bounded attack paths and authenticated origins |
@@ -124,7 +124,67 @@ The final [source gate](evidence/m2-source-gate.json) and
 final directory-handle implementation. POSIX/multi-version CI remains required;
 this milestone has been exercised locally only on Windows/Python 3.13.
 
-## Baseline failures and measurements (original source)
+## M3 actual implementation and verification
+
+`gate.py`, `invariants.py` and `host.py` add pure conservative composition with
+the original `AgentGate`. All nine invariant kinds have typed behavior; dynamic
+flow/delegation checks consume authenticated host assessments and remain
+inconclusive without them. M6/M7 must provide actual verification integration;
+the M3 source does not itself prove causal flow or issue child grants.
+Credential routing is an exact host-bound opaque requirement and checks its
+destination independently. Its private credential-only verifier question is
+not an executable contract or full protocol/process authorization claim.
+
+Five additional v1 audit contracts are registered/packaged (58 schemas total).
+They never authenticate ordinary JSON. Decisions retain the full private core
+review, export a redacted separate report, and bind action, baseline/assurance
+configuration, profile, host policy/session/epoch/context and history. Changing
+the required-profile configuration invalidates old decisions. Changed review
+inputs during evaluation deny; baseline hard blocks skip added evidence.
+
+| Command / gate | Actual result |
+| --- | --- |
+| Initial invariant tests | 31 passed, 2 failed; one incorrect test assertion rejected a safe deny, and credential checking needed an explicitly scoped independent domain rather than unsupported GraphQL capability projection |
+| Corrected invariant tests | 33 passed; then 35 passed with required-configuration and review-time mutation cases |
+| Host/JSON/binding tests after immutable digest caching | 96 passed; finite/bounded/duplicate-key/origin protections retained |
+| Final source compatibility gate: `python -m pytest -q tests/assurance tests/test_schemas.py tests/test_public_api.py tests/test_policy.py tests/test_agent.py tests/test_action_policy.py tests/test_runtime_boundary.py tests/test_request_authority.py tests/test_docs_links.py -p no:cacheprovider --basetemp=.assurance-work/m3-final-source-tests --junitxml=.assurance-work/m3-final-source-tests.xml` | 240 passed, 1 skipped in 43.74 seconds; [source evidence](evidence/m3-source-gate.json) |
+| `python -m mypy --platform linux ordin/assurance` | Pass: 11 files |
+| Ruff lint/format and `git diff --check` | Pass |
+| `python -m ordin doctor` | Pass: 58 schemas; no parity/schema/graph errors |
+| `python -m examples.assurance.gate_review --output .assurance-work/m3-gate-example` | Pass: escalate before approval, execute after exact host receipt, deny protected mutation; no reviewed action executed |
+| `python -m build --no-isolation --outdir .assurance-work/m3-dist` | Pass; log `.assurance-work/m3-build.log` |
+| Final installed wheel and twine metadata checks | Pass; [wheel evidence](evidence/m3-wheel-check.json) includes exact wheel hash, 58 schemas, source-independent import/inventory and no socket creation |
+| Installed wheel interpreter with `-I examples/assurance/gate_review.py --output .assurance-work/m3-wheel-gate-example` | Pass; same synthetic disposition sequence and binding check |
+| `python scripts/run_assurance_full_regression.py --python .assurance-work/m3-regression-venv/Scripts/python.exe --output .assurance-work/m3-full-regression --revision uncommitted-m3-installed-wheel` | Running; full original-plus-Assurance suite, no thresholds/tests removed |
+
+The full regression process is confirmed live as exec session **38260**. Resume
+by polling that handle; do not restart from a timeout or from the state file
+alone. Private stdout/JUnit/state are under `.assurance-work/m3-full-regression`.
+No model/scanner/provider process is running.
+
+### M3 performance gate remains open
+
+The predeclared 5 ms p95 additional-layer budget was preserved. Profiling found
+four repeated effect-catalog scans per decision, plus redundant text validation
+and immutable record hashing. The report whitelist is now captured once,
+text checks use a bounded fixed regular expression, and immutable artifact/
+host-context digests are cached. No input limits or authority checks were removed.
+
+Actual [observed latency results](evidence/m3-latency-observed-summary.json):
+added p95 fell from 142.1518 ms to 50.2829 ms on this host. The isolated-layer
+measurement is 2.5064/4.9858/6.3382 ms p50/p95/p99, but end-to-end matched
+latency remains failed. Intrinsic success does not replace that required gate.
+All runs have zero disposition mismatches. These are synthetic, partly
+contention-affected, uncommitted-source measurements; exact-SHA release metrics
+and production effectiveness are unproven.
+
+Raw report reads failed with `PermissionError` even under workspace-scoped
+escalation. The tracked summary transcribes complete metrics observed directly
+in the actual tool output and explicitly records that limitation; it does not
+claim a hash of inaccessible original bytes. All four failed end-to-end outcomes
+remain visible.
+
+## Baseline failures and measurements (original source, continued)
 
 The original suite failed before any package or schema registration changed.
 Additive unregistered Assurance files/docs were created while the suite ran;
@@ -165,8 +225,8 @@ summary omits the machine hostname and retains exact case IDs and hashes.
 
 ## Outstanding limitations
 
-- The artifact/profile foundation is verified; it is not a working complete
-  Assurance system. M3–M12 are not implemented. All AT-01–AT-35 require
+- The artifact/profile/gate foundation is functional; it is not a complete
+  Assurance system. M3 acceptance gates remain open; M4–M12 are not implemented. All AT-01–AT-35 require
   integrated implementation and current evidence before overall completion.
 - `ApprovedSecurityProfile` now has a protected selection loader/compiler.
   Host-declared filesystem guarantees/mappings still require actual external
@@ -191,8 +251,9 @@ installation, publication or deployment.
 
 ## Next implementation actions
 
-Implement M3's conservative gate against
-the frozen baseline, with no automatic execution from missing authority.
+Poll the live M3 full-regression handle, retain every failure/skip, and resolve
+the end-to-end latency gate without weakening the declared budget. The next
+independent feature is M4 frozen policy replay/simulation using the actual gate.
 Carry the existing Windows shell/latency/SQLite failures into the compatibility
 audit; they must be resolved or explicitly verified on supported platforms
 before any full completion claim. No background evaluation remains running.

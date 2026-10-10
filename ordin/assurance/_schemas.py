@@ -416,7 +416,87 @@ PROFILE_COMPILATION = artifact(
     limitations=array(text(), 32),
 )
 
+HOST_SCOPE = obj(
+    principal=ID,
+    repository=REPOSITORY,
+    session_digest=DIGEST,
+    epoch=COUNT,
+    runtime_policy_digest=DIGEST,
+    selection_digest=DIGEST,
+)
+HOST_APPROVAL = artifact(
+    "assurance_host_approval",
+    receipt_id=ID,
+    source_key=DIGEST,
+    action_digest=DIGEST,
+    profile_digest=DIGEST,
+    contract_id=nullable(ID),
+)
+HOST_ASSESSMENT = artifact(
+    "assurance_host_assessment",
+    assessment_id=ID,
+    source_key=DIGEST,
+    action_digest=DIGEST,
+    profile_digest=DIGEST,
+    invariant_id=ID,
+    kind=choice("source_flow_guard", "delegated_authority_subset"),
+    status=choice("satisfied", "violated", "unsupported", "inconclusive"),
+    contract_id=nullable(ID),
+    proof_gaps=array(text(), 32),
+    origin={"type": "string", "const": "host_authenticated_assessment"},
+)
+CREDENTIAL_USE = artifact(
+    "assurance_host_credential_use",
+    receipt_id=ID,
+    source_key=DIGEST,
+    action_digest=DIGEST,
+    profile_digest=DIGEST,
+    binding=ID,
+    host=text(256),
+    port={"type": "integer", "minimum": 1, "maximum": 65535},
+)
+AUTHORITY_REF = obj(authority_id=ID, boundary_digest=DIGEST)
+HOST_CONTEXT = artifact(
+    "assurance_host_context",
+    scope=HOST_SCOPE,
+    source_key=DIGEST,
+    capability_authorities=array(AUTHORITY_REF, 128),
+    request_authorities=array(AUTHORITY_REF, 128),
+    approval_digests=array(DIGEST, 128),
+    assessment_digests=array(DIGEST, 128),
+    credential_use_digests=array(DIGEST, 128),
+    history_digest=nullable(DIGEST),
+)
+BASELINE_SUMMARY = obj(
+    disposition=choice("execute", "escalate", "deny"),
+    decision=choice("allow", "warn", "ask", "block"),
+    risk=choice("unknown", "low", "medium", "high", "critical"),
+    effects=array(ID, 64),
+    omitted_effects=COUNT,
+)
+ASSURANCE_DECISION = artifact(
+    "assurance_decision",
+    baseline=BASELINE_SUMMARY,
+    disposition=choice("execute", "escalate", "deny"),
+    action_digest=DIGEST,
+    contract_id=nullable(ID),
+    profile_digest=nullable(DIGEST),
+    baseline_configuration_digest=DIGEST,
+    assurance_configuration_digest=DIGEST,
+    host_context_digest=nullable(DIGEST),
+    history_digest=nullable(DIGEST),
+    invariant_evaluations=array(EVALUATION),
+    model_evidence=array(MODEL, 32),
+    reason_codes=array(ID, 256),
+    evidence_digest=DIGEST,
+)
+
 SCHEMAS = {
+    "assurance_host_credential_use": CREDENTIAL_USE,
+    "assurance_host_approval": HOST_APPROVAL,
+    "assurance_host_assessment": HOST_ASSESSMENT,
+    "assurance_host_context": HOST_CONTEXT,
+    "assurance_decision": ASSURANCE_DECISION,
     "assurance_repository_inventory": INVENTORY,
     "assurance_repository_threat_model": THREAT_MODEL,
     "assurance_profile_compilation": PROFILE_COMPILATION,
@@ -432,6 +512,8 @@ SCHEMAS = {
     "assurance_model_evidence": MODEL,
 }
 SHAPES = {
+    "assurance_host_scope": HOST_SCOPE,
+    "assurance_authority_ref": AUTHORITY_REF,
     "inventory_file": INVENTORY_FILE,
     "inventory_fact": INVENTORY_FACT,
     "inventory_issue": INVENTORY_ISSUE,

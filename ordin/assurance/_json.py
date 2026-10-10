@@ -5,10 +5,13 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 from types import MappingProxyType
 from typing import Any, Mapping
 
 from ._schemas import MAX_BYTES, MAX_DEPTH, MAX_ITEMS, MAX_TEXT, SCHEMAS, SHAPES
+
+_UNSAFE_TEXT = re.compile(r"[\x00-\x1f\x7f\ud800-\udfff]")
 
 
 def freeze(value: Any, *, depth: int = 0, budget: list[int] | None = None) -> Any:
@@ -22,7 +25,7 @@ def freeze(value: Any, *, depth: int = 0, budget: list[int] | None = None) -> An
             not isinstance(key, str)
             or not key
             or len(key) > 128
-            or any(ord(char) < 32 or ord(char) == 127 for char in key)
+            or _UNSAFE_TEXT.search(key) is not None
             for key in value
         ):
             raise ValueError("assurance JSON object limit exceeded")
@@ -36,9 +39,7 @@ def freeze(value: Any, *, depth: int = 0, budget: list[int] | None = None) -> An
             raise ValueError("assurance JSON collection limit exceeded")
         return tuple(freeze(child, depth=depth + 1, budget=budget) for child in value)
     if isinstance(value, str):
-        if len(value) > MAX_TEXT or any(
-            ord(c) < 32 or ord(c) == 127 or 0xD800 <= ord(c) <= 0xDFFF for c in value
-        ):
+        if len(value) > MAX_TEXT or _UNSAFE_TEXT.search(value) is not None:
             raise ValueError("assurance JSON text limit exceeded")
         return value
     if value is None or isinstance(value, (bool, int)):

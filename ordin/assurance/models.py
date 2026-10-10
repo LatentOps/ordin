@@ -7,6 +7,7 @@ constructors are separate from JSON parsing, as in RuntimeEvidenceSource.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, fields
+from functools import cached_property
 from typing import Any, ClassVar, Mapping, TypeVar
 
 from ._json import digest, freeze, loads, thaw, validate
@@ -75,7 +76,7 @@ class JsonRecord:
     def from_json(cls: type[T], data: str | bytes) -> T:
         return cls.from_dict(loads(data))
 
-    @property
+    @cached_property
     def digest(self) -> str:
         return digest(self.SCHEMA, self.as_dict())
 

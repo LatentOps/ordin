@@ -22,7 +22,18 @@ verified citations for local review. The output summary declares
 `draft_authoritative: false`, `executes_actions: false`, and
 `protection: synthetic_host_fixture_only`.
 
-An installed wheel can run this checkout example with its own interpreter:
+Review synthetic tool actions and exact approvals through the runtime wrapper:
+
+```sh
+python -m examples.assurance.gate_review --output .assurance-work/gate-example
+```
+
+Expected: the read escalates without a host receipt, the same read passes after
+the bound receipt, and the protected workflow mutation is denied. The example
+rechecks the action/configuration/context binding and writes redacted decision
+reports. It executes no reviewed action and installs no real host enforcement.
+
+An installed wheel can run these checkout examples with its own interpreter:
 
 ```sh
 /path/to/wheel-venv/bin/python -I examples/assurance/profile_inventory.py \
@@ -32,6 +43,6 @@ An installed wheel can run this checkout example with its own interpreter:
 ```
 
 On Windows use the venv's `Scripts/python.exe`. This is the working M2 SDK
-example. Runtime invariant review, replay, challenge, delegation, scanner/model
+example. Profile/gate review work; replay, challenge, delegation, scanner/model
 and finding examples remain subsequent milestones; no unsupported commands are
 advertised as implemented.

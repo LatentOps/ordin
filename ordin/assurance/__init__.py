@@ -41,8 +41,29 @@ from .profiles import (
     load_approved_profile,
     propose_profile,
 )
+from .gate import AssuranceDecision, AssuranceGate
+from .host import (
+    AssuranceHostContext,
+    HostApproval,
+    HostCapabilityAuthority,
+    HostConstraintAssessment,
+    HostCredentialUse,
+    HostEvidenceSource,
+    HostRequestAuthority,
+)
+from .invariants import evaluate_approved_invariants
 
 __all__ = [
+    "AssuranceDecision",
+    "AssuranceGate",
+    "AssuranceHostContext",
+    "HostApproval",
+    "HostCapabilityAuthority",
+    "HostConstraintAssessment",
+    "HostCredentialUse",
+    "HostEvidenceSource",
+    "HostRequestAuthority",
+    "evaluate_approved_invariants",
     "AuthorizedRepository",
     "InventoryLimits",
     "RepositoryInventory",
