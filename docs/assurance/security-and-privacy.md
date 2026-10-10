@@ -6,6 +6,16 @@ instruction documents, imported artifacts and model output remain untrusted.
 Only separately protected host APIs select profiles or issue trusted evidence.
 Ordinary JSON decoding cannot activate authority.
 
+Deterministic core reviews reuse catalog bytes only within the current review.
+The scope reads each retained file afresh, returns independently decoded values,
+and checks exact bytes, directory membership, missing-file selections, catalog
+environment and loader roots again before returning a result. Changed inputs
+raise a coarse `ValueError`; existing host adapters refuse that failed review.
+Scopes are discarded on success or error and are isolated across threads and
+async tasks. Extra or oversized catalogs use the original fresh-read path rather
+than extending the bounded retained state. This is not a persistent data cache
+or execution authority, and the host still rechecks current resources at use.
+
 The offline path creates analysis data. The pre-execution path uses separately
 protected configuration and host facts, then preserves the host's own approval,
 execution and observation boundaries:

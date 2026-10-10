@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import math
+from ._catalog_snapshot import snapshot_review
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
@@ -910,6 +911,7 @@ def _with_observation_provenance(
     return replace(review, provenance=provenance.append(*records))
 
 
+@snapshot_review
 def review_action(
     action: ActionEnvelope,
     *,
