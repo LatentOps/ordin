@@ -21,7 +21,7 @@
 | M3 | functional_sdk_verified_gates_open | Pure evaluator/gate and sealed host facts; 240 passed / 1 POSIX skip; wheel/SDK pass; full run 1135 passed / 5 failed / 27 skipped; two audit gaps fixed with 14-test recheck; end-to-end latency still failed |
 | M4 | functional_sdk_cli_verified_final_scenarios_open | Independent frozen replay, advisory change guard, local CLI, 22 synthetic cases; final source gate 168 passed / 1 POSIX skip; core compatibility 60 passed / 1 POSIX skip; final committed-source wheel/doctor/CLI/metadata pass; SDK/CLI parity captured |
 | M5 | expanded_challengers_verified_dependent_gates_open | Ten-property suite, 320 generated fixtures, 244 assessed / 76 unresolved; 172 seeded failures / 80 minimized replayed records; final source gate 200 passed / 1 POSIX skip; protocol compatibility 98 passed, broader core compatibility 79 passed; pinned wheel/doctor/metadata and SDK/CLI parity pass; dependent/optional gates remain open |
-| M6 | not_started | Bounded attack paths and authenticated origins |
+| M6 | source_handles_in_progress_graph_pending | Private host source/span and exact byte-use handles; source/audit gate 210 passed / 1 POSIX skip; 19-module mypy clean; wheel pending; graph and source-flow assessment remain pending |
 | M7 | not_started | Delegation subset and lifecycle |
 | M8 | not_started | Offline Codex Security import and optional scanner |
 | M9 | not_started | Optional mock/TypeSafe/Laya evidence |
@@ -381,6 +381,30 @@ Supplementary existing core public API/agent/schema/request/boundary checks:
 output and omits raw source paths. No provider/scanner, dependency download, real
 host boundary, publication or policy installation occurred. All checkpoint
 test/build/capture handles are terminal; the tracked package tree is clean.
+
+## M6 host origin/source-use foundation
+
+Private host-issued `InstructionOrigin` and `SourceUse` handles bind principal,
+repository, session, epoch, policy selection, source content/span digests and
+exact proposed-action bytes. Arbitrary role/trust words, JSON imports, changed
+handles and another host scope cannot supply authority. The functions retain
+no source bytes, perform no file/network/target operation and grant no
+execution or policy rights. UTF-8 bytes are matched exactly without Unicode
+normalization. Provided repository references must match the declared version
+and complete content digest. See [instruction/data origins](instruction-origins.md).
+
+Actual focused gate: `python -m pytest -q tests/assurance/test_origins.py
+tests/assurance/test_contract_coverage.py tests/test_contract_audit.py
+-p no:cacheprovider --basetemp=.assurance-work/m6-source-handles`: **24 passed**,
+7.04 seconds. `python -m mypy --platform linux ordin/assurance`: **19 source
+files clean**; ruff and diff checks pass. Two new source/package schema pairs
+bring the registry to **62 schemas / 22 Assurance schemas**. This source-handle
+feature is functional; the bounded attack-path builder, source-flow invariant
+assessment and cross-agent path verification remain pending. M6 is not complete.
+
+The broader `tests/assurance tests/test_contract_audit.py` gate at
+`.assurance-work/m6-origins-source-gate` passed **210 tests / 1 POSIX skip** in
+61.37 seconds. Final source-handle wheel verification follows.
 
 ## Baseline failures and measurements (original source, continued)
 

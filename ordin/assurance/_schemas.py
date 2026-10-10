@@ -585,8 +585,44 @@ ASSURANCE_DECISION = artifact(
     reason_codes=array(ID, 256),
     evidence_digest=DIGEST,
 )
+INSTRUCTION_ORIGIN = artifact(
+    "assurance_instruction_origin",
+    origin_id=ID,
+    source_key=DIGEST,
+    principal=ID,
+    repository=REPOSITORY,
+    session_digest=DIGEST,
+    epoch=COUNT,
+    kind=choice(
+        "authorized_user",
+        "repository_file",
+        "mcp_result",
+        "web_content",
+        "model_reasoning",
+        "unknown_origin",
+    ),
+    classification=choice("public", "internal", "sensitive", "unknown"),
+    content_digest=DIGEST,
+    span_digest=DIGEST,
+    span_start=COUNT,
+    span_end=COUNT,
+    source=nullable(SOURCE),
+    parent_action_digest=nullable(DIGEST),
+)
+SOURCE_USE = artifact(
+    "assurance_source_use",
+    use_id=ID,
+    source_key=DIGEST,
+    origin_digest=DIGEST,
+    action_digest=DIGEST,
+    argument_path=array(ID, 8),
+    value_digest=DIGEST,
+    usage=choice("data_argument", "instruction_context"),
+)
 
 SCHEMAS = {
+    "assurance_instruction_origin": INSTRUCTION_ORIGIN,
+    "assurance_source_use": SOURCE_USE,
     "assurance_challenge_suite": CHALLENGE_SUITE,
     "assurance_challenge_run": CHALLENGE_RUN,
     "assurance_host_credential_use": CREDENTIAL_USE,

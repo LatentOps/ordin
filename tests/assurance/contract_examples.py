@@ -15,6 +15,7 @@ from ordin.assurance import (
 from ordin.runtime_contract import CredentialBinding
 from ordin.assurance.challenge import challenge_authority_subset
 from ordin.assurance.property_challenge import challenge_security_properties
+from ordin.assurance.origins import register_instruction_origin, correlate_source_use
 
 from .test_models import examples
 from .test_profiles import POLICY_HASH, REPO, approve, config_profile, selected
@@ -54,6 +55,21 @@ def assurance_contract_examples(tmp_path):
         approvals=(approval,), assessments=(assessment,), credential_uses=(routing,)
     )
     decision = AssuranceGate(approved_profile=approved).evaluate_action(action, host_context=host)
+    origin = register_instruction_origin(
+        source,
+        origin_id="fixture-origin",
+        kind="authorized_user",
+        classification="public",
+        content="git status --short",
+    )
+    use = correlate_source_use(
+        source,
+        origin,
+        action,
+        use_id="fixture-use",
+        argument_path=("parameters", "command"),
+        usage="instruction_context",
+    )
     samples.update(
         {
             "assurance_repository_inventory": inventory.as_dict(),
@@ -64,6 +80,8 @@ def assurance_contract_examples(tmp_path):
             "assurance_host_credential_use": routing.as_dict(),
             "assurance_host_context": host.as_dict(),
             "assurance_decision": decision.as_dict(),
+            "assurance_instruction_origin": origin.as_dict(),
+            "assurance_source_use": use.as_dict(),
             "assurance_challenge_suite": challenge_security_properties(
                 seed=14, revision="fixture-v1", trials_per_property=1, properties=("trust_origin",)
             ).as_dict(),

@@ -68,6 +68,15 @@ seeded_requests = challenge_property(property_id="exact_request_commitment", see
 assert seeded_requests.failures == 12
 assert all(replay_counterexample(record, expected_revision="wheel-fixture-v1") == "verified_failure"
            for record in seeded_requests.counterexamples)
+from ordin.assurance import HostEvidenceSource, register_instruction_origin, correlate_source_use, verify_source_use
+host_source = HostEvidenceSource("fixture-agent", RepositoryScope("fixture/wheel", "snapshot-1"),
+                                 "a" * 64, 1, "b" * 64, "c" * 64)
+origin = register_instruction_origin(host_source, origin_id="wheel-origin", kind="mcp_result",
+                                     classification="public", content="synthetic wheel data")
+source_action = ActionEnvelope("tool", "call", {"body": "synthetic wheel data"})
+source_use = correlate_source_use(host_source, origin, source_action, use_id="wheel-use",
+                                 argument_path=("parameters", "body"))
+assert verify_source_use(host_source, origin, source_use, source_action)
 import contextlib, io
 from pathlib import Path
 Path("wheel-profile.json").write_text(json.dumps(profile.as_dict()), encoding="utf-8")
@@ -111,6 +120,7 @@ def run(wheel: Path, environment: Path) -> dict:
             "ordin/assurance/property_challenge.py",
             "ordin/assurance/_property_challenges.py",
             "ordin/assurance/requests.py",
+            "ordin/assurance/origins.py",
         }
         if not required <= names:
             raise ValueError("wheel is missing assurance modules")

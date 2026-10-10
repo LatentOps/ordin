@@ -44,6 +44,8 @@ SCHEMA_FILES = {
     "assurance_simulation": "assurance-simulation.v1.schema.json",
     "assurance_challenge_run": "assurance-challenge-run.v1.schema.json",
     "assurance_challenge_suite": "assurance-challenge-suite.v1.schema.json",
+    "assurance_instruction_origin": "assurance-instruction-origin.v1.schema.json",
+    "assurance_source_use": "assurance-source-use.v1.schema.json",
     "assurance_counterexample": "assurance-counterexample.v1.schema.json",
     "assurance_delegation": "assurance-delegation.v1.schema.json",
     "assurance_model_evidence": "assurance-model-evidence.v1.schema.json",

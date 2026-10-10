@@ -56,6 +56,13 @@ from .invariants import evaluate_approved_invariants
 from .challenge import ChallengeRun, challenge_authority_subset, replay_counterexample
 from .property_challenge import ChallengeSuite, challenge_property, challenge_security_properties
 from .requests import verify_assurance_capability, verify_assurance_request_authority
+from .origins import (
+    InstructionOrigin,
+    SourceUse,
+    register_instruction_origin,
+    correlate_source_use,
+    verify_source_use,
+)
 from .simulation import (
     FrozenCase,
     FrozenCorpus,
@@ -68,6 +75,11 @@ from .simulation import (
 )
 
 __all__ = [
+    "InstructionOrigin",
+    "SourceUse",
+    "register_instruction_origin",
+    "correlate_source_use",
+    "verify_source_use",
     "ChallengeSuite",
     "challenge_property",
     "challenge_security_properties",
