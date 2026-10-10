@@ -24,6 +24,7 @@
 - Installed-fixture correction SHA: `36e6392010eb2f3b2e014697bf2c43a90c7d6f1e`.
 - M12 measured candidate / portable quickstart SHA: `cba13c975b0b780de2fdbf67e995f47952e2f5d9`.
 - Review-scoped catalog snapshot / current measured candidate SHA: `04f40d05d85aeab244c149757a6a0a0e655ad060`.
+- Per-search PATH batching / latest measured candidate SHA: `6120e15731ce414465dbecb72fe6cb577f2d2c81`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -43,7 +44,7 @@
 | M9 | provider_sdk_async_measurements_provisional_workload_verified_real_acceptance_pending | Protected protocol/routing, TypeSafe and pinned local worker, measured threshold provenance, sync/async replay and 24-case provisional sample; source gate 432 passed / 1 skip; actual model/hardware and independently labeled effectiveness acceptance remain unverified |
 | M10 | vetted_source_fix_external_claim_import_verified_physical_broker_broader_lifecycle_pending | Vetted source/policy proof plus offline validation/patch/fix/risk claims, manifest scope and separate reported verdicts; 510 passed / 1 skip; physical isolation, generic predicates and integrated lifecycle remain open |
 | M11 | offline_cli_api_quickstart_adapter_composition_verified_platform_acceptance_open | Fresh wheel, six diagnostic contracts, typed host composition and five-minute offline quickstart; 525 passed / 1 skip; affected host source suite 198 passed / 1 environment failure / 3 skips; installed process evaluation 17/17; OpenShell 363 passed / 13 unavailable-prover skips |
-| M12 | current_full_suite_integration_pass_catalog_snapshot_verified_remaining_latency_acceptance_open | 35 mapped fixture scenarios / 89 tests pass, six partial scopes; authored Linux/Windows 3.10–3.13 offline CI; current installed all-suite 1904 passed / 40 skips / zero failures; integration and functional corpus/process gates pass; standalone safety p95 and added-overhead latency remain failed |
+| M12 | current_full_safety_integration_pass_path_batching_verified_added_overhead_acceptance_open | Refreshed 35 mapped scenarios / 89 tests pass with six partial scopes; authored Linux/Windows 3.10–3.13 offline CI; current installed all-suite 1919 passed / 40 skips / zero failures; two original-limit safety runs, integration and functional corpus/process gates pass; original paired 5 ms added-overhead gate remains failed |
 
 ## Verified contract preservation
 
@@ -1468,6 +1469,71 @@ partial acceptance scenarios remain open. All local handles are terminal. No
 provider/scanner, physical broker, credentials, upload, policy installation,
 patch application, push or publication occurred.
 
+## Bounded PATH batching and latest candidate verification
+
+Candidate `6120e15731ce414465dbecb72fe6cb577f2d2c81` adds `_path_lookup.py`
+for one search at a time. Profiling the slower safety cases found repeated
+`shutil.which` PATH probing dominated ranking cost. Bounded directory-name
+indexes now omit directories that cannot contain a candidate, while stdlib
+`shutil.which` still performs final resolution, including platform extensions,
+permissions, exact paths and cwd behavior. Sorted folded names support prefix
+lookup; original case-preserving membership is rechecked before return.
+PATH/PATHEXT/cwd/current-directory policy/platform/resolver changes refuse the
+result. No executable outcome survives a search. Unknown, missing, inaccessible,
+oversized, remote/device and unsupported PATH forms retain original probing;
+remote/device namespaces are never enumerated by the index. Injected resolvers
+are unchanged. At most 128 PATH entries / 1024 names per indexed directory are
+used. Catalog cleanup additionally clears retained environment metadata.
+
+Generic action review now derives resources from its already computed semantic
+evidence rather than invoking the same analyzer again. This preserves effect/
+resource correlation without introducing a persistent semantic cache. Added
+tests verify stdlib equivalence for shadows, extensions, exact/relative paths,
+empty/missing PATH, cwd semantics and default/injected search over every safety
+query. They cover case-only changes, directory/environment/resolver mutation,
+fresh lookup across calls, missing directories appearing, limit fallbacks and
+remote/device privacy. The complete Assurance/search/catalog source focus passes
+**482 tests / 2 platform skips**; final privacy/fallback/core focus passes **87 /
+1 skip**. Linux-target mypy passes **50 files**; full Ruff, formatting and docs
+links pass. Wheel/sdist metadata and fresh no-network/no-process smoke pass with
+**323 matching Python/JSON files**, the same **94 schemas / 54 Assurance**,
+empty mandatory dependencies and preserved original exports/entrypoints.
+
+| Latest installed candidate gate | Actual result |
+| --- | --- |
+| Complete root + Assurance + OpenShell + decision-model suites | **1919 passed, 40 skipped, zero failures** |
+| Maintained safety, first independent 20-repetition run | **34/34 exact decisions**, zero false allows/critical misses/false blocks/semantic/policy/fuzz errors; p50/p95/p99 **97.1881 / 244.2442 / 250.3498 ms**; original 250/500 ms limits pass |
+| Same safety gate, second independent run | Same zero functional errors; p50/p95/p99 **99.4445 / 189.9688 / 268.3171 ms**; original limits pass |
+| Maintained integration, 20 repetitions | **No errors**, zero decision/session/conformance failures; core p50/p95/p99 **0.2988 / 118.1632 / 149.0072 ms**, integration boundary **1.8940 / 191.1696 / 314.8478 ms** |
+| Trajectory / regression / Agent Safety Corpus | **11/11 trajectories, 21/21 decisions; 9/9 regressions; 9/9 corpus cases**, no errors |
+| Runtime process evaluation, five repetitions | **17/17 cases**, 85 subprocess samples and 7/7 applicable observations linked, no errors; p50/p95/p99 **641.6743 / 1004.3406 / 1598.8425 ms** |
+| Refreshed minimum acceptance on exact latest wheel | **35 mapped scenarios / 89 test cases**, no skips/observer errors; six scopes remain partial, `overall_acceptance=incomplete`; all 323 core and 17 optional protocol files match source |
+
+The original 5 ms added-p95 requirement is still not met. Three sequential quiet
+400-sample series use the same actions, warmup and repetition count:
+
+| Run | Added paired p50 / p95 / p99 ms | Intrinsic p50 / p95 / p99 ms |
+| --- | --- | --- |
+| 1 | 2.0002 / 16.2711 / 44.1483 | 1.8865 / 4.2232 / 6.2497 |
+| 2 | 2.2682 / 18.4044 / 44.0927 | 1.8215 / 3.0220 / 4.3458 |
+| 3 | 2.0630 / 15.7098 / 28.9225 | 1.8260 / 2.8818 / 3.9079 |
+
+All have zero disposition mismatches. Each intrinsic p95 passes 5 ms; **each
+paired added-p95 gate fails**, so overall release acceptance remains failed.
+Improved/passing safety and integration metrics do not substitute for that
+requirement. Earlier failing candidates remain in the report and evidence.
+
+[Pinned PATH evidence](evidence/path-lookup.json) retains the full source/wheel/
+JUnit/report hashes, both safety runs, actual failed overhead and tested limits.
+[Refreshed minimum evidence](evidence/path-minimum-acceptance.json) preserves
+current action/context/profile/configuration diagnostics and six partial scopes
+on this exact revision. Raw overhead reports were copied byte-for-byte. The
+finite corpus stdout is labeled explicitly and does not claim an unread report
+hash. Only Windows/Python 3.13/local available tooling is verified. Remote CI,
+remaining scenarios, real provider/scanner and physical backend acceptance remain
+open; no upload, policy/patch application, push or publication occurred. All
+local handles are terminal.
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
@@ -1507,8 +1573,10 @@ wrapper, fake-process gates and offline diff/CI example are implemented. Live
 external scanner/runner behavior is unverified. Continue with a measured core/
 Assurance latency optimization that preserves fresh configuration reads and all
 security thresholds. Fresh review-scoped catalog reuse now passes the full suite
-and integration gates, while standalone safety p95 and paired added-overhead
-gates remain failed. Address remaining measured costs, then rerun exact-candidate
+and integration gates. Bounded per-search PATH batching now also passes two
+original-limit maintained safety runs and the refreshed minimum fixture report,
+while paired added-overhead remains failed. Address remaining measured costs,
+then rerun exact-candidate
 release gates. Complete the six
 partial minimum scenarios and supported-platform CI; the authored workflow is
 not a CI result. Complete physical broker acceptance, broader M10
