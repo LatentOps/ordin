@@ -14,6 +14,7 @@
 - Offline Codex importer SHA: `7fa6d65c646619986d4e96043a3209ea8ad44e81`.
 - Scanner/diff/optional CI implementation SHA: `4d3fb8d8879c230b7c9e6c2970b91cecafd5dc4f`.
 - Optional semantic protocol/routing/TypeSafe SHA: `ea3d4778c3ad83ed20bb660a6a96232f9f30d3dc`.
+- Local model worker/evaluation SDK SHA: `26297fcc98d0a9cfdb4c61fbe343685fe0ffbeee`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -912,6 +913,16 @@ refuses before launch. A broader tokenizer parser was necessary for actual-sized
 vocabularies; its limits are explicit and do not relax advisory records. This
 checkpoint proves local SDK/fake IPC and metric behavior only. M9 acceptance is
 incomplete, and no real model efficacy/calibration claim is made.
+
+The [pinned local worker/evaluation capture](evidence/m9-laya-evaluation.json)
+records source `26297fcc98d0a9cfdb4c61fbe343685fe0ffbeee`, actual source-gate cases
+and the isolated optional install smoke. Fourteen optional Python/JSON package
+files match source; default calls remain zero and heavy packages/weights/actions
+remain absent. The [fresh core wheel evidence](evidence/m9-laya-core-wheel.json)
+matches 286 package Python/JSON files to that source, verifies installed doctor
+and **74 schemas / 34 Assurance schemas**, with SDK sockets/process creation
+rejected. All checkpoint handles are terminal. No actual checkpoint, credential,
+source upload, execution grant, remote runner, release or deployment was used.
 
 ## Outstanding limitations
 
