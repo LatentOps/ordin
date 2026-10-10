@@ -463,6 +463,8 @@ class SecurityFinding(JsonRecord):
     safe_reproducer_ref: str | None = None
     occurrence_ids: tuple[str, ...] = ()
     origin: str = "caller_asserted"
+    validation_digest: str | None = None
+    verification_scope: str | None = None
     _authority: _FindingAuthority | None = field(
         default=None, repr=False, compare=False, kw_only=True
     )
@@ -482,6 +484,15 @@ class SecurityFinding(JsonRecord):
             or self.proof_gaps
         ):
             raise ValueError("confirmed finding requires reproduction evidence without proof gaps")
+        if self.status in {"confirmed", "refuted"} and (
+            self.validation_digest is None
+            or self.verification_scope
+            not in {
+                "gate_authority_subset",
+                "observed_contract_authorization",
+            }
+        ):
+            raise ValueError("finding closure must retain exact validation digest and tested scope")
 
 
 @dataclass(frozen=True)

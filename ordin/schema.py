@@ -27,6 +27,13 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "assurance_contract_authorization": "assurance-contract-authorization.v1.schema.json",
+    "assurance_source_patch": "assurance-source-patch.v1.schema.json",
+    "assurance_remediation_proposal": "assurance-remediation-proposal.v1.schema.json",
+    "assurance_fix_verification": "assurance-fix-verification.v1.schema.json",
+    "assurance_finding_review": "assurance-finding-review.v1.schema.json",
+    "assurance_replay_input": "assurance-replay-input.v1.schema.json",
+    "assurance_finding_validation": "assurance-finding-validation.v1.schema.json",
     "assurance_host_credential_use": "assurance-host-credential-use.v1.schema.json",
     "assurance_host_approval": "assurance-host-approval.v1.schema.json",
     "assurance_host_assessment": "assurance-host-assessment.v1.schema.json",

@@ -40,6 +40,53 @@ def assurance_contract_examples(tmp_path):
     from .semantic_contract_samples import semantic_contract_samples
 
     samples.update(semantic_contract_samples())
+    import json
+    from .test_remediation import setup as remediation_setup
+    from .test_validation import reference
+    from ordin.assurance.remediation import verify_fix
+    from ordin.assurance.source_patch import propose_source_patch
+
+    validation_directory = tmp_path / "finding-validation-contracts"
+    validation_directory.mkdir()
+    before, _, original_policy, _, reproduced, proposal, fix_arguments = remediation_setup(
+        validation_directory
+    )
+    fix_result = verify_fix(proposal, reproduced, **fix_arguments)
+    patch = propose_source_patch(
+        before[0], reproduced, reference(before[0], "app.py"), "# Proposed synthetic fix.\n"
+    )
+    samples.update(
+        {
+            "assurance_finding_review": before[3].as_dict(),
+            "assurance_replay_input": json.loads((before[0].root / "case.json").read_text()),
+            "assurance_finding_validation": reproduced.as_dict(),
+            "assurance_remediation_proposal": proposal.as_dict(),
+            "assurance_fix_verification": fix_result.as_dict(),
+            "assurance_source_patch": patch.as_dict(),
+        }
+    )
+    from ordin.assurance.validation import record_contract_authorization
+    from ordin.runtime_contract import derive_runtime_capability_contract
+    from ordin.runtime_observation import RuntimeEvidenceSource
+
+    original_decision = original_policy.build_gate().evaluate_action(
+        before[4].action, host_context=before[1].context()
+    )
+    original_contract = derive_runtime_capability_contract(original_decision.review)
+    backend = RuntimeEvidenceSource(
+        "fixture", before[1].session_digest, "synthetic-sandbox", before[1].runtime_policy_digest
+    )
+    event = backend.observe(
+        original_contract,
+        observation_id="grant-event",
+        trust="backend_enforced",
+        enforcement_point="tool",
+        outcome="allowed",
+        operation="authorization",
+    )
+    samples["assurance_contract_authorization"] = record_contract_authorization(
+        before[1], backend, event, original_contract
+    ).as_dict()
     from .test_codex_import import bundle
 
     scan_directory = tmp_path / "scan-import-fixture"

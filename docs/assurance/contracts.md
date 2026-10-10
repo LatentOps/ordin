@@ -56,6 +56,11 @@ caller/static/imported/model claims, but cannot claim `policy_verified`,
 must issue those origins from independently verified inputs and bind their
 payloads. Finding `confirmed`/`refuted` closure likewise requires verified host
 validation; imported findings remain hypotheses/inconclusive.
+Closed findings retain a validation digest and explicit tested scope. Source
+reviews, replay fixtures, backend entire-contract grant facts, validation and
+fix receipts cannot be reconstructed as trusted handles from JSON. See the
+[finding/fix workflow](finding-validation.md) for the current finite predicates
+and source-code/sandbox limitations.
 
 `DelegationGrant` is a proposal/evidence artifact, never a credential or an
 issued host authority handle. Even an input-declared `issued` status conveys no

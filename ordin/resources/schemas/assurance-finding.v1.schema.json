@@ -2,7 +2,7 @@
   "$id": "https://latentops.space/ordin/schemas/assurance-finding.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "maxProperties": 21,
+  "maxProperties": 23,
   "properties": {
     "actual_privilege": {
       "items": {
@@ -519,6 +519,19 @@
       ],
       "type": "string"
     },
+    "validation_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "verification_method": {
       "enum": [
         "none",
@@ -528,6 +541,21 @@
         "host_observation"
       ],
       "type": "string"
+    },
+    "verification_scope": {
+      "anyOf": [
+        {
+          "enum": [
+            "static_references",
+            "gate_authority_subset",
+            "observed_contract_authorization"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   },
   "required": [
@@ -547,6 +575,8 @@
     "confidence",
     "status",
     "verification_method",
+    "validation_digest",
+    "verification_scope",
     "proof_gaps",
     "safe_reproducer_ref",
     "dedupe_key",

@@ -1,0 +1,572 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-finding-validation.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 23,
+  "properties": {
+    "action_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "action_kind": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "advisory_only": {
+      "const": true,
+      "type": "boolean"
+    },
+    "boundary_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "configuration_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "contract_authorization_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "counterevidence": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 7,
+        "properties": {
+          "action_digest": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contract_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "caller_asserted",
+              "static_evidence",
+              "imported_claim",
+              "model_hypothesis",
+              "deterministically_derived",
+              "policy_verified",
+              "runtime_backend_observed",
+              "host_authenticated_source"
+            ],
+            "type": "string"
+          },
+          "proof_gaps": {
+            "items": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "session_digest": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "maxProperties": 5,
+                "properties": {
+                  "content_digest": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "line": {
+                    "maximum": 10000000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "path": {
+                    "maxLength": 1024,
+                    "minLength": 1,
+                    "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+                    "type": "string"
+                  },
+                  "revision": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                    "type": "string"
+                  },
+                  "symbol": {
+                    "anyOf": [
+                      {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "path",
+                  "line",
+                  "revision",
+                  "content_digest",
+                  "symbol"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "evidence_id",
+          "origin",
+          "source",
+          "action_digest",
+          "contract_id",
+          "session_digest",
+          "proof_gaps"
+        ],
+        "type": "object"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 7,
+        "properties": {
+          "action_digest": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contract_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "caller_asserted",
+              "static_evidence",
+              "imported_claim",
+              "model_hypothesis",
+              "deterministically_derived",
+              "policy_verified",
+              "runtime_backend_observed",
+              "host_authenticated_source"
+            ],
+            "type": "string"
+          },
+          "proof_gaps": {
+            "items": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "session_digest": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "maxProperties": 5,
+                "properties": {
+                  "content_digest": {
+                    "maxLength": 64,
+                    "minLength": 1,
+                    "pattern": "^[a-f0-9]{64}$",
+                    "type": "string"
+                  },
+                  "line": {
+                    "maximum": 10000000,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "path": {
+                    "maxLength": 1024,
+                    "minLength": 1,
+                    "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+                    "type": "string"
+                  },
+                  "revision": {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                    "type": "string"
+                  },
+                  "symbol": {
+                    "anyOf": [
+                      {
+                        "maxLength": 128,
+                        "minLength": 1,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "path",
+                  "line",
+                  "revision",
+                  "content_digest",
+                  "symbol"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "evidence_id",
+          "origin",
+          "source",
+          "action_digest",
+          "contract_id",
+          "session_digest",
+          "proof_gaps"
+        ],
+        "type": "object"
+      },
+      "maxItems": 128,
+      "type": "array"
+    },
+    "finding_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "fixture_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "fixture_source": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "maxProperties": 5,
+          "properties": {
+            "content_digest": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "line": {
+              "maximum": 10000000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "path": {
+              "maxLength": 1024,
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+              "type": "string"
+            },
+            "revision": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+              "type": "string"
+            },
+            "symbol": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "line",
+            "revision",
+            "content_digest",
+            "symbol"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "invariant_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 16,
+      "type": "array"
+    },
+    "mode": {
+      "enum": [
+        "static",
+        "replay",
+        "sandboxed_test",
+        "host_observation"
+      ],
+      "type": "string"
+    },
+    "proof_gaps": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "repository": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "result": {
+      "enum": [
+        "confirmed",
+        "refuted",
+        "inconclusive"
+      ],
+      "type": "string"
+    },
+    "review_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "safe_reproducer_ref": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema_version": {
+      "const": "ordin.assurance_finding_validation.v1",
+      "type": "string"
+    },
+    "source_key": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "tested_scope": {
+      "enum": [
+        "static_references",
+        "gate_authority_subset",
+        "observed_contract_authorization"
+      ],
+      "type": "string"
+    },
+    "validation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "validation_id",
+    "finding_digest",
+    "review_digest",
+    "repository",
+    "mode",
+    "result",
+    "invariant_id",
+    "boundary_digest",
+    "action_digest",
+    "action_kind",
+    "fixture_digest",
+    "fixture_source",
+    "configuration_digest",
+    "evidence",
+    "counterevidence",
+    "proof_gaps",
+    "safe_reproducer_ref",
+    "tested_scope",
+    "contract_authorization_digest",
+    "limitations",
+    "source_key",
+    "advisory_only"
+  ],
+  "title": "Ordin assurance finding validation v1",
+  "type": "object"
+}

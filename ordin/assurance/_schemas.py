@@ -248,6 +248,10 @@ FINDING = artifact(
     confidence=nullable(PROBABILITY),
     status=choice("imported", "hypothesis", "confirmed", "refuted", "inconclusive"),
     verification_method=choice("none", "static", "replay", "sandboxed_test", "host_observation"),
+    validation_digest=nullable(DIGEST),
+    verification_scope=nullable(
+        choice("static_references", "gate_authority_subset", "observed_contract_authorization")
+    ),
     proof_gaps=array(text()),
     safe_reproducer_ref=nullable(ID),
     dedupe_key=DIGEST,
@@ -909,7 +913,144 @@ SCANNER_RUN = artifact(
     limitations=array(text(), 32),
 )
 
+FINDING_RUBRIC = obj(
+    actor=ID,
+    controlled_sources=array(SOURCE, 32),
+    allowed_permissions=array(ID, 32),
+    invariant_id=ID,
+    expected_authority_digest=DIGEST,
+    source_to_sink=array(SOURCE, 32),
+    existing_controls=array(SOURCE, 32),
+    preconditions=array(text(), 32),
+    changes=array(text(), 32),
+    unknowns=array(text(), 32),
+)
+FINDING_REVIEW = artifact(
+    "assurance_finding_review",
+    finding_digest=DIGEST,
+    repository=REPOSITORY,
+    rubric=FINDING_RUBRIC,
+    source_snapshot_digest=DIGEST,
+    verified_sources=array(SOURCE, 128),
+    evidence=array(EVIDENCE, 128),
+    counterevidence=array(EVIDENCE, 32),
+    proof_gaps=array(text(), 64),
+    status=choice("reviewed", "inconclusive"),
+    advisory_only={"type": "boolean", "const": True},
+)
+REPLAY_INPUT = artifact(
+    "assurance_replay_input",
+    case_id=ID,
+    action=obj(
+        schema_version={"type": "string", "const": "ordin.action_envelope.v1"},
+        action_id=nullable(ID),
+        kind=ID,
+        operation=text(256),
+        parameters={"type": "object", "maxProperties": 128, "additionalProperties": True},
+        intent=nullable(text()),
+        context=nullable({"type": "object", "maxProperties": 32, "additionalProperties": True}),
+    ),
+)
+FINDING_VALIDATION = artifact(
+    "assurance_finding_validation",
+    validation_id=ID,
+    finding_digest=DIGEST,
+    review_digest=DIGEST,
+    repository=REPOSITORY,
+    mode=choice("static", "replay", "sandboxed_test", "host_observation"),
+    result=choice("confirmed", "refuted", "inconclusive"),
+    invariant_id=ID,
+    boundary_digest=DIGEST,
+    action_digest=nullable(DIGEST),
+    action_kind=nullable(ID),
+    fixture_digest=nullable(DIGEST),
+    fixture_source=nullable(SOURCE),
+    configuration_digest=nullable(DIGEST),
+    evidence=array(EVIDENCE, 128),
+    counterevidence=array(EVIDENCE, 64),
+    proof_gaps=array(text(), 64),
+    safe_reproducer_ref=nullable(ID),
+    tested_scope=choice(
+        "static_references", "gate_authority_subset", "observed_contract_authorization"
+    ),
+    contract_authorization_digest=nullable(DIGEST),
+    limitations=array(text(), 16),
+    source_key=DIGEST,
+    advisory_only={"type": "boolean", "const": True},
+)
+
+REMEDIATION_PROPOSAL = artifact(
+    "assurance_remediation_proposal",
+    proposal_id=ID,
+    validation_digest=DIGEST,
+    finding_digest=DIGEST,
+    repository_before=REPOSITORY,
+    repository_after=REPOSITORY,
+    baseline_policy_digest=DIGEST,
+    candidate_policy_digest=DIGEST,
+    expected_authority_digest=DIGEST,
+    authority_delta=choice("unchanged", "narrowed", "widened", "unsupported", "unknown"),
+    protected_host_configuration_changed=BOOLEAN,
+    proposed_source_patch_digest=nullable(DIGEST),
+    review_required={"type": "boolean", "const": True},
+    applied={"type": "boolean", "const": False},
+    limitations=array(text(), 16),
+)
+FIX_VERIFICATION = artifact(
+    "assurance_fix_verification",
+    proposal_digest=DIGEST,
+    original_validation_digest=DIGEST,
+    candidate_validation_digest=nullable(DIGEST),
+    repository_before=REPOSITORY,
+    repository_after=REPOSITORY,
+    result=choice("fixed-verified", "still-vulnerable", "inconclusive"),
+    tested_scope=choice("policy_replay"),
+    original_fixture_digest=DIGEST,
+    candidate_fixture_digest=DIGEST,
+    benign_fixture_digests=array(DIGEST, 64),
+    benign_regressions=COUNT,
+    alternative_route_misses=COUNT,
+    authority_delta=choice("unchanged", "narrowed", "widened", "unsupported", "unknown"),
+    simulation_digest=nullable(DIGEST),
+    baseline_p95_ms=nullable(MILLISECONDS),
+    candidate_p95_ms=nullable(MILLISECONDS),
+    proof_gaps=array(text(), 64),
+    limitations=array(text(), 16),
+    integrated={"type": "boolean", "const": False},
+    advisory_only={"type": "boolean", "const": True},
+)
+
+SOURCE_PATCH_PROPOSAL = artifact(
+    "assurance_source_patch",
+    proposal_id=ID,
+    validation_digest=DIGEST,
+    repository=REPOSITORY,
+    source=SOURCE,
+    candidate_file_digest=DIGEST,
+    patch_digest=DIGEST,
+    patch_bytes={"type": "integer", "minimum": 1, "maximum": 131072},
+    applied={"type": "boolean", "const": False},
+    review_required={"type": "boolean", "const": True},
+)
+
+CONTRACT_AUTHORIZATION = artifact(
+    "assurance_contract_authorization",
+    source_key=DIGEST,
+    runtime_source_key=DIGEST,
+    observation_digest=DIGEST,
+    contract_digest=DIGEST,
+    repository=REPOSITORY,
+    authorization_scope={"type": "string", "const": "entire_contract"},
+)
+
 SCHEMAS = {
+    "assurance_contract_authorization": CONTRACT_AUTHORIZATION,
+    "assurance_source_patch": SOURCE_PATCH_PROPOSAL,
+    "assurance_remediation_proposal": REMEDIATION_PROPOSAL,
+    "assurance_fix_verification": FIX_VERIFICATION,
+    "assurance_finding_review": FINDING_REVIEW,
+    "assurance_replay_input": REPLAY_INPUT,
+    "assurance_finding_validation": FINDING_VALIDATION,
     "assurance_semantic_inspection": SEMANTIC_INSPECTION,
     "assurance_semantic_policy": SEMANTIC_POLICY,
     "assurance_semantic_decision": SEMANTIC_DECISION,
@@ -946,6 +1087,7 @@ SCHEMAS = {
     "assurance_model_evidence": MODEL,
 }
 SHAPES = {
+    "finding_rubric": FINDING_RUBRIC,
     "diff_file": DIFF_FILE,
     "imported_location": IMPORTED_LOCATION,
     "assurance_host_scope": HOST_SCOPE,

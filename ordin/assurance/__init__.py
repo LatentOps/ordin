@@ -83,6 +83,31 @@ from .delegation import (
 )
 from .delegating_gate import DelegatedDecision, DelegatingAssuranceGate
 from .delegated_paths import build_delegated_attack_path
+from .validation_models import (
+    FindingRubric,
+    FindingReview,
+    FindingValidation,
+    HostContractAuthorization,
+)
+from .validation import (
+    ReplayFixture,
+    review_finding,
+    load_replay_fixture,
+    validate_finding_static,
+    validate_finding_replay,
+    validate_finding_host_observation,
+    close_finding,
+    deduplicate_findings,
+    record_contract_authorization,
+)
+from .remediation import (
+    RemediationProposal,
+    FixVerification,
+    propose_remediation,
+    propose_invariant_remediation,
+    verify_fix,
+)
+from .source_patch import SourcePatchProposal, propose_source_patch
 from .simulation import (
     FrozenCase,
     FrozenCorpus,
@@ -95,6 +120,26 @@ from .simulation import (
 )
 
 __all__ = [
+    "FindingRubric",
+    "FindingReview",
+    "FindingValidation",
+    "HostContractAuthorization",
+    "record_contract_authorization",
+    "ReplayFixture",
+    "review_finding",
+    "load_replay_fixture",
+    "validate_finding_static",
+    "validate_finding_replay",
+    "validate_finding_host_observation",
+    "close_finding",
+    "deduplicate_findings",
+    "RemediationProposal",
+    "FixVerification",
+    "propose_remediation",
+    "propose_invariant_remediation",
+    "verify_fix",
+    "SourcePatchProposal",
+    "propose_source_patch",
     "build_delegated_attack_path",
     "DelegatedDecision",
     "DelegatingAssuranceGate",

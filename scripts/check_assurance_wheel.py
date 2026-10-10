@@ -47,6 +47,13 @@ assert SecurityProfile.from_json(json.dumps(profile.as_dict())) == profile
 assert AgentGate().evaluate_action(ActionEnvelope.shell("git status --short")).disposition == "execute"
 assert AgentGate().evaluate_action(ActionEnvelope.shell("rm -rf /")).disposition == "deny"
 assert ModelAnswer("risk", 0.5).p_yes == 0.5
+from ordin.assurance.validation_demo import run_demo as validation_demo
+finding_demo = validation_demo()
+assert finding_demo["actions_executed"] is False and finding_demo["target_code_executed"] is False
+assert finding_demo["patch_applied"] is False
+assert finding_demo["validation"]["result"] == "confirmed"
+assert finding_demo["validation"]["tested_scope"] == "gate_authority_subset"
+assert finding_demo["fix"]["result"] == "fixed-verified" and finding_demo["fix"]["integrated"] is False
 corpus = FrozenCorpus.synthetic((FrozenCase("wheel-safe", ActionEnvelope.shell("git status --short"),
                                           expected="execute", label="benign"),))
 simulation = simulate_policy_change(SimulationPolicy(), SimulationPolicy(), corpus,
@@ -165,6 +172,7 @@ assert len(inventory.files) == 1 and inventory.facts[0].source.symbol == "main"
 assert build_threat_model(scope, inventory).draft.authoritative is False
 print(json.dumps({"ok": True, "version": ordin.__version__, "schemas": len(SCHEMA_FILES),
                   "assurance_schemas": len(SCHEMAS), "exports": sorted(assurance.__all__),
+                  "finding_validation_demo": finding_demo,
                   "loaded_from": ordin.__file__}))
 """
 
