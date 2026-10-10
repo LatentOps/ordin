@@ -130,7 +130,8 @@ def main():
                 "revision": args.revision,
                 "passed": report["source_gate"]["passed"],
                 "skipped": report["source_gate"]["skipped"],
-                "target_code_executed": False,
+                "vetted_synthetic_code_executed": args.slice == "vetted_source",
+                "unvetted_target_code_executed": False,
             }
         )
     )
