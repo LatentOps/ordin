@@ -37,6 +37,9 @@ from .test_profiles import POLICY_HASH, REPO, approve, config_profile, selected
 
 def assurance_contract_examples(tmp_path):
     samples = {record.SCHEMA: record.as_dict() for record in examples()}
+    from .semantic_contract_samples import semantic_contract_samples
+
+    samples.update(semantic_contract_samples())
     from .test_codex_import import bundle
 
     scan_directory = tmp_path / "scan-import-fixture"

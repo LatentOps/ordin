@@ -29,7 +29,7 @@
 | M6 | graph_flow_sdk_verified_cross_agent_added | Bounded graph/source-flow SDK; original gate 230 passed / 1 POSIX skip; authenticated M7 cross-agent composition added; combined gate 258 passed / 1 POSIX skip; new wheel pending |
 | M7 | sdk_lifecycle_verified_release_gates_open | Full-domain containment, private issuance/revocation, current use tickets, per-child sessions and cross-agent graphs; source gate 258 passed / 1 POSIX skip; core compatibility 140 passed / 1 skip; pinned example/graph/wheel/doctor/metadata pass; external enforcement/release gates remain open |
 | M8 | offline_sdk_mock_diff_verified_live_boundary_unverified | Pinned importer, explicit scanner selection/configuration/consent/isolation, fake-process tests, offline source/authority diff and optional private CI example; source gate 335 passed / 1 POSIX skip; core compatibility 47 passed / 2 skips; pinned core/adapter wheel/doctor/metadata checks pass; real scanner/host isolation/CI unverified |
-| M9 | not_started | Optional mock/TypeSafe/Laya evidence |
+| M9 | protocol_privacy_routing_typesafe_mock_verified_laya_evals_pending | Separate optional package, protected state/inspection inputs, conservative sync/async routing and explicit TypeSafe contract; fake API/HTTP and package checks pass; Laya activation and full held-out/calibration/friction/latency acceptance incomplete |
 | M10 | not_started | Finding validation and patch-risk verification |
 | M11 | not_started | Complete CLI/API/docs/examples |
 | M12 | not_started | Complete acceptance, corpus, CI and release gates |
@@ -759,6 +759,79 @@ All checkpoint handles are terminal. No real scanner, model, account, upload,
 execution grant, publication, deployment or remote runner was used.
 See [the integration contract](codex-security-integration.md).
 
+## M9 protocol, privacy, routing and TypeSafe contract
+
+The separate `ordin-decision-models` namespace has no heavy base dependency.
+Ordinary Ordin import/construction/commands never load or call it. Protocol input
+contains only bounded immutable state and fixed versioned yes/no questions, never
+tools or host issuance objects. Protected task origins and exact source/use bytes
+are checked against the current action/profile/history/context review; snippets
+are selected explicitly. Credentials are omitted and private/unknown classification
+refuses hosted use. Object representations and routine summaries hide selected
+private text; `as_dict()` remains explicit private model input for host review.
+
+Host-authenticated exact-action inspection triggers cover ambiguity, unclear
+effects, proximity to a boundary and cross-agent work. Ordinary low-risk actions
+with no question skip inference. Default mode is disabled; shadow preserves
+disposition, and enforced mode can add escalation, retain core asks, or refuse
+stale configuration. A hard deterministic denial makes zero provider calls.
+Mandatory classes fail closed for missing context, outage, malformed/uncertain
+answers and exhausted budgets. Sync timeouts retain concurrency leases until the
+actual worker finishes; async cancellation propagates. This does not terminate
+arbitrary native model code or provide a physical sandbox.
+
+The public TypeSafe schema was inspected read-only at `api.typesafe.ai/openapi.json`
+(0.2.0). The adapter is async-only and explicitly discovers model names, pins the
+expected response version, batches fixed `noul` questions and validates names,
+finite probabilities, schema/usage and byte/deadline limits. It fixes HTTPS host/
+port, pins operator-selected CA bytes, ignores proxy environment, refuses redirects
+and unsupported framing, and performs no retry. Discovery and inference enforce
+their own deadline even for custom transports. No live account/TLS API was tested.
+
+Actual host disclosure approval and conclusive credential/egress/spend assessment
+bind the exact input/question/model/configuration, source/profile, short lifetime
+and bounded request count. Only a primitive receipt reaches the provider. The API
+offers no per-request currency cap; actual account/gateway spend enforcement must
+be verified by the host, not inferred from token counts. JSON consent/role text
+cannot authenticate these controls. Provider outputs remain predictions and cannot
+grant permission, close a finding or become a backend observation.
+
+Laya 0.4.1 source tag resolves to `1adc59f7e371deb601fcfa18a14e25db238addcc`;
+individual source blobs and the model-card license/revision are recorded read-only
+under integration resources. Its default Router downloads checkpoints and its
+loader can modify tokenizer configuration; none was imported or executed here.
+Local checkpoint/worker implementation and held-out security metrics remain M9
+work. Upstream generic accuracy/calibration/performance is not Ordin evidence.
+
+Actual checks:
+
+| Gate | Result |
+| --- | --- |
+| Initial routing/model contract recheck, `.assurance-work/m9-routing-unknown-risk-gate` | 83 passed, 8.81 s |
+| Bound inspection trigger recheck, `.assurance-work/m9-bound-triggers-gate` | 83 passed, 9.69 s |
+| TypeSafe/routing/contracts, `.assurance-work/m9-typesafe-first-gate` | 47 passed, 13.96 s |
+| Actual HTTP parser over simulated streams plus API/routing, `.assurance-work/m9-https-routing-gate` | 57 passed, 15.26 s |
+| Direct client/deadline gate, `.assurance-work/m9-direct-client-deadline-gate` | 59 passed, 12.47 s |
+| Strong actual core-ask test, `.assurance-work/m9-explicit-core-ask-gate` | 21 passed, 5.55 s |
+| Earlier combined source gate, `.assurance-work/m9-reviewed-routing-typesafe-source-gate` | 394 passed, 1 POSIX skip, 113.99 s; final post-review source gate follows |
+| Final post-review source gate, `.assurance-work/m9-final-ask-binding-source-gate` | 394 passed, 1 POSIX skip, 110.44 s |
+| Core API/agent/schema/security/Codex compatibility, `.assurance-work/m9-routing-typesafe-core-compatibility` | 47 passed, 2 platform skips, 10.28 s |
+| Linux-target mypy, optional package/capture/wheel helper | 10 files clean |
+| Ruff/diff | Passed |
+| Fresh core wheel/doctor | 74 schemas / 34 Assurance schemas; SDK socket/subprocess construction rejected |
+| Fresh optional wheel smoke | Default zero provider calls; isolated offline demo; no actions, weights, heavy model imports or SDK network/process creation |
+| Core/optional wheel and sdist twine metadata | All four passed |
+
+Initial schema helper/name errors were corrected before runtime validation.
+Unknown core risk initially failed the new state schema and is now retained as
+unknown. The first optional wheel spy replaced `Popen` with a function, preventing
+Windows asyncio's subclass definition; a class now rejects process construction
+while allowing normal library import. The permissive-core-ask fixture was made
+explicit with an actual core policy rule so a low model score cannot silently
+execute it. No validator, privacy guard, time budget or baseline restriction was
+weakened. Model effectiveness has not been evaluated and M9 is not complete.
+See [decision models](decision-models.md).
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
@@ -796,7 +869,8 @@ next full release gate. Resolve end-to-end latency without weakening the declare
 budget. M6 graph/source-flow, M7 delegation/lifecycle and M8 importer, scanner
 wrapper, fake-process gates and offline diff/CI example are implemented. Live
 external scanner/runner behavior is unverified. The next independent feature is
-M9 optional semantic providers and risk routing. Keep dependent M5 provider checks,
+M9 Laya activation and held-out semantic evaluation after the verified protocol/
+privacy/routing/TypeSafe slice. Keep dependent M5 provider checks,
 optional finite solver/promotion work and the release gates open; expanded
 generated checks are not proof of the full objective.
 Carry the existing Windows shell/latency/SQLite failures into the compatibility

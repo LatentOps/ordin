@@ -448,6 +448,9 @@ MODEL = artifact(
         "version_mismatch",
         "transport",
         "question_mismatch",
+        "canceled",
+        "privacy",
+        "budget",
     ),
     calibration_ref=nullable(ID),
     consent_ref=nullable(ID),
@@ -550,7 +553,12 @@ HOST_ASSESSMENT = artifact(
     action_digest=DIGEST,
     profile_digest=DIGEST,
     invariant_id=ID,
-    kind=choice("source_flow_guard", "delegated_authority_subset", "scanner_isolation"),
+    kind=choice(
+        "source_flow_guard",
+        "delegated_authority_subset",
+        "scanner_isolation",
+        "semantic_hosted_scope",
+    ),
     status=choice("satisfied", "violated", "unsupported", "inconclusive"),
     contract_id=nullable(ID),
     proof_gaps=array(text(), 32),
@@ -722,6 +730,110 @@ SCAN_IMPORT = artifact(
     proof_gaps=array(text(), 64),
     origin=choice("imported_claim"),
 )
+SEMANTIC_QUESTION_IDS = choice(
+    "material_intent_mismatch",
+    "possible_secret_egress",
+    "suspicious_permission_expansion",
+    "untrusted_instruction_following",
+    "suspicious_delegation",
+)
+SEMANTIC_QUESTIONS = artifact(
+    "assurance_security_questions",
+    question_ids={**array(SEMANTIC_QUESTION_IDS, 5), "minItems": 1},
+    question_set_id={"type": "string", "const": "ordin.security_questions.v1"},
+    interpretation=text(),
+)
+SEMANTIC_SNIPPET = obj(
+    text=text(2048),
+    origin_kind=ID,
+    classification=choice("public", "internal", "sensitive", "secret", "unknown"),
+    content_digest=DIGEST,
+)
+SEMANTIC_STATE = artifact(
+    "assurance_semantic_state",
+    action_digest=DIGEST,
+    baseline_evidence_digest=DIGEST,
+    gate_configuration_digest=DIGEST,
+    host_context_digest=nullable(DIGEST),
+    task_context_digest=nullable(DIGEST),
+    host_source_key=nullable(DIGEST),
+    action_kind=choice("shell", "tool", "mcp", "http", "filesystem", "process", "unknown"),
+    risk=choice("unknown", "low", "medium", "high", "critical"),
+    effects=array(ID, 64),
+    authorized_task=nullable(text(2048)),
+    snippets=array(SEMANTIC_SNIPPET, 4),
+    signals=array(
+        choice(
+            "sensitive_content_redacted",
+            "untrusted_content_present",
+            "untrusted_instruction_context",
+            "sensitive_source_present",
+            "network_effect",
+            "authority_change_candidate",
+            "delegation_candidate",
+            "task_alignment_question",
+            "ambiguous_task_alignment",
+            "unclear_effect",
+            "near_trust_boundary",
+            "cross_agent_flow",
+        ),
+        12,
+    ),
+    remote_eligible=BOOLEAN,
+    omitted_fields=COUNT,
+    redaction_policy_id={"type": "string", "const": "ordin.semantic_privacy.v1"},
+)
+
+SEMANTIC_POLICY = artifact(
+    "assurance_semantic_policy",
+    mode=choice("disabled", "shadow", "enforced-escalation"),
+    enabled_question_ids=array(SEMANTIC_QUESTION_IDS, 5),
+    mandatory_action_kinds=array(SEMANTIC_STATE["properties"]["action_kind"], 7),
+    mandatory_effects=array(ID, 64),
+    required_question_ids=array(SEMANTIC_QUESTION_IDS, 5),
+    escalation_threshold=PROBABILITY,
+    uncertainty_margin={"type": "number", "minimum": 0, "maximum": 0.49},
+    deadline_ms={"type": "integer", "minimum": 1, "maximum": 30000},
+    max_total_calls={"type": "integer", "minimum": 0, "maximum": 4096},
+    max_concurrency={"type": "integer", "minimum": 1, "maximum": 16},
+    max_input_bytes={"type": "integer", "minimum": 1024, "maximum": 12288},
+)
+SEMANTIC_INSPECTION = artifact(
+    "assurance_semantic_inspection",
+    source_key=DIGEST,
+    action_digest=DIGEST,
+    reasons={
+        **array(
+            choice(
+                "ambiguous_task_alignment",
+                "unclear_effect",
+                "near_trust_boundary",
+                "cross_agent_flow",
+            ),
+            4,
+        ),
+        "minItems": 1,
+    },
+)
+SEMANTIC_DECISION = artifact(
+    "assurance_semantic_decision",
+    decision_id=ID,
+    mode=SEMANTIC_POLICY["properties"]["mode"],
+    disposition=choice("execute", "escalate", "deny"),
+    baseline_disposition=choice("execute", "escalate", "deny"),
+    baseline_evidence_digest=DIGEST,
+    router_configuration_digest=DIGEST,
+    state_digest=nullable(DIGEST),
+    question_set_digest=nullable(DIGEST),
+    model_evidence=nullable(MODEL),
+    model_invoked=BOOLEAN,
+    mandatory=BOOLEAN,
+    uncertain_question_ids=array(SEMANTIC_QUESTION_IDS, 5),
+    reason_codes=array(ID, 32),
+    elapsed_ms=MILLISECONDS,
+    advisory_only={"type": "boolean", "const": True},
+)
+
 DIFF_FILE = obj(
     path_digest=DIGEST,
     change=choice("added", "modified", "deleted"),
@@ -797,6 +909,11 @@ SCANNER_RUN = artifact(
 )
 
 SCHEMAS = {
+    "assurance_semantic_inspection": SEMANTIC_INSPECTION,
+    "assurance_semantic_policy": SEMANTIC_POLICY,
+    "assurance_semantic_decision": SEMANTIC_DECISION,
+    "assurance_security_questions": SEMANTIC_QUESTIONS,
+    "assurance_semantic_state": SEMANTIC_STATE,
     "assurance_diff_triage": DIFF_TRIAGE,
     "assurance_scanner_run": SCANNER_RUN,
     "assurance_imported_finding": IMPORTED_FINDING,

@@ -65,7 +65,10 @@
         "refused",
         "version_mismatch",
         "transport",
-        "question_mismatch"
+        "question_mismatch",
+        "canceled",
+        "privacy",
+        "budget"
       ],
       "type": "string"
     },

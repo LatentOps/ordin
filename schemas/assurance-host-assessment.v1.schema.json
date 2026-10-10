@@ -39,7 +39,8 @@
       "enum": [
         "source_flow_guard",
         "delegated_authority_subset",
-        "scanner_isolation"
+        "scanner_isolation",
+        "semantic_hosted_scope"
       ],
       "type": "string"
     },
