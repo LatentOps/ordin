@@ -8,6 +8,7 @@
 - Policy-simulator functional implementation SHA: `3d757a3d1f2a389d526f921c3a45ab3827e4202d`.
 - Finite-challenger functional implementation SHA: `699b5f8185e42693b47e8263c4e5c51ef4ca09ef`.
 - Expanded-property implementation SHA: `9c472242f566c5eb4f9cc00ee005eef58a5537d7`.
+- Host-source handle implementation SHA: `7a9804cc897bcdf4bd4733ec1af2279615e5aa87`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -21,7 +22,7 @@
 | M3 | functional_sdk_verified_gates_open | Pure evaluator/gate and sealed host facts; 240 passed / 1 POSIX skip; wheel/SDK pass; full run 1135 passed / 5 failed / 27 skipped; two audit gaps fixed with 14-test recheck; end-to-end latency still failed |
 | M4 | functional_sdk_cli_verified_final_scenarios_open | Independent frozen replay, advisory change guard, local CLI, 22 synthetic cases; final source gate 168 passed / 1 POSIX skip; core compatibility 60 passed / 1 POSIX skip; final committed-source wheel/doctor/CLI/metadata pass; SDK/CLI parity captured |
 | M5 | expanded_challengers_verified_dependent_gates_open | Ten-property suite, 320 generated fixtures, 244 assessed / 76 unresolved; 172 seeded failures / 80 minimized replayed records; final source gate 200 passed / 1 POSIX skip; protocol compatibility 98 passed, broader core compatibility 79 passed; pinned wheel/doctor/metadata and SDK/CLI parity pass; dependent/optional gates remain open |
-| M6 | source_handles_in_progress_graph_pending | Private host source/span and exact byte-use handles; source/audit gate 210 passed / 1 POSIX skip; 19-module mypy clean; wheel pending; graph and source-flow assessment remain pending |
+| M6 | source_handles_verified_graph_pending | Private host source/span and exact byte-use handles; source/audit gate 210 passed / 1 POSIX skip; 19-module mypy clean; final pinned wheel/doctor/metadata and no-network/no-subprocess SDK smoke pass; graph and source-flow assessment remain pending |
 | M7 | not_started | Delegation subset and lifecycle |
 | M8 | not_started | Offline Codex Security import and optional scanner |
 | M9 | not_started | Optional mock/TypeSafe/Laya evidence |
@@ -404,7 +405,15 @@ assessment and cross-agent path verification remain pending. M6 is not complete.
 
 The broader `tests/assurance tests/test_contract_audit.py` gate at
 `.assurance-work/m6-origins-source-gate` passed **210 tests / 1 POSIX skip** in
-61.37 seconds. Final source-handle wheel verification follows.
+61.37 seconds. The [pinned source-handle wheel evidence](evidence/m6-source-handles-wheel.json)
+records source SHA `7a9804cc897bcdf4bd4733ec1af2279615e5aa87`, **258** packaged
+Python/JSON files byte-matched to that source, and a successful fresh isolated
+install with **62 schemas / 22 Assurance schemas**. Source creation, exact byte
+correlation and verification run inside the SDK smoke with subprocess and
+socket construction rejected. The separate installed doctor and wheel/sdist
+metadata checks pass. Private doctor output is retained as a hash. No target
+operation, scanner/model, permission grant, upload, release or deployment occurred.
+All checkpoint handles are terminal.
 
 ## Baseline failures and measurements (original source, continued)
 
