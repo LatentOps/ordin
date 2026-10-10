@@ -4,6 +4,7 @@
 - Feature branch: `feat/ordin-assurance`.
 - Contract foundation SHA: `3773f23b08f1cd9b78a7b8aa041f952bd52d47cc`.
 - Repository/profile implementation SHA: `bec1037d64fd0c52e043343c3ea1c960819ecb58`.
+- Invariant-gate functional implementation SHA: `aa5345d6fa18ed9d6f9f6ff62995f1c9eec6dd38`.
 - Full implementation SHA: pending; M3 full-regression/performance gates and M4–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -14,7 +15,7 @@
 | M0 | baseline_captured_with_failures | Frozen inventory, doctor, isolated baseline wheel and nine corpus cases pass; original suite: 1359 passed, 16 failed, 39 skipped; installed baseline recheck: 11 passed, 5 failed |
 | M1 | contract_foundation_verified | Ten immutable artifact contracts and schema pairs; 61 hostile/round-trip tests; source/schema/security/API gate 90 passed, 1 platform skip; agent/policy/entrypoint compatibility gate 108 passed; installed wheel and metadata gates pass |
 | M2 | implemented_offline_verified | Scoped read-only inventory, four frozen source-backed drafts, protected profile loader/compiler; 162 passed / 2 POSIX skips; final installed wheel, metadata and SDK example pass |
-| M3 | functional_sdk_verified_gates_open | Pure evaluator and gate, sealed host approvals/assessments/routing/context, 240 passed / 1 POSIX skip, isolated wheel and SDK example pass; full regression live and end-to-end latency gate failed |
+| M3 | functional_sdk_verified_gates_open | Pure evaluator/gate and sealed host facts; 240 passed / 1 POSIX skip; wheel/SDK pass; full run 1135 passed / 5 failed / 27 skipped; two audit gaps fixed with 14-test recheck; end-to-end latency still failed |
 | M4 | not_started | Independent policy replay/simulation |
 | M5 | not_started | Seeded, minimized, replayed safe counterexamples |
 | M6 | not_started | Bounded attack paths and authenticated origins |
@@ -155,12 +156,18 @@ inputs during evaluation deny; baseline hard blocks skip added evidence.
 | `python -m build --no-isolation --outdir .assurance-work/m3-dist` | Pass; log `.assurance-work/m3-build.log` |
 | Final installed wheel and twine metadata checks | Pass; [wheel evidence](evidence/m3-wheel-check.json) includes exact wheel hash, 58 schemas, source-independent import/inventory and no socket creation |
 | Installed wheel interpreter with `-I examples/assurance/gate_review.py --output .assurance-work/m3-wheel-gate-example` | Pass; same synthetic disposition sequence and binding check |
-| `python scripts/run_assurance_full_regression.py --python .assurance-work/m3-regression-venv/Scripts/python.exe --output .assurance-work/m3-full-regression --revision uncommitted-m3-installed-wheel` | Running; full original-plus-Assurance suite, no thresholds/tests removed |
+| `python scripts/run_assurance_full_regression.py --python .assurance-work/m3-regression-venv/Scripts/python.exe --output .assurance-work/m3-full-regression --revision uncommitted-m3-installed-wheel` | Exit 1: 1135 passed, 5 failed, 27 skipped in 530.787 seconds; thresholds/tests preserved |
+| `python -m pytest -q tests/test_contract_audit.py tests/assurance/test_contract_coverage.py -p no:cacheprovider --basetemp=.assurance-work/m3-canonical-examples` | 14 passed: canonical examples added for all 18 new schemas; frozen legacy inventory retained |
 
-The full regression process is confirmed live as exec session **38260**. Resume
-by polling that handle; do not restart from a timeout or from the state file
-alone. Private stdout/JUnit/state are under `.assurance-work/m3-full-regression`.
-No model/scanner/provider process is running.
+The full regression process **38260 is terminal**, exit 1. Its
+[sanitized summary](evidence/m3-full-regression-summary.json) records every
+failed/skipped case and the private JUnit hash. Two failures were newly added
+schema coverage/inventory assertions; canonical runtime/data examples and an
+explicit additive-schema audit corrected them without changing the legacy
+manifest. The focused audit recheck passes. Remaining full-run failures are two
+existing Windows latency tests and the existing quickstart's absent POSIX `sh`.
+Private stdout/JUnit/state stay under `.assurance-work/m3-full-regression`.
+No background evaluation, model or scanner process remains running.
 
 ### M3 performance gate remains open
 
@@ -251,8 +258,8 @@ installation, publication or deployment.
 
 ## Next implementation actions
 
-Poll the live M3 full-regression handle, retain every failure/skip, and resolve
-the end-to-end latency gate without weakening the declared budget. The next
+Retain the completed full-suite failures/skips and verify the audit fixes at the
+next full release gate. Resolve end-to-end latency without weakening the declared budget. The next
 independent feature is M4 frozen policy replay/simulation using the actual gate.
 Carry the existing Windows shell/latency/SQLite failures into the compatibility
 audit; they must be resolved or explicitly verified on supported platforms
