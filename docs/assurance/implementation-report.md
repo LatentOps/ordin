@@ -7,6 +7,7 @@
 - Invariant-gate functional implementation SHA: `aa5345d6fa18ed9d6f9f6ff62995f1c9eec6dd38`.
 - Policy-simulator functional implementation SHA: `3d757a3d1f2a389d526f921c3a45ab3827e4202d`.
 - Finite-challenger functional implementation SHA: `699b5f8185e42693b47e8263c4e5c51ef4ca09ef`.
+- Expanded-property implementation SHA: `9c472242f566c5eb4f9cc00ee005eef58a5537d7`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -19,7 +20,7 @@
 | M2 | implemented_offline_verified | Scoped read-only inventory, four frozen source-backed drafts, protected profile loader/compiler; 162 passed / 2 POSIX skips; final installed wheel, metadata and SDK example pass |
 | M3 | functional_sdk_verified_gates_open | Pure evaluator/gate and sealed host facts; 240 passed / 1 POSIX skip; wheel/SDK pass; full run 1135 passed / 5 failed / 27 skipped; two audit gaps fixed with 14-test recheck; end-to-end latency still failed |
 | M4 | functional_sdk_cli_verified_final_scenarios_open | Independent frozen replay, advisory change guard, local CLI, 22 synthetic cases; final source gate 168 passed / 1 POSIX skip; core compatibility 60 passed / 1 POSIX skip; final committed-source wheel/doctor/CLI/metadata pass; SDK/CLI parity captured |
-| M5 | expanded_challengers_verified_dependent_gates_open | Ten-property suite, 320 generated fixtures, 244 assessed / 76 unresolved; seeded defects minimized/replayed; final source gate 200 passed / 1 POSIX skip; protocol/legacy compatibility gate 98 passed; expanded wheel pending; delegation/provider, optional solver and promotion gates remain open |
+| M5 | expanded_challengers_verified_dependent_gates_open | Ten-property suite, 320 generated fixtures, 244 assessed / 76 unresolved; 172 seeded failures / 80 minimized replayed records; final source gate 200 passed / 1 POSIX skip; protocol compatibility 98 passed, broader core compatibility 79 passed; pinned wheel/doctor/metadata and SDK/CLI parity pass; dependent/optional gates remain open |
 | M6 | not_started | Bounded attack paths and authenticated origins |
 | M7 | not_started | Delegation subset and lifecycle |
 | M8 | not_started | Offline Codex Security import and optional scanner |
@@ -365,7 +366,21 @@ was relabeled success and no resource limit was raised. Z3 and Hypothesis are
 absent; no dependency installation or solver result is claimed.
 
 Expanded schema/source/package pairs now total 20 Assurance contracts and
-60 registered schemas. Wheel smoke and pinned evidence capture are next.
+60 registered schemas. The [pinned expanded-property evidence](evidence/m5-expanded-properties.json)
+records revision `9c472242f566c5eb4f9cc00ee005eef58a5537d7`, actual SDK/CLI manifest
+parity and native CLI exit **2** for incomplete coverage. The seeded synthetic
+checker run detects **172** failures and independently replays **80** distinct
+minimized records. Those are deliberate fixture defects, not reported Ordin
+vulnerabilities. **255** packaged Python/JSON files are byte-matched to the source.
+
+The fresh expanded wheel smoke passes with **60 schemas / 20 Assurance schemas**,
+exact request-property discovery/shrink/replay and subprocess/socket rejection
+inside the SDK. The installed doctor and wheel/sdist metadata checks also pass.
+Supplementary existing core public API/agent/schema/request/boundary checks:
+**79 passed** in 7.14 seconds. Evidence capture retains a hash of private doctor
+output and omits raw source paths. No provider/scanner, dependency download, real
+host boundary, publication or policy installation occurred. All checkpoint
+test/build/capture handles are terminal; the tracked package tree is clean.
 
 ## Baseline failures and measurements (original source, continued)
 
