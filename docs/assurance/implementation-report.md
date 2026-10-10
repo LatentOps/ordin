@@ -19,6 +19,7 @@
 - Scoped finding/policy-fix SDK SHA: `d24ccd4978a8ff6bb41dbe160425eca5cff21068`.
 - Vetted synthetic broker/source-fix SDK SHA: `4da87e3d4ba0f500133febedc96cf54095a97410`; capture-summary correction: `e55dd9acd31c24c53a3e187a529504227741e9aa`.
 - Offline external workflow claim SDK/CLI SHA: `17423386c9662cfc85a0ed1a4dbb66ba85e9572c`.
+- Offline CLI/API/quickstart and adapter composition SHA: `74e41a2cbf92561c4ea097f9f661f23243bb1ea1`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -37,7 +38,7 @@
 | M8 | offline_sdk_mock_diff_verified_live_boundary_unverified | Pinned importer, explicit scanner selection/configuration/consent/isolation, fake-process tests, offline source/authority diff and optional private CI example; source gate 335 passed / 1 POSIX skip; core compatibility 47 passed / 2 skips; pinned core/adapter wheel/doctor/metadata checks pass; real scanner/host isolation/CI unverified |
 | M9 | provider_sdk_async_measurements_provisional_workload_verified_real_acceptance_pending | Protected protocol/routing, TypeSafe and pinned local worker, measured threshold provenance, sync/async replay and 24-case provisional sample; source gate 432 passed / 1 skip; actual model/hardware and independently labeled effectiveness acceptance remain unverified |
 | M10 | vetted_source_fix_external_claim_import_verified_physical_broker_broader_lifecycle_pending | Vetted source/policy proof plus offline validation/patch/fix/risk claims, manifest scope and separate reported verdicts; 510 passed / 1 skip; physical isolation, generic predicates and integrated lifecycle remain open |
-| M11 | not_started | Complete CLI/API/docs/examples |
+| M11 | offline_cli_api_quickstart_adapter_composition_verified_platform_acceptance_open | Fresh wheel, six diagnostic contracts, typed host composition and five-minute offline quickstart; 525 passed / 1 skip; affected host source suite 198 passed / 1 environment failure / 3 skips; installed process evaluation 17/17; OpenShell 363 passed / 13 unavailable-prover skips |
 | M12 | not_started | Complete acceptance, corpus, CI and release gates |
 
 ## Verified contract preservation
@@ -1249,6 +1250,61 @@ and integrated lifecycle CLI/examples. Saved external claims are now supported;
 actual external workflow exercise remains opt-in and unverified. M9 effectiveness,
 M11/M12 and the full original release/latency gates remain open.
 
+## M11 offline developer workflow and adapter composition
+
+The independent CLI now exposes profile inspection, invariant preview, challenge
+catalog/replay, imported attack-path analysis, declared delegation comparison,
+static source finding review and corpus-bound report comparison. Bounded stdin,
+explicit JSON and exclusive output aliases preserve the existing strict parser.
+Six diagnostic schemas bring the registry to **94 total / 54 Assurance**.
+Content validation cannot activate a profile. Static finding/graph data retain
+inconclusive/imported status; declared subsets do not issue grants or establish
+physical enforcement. Unmodeled effects and host-dependent checks stay unknown.
+
+`AssuranceAdapterGate` composes the existing Claude/Codex/Cursor/MCP adapters
+without duplicating transports. Actual typed host facts and immutable context
+are supplied through the protected SDK. The wrapper preserves core hard denies,
+Claude's approval UI, Codex/Cursor pre-tool refusal and MCP approval refusal.
+The optional closed session binding prevents history restoration under changed
+Assurance profile/source/context; default core configuration digests are unchanged.
+No inference/provider callback is accepted by the synchronous bridge.
+
+The installed `python -I -m ordin.assurance.quickstart` exercises owned synthetic
+protected selection, intrinsic preview, policy replay, minimized counterexamples,
+graph evidence, declared child containment and offline vulnerability/fix-claim
+imports. It executes no proposed action and calls no scanner/model. The injected
+checker defect is explicitly synthetic, rather than an asserted Ordin vulnerability.
+The [CLI/API reference](cli-and-api.md), [adapter composition](adapter-composition.md),
+[quickstart](../../examples/assurance/README.md) and [trust diagram](security-and-privacy.md)
+document approval, optional providers, private evidence and disclosure limits.
+
+| Actual gate | Result |
+| --- | --- |
+| Complete Assurance/audit/optional-provider source gate | 525 passed, 1 POSIX ownership/mode skip, 177.22 s |
+| Affected session/Claude/Codex/Cursor/MCP source regression gate | 198 passed, 1 failed, 3 POSIX skips, 120.28 s |
+| OpenShell regression gate | 363 passed, 13 skips for the unavailable standalone prover, 55.08 s |
+| Fresh installed-wheel process evaluation, exact implementation revision | 17/17 protocol cases, no errors; one repetition, synthetic hook/MCP/loopback fixtures |
+| Linux-target mypy | 65 source/helper files clean |
+| Ruff, format, diff and documentation links | Passed; one test-file formatting repair applied |
+| Core wheel/sdist build and twine metadata | Both distributions passed |
+| Fresh installed wheel/doctor/SDK quickstart | 321 Python/JSON package files matched; 94 schemas / 54 Assurance; network/process spies reject unintended calls |
+
+The failed source regression is
+`test_runtime_integration_evaluation_exercises_process_boundaries`: its real
+`python -I -m ordin...` child processes cannot import Ordin from the source-only
+interpreter. A direct isolated import returned `ModuleNotFoundError`. The fresh
+installed wheel passes all 17 cases without removing `-I` or weakening protocol
+assertions. The failed source gate is retained alongside the separately passing
+installed evaluation in [pinned M11 evidence](evidence/m11-developer-experience.json).
+One repetition verifies protocol behavior; it is not latency acceptance.
+
+Local verification is still Windows/Python 3.13 only. Broader profile/provider/
+broker/lifecycle acceptance, the original full suite, requested tooling versions,
+independently labeled effectiveness and multi-platform CI remain open. The
+original **5 ms added deterministic p95 budget remains unchanged and failed**;
+these tests and the quickstart do not supersede it. No credentials, live scanner,
+real inference, policy activation, patch application or publication occurred.
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
@@ -1285,11 +1341,13 @@ Retain the completed full-suite failures/skips and verify the audit fixes at the
 next full release gate. Resolve end-to-end latency without weakening the declared
 budget. M6 graph/source-flow, M7 delegation/lifecycle and M8 importer, scanner
 wrapper, fake-process gates and offline diff/CI example are implemented. Live
-external scanner/runner behavior is unverified. The next independent feature is
-Continue M10 with physical broker acceptance, broader validation
-and code-fix predicates and integrated
-lifecycle examples. Then complete M11/M12 integration, corpus, CI and full
-acceptance. M9 async replay and a provisional
+external scanner/runner behavior is unverified. Continue M12 with reproducible
+offline acceptance fixtures, optional-integration CI and exact-candidate full
+regression/packaging evidence. Complete physical broker acceptance, broader M10
+validation/code-fix predicates and integrated lifecycle examples when actual
+protected host enforcement is available. M11's offline developer workflow and
+host adapter composition are verified locally; supported platform acceptance
+remains open. M9 async replay and a provisional
 frozen sample are verified, while actual model/hardware and independent
 effectiveness/friction/latency acceptance remain open. Keep dependent M5 provider checks,
 optional finite solver/promotion work and the release gates open; expanded
