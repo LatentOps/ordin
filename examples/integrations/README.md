@@ -22,7 +22,11 @@ README.md
 observation=ordin.action_observation.v1 exit=0
 ```
 
-The example reviews the curated low-risk `ls` shell action with the matching `list files` intent first. Only after Ordin returns `execute` does the caller invoke `sh`. The caller then records a linked `ActionObservation`. Ordin itself never executes the command.
+The example requires Git and a checkout. It reviews `git ls-files -- README.md`
+with the matching `list tracked repository files` intent first. After Ordin
+returns `execute`, the caller invokes those exact fixed arguments without a
+shell, on Windows or POSIX. It then records a linked `ActionObservation`. Ordin
+itself never executes the command.
 
 ## 2. Raw JSON / subprocess boundary
 
