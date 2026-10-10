@@ -1,0 +1,13 @@
+{
+  "adapter_wheel_sha256": "c0e3311b55cb867c99acca887142739766f7ae3e1184fedcc466f1ef996b519c",
+  "core_wheel_sha256": "b56a96f65ef17485270c8c1c2dc45247b124f7d22507001ecbd996878f6cfcf1",
+  "limitations": [
+    "Local Windows/Python 3.13 only; no scanner/provider or remote CI run."
+  ],
+  "schema_version": "ordin.codex_security_adapter_wheel_check.v1",
+  "smoke": {
+    "models_or_scanner_loaded": false,
+    "namespace": "ordin_codex_security",
+    "ok": true
+  }
+}

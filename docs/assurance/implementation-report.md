@@ -11,6 +11,7 @@
 - Host-source handle implementation SHA: `7a9804cc897bcdf4bd4733ec1af2279615e5aa87`.
 - Attack-path/source-flow implementation SHA: `763b73161cd2ed7bb3657d3b9d20795d43ef049e`.
 - Delegation implementation SHA: `edd661204ae8426aa4d491e8df1cd3dd31c69b3b`.
+- Offline Codex importer SHA: `7fa6d65c646619986d4e96043a3209ea8ad44e81`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -26,7 +27,7 @@
 | M5 | expanded_challengers_verified_dependent_gates_open | Ten-property suite, 320 generated fixtures, 244 assessed / 76 unresolved; 172 seeded failures / 80 minimized replayed records; final source gate 200 passed / 1 POSIX skip; protocol compatibility 98 passed, broader core compatibility 79 passed; pinned wheel/doctor/metadata and SDK/CLI parity pass; dependent/optional gates remain open |
 | M6 | graph_flow_sdk_verified_cross_agent_added | Bounded graph/source-flow SDK; original gate 230 passed / 1 POSIX skip; authenticated M7 cross-agent composition added; combined gate 258 passed / 1 POSIX skip; new wheel pending |
 | M7 | sdk_lifecycle_verified_release_gates_open | Full-domain containment, private issuance/revocation, current use tickets, per-child sessions and cross-agent graphs; source gate 258 passed / 1 POSIX skip; core compatibility 140 passed / 1 skip; pinned example/graph/wheel/doctor/metadata pass; external enforcement/release gates remain open |
-| M8 | offline_import_verified_live_wrapper_pending | Pinned native JSON and bounded SARIF importer, claims/coverage/integrity, source-validated draft conversion and redacted CLI; source gate 294 passed / 1 POSIX skip; core/parity gate 19 passed; fresh wheel pending; scanner/diff/CI slice pending |
+| M8 | offline_import_verified_live_wrapper_pending | Pinned JSON/SARIF, claims/coverage/integrity, source-backed draft conversion and redacted CLI; source gate 294 passed / 1 POSIX skip; core/parity gate 19 passed; core/adapter wheel/doctor/metadata checks pass; scanner/diff/CI slice pending |
 | M9 | not_started | Optional mock/TypeSafe/Laya evidence |
 | M10 | not_started | Finding validation and patch-risk verification |
 | M11 | not_started | Complete CLI/API/docs/examples |
@@ -663,6 +664,23 @@ green. No validation limit was relaxed or failure hidden. Current parity totals
 **27 Assurance contracts / 67 registered schemas**. The live optional wrapper,
 offline diff triage, optional CI example and final M8 acceptance remain pending.
 See [the integration contract](codex-security-integration.md).
+
+The [pinned offline import capture](evidence/m8-offline-import.json) records source
+`7fa6d65c646619986d4e96043a3209ea8ad44e81`. Zero-finding partial native artifacts
+remain **partial**, a complete matched synthetic native scope imports as complete
+without finding confirmation, and zero-result SARIF remains **unknown**.
+No actual security scan occurred. The [core importer wheel evidence](evidence/m8-import-wheel.json)
+byte-matches **276** packaged Python/JSON files to that source and verifies
+**67 schemas / 27 Assurance schemas**, installed doctor and offline JSON/SARIF
+import with socket/subprocess construction rejected in the SDK smoke.
+
+The [separate adapter wheel check](evidence/m8-adapter-wheel.json) installs only
+the local core and `ordin-codex-security` wheels with `--no-index --no-deps`, then
+imports `ordin_codex_security` under `-I` outside the checkout. The namespace and
+pinned schema load succeed with subprocess/network calls rejected; no scanner
+or model package is loaded. Both wheel/sdist pairs pass twine metadata checks.
+Capture/check helpers pass Linux-target mypy. All checkpoint handles are terminal;
+the optional live wrapper/diff/CI work remains M8 scope, not claimed complete.
 
 ## Outstanding limitations
 

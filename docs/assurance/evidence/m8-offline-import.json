@@ -1,0 +1,75 @@
+{
+  "complete_imported_scope": {
+    "adapter_revision": "6f4c62875baa310c6f18608035309e77bc8e808b",
+    "artifact_digest": "86caf540d20d14fb493f0322769dede31b8eda587a26add9dd74c37b369ddc74",
+    "completeness": "complete",
+    "finding_confirmation": "not_performed",
+    "finding_count": 0,
+    "findings": [],
+    "format": "codex_json",
+    "integrity": "matched",
+    "metadata_digest": "8d38091cdc0e0eca99b5f557e190e53785f01604c750475e6cfa42129ff355fd",
+    "origin": "imported_claim",
+    "proof_gaps": [
+      "Imported scanner claims have not been independently reproduced or confirmed."
+    ],
+    "report_id": "scan-import:86caf540d20d14fb493f0322",
+    "reported_completeness": "complete",
+    "repository_digest": "673dcc98e0c66abcede3894a84be05bcb9d69d8eda3bb31fea1c41f4e5795289",
+    "scan_status": "completed",
+    "schema_version": "ordin.assurance_scan_import_summary.v1",
+    "scope_match": "matched",
+    "threat_model_digest": null
+  },
+  "implemented_revision": "7fa6d65c646619986d4e96043a3209ea8ad44e81",
+  "limitations": [
+    "Synthetic saved artifacts only; no actual security scan, finding reproduction, scanner/provider or credential used."
+  ],
+  "partial": {
+    "adapter_revision": "6f4c62875baa310c6f18608035309e77bc8e808b",
+    "artifact_digest": "de5855577c3d2597aed931888d764a4154adb0c66d460ee3befd115ace087f97",
+    "completeness": "partial",
+    "finding_confirmation": "not_performed",
+    "finding_count": 0,
+    "findings": [],
+    "format": "codex_json",
+    "integrity": "matched",
+    "metadata_digest": "0d96561c7da70e953ea17f946db0a89d00d8ca624a9994128979edc57de88c38",
+    "origin": "imported_claim",
+    "proof_gaps": [
+      "Scanner coverage is partial or unknown; unresolved review remains explicit.",
+      "Imported scanner claims have not been independently reproduced or confirmed."
+    ],
+    "report_id": "scan-import:de5855577c3d2597aed93188",
+    "reported_completeness": "partial",
+    "repository_digest": "673dcc98e0c66abcede3894a84be05bcb9d69d8eda3bb31fea1c41f4e5795289",
+    "scan_status": "completed",
+    "schema_version": "ordin.assurance_scan_import_summary.v1",
+    "scope_match": "matched",
+    "threat_model_digest": null
+  },
+  "sarif": {
+    "adapter_revision": "6f4c62875baa310c6f18608035309e77bc8e808b",
+    "artifact_digest": "8c5f31d50fb89332908ec5e08142312ed15a297f26e0ed713fdec92c5971c4b3",
+    "completeness": "unknown",
+    "finding_confirmation": "not_performed",
+    "finding_count": 0,
+    "findings": [],
+    "format": "sarif_2_1_0",
+    "integrity": "not_available",
+    "metadata_digest": "1f5e1ae8d340487ce5040a5e2cc41dfe166049722c9f8d52f4c789347652663c",
+    "origin": "imported_claim",
+    "proof_gaps": [
+      "SARIF projection lacks a verified native scan manifest and coverage document.",
+      "Reported finding/validation/source data remain imported claims; no runtime reproduction occurred."
+    ],
+    "report_id": "sarif-import:8c5f31d50fb89332908ec5e0",
+    "reported_completeness": "unknown",
+    "repository_digest": "673dcc98e0c66abcede3894a84be05bcb9d69d8eda3bb31fea1c41f4e5795289",
+    "scan_status": "unknown",
+    "schema_version": "ordin.assurance_scan_import_summary.v1",
+    "scope_match": "unknown",
+    "threat_model_digest": null
+  },
+  "schema_version": "ordin.assurance_m8_offline_import_evidence.v1"
+}
