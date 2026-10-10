@@ -167,9 +167,9 @@ def check_links(value, *, key="") -> None:
             safe_link(value)
 
 
-@lru_cache(maxsize=3)
+@lru_cache(maxsize=4)
 def schema(name: str) -> dict:
-    if name not in {"findings", "scan-manifest", "coverage"}:
+    if name not in {"findings", "scan-manifest", "coverage", "patch-risk-assessment"}:
         raise ValueError("unknown trusted scanner schema")
     raw = (
         files("ordin")
@@ -183,6 +183,7 @@ def schema(name: str) -> dict:
         "findings": "c2012259f7b485837daa6b53f869da93a2b4460a",
         "scan-manifest": "bf614d85f19926a1347377ad8037925109de1def",
         "coverage": "21e0877db08d4cccc8fe5616feab7f8ef8da50af",
+        "patch-risk-assessment": "b89b932582bd31e3f0dcf7ddaff3b9366157b579",
     }
     if hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest() != expected[name]:
         raise ValueError("bundled scanner schema differs from pinned upstream blob")
@@ -201,6 +202,20 @@ def _matches(value, expected):
     }[expected]()
 
 
+def _equal_json(first, second):
+    if type(first) in {int, float} and type(second) in {int, float}:
+        return first == second
+    if type(first) is not type(second):
+        return False
+    if isinstance(first, list):
+        return len(first) == len(second) and all(_equal_json(a, b) for a, b in zip(first, second))
+    if isinstance(first, dict):
+        return set(first) == set(second) and all(
+            _equal_json(value, second[key]) for key, value in first.items()
+        )
+    return first == second
+
+
 def _check(value, shape, definitions, *, closed=True, depth=0):
     if depth > 32:
         raise ValueError("trusted schema nesting limit")
@@ -216,9 +231,9 @@ def _check(value, shape, definitions, *, closed=True, depth=0):
         return False
     if (
         "const" in shape
-        and value != shape["const"]
+        and not _equal_json(value, shape["const"])
         or "enum" in shape
-        and value not in shape["enum"]
+        and not any(_equal_json(value, option) for option in shape["enum"])
     ):
         return False
     if isinstance(value, str):
@@ -237,6 +252,10 @@ def _check(value, shape, definitions, *, closed=True, depth=0):
     ):
         return False
     if isinstance(value, dict):
+        if len(value) < shape.get("minProperties", 0) or len(value) > shape.get(
+            "maxProperties", 256
+        ):
+            return False
         if any(k not in value for k in shape.get("required", [])):
             return False
         props = shape.get("properties", {})
@@ -255,6 +274,10 @@ def _check(value, shape, definitions, *, closed=True, depth=0):
                 return False
     if isinstance(value, list):
         if len(value) < shape.get("minItems", 0) or len(value) > shape.get("maxItems", 1024):
+            return False
+        if shape.get("uniqueItems") is True and any(
+            _equal_json(prior, item) for index, item in enumerate(value) for prior in value[:index]
+        ):
             return False
         if "items" in shape and any(
             not _check(v, shape["items"], definitions, closed=closed, depth=depth + 1)

@@ -54,9 +54,10 @@ assert finding_demo["patch_applied"] is False
 assert finding_demo["validation"]["result"] == "confirmed"
 assert finding_demo["validation"]["tested_scope"] == "gate_authority_subset"
 assert finding_demo["fix"]["result"] == "fixed-verified" and finding_demo["fix"]["integrated"] is False
+from ordin.assurance.codex_security import WorkflowCapture, WorkflowImportScope, import_workflow_claims
 from ordin.assurance import (SyntheticPathCase, SyntheticPathSuite, VettedSandboxRuntime,
                              load_vetted_program, load_synthetic_suite, run_sandbox_test)
-import tempfile, threading, hashlib, sys
+import tempfile, threading, hashlib, sys, contextlib, io
 from pathlib import Path
 with tempfile.TemporaryDirectory(prefix="ordin-vetted-noexec-") as directory:
     root = Path(directory)
@@ -78,6 +79,24 @@ with tempfile.TemporaryDirectory(prefix="ordin-vetted-noexec-") as directory:
     precanceled = threading.Event(); precanceled.set()
     noexec = run_sandbox_test(selected_scope, source, selected_runtime, vetted, test_inputs, None, cancel=precanceled)
     assert noexec.status == "canceled" and noexec.results == ()
+with tempfile.TemporaryDirectory(prefix="ordin-workflow-offline-") as directory:
+    workflow_root = Path(directory)
+    workflow_repo = RepositoryScope("fixture/workflow-wheel", "snapshot-1")
+    raw = json.dumps({"repository":"fixture-worker","scanId":"scan-wheel",
+        "results":[{"id":"occ-wheel","status":"fixed","evidence":"Synthetic claimed verification"}]}).encode()
+    (workflow_root / "workflow.json").write_bytes(raw)
+    capture = WorkflowCapture("verify_fix",workflow_repo,{"name":"codex-security","version":"0.2.0"},
+        "scan-wheel","fixture-worker",("occ-wheel",),hashlib.sha256(raw).hexdigest(),0,"completed",None)
+    (workflow_root / "workflow-capture.json").write_bytes(json.dumps(capture.as_dict()).encode())
+    claims = import_workflow_claims(WorkflowImportScope(workflow_root,workflow_repo,"verify_fix",
+        expected_scan_id="scan-wheel",expected_identifiers=("occ-wheel",)))
+    assert claims.completeness == "complete" and claims.closure == "not_performed"
+    assert claims.claims[0].reported_verdict == "fixed" and claims.claims[0].status == "imported"
+    with contextlib.redirect_stdout(io.StringIO()) as stream:
+        assert assure_cli(["codex","import-workflow","--artifact-root",str(workflow_root),
+            "--repository",workflow_repo.id,"--revision",workflow_repo.revision,"--workflow","verify_fix",
+            "--expected-scan-id","scan-wheel","--expected-identifier","occ-wheel"]) == 0
+    assert "Synthetic claimed verification" not in stream.getvalue()
 corpus = FrozenCorpus.synthetic((FrozenCase("wheel-safe", ActionEnvelope.shell("git status --short"),
                                           expected="execute", label="benign"),))
 simulation = simulate_policy_change(SimulationPolicy(), SimulationPolicy(), corpus,
@@ -198,6 +217,7 @@ print(json.dumps({"ok": True, "version": ordin.__version__, "schemas": len(SCHEM
                   "assurance_schemas": len(SCHEMAS), "exports": sorted(assurance.__all__),
                   "finding_validation_demo": finding_demo,
                   "vetted_test_no_execution": True,
+                  "offline_workflow_claims": True,
                   "loaded_from": ordin.__file__}))
 """
 

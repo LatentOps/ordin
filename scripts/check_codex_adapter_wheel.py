@@ -24,17 +24,22 @@ socket.socket = NoSocket
 socket.create_connection = refuse
 subprocess.Popen = refuse
 import ordin_codex_security as adapter
-assert all(hasattr(adapter, name) for name in ("ImportScope", "import_codex_json", "import_sarif"))
+assert all(hasattr(adapter, name) for name in ("ImportScope", "import_codex_json", "import_sarif", "WorkflowImportScope", "import_workflow_claims"))
+from ordin_codex_security.workflow import WorkflowImportScope, import_workflow_claims
+from ordin.assurance.codex_security import WorkflowImportScope as CoreWorkflowScope
+assert WorkflowImportScope is CoreWorkflowScope
 from ordin_codex_security.provider import mock_scanner_run, ScannerSelection
 from ordin.assurance.codex_security._validation import schema
 assert mock_scanner_run(exit_code=1).status == "severity_violation"
 assert mock_scanner_run(exit_code=2).status == "incomplete"
 assert schema("findings")["type"] == "object"
 assert schema("findings")["properties"]["schemaVersion"]["const"] == "1.0"
+assert schema("patch-risk-assessment")["properties"]["schemaVersion"]["const"] == 1
 assert Path(adapter.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
 print(json.dumps({"ok": True, "namespace": "ordin_codex_security", "models_or_scanner_loaded": False,
                   "namespace_imported": True, "provider_imported": True,
                   "pinned_schema_loaded": True, "real_scanner_invoked": False,
+                  "workflow_facade_imported": True,
                   "network_process_calls_rejected": True}))
 """
 

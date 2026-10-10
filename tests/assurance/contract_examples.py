@@ -43,6 +43,20 @@ def assurance_contract_examples(tmp_path):
     from .sandbox_contract_samples import sandbox_contract_samples
 
     samples.update(sandbox_contract_samples(tmp_path))
+    from .test_workflow_import import bundle as workflow_bundle
+    from ordin.assurance.codex_security.workflow import import_workflow_claims
+
+    workflow_directory = tmp_path / "workflow-contracts"
+    workflow_directory.mkdir()
+    workflow_scope, workflow_capture, _ = workflow_bundle(workflow_directory, "verify_fix")
+    imported_workflow = import_workflow_claims(workflow_scope)
+    samples.update(
+        {
+            "assurance_workflow_capture": workflow_capture.as_dict(),
+            "assurance_workflow_claim": imported_workflow.claims[0].as_dict(),
+            "assurance_workflow_import": imported_workflow.as_dict(),
+        }
+    )
     import json
     from .test_remediation import setup as remediation_setup
     from .test_validation import reference

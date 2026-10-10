@@ -169,6 +169,29 @@ def _parser() -> argparse.ArgumentParser:
         help="explicit sensitive vendor capture; keep output private",
     )
     imported.add_argument("--report")
+    workflow = codex.add_parser(
+        "import-workflow",
+        help="import saved external validation/patch/fix claims without executing a workflow",
+    )
+    workflow.add_argument("--artifact-root", required=True)
+    workflow.add_argument("--repository", required=True)
+    workflow.add_argument("--revision", required=True)
+    workflow.add_argument(
+        "--workflow", choices=("validate", "patch", "verify_fix", "patch_risk"), required=True
+    )
+    workflow.add_argument("--artifact-path", default="workflow.json")
+    workflow.add_argument("--format", choices=("json", "text"), default="json")
+    workflow.add_argument("--capture-path", default="workflow-capture.json")
+    workflow.add_argument("--expected-tool-version", default="0.2.0")
+    workflow.add_argument("--expected-scan-id")
+    workflow.add_argument("--expected-identifier", action="append", default=[])
+    workflow.add_argument("--expected-patch-digest")
+    workflow.add_argument(
+        "--include-details",
+        action="store_true",
+        help="explicit private reported payload; never upload or log by default",
+    )
+    workflow.add_argument("--report")
     mock = codex.add_parser(
         "mock", help="offline synthetic scanner state; no executable or credentials"
     )
@@ -261,6 +284,25 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if mocked.status == "severity_violation"
                 else PARTIAL_OR_MALFORMED
             )
+        elif args.group == "codex" and args.command == "import-workflow":
+            from .codex_security.workflow import WorkflowImportScope, import_workflow_claims
+            from .models import RepositoryScope
+
+            workflow_scope = WorkflowImportScope(
+                Path(args.artifact_root).absolute(),
+                RepositoryScope(args.repository, args.revision),
+                args.workflow,
+                expected_tool_version=args.expected_tool_version,
+                expected_scan_id=args.expected_scan_id,
+                expected_identifiers=tuple(args.expected_identifier),
+                expected_patch_digest=args.expected_patch_digest,
+                artifact_format=args.format,
+            )
+            imported = import_workflow_claims(
+                workflow_scope, artifact_path=args.artifact_path, capture_path=args.capture_path
+            )
+            packet = imported.as_dict() if args.include_details else imported.public_dict()
+            code = PASS if imported.completeness == "complete" else PARTIAL_OR_MALFORMED
         elif args.group == "codex":
             from .codex_security import ImportScope, import_codex_json, import_sarif
             from .models import RepositoryScope

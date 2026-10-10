@@ -10,7 +10,20 @@ from .importer import (
     propose_imported_profile,
 )
 
+from .workflow import (
+    WorkflowCapture,
+    ImportedWorkflowClaim,
+    WorkflowImportReport,
+    WorkflowImportScope,
+    import_workflow_claims,
+)
+
 __all__ = [
+    "WorkflowCapture",
+    "ImportedWorkflowClaim",
+    "WorkflowImportReport",
+    "WorkflowImportScope",
+    "import_workflow_claims",
     "ImportScope",
     "ImportedFinding",
     "ImportedLocation",

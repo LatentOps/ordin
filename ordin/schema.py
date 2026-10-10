@@ -27,6 +27,9 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "assurance_workflow_capture": "assurance-workflow-capture.v1.schema.json",
+    "assurance_workflow_claim": "assurance-workflow-claim.v1.schema.json",
+    "assurance_workflow_import": "assurance-workflow-import.v1.schema.json",
     "assurance_source_fix": "assurance-source-fix.v1.schema.json",
     "assurance_synthetic_path_suite": "assurance-synthetic-path-suite.v1.schema.json",
     "assurance_vetted_program": "assurance-vetted-program.v1.schema.json",

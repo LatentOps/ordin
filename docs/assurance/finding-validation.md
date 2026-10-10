@@ -64,8 +64,9 @@ separate requirements.
 Source-code patches remain inconclusive under policy replay because the changed
 target code was not executed. The separate vetted source-test path below supports
 a finite synthetic predicate. Broader domain-specific predicates, independently
-exercised host setup and external Codex validate/patch/verify-fix claim reports
-still need implementation or verification. No unsafe command or live exploit is a fixture.
+exercised host setup still need implementation or verification. Saved external
+Codex reports can be imported through the [offline workflow claim reader](external-workflow-claims.md).
+No unsafe command or live exploit is a fixture.
 Applying patches, creating PRs, integrating, publishing or deploying are separate
 explicit operator actions.
 
