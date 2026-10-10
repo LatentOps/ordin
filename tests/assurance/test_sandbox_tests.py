@@ -77,9 +77,13 @@ def setup(tmp_path, monkeypatch):
             "def main():\n    import os\n    assert 'AMBIENT_PRIVATE_TOKEN' not in os.environ\n    assert 'OPENAI_API_KEY' not in os.environ\n",
         )
         worker.write_text(shipped, encoding="utf-8")
+        # Installed-wheel tests may themselves run from a workspace venv. The
+        # selected broker must still live outside every excluded Git/target
+        # root; its standalone worker uses only the base interpreter's stdlib.
+        broker_python = Path(getattr(sys, "_base_executable", sys.executable)).resolve(strict=True)
         runtime = VettedSandboxRuntime(
-            Path(sys.executable).absolute(),
-            sha(Path(sys.executable)),
+            broker_python,
+            sha(broker_python),
             worker,
             sha(worker),
             ("-I", "-u", str(worker)),
@@ -214,6 +218,16 @@ def test_hash_and_source_drift_refused_before_launch(setup, monkeypatch):
     worker.write_text("raise RuntimeError('changed')", encoding="utf-8")
     monkeypatch.setattr("subprocess.Popen", lambda *a, **k: pytest.fail("drifted worker launched"))
     assert run_sandbox_test(scope, source, runtime, program, suite, lease).status == "refused"
+
+
+def test_broker_inside_excluded_target_is_refused_before_launch(setup, monkeypatch):
+    scope, source, runtime, program, suite, consent, _ = setup
+    inside_target = scope.root / "fake-native-broker.exe"
+    inside_target.write_bytes(b"Owned synthetic binary marker; never executable.")
+    untrusted = replace(runtime, executable=inside_target, executable_sha256=sha(inside_target))
+    lease = consent(runtime=untrusted)
+    monkeypatch.setattr("subprocess.Popen", lambda *a, **k: pytest.fail("target broker launched"))
+    assert run_sandbox_test(scope, source, untrusted, program, suite, lease).status == "refused"
 
 
 def test_missing_consent_and_precancel_do_not_launch(setup, monkeypatch):

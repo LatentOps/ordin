@@ -122,9 +122,12 @@ def setup(tmp_path, monkeypatch):
         checkpoint = checkpoint_at(root / "checkpoint")
         worker = root / "install/_laya_worker.py"
         write_fake(worker)
+        # A workspace test venv is not an independently protected runtime.
+        # This fake stdlib worker uses the external base interpreter instead.
+        broker_python = Path(getattr(sys, "_base_executable", sys.executable)).resolve(strict=True)
         runtime = LocalModelRuntime(
-            Path(sys.executable).absolute(),
-            sha(Path(sys.executable)),
+            broker_python,
+            sha(broker_python),
             worker,
             sha(worker),
             root / "cwd",
