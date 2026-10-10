@@ -5,6 +5,7 @@
 - Contract foundation SHA: `3773f23b08f1cd9b78a7b8aa041f952bd52d47cc`.
 - Repository/profile implementation SHA: `bec1037d64fd0c52e043343c3ea1c960819ecb58`.
 - Invariant-gate functional implementation SHA: `aa5345d6fa18ed9d6f9f6ff62995f1c9eec6dd38`.
+- Policy-simulator functional implementation SHA: `3d757a3d1f2a389d526f921c3a45ab3827e4202d`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -16,7 +17,7 @@
 | M1 | contract_foundation_verified | Ten immutable artifact contracts and schema pairs; 61 hostile/round-trip tests; source/schema/security/API gate 90 passed, 1 platform skip; agent/policy/entrypoint compatibility gate 108 passed; installed wheel and metadata gates pass |
 | M2 | implemented_offline_verified | Scoped read-only inventory, four frozen source-backed drafts, protected profile loader/compiler; 162 passed / 2 POSIX skips; final installed wheel, metadata and SDK example pass |
 | M3 | functional_sdk_verified_gates_open | Pure evaluator/gate and sealed host facts; 240 passed / 1 POSIX skip; wheel/SDK pass; full run 1135 passed / 5 failed / 27 skipped; two audit gaps fixed with 14-test recheck; end-to-end latency still failed |
-| M4 | functional_sdk_cli_verified_final_scenarios_open | Independent frozen replay, advisory change guard, local CLI, 22 synthetic cases; final source gate 168 passed / 1 POSIX skip; core compatibility 60 passed / 1 POSIX skip; wheel smoke passed before final report-validation tightening, final wheel recheck pending |
+| M4 | functional_sdk_cli_verified_final_scenarios_open | Independent frozen replay, advisory change guard, local CLI, 22 synthetic cases; final source gate 168 passed / 1 POSIX skip; core compatibility 60 passed / 1 POSIX skip; final committed-source wheel/doctor/CLI/metadata pass; SDK/CLI parity captured |
 | M5 | not_started | Seeded, minimized, replayed safe counterexamples |
 | M6 | not_started | Bounded attack paths and authenticated origins |
 | M7 | not_started | Delegation subset and lifecycle |
@@ -191,8 +192,6 @@ in the actual tool output and explicitly records that limitation; it does not
 claim a hash of inaccessible original bytes. All four failed end-to-end outcomes
 remain visible.
 
-## Baseline failures and measurements (original source, continued)
-
 ## M4 policy replay and advisory CLI
 
 Frozen policies/cases/corpora use detached bounded JSON and content/version
@@ -240,7 +239,21 @@ uncertainty (M9) are not fabricated. A separate actual principal/maxima test
 produces `deny` and `execute` for two principals proposing the same read. M4's
 full integrated golden scenarios remain open until those later verifiers exist.
 The 22 cases are a simulator smoke corpus, not the required later 200-case
-effectiveness benchmark. Exact-SHA final wheel/evidence capture follows.
+effectiveness benchmark.
+
+The [final pinned capture](evidence/m4-simulation.json) records source revision
+`3d757a3d1f2a389d526f921c3a45ab3827e4202d`, actual native CLI exit **2**, SDK/CLI
+decision parity, the final wheel hash and byte equality of **248** packaged
+Python/JSON files with the committed package source. Eight assessable critical
+fixtures were caught, zero declared critical fixtures missed, and unresolved
+fixtures remain explicit. Final wheel/doctor/no-network smoke and twine checks
+passed under `.assurance-work/m4-final-*` after the report-validation changes.
+The doctor's private multiline output is represented by a hash rather than
+weakening public contract limits. One automatic permission review timed out;
+normal access still could not read the generated wheel. The permitted single
+retry succeeded. No ACL was changed and no pending approval remains.
+
+## Baseline failures and measurements (original source, continued)
 
 The original suite failed before any package or schema registration changed.
 Additive unregistered Assurance files/docs were created while the suite ran;
