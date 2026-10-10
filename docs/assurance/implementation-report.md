@@ -20,6 +20,9 @@
 - Vetted synthetic broker/source-fix SDK SHA: `4da87e3d4ba0f500133febedc96cf54095a97410`; capture-summary correction: `e55dd9acd31c24c53a3e187a529504227741e9aa`.
 - Offline external workflow claim SDK/CLI SHA: `17423386c9662cfc85a0ed1a4dbb66ba85e9572c`.
 - Offline CLI/API/quickstart and adapter composition SHA: `74e41a2cbf92561c4ea097f9f661f23243bb1ea1`.
+- Offline acceptance plan/CI SHA: `604f8db5bf0ea5a83053ddd941a131cc55a62781`.
+- Installed-fixture correction SHA: `36e6392010eb2f3b2e014697bf2c43a90c7d6f1e`.
+- M12 measured candidate / portable quickstart SHA: `cba13c975b0b780de2fdbf67e995f47952e2f5d9`.
 - Full implementation SHA: pending; M3 release gates, M4 final integration scenarios and M5–M12 remain open.
 - Environment: Windows 11 10.0.26200, Python 3.13.12.
 - Preexisting untracked items: specification, `.worktrees/`, `video/`; preserved.
@@ -39,7 +42,7 @@
 | M9 | provider_sdk_async_measurements_provisional_workload_verified_real_acceptance_pending | Protected protocol/routing, TypeSafe and pinned local worker, measured threshold provenance, sync/async replay and 24-case provisional sample; source gate 432 passed / 1 skip; actual model/hardware and independently labeled effectiveness acceptance remain unverified |
 | M10 | vetted_source_fix_external_claim_import_verified_physical_broker_broader_lifecycle_pending | Vetted source/policy proof plus offline validation/patch/fix/risk claims, manifest scope and separate reported verdicts; 510 passed / 1 skip; physical isolation, generic predicates and integrated lifecycle remain open |
 | M11 | offline_cli_api_quickstart_adapter_composition_verified_platform_acceptance_open | Fresh wheel, six diagnostic contracts, typed host composition and five-minute offline quickstart; 525 passed / 1 skip; affected host source suite 198 passed / 1 environment failure / 3 skips; installed process evaluation 17/17; OpenShell 363 passed / 13 unavailable-prover skips |
-| M12 | not_started | Complete acceptance, corpus, CI and release gates |
+| M12 | offline_acceptance_ci_candidate_evidence_verified_original_latency_broader_acceptance_open | 35 mapped fixture scenarios / 89 tests pass, six partial scopes; authored Linux/Windows 3.10–3.13 offline CI; final installed all-suite 1890 passed / 1 latency failure / 40 skips; maintained decision/corpus/process checks pass their functional assertions; original core and added-overhead latency gates fail |
 
 ## Verified contract preservation
 
@@ -1305,6 +1308,99 @@ original **5 ms added deterministic p95 budget remains unchanged and failed**;
 these tests and the quickstart do not supersede it. No credentials, live scanner,
 real inference, policy activation, patch application or publication occurred.
 
+## M12 minimum fixtures, offline CI and exact-candidate release evidence
+
+The [fixed acceptance plan](../../benchmarks/assurance/v1/acceptance-plan.json)
+executes actual existing assertions, supplemented by exact protected deployment
+file and inert README controls. All **35 mapped scenarios / 89 test cases** pass,
+with no skips or observer errors. Observed calls retain action/context/profile/
+configuration digests, baseline/final dispositions, reasons, invariant results,
+containment results and grant-use outcomes. Artifact-only fixtures explicitly
+report that no runtime review was observed.
+
+This is authored synthetic regression coverage, not an independently labeled
+effectiveness corpus. AT-07, AT-15, AT-16, AT-26, AT-28 and AT-29 remain partial:
+native REST/body commitments, real solver replay, native database integration,
+physical authorization/broker receipts, general target-code fixes and all-example
+release audits are not established by these tests. The current unregistered
+`http.request` remains unsupported; changed GraphQL bodies are checked separately.
+The report retains `overall_acceptance=incomplete`. Its actual source revision
+is `604f8db...`; all 321 installed core and 17 optional protocol Python/JSON files
+were compared to source. Core/library bytes are unchanged through the subsequent
+fixture/example-only candidate `cba13c9...` and are checked by the evidence capture.
+
+The [offline CI definition](../../.github/workflows/assurance.yml) adds eight
+Linux/Windows Python 3.10–3.13 jobs and four separate optional Python 3.10/3.13
+jobs. It uses the existing hashed development baseline, pinned Actions,
+read-only permissions and checkout without persisted credentials. Optional jobs
+use saved artifacts, fake scanner processes and predetermined model values;
+they install no Laya extra and need no key. YAML/matrix and workflow-security
+checks pass locally. No workflow was dispatched; remote CI remains unverified.
+
+The initial installed **root-only** suite had **1411 passed, 19 failed, 27 skipped**.
+Fifteen new failures came from the synthetic broker fixture selecting its test
+venv interpreter inside the excluded Git worktree. The SDK correctly refused it.
+The fixture now selects the external base interpreter, pins its real bytes and
+retains the target/Git exclusion. A negative fixture ensures an interpreter under
+the excluded target still cannot launch. The optional fake model worker uses the
+same external selection. No isolation check was weakened. The explicit development
+entrypoint comparison now recognizes `ordin-assure`; the frozen v0.3 inventory and
+all its entries remain unchanged. Installed broker/entrypoint and model rechecks
+pass **26** and **22** tests respectively.
+
+The regression driver now includes root, OpenShell and decision-model trees by
+default, checks the exact clean source revision, rejects source imports and
+records terminal failure/timeout metadata. The next all-suite run had **1890
+passed, 1 failed, 40 skipped**: the existing quickstart required unavailable `sh`.
+It now reviews and executes the exact fixed `git ls-files -- README.md` arguments
+without a shell, preserving output and observation assertions. The installed
+example/doc recheck passes five tests with the venv console scripts in `PATH`.
+An earlier focused invocation without that PATH setup failed the JSON example;
+that environment result is retained rather than treated as a product fix.
+
+| Exact candidate gate | Actual result |
+| --- | --- |
+| Final installed root + OpenShell + decision-model suites at `cba13c9...` | **1890 passed, 1 failed, 40 skipped**; the sole failure is safety-fixture p95 **271.82 ms > 250 ms** |
+| Maintained safety benchmark, 20 repetitions | **34/34 exact decisions**, zero false allows/critical misses/false blocks/semantic/policy/fuzz errors; p50/p95/p99 **277.2207 / 521.9402 / 599.7864 ms**; original 250/500 ms limits fail |
+| Maintained trajectory corpus | **11/11 trajectories, 21/21 decisions**, no errors |
+| Maintained regression replay | **9/9**, zero critical misses/errors |
+| Agent Safety Corpus from installed wheel | **9/9**, no errors; finite compatibility cases, not broad effectiveness |
+| Integration evaluation, 20 repetitions | Zero false allows/blocks/critical misses/unnecessary escalations, 18 live-session checks and 36 conformance checks without failures; original safety-fixture p95 **338.3048 ms > 250 ms** |
+| Process runtime evaluation, five repetitions | **17/17 cases**, 85 subprocess samples, 5 local HTTP checks and 7/7 applicable observations linked, no errors; subprocess p50/p95/p99 **993.2135 / 1404.5386 / 1519.2991 ms** |
+| Build/twine/fresh wheel/doctor | Both core distributions pass; 321 Python/JSON files match source; **94 schemas / 54 Assurance**; no unintended network/process creation in smoke |
+| Full Ruff, changed-helper mypy, formatting, workflow and diff checks | Passed with available local versions; no requested-version CI claim |
+
+All original thresholds remain unchanged. Three sequential quiet overhead runs
+use the same four synthetic actions, ten warmup rounds and 100 repetitions
+(400 samples per series), with no suite/build alongside them:
+
+| Run | Added paired p50 / p95 / p99 ms | Intrinsic layer p50 / p95 / p99 ms | 5 ms added-p95 gate |
+| --- | --- | --- | --- |
+| 1 | 3.8666 / 37.5750 / 65.4365 | 3.4686 / 5.6013 / 7.1463 | Failed |
+| 2 | 3.2839 / 33.3257 / 70.3508 | 4.1673 / 6.7429 / 11.3493 | Failed |
+| 3 | 2.1637 / 22.5067 / 38.2222 | 4.0330 / 7.3006 / 11.3765 | Failed |
+
+Each run has zero disposition mismatches. Intrinsic measurements also fail
+5 ms p95 and do not replace paired acceptance. A separate ten-review diagnostic
+profile records 90 pack-discovery calls and 1620 JSON loads; repeated discovery
+is a substantial core cost, motivating a future optimization with explicit
+freshness/mutation/parity checks. No global cache or latency waiver was installed.
+
+[M12 evidence](evidence/m12-release-gates.json) retains all three full-suite
+histories, source/wheel digests, fixture limits and actual failed metrics.
+The three overhead reports were copied byte-for-byte through a permitted read;
+their original hashes match. Some direct reads of private output were denied,
+including an escalated attempt, without an approval-review rejection or ACL
+change. The Agent Safety Corpus result uses [completed tool stdout](evidence/m12-observed-tool-results.json)
+when its raw report is unreadable and explicitly claims no raw-file hash.
+
+The test venv imports an installed local core wheel while sharing the preexisting
+system pytest tooling; this is recorded separately from the fresh dependency-free
+wheel smoke. Requested tool versions, remote platform CI, actual providers,
+physical brokers, independent labels and broader scenario acceptance remain open.
+All local process handles are terminal. No upload, live exploit, real inference,
+scanner, policy activation, patch installation, push or publication occurred.
+
 ## Outstanding limitations
 
 - The artifact/profile/gate foundation is functional; it is not a complete
@@ -1341,9 +1437,11 @@ Retain the completed full-suite failures/skips and verify the audit fixes at the
 next full release gate. Resolve end-to-end latency without weakening the declared
 budget. M6 graph/source-flow, M7 delegation/lifecycle and M8 importer, scanner
 wrapper, fake-process gates and offline diff/CI example are implemented. Live
-external scanner/runner behavior is unverified. Continue M12 with reproducible
-offline acceptance fixtures, optional-integration CI and exact-candidate full
-regression/packaging evidence. Complete physical broker acceptance, broader M10
+external scanner/runner behavior is unverified. Continue with a measured core/
+Assurance latency optimization that preserves fresh configuration reads and all
+security thresholds, then rerun exact-candidate release gates. Complete the six
+partial minimum scenarios and supported-platform CI; the authored workflow is
+not a CI result. Complete physical broker acceptance, broader M10
 validation/code-fix predicates and integrated lifecycle examples when actual
 protected host enforcement is available. M11's offline developer workflow and
 host adapter composition are verified locally; supported platform acceptance

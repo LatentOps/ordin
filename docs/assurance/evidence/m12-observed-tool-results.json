@@ -1,0 +1,12 @@
+{
+  "schema_version": "ordin.assurance_tool_observation.v1",
+  "source": "Actual tool-returned stdout and exit code from completed installed-wheel command",
+  "revision": "cba13c975b0b780de2fdbf67e995f47952e2f5d9",
+  "agent_corpus": {
+    "returncode": 0,
+    "ok": true,
+    "cases": 9,
+    "errors": [],
+    "raw_report_access": "PermissionError; no ACL changes or raw-report hash claimed"
+  }
+}
