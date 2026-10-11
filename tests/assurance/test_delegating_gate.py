@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 from ordin import ActionEnvelope, AgentGate, Ordin
+from ordin.policy import ReviewPolicy
 from ordin.assurance import (
     AssuranceGate,
     DelegatedDecision,
@@ -58,6 +59,51 @@ def test_child_cannot_read_env_or_lexical_neighbor_or_impersonate_parent(tmp_pat
         gate.evaluate_action(
             action("bad-context"), host_context={"principal": "parent", "approved": True}
         )
+
+
+@pytest.mark.parametrize("permissive_core", [False, True])
+def test_read_only_parent_cannot_authorize_native_database_delete(tmp_path, permissive_core):
+    from ordin.runtime_contract import derive_runtime_capability_contract
+
+    issuer, root, source, grant, gate, clock = configured(tmp_path)
+    assert all(cap.access == "read" for cap in root.authority.capability.filesystem)
+    if permissive_core:
+        gate = DelegatingAssuranceGate(
+            AssuranceGate(
+                AgentGate(Ordin(tool_semantics=SEMANTICS, policy=ReviewPolicy("block"))),
+                issuer.profile,
+            ),
+            issuer,
+            grant,
+            source,
+        )
+    allowed = gate.evaluate_action(action("cached-read"))
+    assert allowed.may_execute
+    deletion = ActionEnvelope(
+        "database",
+        "delete",
+        {
+            "database": "synthetic",
+            "table": "records",
+            "filter": {"id": 7},
+            "principal": "parent",
+            "approved": True,
+            "read_only": True,
+        },
+        action_id="database-delete",
+    )
+    result = gate.evaluate_action(deletion)
+    contract = derive_runtime_capability_contract(result.assurance.review)
+    assert contract.source["kind"] == "database" and contract.source["operation"] == "delete"
+    assert contract.unknowns and contract.grant_state == "diagnostic"
+    assert result.verification.result == "unsupported" and not result.verification.ok
+    assert not result.may_execute and not gate.commit_use(result, deletion)
+    assert not gate.commit_use(allowed, deletion)
+    # Missing database semantics/authority cannot be silently dropped even if
+    # the ordinary caller chooses a permissive core disposition threshold.
+    if permissive_core:
+        assert result.assurance.baseline.may_execute
+    assert gate.evaluate_action(action("benign-after-refusal")).may_execute
 
 
 def test_pending_operation_refuses_expired_or_revoked_parent(tmp_path):

@@ -76,3 +76,13 @@ network intersection, depth/expiry/revocation, clock rollback, concurrent issuan
 and reviews, quotas, duplicate/spoofed identities, fabricated/sibling observations,
 pending-operation revocation, commit-time mutation and cross-agent graphs. These
 are synthetic host fixtures: no command executes and no OS permission is issued.
+
+Native `database/delete` proposals have no supported database authority domain.
+Their diagnostic contracts retain the unknown semantics rather than projecting
+them into an empty grant. The AT-16 fixture now reviews such a proposal under a
+read-only issued parent/child grant, refuses grant use and rejects reuse of a
+cached read ticket. Forged `principal`, `approved` and `read_only` parameters add
+no rights. This also holds when the caller chooses a permissive core threshold;
+the child can still complete its authorized read afterward. This verifies
+conservative refusal of the concrete database request, without claiming support
+for database authorization or executing any SQL.

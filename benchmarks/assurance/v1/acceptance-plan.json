@@ -181,11 +181,12 @@
       "id": "AT-16",
       "family": "delegation_all_domains",
       "test_nodes": [
-        "tests/assurance/test_delegation.py::test_child_subset_requires_all_parent_operator_task_domains"
+        "tests/assurance/test_delegation.py::test_child_subset_requires_all_parent_operator_task_domains",
+        "tests/assurance/test_delegating_gate.py::test_read_only_parent_cannot_authorize_native_database_delete"
       ],
-      "coverage": "partial",
+      "coverage": "finite_fixture",
       "limitations": [
-        "Full typed domain excess is tested; a native database-delete action/contract remains unsupported."
+        "A real native database-delete proposal is refused as unsupported under a read-only parent/child grant, including a permissive core threshold, forged parent/approval fields and cached read-ticket reuse. Database semantics remain unsupported; no database grant, SQL execution or physical enforcement is claimed."
       ]
     },
     {
