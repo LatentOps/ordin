@@ -6,7 +6,7 @@ import subprocess
 import threading
 import time
 
-from .codex_security._process_tree import ProcessTree
+from .codex_security._suspended_process import launch_managed_process
 
 
 def run_test_process(runtime, data, cancel):
@@ -52,18 +52,12 @@ def run_test_process(runtime, data, cancel):
                     "TEMP": str(runtime.private_home),
                 }
             )
-            process = subprocess.Popen(
+            process, tree = launch_managed_process(
                 [str(runtime.executable), *runtime.arguments],
                 cwd=runtime.trusted_cwd,
                 env=environment,
-                shell=False,
                 stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                start_new_session=os.name != "nt",
-                creationflags=4 if os.name == "nt" else 0,
             )
-            tree = ProcessTree(process)
             for name in ("stdout", "stderr"):
                 thread = threading.Thread(
                     target=read, args=(getattr(process, name), name), daemon=True

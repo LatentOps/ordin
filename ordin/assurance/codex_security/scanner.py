@@ -24,7 +24,7 @@ from ordin.assurance.models import ApprovedSecurityProfile, JsonRecord
 
 from ._validation import loads
 from .importer import ImportScope, import_codex_json
-from ._process_tree import ProcessTree
+from ._suspended_process import launch_managed_process
 
 
 @dataclass(frozen=True)
@@ -407,31 +407,14 @@ def _run(
     if cancel is not None and cancel.is_set():
         return "canceled", None, b"", b"", 0
     try:
-        process = subprocess.Popen(
+        process, tree = launch_managed_process(
             selection.invocation(arguments),
-            shell=False,
             cwd=selection.trusted_cwd,
             env=_environment(selection, credentials),
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            start_new_session=os.name == "posix",
-            creationflags=(getattr(subprocess, "CREATE_NO_WINDOW", 0) | 4)
-            if os.name == "nt"
-            else 0,
         )
-    except OSError:
+    except (OSError, ValueError):
         return "error", None, b"", b"", round((time.monotonic() - started) * 1000, 6)
-    try:
-        tree = ProcessTree(process)
-    except OSError:
-        process.kill()
-        process.wait(timeout=1)
-        if process.stdout:
-            process.stdout.close()
-        if process.stderr:
-            process.stderr.close()
-        return "error", process.returncode, b"", b"", round((time.monotonic() - started) * 1000, 6)
 
     def drain(pipe, buffer):
         try:

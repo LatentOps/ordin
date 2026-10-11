@@ -45,17 +45,6 @@ class ProcessTree:
                 ("peak_job", ctypes.c_size_t),
             ]
 
-        class ThreadEntry(ctypes.Structure):
-            _fields_ = [
-                ("size", wintypes.DWORD),
-                ("usage", wintypes.DWORD),
-                ("thread", wintypes.DWORD),
-                ("owner", wintypes.DWORD),
-                ("priority", wintypes.LONG),
-                ("delta", wintypes.LONG),
-                ("flags", wintypes.DWORD),
-            ]
-
         kernel = getattr(ctypes, "WinDLL")("kernel32.dll", use_last_error=True)
         signatures = {
             "CreateJobObjectW": ([wintypes.LPVOID, wintypes.LPCWSTR], wintypes.HANDLE),
@@ -64,10 +53,6 @@ class ProcessTree:
                 wintypes.BOOL,
             ),
             "AssignProcessToJobObject": ([wintypes.HANDLE, wintypes.HANDLE], wintypes.BOOL),
-            "CreateToolhelp32Snapshot": ([wintypes.DWORD, wintypes.DWORD], wintypes.HANDLE),
-            "Thread32First": ([wintypes.HANDLE, ctypes.POINTER(ThreadEntry)], wintypes.BOOL),
-            "Thread32Next": ([wintypes.HANDLE, ctypes.POINTER(ThreadEntry)], wintypes.BOOL),
-            "OpenThread": ([wintypes.DWORD, wintypes.BOOL, wintypes.DWORD], wintypes.HANDLE),
             "ResumeThread": ([wintypes.HANDLE], wintypes.DWORD),
             "CloseHandle": ([wintypes.HANDLE], wintypes.BOOL),
         }
@@ -87,31 +72,14 @@ class ProcessTree:
                 raise OSError("scanner process job limits unavailable")
             if not kernel.AssignProcessToJobObject(self.job, getattr(process, "_handle")):
                 raise OSError("scanner process job assignment unavailable")
-            snapshot = kernel.CreateToolhelp32Snapshot(4, 0)  # TH32CS_SNAPTHREAD
-            if snapshot == ctypes.c_void_p(-1).value:
+            thread = getattr(process, "_initial_thread", None)
+            if thread is None:
                 raise OSError("scanner initial thread unavailable")
             try:
-                entry = ThreadEntry()
-                entry.size = ctypes.sizeof(entry)
-                found = kernel.Thread32First(snapshot, ctypes.byref(entry))
-                resumed = False
-                while found:
-                    if entry.owner == process.pid:
-                        thread = kernel.OpenThread(2, False, entry.thread)
-                        if not thread:
-                            raise OSError("scanner initial thread unavailable")
-                        try:
-                            if kernel.ResumeThread(thread) != 1:
-                                raise OSError("scanner initial thread suspension changed")
-                            resumed = True
-                        finally:
-                            kernel.CloseHandle(thread)
-                        break
-                    found = kernel.Thread32Next(snapshot, ctypes.byref(entry))
-                if not resumed:
-                    raise OSError("scanner initial thread unavailable")
+                if kernel.ResumeThread(int(thread)) != 1:
+                    raise OSError("scanner initial thread suspension changed")
             finally:
-                kernel.CloseHandle(snapshot)
+                getattr(process, "close_initial_thread")()
         except BaseException:
             self.close()
             raise
