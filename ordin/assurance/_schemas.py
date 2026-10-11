@@ -395,7 +395,9 @@ CHALLENGE_RUN = artifact(
         "optional_failure_mode",
         "review_to_use_binding",
     ),
-    generator_version=choice("authority-paths-v1", "security-properties-v1"),
+    generator_version=choice(
+        "authority-paths-v1", "security-properties-v1", "optional-failures-v1"
+    ),
     host_boundary_exercised={"type": "boolean", "const": False},
     limitations=array(text(), 32),
     missing_scenarios=array(ID, 64),

@@ -223,7 +223,8 @@
           "generator_version": {
             "enum": [
               "authority-paths-v1",
-              "security-properties-v1"
+              "security-properties-v1",
+              "optional-failures-v1"
             ],
             "type": "string"
           },

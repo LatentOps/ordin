@@ -220,6 +220,11 @@ def _parser() -> argparse.ArgumentParser:
         help="retain all ten required properties and incomplete integrations",
     )
     run.add_argument("--time-budget-ms", type=float, default=10_000)
+    run.add_argument(
+        "--legacy-optional-failures",
+        action="store_true",
+        help="reproduce the frozen v1 unavailable-only optional property",
+    )
     run.add_argument("--report")
     replay = challenge.add_parser(
         "replay", help="recheck both captures for the exact property failure"
@@ -592,6 +597,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         trials_per_property=args.trials if args.trials is not None else 32,
                         variant=args.variant,
                         time_budget_ms=args.time_budget_ms,
+                        legacy_optional_failures=args.legacy_optional_failures,
                     )
                 elif args.property == "authority_subset":
                     result = challenge_authority_subset(
@@ -609,6 +615,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         trials=args.trials if args.trials is not None else 32,
                         variant=args.variant,
                         time_budget_ms=args.time_budget_ms,
+                        generator_version="security-properties-v1"
+                        if args.legacy_optional_failures
+                        else None,
                     )
                 packet = result.as_dict()
                 code = (

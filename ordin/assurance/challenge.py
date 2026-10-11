@@ -166,18 +166,28 @@ class ChallengeRun(JsonRecord):
             or self.status != expected_status
         ):
             raise ValueError("challenger summary must account for failures, coverage and limits")
-        if self.generator_version == "security-properties-v1":
+        if self.generator_version in {"security-properties-v1", "optional-failures-v1"}:
             from ._property_challenges import SCENARIOS
+            from ._optional_challenges import SCENARIOS as OPTIONAL_SCENARIOS
+
+            if (
+                self.generator_version == "optional-failures-v1"
+                and self.property_id != "optional_failure_mode"
+            ):
+                raise ValueError("optional failure generator cannot represent another property")
+            scenarios = (
+                OPTIONAL_SCENARIOS
+                if self.generator_version == "optional-failures-v1"
+                else SCENARIOS[self.property_id]
+            )
 
             expected_missing = tuple(
-                v
-                for v in SCENARIOS[self.property_id]
-                if v not in {s["scenario"] for s in self.samples}
+                v for v in scenarios if v not in {s["scenario"] for s in self.samples}
             )
             if (
                 expected_missing != self.missing_scenarios
                 or len({v["case_id"] for v in self.samples}) != self.generated
-                or any(v["scenario"] not in SCENARIOS[self.property_id] for v in self.samples)
+                or any(v["scenario"] not in scenarios for v in self.samples)
                 or len(self.samples) != self.generated
                 or sum(v["assessable"] for v in self.samples) != self.evaluated
                 or sum(v["assessable"] and v["expected"] != v["actual"] for v in self.samples)
@@ -197,7 +207,7 @@ def replay_counterexample(record: CounterexampleRecord, *, expected_revision: st
     """Recheck both captures; a forged status/digest cannot establish reproduction."""
     if not isinstance(record, CounterexampleRecord) or record.revision != expected_revision:
         raise ValueError("counterexample replay requires the exact pinned revision")
-    if record.generator_version == "security-properties-v1":
+    if record.generator_version in {"security-properties-v1", "optional-failures-v1"}:
         from .property_challenge import replay_property_counterexample
 
         return replay_property_counterexample(record, expected_revision=expected_revision)

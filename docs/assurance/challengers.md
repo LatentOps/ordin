@@ -63,9 +63,11 @@ ordin-assure challenge run --seed 14 --revision fixture-v1 --suite --trials 32 -
 ```
 
 The suite preserves all ten required property names. At 32 trials per property,
-it generates 320 fixtures. With M7 containment integration the current actual
-run assesses 276 without a disagreement; 44 remain unresolved, including deliberately
-ambiguous path cases and provider-failure integrations not yet implemented.
+it generates 320 fixtures when its declared time budget completes. With the
+optional decision-model SDK installed, the actual suite assesses 308 without
+a disagreement and retains 12 deliberately ambiguous path cases as unresolved.
+Core-only runs assess 280 and retain 40 unresolved cases, including 28
+model-dependent cases. No optional package is installed by the generator.
 The result stays `inconclusive`. These are property fixtures, not the later
 100-adversarial/100-benign effectiveness benchmark. A short run also retains
 every missing declared scenario and cannot report complete coverage.
@@ -104,14 +106,49 @@ The property inventory and remaining integration work are:
 | History/observations | Retained non-denied action, exact session/epoch/event correlation | Unknown/stale/denied/cross-session evidence is accepted; generated queue/reset/source/temporal checks implemented |
 | Delegation subset | Issued current parent/child grants, expiry/depth/revocation, all domains | A child gains broader current authority; generated all-domain containment checks and separate lifecycle/runtime tests implemented |
 | Trust origin | Authenticated host records and protected profile handles | Imported/model/agent data becomes host or operator authority; generated import/text-claim checks implemented |
-| Optional failure mode | Configured required provider/scanner and declared outage behavior | Failed optional validation improves permission; requires M8/M9 integrations |
+| Optional failure mode | Actual routing SDK with project-owned mock provider, pinned synthetic task/action, and core scanner/parser/consent APIs | Mandatory outage/malformed evidence/budget exhaustion/configuration drift improves permission; 22 generated offline scenarios with benign counterparts and independent replay |
 | Review-to-use binding | Exact reviewed action/resource/arguments/policy/session commitment | A changed request reuses authorization; generated nested-argument/identity/history/policy/receipt checks implemented |
 
 All these need faithful preconditions, concrete replay and benign counterparts.
-The default suite uses no solver. Hypothesis, dependent provider checks, safe
-promotion and the complete effectiveness corpus remain pending. The finite
+The default suite uses no solver, live model or external scanner. Hypothesis,
+safe promotion and the complete effectiveness corpus remain pending. The finite
 seeded checker is a test of the assurance harness, not a discovered Ordin
 vulnerability. M5 remains in progress.
+
+The default optional property now uses generator `optional-failures-v1`.
+It checks disabled and shadow parity, deterministic denial/approval preservation,
+required-provider absence, timeout/transport/refusal/malformed/untrusted/version/
+question errors, uncertainty, total-call and concurrency budgets, a real bounded
+router timeout with its worker lease retained, and configuration drift. A fresh
+healthy mock counterpart retains the same action and host context. Scanner
+absence/pre-cancellation, malformed workflow claims and absent validation consent
+exercise their actual refusal APIs over owned temporary files. No proposed
+action, marker executable, scanner or target source is run.
+
+`seeded_unsafe_checker` selects a closed, deliberately unsafe consumer that
+discards refusal, mandatory attention or current-binding checks after the real
+SDK has run. Thirty-two trials produce 24 failures and six benign controls,
+minimized into 18 distinct records, when all work completes. These are defects
+in that fixture consumer, not a claim of a production Ordin vulnerability.
+Absent/incompatible SDKs or an unresolved benign counterpart remain unsupported;
+neither can establish a verified failure. All existing trial, time and output
+bounds remain unchanged.
+
+The frozen `security-properties-v1` fixture and saved records retain their
+original unavailable-only optional property. Its meaning is never reinterpreted:
+
+```console
+ordin-assure challenge run --seed 14 --revision fixture-v1 --property optional_failure_mode --trials 32
+ordin-assure challenge run --seed 14 --revision fixture-v1 --property optional_failure_mode --trials 32 --variant seeded_unsafe_checker
+ordin-assure challenge run --seed 14 --revision fixture-v1 --suite --trials 32 --legacy-optional-failures
+```
+
+The Python equivalent for the legacy property is
+`challenge_property(property_id="optional_failure_mode", seed=14,
+revision="fixture-v1", generator_version="security-properties-v1")`.
+Replay binds generator version, property, scenario, variant, assumptions, action
+and policy in both captures. A changed generation cannot replace the original
+failure during shrinking or replay.
 
 Explicit finite SMT challenges are available through the optional development
 extra `.[assurance-dev]`, pinned to Z3 5.1.0.0. Ordinary imports and default

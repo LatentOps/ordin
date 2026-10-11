@@ -17,13 +17,20 @@ from ordin.assurance._property_challenges import SCENARIOS
 
 @pytest.fixture(scope="module")
 def actual_suite():
-    return challenge_security_properties(seed=14, revision="fixture-v1", trials_per_property=32)
+    # Frozen v1 fixture remains an exact compatibility/replay control.
+    return challenge_security_properties(
+        seed=14, revision="fixture-v1", trials_per_property=32, legacy_optional_failures=True
+    )
 
 
 @pytest.fixture(scope="module")
 def seeded_suite():
     return challenge_security_properties(
-        seed=14, revision="fixture-v1", trials_per_property=32, variant="seeded_unsafe_checker"
+        seed=14,
+        revision="fixture-v1",
+        trials_per_property=32,
+        variant="seeded_unsafe_checker",
+        legacy_optional_failures=True,
     )
 
 

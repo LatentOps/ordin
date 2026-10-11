@@ -11,6 +11,7 @@ from typing import Sequence
 from ._environment import environment_label
 from ._json import canonical_json, digest, loads, validate
 from ._property_challenges import SCENARIOS, VERSION, fixture_packet, outcome
+from . import _optional_challenges as optional
 from .challenge import ChallengeRun, challenge_authority_subset
 from .models import CounterexampleRecord, JsonRecord
 
@@ -36,6 +37,14 @@ def _capture(packet, result):
     }
 
 
+def _fixture_functions(property_id, generator_version):
+    if generator_version == VERSION and property_id in SCENARIOS:
+        return SCENARIOS[property_id], fixture_packet, outcome
+    if generator_version == optional.VERSION and property_id == optional.PROPERTY:
+        return optional.SCENARIOS, optional.fixture_packet, optional.outcome
+    raise ValueError("unsupported property/generator pairing")
+
+
 def _recheck(capture):
     if not isinstance(capture, dict) or set(capture) != {
         "fixture",
@@ -43,7 +52,11 @@ def _recheck(capture):
         "policy_digest",
     }:
         raise ValueError("invalid bounded property capture")
-    checked = outcome(capture["fixture"])
+    packet = capture["fixture"]
+    if not isinstance(packet, dict):
+        raise ValueError("property fixture must be a JSON object")
+    _, _, check = _fixture_functions(packet.get("property_id"), packet.get("generator_version"))
+    checked = check(packet)
     if (
         capture["action_digest"] != checked.action_digest
         or capture["policy_digest"] != checked.policy_digest
@@ -56,17 +69,18 @@ def replay_property_counterexample(record: CounterexampleRecord, *, expected_rev
     if (
         not isinstance(record, CounterexampleRecord)
         or record.revision != expected_revision
-        or record.generator_version != VERSION
+        or record.generator_version not in {VERSION, optional.VERSION}
         or record.mutation != "property_preserving_shrink"
     ):
         raise ValueError("property replay requires the exact revision and generator")
     initial, minimized = loads(record.initial_input), loads(record.minimized_input)
     before, after = _recheck(initial), _recheck(minimized)
-    for key in ("property_id", "scenario", "variant", "assumptions_digest"):
+    for key in ("property_id", "scenario", "variant", "assumptions_digest", "generator_version"):
         if initial["fixture"][key] != minimized["fixture"][key]:
             raise ValueError("shrink changed the declared property or assumptions")
     if (
         record.claimed_property != initial["fixture"]["property_id"]
+        or record.generator_version != initial["fixture"]["generator_version"]
         or before.action_digest != after.action_digest
         or before.policy_digest != after.policy_digest
         or len(record.minimized_input) > len(record.initial_input)
@@ -84,7 +98,7 @@ def replay_property_counterexample(record: CounterexampleRecord, *, expected_rev
     return "verified_failure"
 
 
-def _minimize(packet, checked):
+def _minimize(packet, checked, check=outcome):
     # The closed schema defines noise as decorative, and outcome() rejects any
     # other spelling/content. Concrete replay below still checks both captures.
     result = {k: v for k, v in packet.items() if k != "noise"}
@@ -96,7 +110,7 @@ def _minimize(packet, checked):
     }:
         candidates.append({**result, "value": 0})
     for candidate in candidates:
-        new = outcome(candidate)
+        new = check(candidate)
         if new.assessable and (new.expected, new.actual, new.action_digest, new.policy_digest) == (
             checked.expected,
             checked.actual,
@@ -115,6 +129,7 @@ def challenge_property(
     trials: int = 32,
     variant: str = "actual",
     time_budget_ms: float = 10_000,
+    generator_version: str | None = None,
 ) -> ChallengeRun:
     if (
         not isinstance(property_id, str)
@@ -125,6 +140,13 @@ def challenge_property(
         or not 1 <= trials <= 256
         or not isinstance(variant, str)
         or variant not in {"actual", "seeded_unsafe_checker"}
+        or (
+            generator_version is not None
+            and (
+                not isinstance(generator_version, str)
+                or generator_version not in {VERSION, optional.VERSION}
+            )
+        )
     ):
         raise ValueError("bounded known property, seed, variant and trials required")
     if (
@@ -135,9 +157,14 @@ def challenge_property(
     ):
         raise ValueError("invalid property time budget")
     validate("assurance_authority_ref", {"authority_id": revision, "boundary_digest": "0" * 64})
+    selected_version = (
+        generator_version
+        if generator_version is not None
+        else (optional.VERSION if property_id == optional.PROPERTY else VERSION)
+    )
+    scenarios, make_fixture, check = _fixture_functions(property_id, selected_version)
     started = perf_counter()
     generator = random.Random(seed)
-    scenarios = SCENARIOS[property_id]
     samples, manifest, records = [], [], []
     signatures = set()
     evaluated = failures = unresolved = controls = 0
@@ -146,8 +173,8 @@ def challenge_property(
             unresolved += trials - index
             break
         scenario = scenarios[index % len(scenarios)]
-        packet = fixture_packet(property_id, scenario, generator.randrange(1000), variant)
-        checked = outcome(packet)
+        packet = make_fixture(property_id, scenario, generator.randrange(1000), variant)
+        checked = check(packet)
         capture = _capture(packet, checked)
         input_digest = digest("property_generated_input", capture)
         manifest.append(input_digest)
@@ -180,14 +207,14 @@ def challenge_property(
         if signature in signatures:
             continue
         signatures.add(signature)
-        minimized_packet = _minimize(packet, checked)
+        minimized_packet = _minimize(packet, checked, check)
         minimized = _capture(minimized_packet, checked)
         initial_text, minimized_text = canonical_json(capture), canonical_json(minimized)
         record = CounterexampleRecord(
             "counterexample:" + digest("property_counterexample", [seed, index, capture])[:24],
             property_id,
             seed,
-            VERSION,
+            selected_version,
             "property_preserving_shrink",
             initial_text,
             minimized_text,
@@ -221,7 +248,7 @@ def challenge_property(
         "failing" if failures else "inconclusive" if unresolved or missing_scenarios else "passed",
         requested_trials=trials,
         property_id=property_id,
-        generator_version=VERSION,
+        generator_version=selected_version,
         samples=tuple(samples),
         missing_scenarios=missing_scenarios,
         limitations=(
@@ -272,9 +299,11 @@ def challenge_security_properties(
     variant: str = "actual",
     properties: Sequence[str] = REQUIRED_PROPERTIES,
     time_budget_ms: float = 30_000,
+    legacy_optional_failures: bool = False,
 ) -> ChallengeSuite:
     if (
-        not isinstance(properties, (list, tuple))
+        type(legacy_optional_failures) is not bool
+        or not isinstance(properties, (list, tuple))
         or len(properties) > 10
         or any(not isinstance(v, str) for v in properties)
         or len(set(properties)) != len(properties)
@@ -315,6 +344,9 @@ def challenge_security_properties(
                     trials=trials_per_property,
                     variant=variant,
                     time_budget_ms=remaining,
+                    generator_version=VERSION
+                    if legacy_optional_failures and prop == optional.PROPERTY
+                    else None,
                 )
             )
     missing = tuple(p for p in REQUIRED_PROPERTIES if p not in properties)
