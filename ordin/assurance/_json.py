@@ -6,8 +6,9 @@ import hashlib
 import json
 import math
 import re
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any
 
 from ._schemas import MAX_BYTES, MAX_DEPTH, MAX_ITEMS, MAX_TEXT, SCHEMAS, SHAPES
 
@@ -78,11 +79,14 @@ def digest(domain: str, value: Any) -> str:
 def validate(name: str, value: Any) -> None:
     from ordin.schema import validate_instance
 
-    frozen = freeze(value)
-    if len(canonical_json(frozen).encode()) > MAX_BYTES:
+    detached = thaw(freeze(value))
+    encoded = json.dumps(
+        detached, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+    )
+    if len(encoded.encode()) > MAX_BYTES:
         raise ValueError("assurance JSON byte limit exceeded")
     shape = SCHEMAS[name] if name in SCHEMAS else SHAPES[name]
-    if validate_instance(thaw(frozen), shape):
+    if validate_instance(detached, shape):
         # Never copy rejected property names/values into diagnostics.
         raise ValueError(f"invalid {name}: schema validation failed")
 
