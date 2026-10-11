@@ -141,4 +141,4 @@ def _check_result(name: str, output: dict) -> None:
         ),
     }
     if not checks[name]():
-        raise ValueError("standalone example contradicted its declared fixture outcome")
+        raise ValueError("standalone example contradicted its declared fixture outcome: " + name)

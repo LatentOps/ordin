@@ -318,6 +318,7 @@ def run(wheel: Path, environment: Path) -> dict:
             for line in metadata.splitlines()
         ):
             raise ValueError("wheel added a mandatory dependency")
+    environment.mkdir(mode=0o700, parents=True, exist_ok=False)
     venv.EnvBuilder(with_pip=False).create(environment)
     interpreter = environment / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
     command = [
@@ -337,7 +338,7 @@ def run(wheel: Path, environment: Path) -> dict:
     result = subprocess.run(
         [str(interpreter), "-I", "-c", SMOKE],
         cwd=environment,
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
         timeout=120,
@@ -348,6 +349,12 @@ def run(wheel: Path, environment: Path) -> dict:
             "TMPDIR": str(environment),
         },
     )
+    if result.returncode:
+        diagnostics = environment / "smoke-private-stderr.txt"
+        with diagnostics.open("x", encoding="utf-8") as output:
+            output.write(result.stderr[:65536])
+        diagnostics.chmod(0o600)
+        raise ValueError("installed wheel smoke failed; see its private stderr diagnostics")
     smoke = json.loads(result.stdout)
     if not Path(smoke["loaded_from"]).resolve().is_relative_to(environment.resolve()):
         raise ValueError("wheel smoke imported the source checkout")
