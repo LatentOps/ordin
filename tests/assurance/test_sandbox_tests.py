@@ -90,7 +90,9 @@ def setup(tmp_path, monkeypatch):
             root / "cwd",
             root / "home",
             "d" * 64,
-            (target.resolve(), Path(__file__).resolve().parents[2]),
+            # Original and candidate are sibling owned fixtures. Exclude their
+            # common parent on every platform, including an external basetemp.
+            (tmp_path.resolve(), Path(__file__).resolve().parents[2]),
             timeout_ms=1000,
         )
 

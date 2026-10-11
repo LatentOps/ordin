@@ -24,7 +24,7 @@ from ordin.assurance import (
 )
 from ordin.assurance._files import directory_entries
 from ordin.assurance._json import canonical_json, digest, validate
-from ordin.assurance.codex_security._process_tree import ProcessTree
+from ordin.assurance.codex_security._suspended_process import launch_managed_process
 from ordin.assurance.codex_security._validation import loads
 from ordin.assurance.models import ModelAnswer
 
@@ -400,28 +400,12 @@ class LayaDecisionModel:
                     "TEMP": str(self.runtime.private_home),
                 }
             )
-            process = subprocess.Popen(
+            process, tree = launch_managed_process(
                 [str(self.runtime.python), "-I", "-u", str(self.runtime.worker)],
-                shell=False,
                 cwd=self.runtime.trusted_cwd,
                 env=env,
                 stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                start_new_session=os.name == "posix",
-                creationflags=(getattr(subprocess, "CREATE_NO_WINDOW", 0) | 4)
-                if os.name == "nt"
-                else 0,
             )
-            try:
-                tree = ProcessTree(process)
-            except BaseException:
-                process.kill()
-                process.wait(timeout=2)
-                for stream in (process.stdin, process.stdout, process.stderr):
-                    if stream is not None:
-                        stream.close()
-                raise
             worker = self._worker = _WorkerIO(process, tree)
             try:
                 deadline = time.monotonic() + self.runtime.setup_deadline_ms / 1000
