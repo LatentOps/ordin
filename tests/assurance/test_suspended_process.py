@@ -155,11 +155,44 @@ def test_normal_parent_exit_still_kills_descendant_holding_output_pipe(tmp_path)
         child_handle = kernel.OpenProcess(0x100000, False, child)
         assert child_handle and kernel.WaitForSingleObject(child_handle, 0) == 258
         tree.close()
-        assert kernel.WaitForSingleObject(child_handle, 5000) == 0
+        assert kernel.WaitForSingleObject(child_handle, 0) == 0
         assert process.stdout.read() == b""  # Descendant no longer retains the pipe.
     finally:
         tree.close()
         if child_handle:
             kernel.CloseHandle(child_handle)
+        process.stdout.close()
+        process.stderr.close()
+
+
+def test_cleanup_observation_failure_closes_job_and_remains_visible(tmp_path, monkeypatch):
+    process, tree, _ = launch(tmp_path)
+
+    def unavailable():
+        raise OSError("owned cleanup observation failure")
+
+    monkeypatch.setattr(tree, "_windows_process_ids", unavailable)
+    try:
+        with pytest.raises(OSError, match="cleanup observation failure"):
+            tree.close()
+        assert tree.job is None
+        assert process.wait(timeout=5) is not None
+    finally:
+        tree.close()
+        process.stdout.close()
+        process.stderr.close()
+
+
+def test_cleanup_birth_race_is_unconfirmed_and_closes_job(tmp_path, monkeypatch):
+    process, tree, _ = launch(tmp_path)
+    counts = iter((1, 2))
+    monkeypatch.setattr(tree, "_windows_total_processes", lambda: next(counts))
+    try:
+        with pytest.raises(OSError, match="cleanup inventory changed"):
+            tree.close()
+        assert tree.job is None
+        assert process.wait(timeout=5) is not None
+    finally:
+        tree.close()
         process.stdout.close()
         process.stderr.close()

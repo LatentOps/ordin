@@ -134,6 +134,19 @@ def test_actual_vetted_execution_and_one_use_protected_scope(setup):
         SandboxTestRun.from_dict(result.as_dict())
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows job cleanup confirmation")
+def test_unconfirmed_job_cleanup_cannot_issue_a_completed_receipt(setup, monkeypatch):
+    from ordin.assurance.codex_security._process_tree import ProcessTree
+
+    def unconfirmed(self):
+        raise OSError("owned cleanup observation failure")
+
+    monkeypatch.setattr(ProcessTree, "_end_windows_processes", unconfirmed)
+    scope, source, runtime, program, suite, consent, _ = setup
+    result = run_sandbox_test(scope, source, runtime, program, suite, consent())
+    assert result.status == "error" and not result.results and result.proof_gaps
+
+
 @pytest.mark.parametrize(
     "code",
     [

@@ -101,7 +101,10 @@ def run_test_process(runtime, data, cancel):
         status = "unavailable"
     finally:
         if tree is not None:
-            tree.close()  # Includes descendants retaining inherited output pipes.
+            try:
+                tree.close()  # Includes descendants retaining inherited output pipes.
+            except OSError:
+                status = "error"  # Unconfirmed cleanup cannot produce a completed receipt.
         if process is not None:
             if process.poll() is None:
                 try:
