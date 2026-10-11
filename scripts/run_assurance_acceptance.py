@@ -294,6 +294,37 @@ def main():
     wheel = json.loads(wheel_raw)
     if not wheel.get("smoke", {}).get("ok"):
         raise ValueError("supplied fresh-wheel check did not pass")
+    # AT-29 needs the entire installed surface, not selected API/schema tests.
+    # Current installed bytes were compared above; bind the fresh-wheel audit
+    # to those same bytes and require every shipped standalone example.
+    expected_files = {"ordin/" + name: value for name, value in package_files.items()}
+    if wheel.get("source_files_compared") != expected_files:
+        raise ValueError("wheel surface audit does not cover the complete current package")
+    examples = wheel["smoke"].get("standalone_examples", {})
+    from ordin.assurance.examples import EXAMPLES
+
+    if (
+        examples.get("all_passed") is not True
+        or examples.get("example_count") != len(EXAMPLES)
+        or {row["module"] for row in examples.get("examples", ())}
+        != {"ordin.assurance.examples." + name for name in EXAMPLES}
+        or any(
+            row["result"] != "passed"
+            or row["source_sha256"]
+            != package_files["assurance/examples/" + row["module"].rsplit(".", 1)[1] + ".py"]
+            for row in examples.get("examples", ())
+        )
+        or any(
+            examples.get(key) is not False
+            for key in (
+                "actions_executed",
+                "target_code_executed",
+                "model_or_scanner_called",
+                "artifacts_retained",
+            )
+        )
+    ):
+        raise ValueError("wheel standalone example audit is incomplete or mismatched")
     output = args.output.resolve()
     if not output.is_relative_to(ROOT / ".assurance-work"):
         raise ValueError("acceptance private output must stay in workspace scratch storage")
@@ -362,6 +393,11 @@ def main():
         "test_sources": sources,
         "wheel_check_sha256": sha(wheel_raw),
         "wheel_sha256": wheel["wheel_sha256"],
+        "installed_surface_evidence": {
+            "source_files_compared": len(expected_files),
+            "assurance_modules_imported": wheel["smoke"]["assurance_modules_imported"],
+            "standalone_examples": examples,
+        },
         "pytest_exit_code": int(exit_code),
         "observation_errors": observer.observation_errors,
         "cases": results,

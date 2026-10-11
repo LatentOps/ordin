@@ -108,8 +108,51 @@ The property inventory and remaining integration work are:
 | Review-to-use binding | Exact reviewed action/resource/arguments/policy/session commitment | A changed request reuses authorization; generated nested-argument/identity/history/policy/receipt checks implemented |
 
 All these need faithful preconditions, concrete replay and benign counterparts.
-Z3 and Hypothesis are not installed on this host; no installation was attempted.
-Optional solver-backed integration, dependent provider checks, safe
+The default suite uses no solver. Hypothesis, dependent provider checks, safe
 promotion and the complete effectiveness corpus remain pending. The finite
 seeded checker is a test of the assurance harness, not a discovered Ordin
 vulnerability. M5 remains in progress.
+
+Explicit finite SMT challenges are available through the optional development
+extra `.[assurance-dev]`, pinned to Z3 5.1.0.0. Ordinary imports and default
+reviews never load Z3. Missing solver installations produce a validated
+`unavailable`/`inconclusive` record. The implementation uses the
+[official Z3 Python API](https://z3prover.github.io/api/html/z3py_8py_source.html).
+
+```console
+ordin-assure challenge solve --revision reviewed-sha --report /private/solver.json
+ordin-assure challenge solve --revision reviewed-sha --encoding seeded_union_abstraction --report /private/union-candidate.json
+ordin-assure challenge solver-replay /private/union-candidate.json --revision reviewed-sha
+```
+
+The fixed three-bit domain represents atomic read/write/delete rights on one
+exact synthetic path. Parent, operator and task maxima are independently
+specified by `--parent-mask`, `--operator-mask` and `--task-mask` (0–7). All other
+domains remain empty. Faithful intersection cannot authorize rights outside the
+intersection and returns UNSAT. This is only `no_counterexample_in_finite_model`,
+with explicit proof gaps and no host enforcement claim.
+
+The deliberately inaccurate union encoding can return SAT. Its assignment is
+shrunk by removing rights while retaining the same property and maxima, then
+both assignments are independently replayed through the real delegation
+verifier. The actual verifier rejects the abstract excess, so the conclusion is
+`candidate_not_reproduced` and the CLI returns 2. SAT is never promoted to a
+confirmed vulnerability. Solver unknown/timeouts are also inconclusive. A
+concretely reproduced verifier failure would return 1 and remain limited to this
+finite declaration domain; it would still establish no physical exploit.
+
+The immutable `SolverChallenge` contract includes the exact SMT input as bounded
+lines, its SHA-256, solver version, seed, resource budget, original/minimized
+rights, assumptions, concrete results and benign control. Decoding reconstructs
+the fixed formula and concrete replay instead of executing supplied SMT. Changed
+input/assumptions, inconsistent outcomes, false UNSAT labels and attempted host
+trust promotion are rejected. Replay requires the pinned revision and works
+without Z3. Each solve uses its own solver context, a timeout of at most ten
+seconds and a fixed solver work limit. No target program, subprocess, filesystem
+mutation outside owned fixtures, endpoint or model provider is exercised.
+
+`tests/assurance/test_solver.py` compares all 4,096 exact three-bit
+request/parent/operator/task combinations against concrete verification, and
+tests actual SAT/UNSAT, missing/unknown solvers, hostile inputs and CLI replay.
+The separate CI solver job exercises the optional extra; the ordinary wheel
+smoke proves its absence remains explicit.

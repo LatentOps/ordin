@@ -89,7 +89,11 @@ def _minimize(packet, checked):
     # other spelling/content. Concrete replay below still checks both captures.
     result = {k: v for k, v in packet.items() if k != "noise"}
     candidates = []
-    if packet["value"] and packet["property_id"] in {"tool_identity", "monotonicity", "protocol_separation"}:
+    if packet["value"] and packet["property_id"] in {
+        "tool_identity",
+        "monotonicity",
+        "protocol_separation",
+    }:
         candidates.append({**result, "value": 0})
     for candidate in candidates:
         new = outcome(candidate)

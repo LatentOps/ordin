@@ -12,6 +12,7 @@ Activate that environment using your shell's normal command, then run:
 
 ```bash
 python -I -m ordin.assurance.quickstart
+python -I -m ordin.assurance.examples
 ```
 
 The example creates and removes owned temporary synthetic fixtures. It executes
@@ -28,6 +29,13 @@ and publishes no result. The JSON demonstrates:
 - Offline vulnerability and fix-verdict import with confirmation not performed.
 
 These are fixtures and finite checks, not real repository effectiveness evidence.
+The second command runs all eight standalone SDK examples from the installed
+wheel: inventory/profile compilation, bound approvals, policy simulation,
+counterexample properties, attack paths, delegation/revocation, saved scan import
+and source diff triage. It checks each expected result, removes its temporary
+artifacts and reports code/output digests. Use `--scratch-root /private/writable`
+when the platform temporary directory is inaccessible. It launches no reviewed
+action or target program and makes no scanner/model call.
 The exact output contract and test/setup limits are documented in
 [the Assurance reference](../../docs/assurance/cli-and-api.md).
 
@@ -71,18 +79,29 @@ state. Existing Claude/Codex/Cursor/MCP adapters can be composed through
 `AssuranceAdapterGate`; the host retains execution, approval UI, state and broker
 ownership. See [adapter composition](../../docs/assurance/adapter-composition.md).
 
-The earlier checkout examples remain available for explicit private artifacts:
+Each standalone example is also installed for explicit private artifacts:
 
 ```bash
-python -m examples.assurance.profile_inventory \
+python -I -m ordin.assurance.examples.profile_inventory \
   --repository-root tests/assurance/fixtures/repositories/payment \
   --repository-id fixture/payment --revision fixture-v1 \
   --virtual-root /fixture/payment --output .assurance-work/profile-example
-python -m examples.assurance.gate_review --output .assurance-work/gate-example
+python -I -m ordin.assurance.examples.gate_review --output .assurance-work/gate-example
+python -I -m ordin.assurance.examples.delegation --output .assurance-work/delegation-example
+python -I -m ordin.assurance.examples.codex_import --output .assurance-work/import-example
+python -I -m ordin.assurance.examples.source_diff --output .assurance-work/diff-example
+python -I -m ordin.assurance.examples.policy_simulation
+python -I -m ordin.assurance.examples.property_challengers
+python -I -m ordin.assurance.examples.attack_path
 ```
 
-Use a fresh output directory. These examples refuse overwrite/source-tree output,
-retain source references privately and use synthetic protected host declarations.
+Use a fresh output directory. The inventory example refuses output inside its
+inspected source, and the artifact examples refuse to reuse an output directory.
+The `profile_inventory` command requires an authorized local repository; the
+payment path above is a checkout fixture. The complete example suite creates its
+own source fixture and requires no checkout. Existing `examples.assurance.*`
+commands remain compatibility entrypoints for the same installed implementations.
+The examples retain source references privately and use synthetic protected host declarations.
 The gate example demonstrates receipt-free escalation, bound approval and
 protected-workflow denial. It executes no action or real host enforcement.
 `--include-source-paths` explicitly exposes verified citations in local inventory

@@ -171,7 +171,7 @@ claimed. Revision labels require host attestation; no Git or target code runs.
 
 ```console
 ordin-assure source diff --baseline-root /authorized/before --candidate-root /authorized/after --repository example/repo --baseline-revision base-sha --candidate-revision head-sha --virtual-root /repo
-python -m examples.assurance.source_diff --output ./new-synthetic-diff
+python -I -m ordin.assurance.examples.source_diff --output ./new-synthetic-diff
 ```
 
 Paired `--baseline-policy/--candidate-policy` and

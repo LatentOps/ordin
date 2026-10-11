@@ -54,6 +54,7 @@ from .host import (
 )
 from .invariants import evaluate_approved_invariants
 from .challenge import ChallengeRun, challenge_authority_subset, replay_counterexample
+from .solver import SolverChallenge, challenge_capability_intersection, replay_solver_candidate
 from .property_challenge import ChallengeSuite, challenge_property, challenge_security_properties
 from .requests import verify_assurance_capability, verify_assurance_request_authority
 from .rest import (
@@ -155,6 +156,9 @@ from .simulation import (
 )
 
 __all__ = [
+    "SolverChallenge",
+    "challenge_capability_intersection",
+    "replay_solver_candidate",
     "RestSemantics",
     "RestRequestAuthority",
     "RestRequestBoundary",

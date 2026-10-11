@@ -1304,7 +1304,45 @@ REST_CONTRACT = artifact(
     request=REST_AUTHORITY,
 )
 
+SOLVER_CHALLENGE = artifact(
+    "assurance_solver_challenge",
+    generator_version={"type": "string", "const": "capability-intersection-smt-v1"},
+    revision=REVISION,
+    encoding=choice("exact_intersection", "seeded_union_abstraction"),
+    parent_mask={"type": "integer", "minimum": 0, "maximum": 7},
+    operator_mask={"type": "integer", "minimum": 0, "maximum": 7},
+    task_mask={"type": "integer", "minimum": 0, "maximum": 7},
+    seed={"type": "integer", "minimum": 0, "maximum": 2**31 - 1},
+    timeout_ms={"type": "integer", "minimum": 1, "maximum": 10000},
+    solver_version=nullable(text(128)),
+    solver_result=choice("sat", "unsat", "unknown", "unavailable"),
+    solver_input_parts=array(text(1024), 32),
+    solver_input_sha256=DIGEST,
+    initial_mask=nullable({"type": "integer", "minimum": 1, "maximum": 7}),
+    minimized_mask=nullable({"type": "integer", "minimum": 1, "maximum": 7}),
+    initial_replay_result=nullable(
+        choice("within_boundary", "exceeds_boundary", "unsupported", "inconclusive")
+    ),
+    concrete_replay_result=nullable(
+        choice("within_boundary", "exceeds_boundary", "unsupported", "inconclusive")
+    ),
+    benign_control_result=choice(
+        "within_boundary", "exceeds_boundary", "unsupported", "inconclusive"
+    ),
+    conclusion=choice(
+        "candidate_not_reproduced",
+        "verified_finite_failure",
+        "no_counterexample_in_finite_model",
+        "inconclusive",
+    ),
+    assumptions=array(text(1024), 16),
+    proof_gaps=array(text(1024), 16),
+    host_boundary_exercised={"type": "boolean", "const": False},
+    origin={"type": "string", "const": "solver_hypothesis"},
+)
+
 SCHEMAS = {
+    "assurance_solver_challenge": SOLVER_CHALLENGE,
     "assurance_rest_semantics": REST_SEMANTICS,
     "assurance_rest_authority": REST_AUTHORITY,
     "assurance_rest_boundary": REST_BOUNDARY,

@@ -68,6 +68,7 @@ SCHEMA_FILES = {
     "assurance_simulation": "assurance-simulation.v1.schema.json",
     "assurance_challenge_run": "assurance-challenge-run.v1.schema.json",
     "assurance_challenge_suite": "assurance-challenge-suite.v1.schema.json",
+    "assurance_solver_challenge": "assurance-solver-challenge.v1.schema.json",
     "assurance_instruction_origin": "assurance-instruction-origin.v1.schema.json",
     "assurance_source_use": "assurance-source-use.v1.schema.json",
     "assurance_source_provenance": "assurance-source-provenance.v1.schema.json",

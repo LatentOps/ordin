@@ -102,5 +102,33 @@ jobs:
       - name: Verify installed minimum acceptance fixtures
         if: matrix.integration == 'decision_models'
         run: |
+          python -m pip install 'z3-solver==5.1.0.0'
           python scripts/check_assurance_wheel.py --wheel .assurance-work/ci-core-dist/*.whl --venv .assurance-work/ci-acceptance-smoke --report .assurance-work/ci-acceptance-wheel.json
           python -I scripts/run_assurance_acceptance.py --revision "$GITHUB_SHA" --wheel-check .assurance-work/ci-acceptance-wheel.json --output .assurance-work/ci-acceptance
+
+  solver:
+    name: Finite solver ${{ matrix.os }} Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install declared hashed development tools and pinned optional solver
+        run: |
+          python -m pip install --require-hashes -r requirements/dev-baseline.txt
+          python -m pip install --no-build-isolation '.[assurance-dev]'
+      - name: Run real SMT and exhaustive concrete finite replay
+        run: >-
+          python -m pytest -q -ra -p no:cacheprovider
+          tests/assurance/test_solver.py tests/assurance/test_contract_coverage.py
+          tests/assurance/test_schema_roundtrip.py tests/test_schemas.py
+          --basetemp=.assurance-work/ci-solver-tests

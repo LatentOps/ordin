@@ -184,6 +184,25 @@ def _parser() -> argparse.ArgumentParser:
     diff.add_argument("--report")
     challenge = groups.add_parser("challenge").add_subparsers(dest="command", required=True)
     challenge.add_parser("list", help="list the bounded property catalog and proof limits")
+    solve = challenge.add_parser("solve", help="optional finite SMT candidate plus concrete replay")
+    solve.add_argument("--revision", required=True)
+    solve.add_argument(
+        "--encoding",
+        choices=("exact_intersection", "seeded_union_abstraction"),
+        default="exact_intersection",
+    )
+    solve.add_argument("--parent-mask", type=int, default=1)
+    solve.add_argument("--operator-mask", type=int, default=3)
+    solve.add_argument("--task-mask", type=int, default=5)
+    solve.add_argument("--seed", type=int, default=14)
+    solve.add_argument("--timeout-ms", type=int, default=1000)
+    solve.add_argument("--report")
+    solver_replay = challenge.add_parser(
+        "solver-replay", help="replay a solver candidate in the concrete verifier"
+    )
+    solver_replay.add_argument("path")
+    solver_replay.add_argument("--revision", required=True)
+    solver_replay.add_argument("--report")
     run = challenge.add_parser("run", help="bounded synthetic authority-subset challenger")
     run.add_argument("--seed", type=int, required=True)
     run.add_argument("--revision", required=True)
@@ -519,7 +538,44 @@ def main(argv: Sequence[str] | None = None) -> int:
                 ):
                     code = SECURITY_REGRESSION
         elif args.group == "challenge":
-            if args.command == "list":
+            if args.command in {"solve", "solver-replay"}:
+                from .solver import (
+                    SolverChallenge,
+                    challenge_capability_intersection,
+                    replay_solver_candidate,
+                )
+
+                if args.command == "solve":
+                    solver_result = challenge_capability_intersection(
+                        revision=args.revision,
+                        encoding=args.encoding,
+                        parent_mask=args.parent_mask,
+                        operator_mask=args.operator_mask,
+                        task_mask=args.task_mask,
+                        seed=args.seed,
+                        timeout_ms=args.timeout_ms,
+                    )
+                    conclusion = solver_result.conclusion
+                    packet = solver_result.as_dict()
+                else:
+                    solver_record = SolverChallenge.from_dict(_read(args.path))
+                    conclusion = replay_solver_candidate(
+                        solver_record, expected_revision=args.revision
+                    )
+                    packet = {
+                        "record_digest": solver_record.digest,
+                        "conclusion": conclusion,
+                        "host_boundary_exercised": False,
+                        "origin": "solver_hypothesis",
+                    }
+                code = (
+                    PASS
+                    if conclusion == "no_counterexample_in_finite_model"
+                    else SECURITY_REGRESSION
+                    if conclusion == "verified_finite_failure"
+                    else PARTIAL_OR_MALFORMED
+                )
+            elif args.command == "list":
                 packet = {
                     "schema_version": "ordin.assurance_challenge_catalog.v1",
                     "properties": list(REQUIRED_PROPERTIES),

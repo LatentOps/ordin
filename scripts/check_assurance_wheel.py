@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import platform
 import subprocess
 import sys
@@ -34,6 +35,19 @@ def refuse_process(*args, **kwargs):
 subprocess.Popen = refuse_process
 import ordin
 import ordin.assurance as assurance
+import importlib, pkgutil
+from pathlib import Path
+from ordin.assurance.examples import run_examples
+# Import every shipped Assurance module and execute every standalone example.
+# The existing spies cover imports, argv parsing and fixture execution together.
+public_modules = sorted(info.name for info in pkgutil.walk_packages(assurance.__path__, assurance.__name__ + "."))
+for name in public_modules:
+    importlib.import_module(name)
+standalone_examples = run_examples(scratch_root=Path.cwd())
+assert standalone_examples["example_count"] == 8 and standalone_examples["all_passed"] is True
+from ordin.assurance.solver import challenge_capability_intersection
+solver_disabled = challenge_capability_intersection(revision="wheel-fixture-v1")
+assert solver_disabled.solver_result == "unavailable" and solver_disabled.conclusion == "inconclusive"
 from ordin.schema import SCHEMA_FILES, validate_schema_files, resource_parity_errors
 from ordin.assurance._schemas import SCHEMAS
 from ordin.assurance import SecurityProfile, RepositoryScope, ModelAnswer
@@ -234,6 +248,9 @@ print(json.dumps({"ok": True, "version": ordin.__version__, "schemas": len(SCHEM
                   "offline_workflow_claims": True,
                   "offline_quickstart": quickstart,
                   "rest_example": rest_example,
+                  "assurance_modules_imported": public_modules,
+                  "standalone_examples": standalone_examples,
+                  "optional_solver_unavailable": solver_disabled.as_dict(),
                   "loaded_from": ordin.__file__}))
 """
 
@@ -271,10 +288,30 @@ def run(wheel: Path, environment: Path) -> dict:
             "ordin/assurance/codex_security/scanner.py",
             "ordin/assurance/codex_security/_process_tree.py",
             "ordin/assurance/diff_triage.py",
+            "ordin/assurance/examples/__init__.py",
+            "ordin/assurance/examples/__main__.py",
             "ordin/resources/codex_security/findings.schema.json",
         }
         if not required <= names:
             raise ValueError("wheel is missing assurance modules")
+        # A hand-written list alone cannot catch newly added modules/resources
+        # omitted from explicit package enumeration. Compare the entire package.
+        source_files = {}
+        for source in (ROOT / "ordin").rglob("*"):
+            if source.suffix not in {".py", ".json"}:
+                continue
+            relative = source.relative_to(ROOT).as_posix()
+            raw = source.read_bytes()
+            if relative not in names or archive.read(relative) != raw:
+                raise ValueError("wheel is missing or differs from a current module/resource")
+            source_files[relative] = hashlib.sha256(raw).hexdigest()
+        wheel_sources = {
+            name
+            for name in names
+            if name.startswith("ordin/") and Path(name).suffix in {".py", ".json"}
+        }
+        if wheel_sources != set(source_files):
+            raise ValueError("wheel includes stale or unexpected package modules/resources")
         metadata = archive.read(next(name for name in names if name.endswith("/METADATA"))).decode()
         if any(
             line.startswith("Requires-Dist:") and "extra ==" not in line
@@ -304,6 +341,12 @@ def run(wheel: Path, environment: Path) -> dict:
         capture_output=True,
         text=True,
         timeout=120,
+        env={
+            **os.environ,
+            "TEMP": str(environment),
+            "TMP": str(environment),
+            "TMPDIR": str(environment),
+        },
     )
     smoke = json.loads(result.stdout)
     if not Path(smoke["loaded_from"]).resolve().is_relative_to(environment.resolve()):
@@ -317,17 +360,46 @@ def run(wheel: Path, environment: Path) -> dict:
         text=True,
         timeout=120,
     )
+    executable = environment / (
+        "Scripts/ordin-assure.exe" if sys.platform == "win32" else "bin/ordin-assure"
+    )
+    cli = subprocess.run(
+        [str(executable), "challenge", "list", "--json"],
+        cwd=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env={
+            **os.environ,
+            "TEMP": str(environment),
+            "TMP": str(environment),
+            "TMPDIR": str(environment),
+        },
+    )
+    cli_output = json.loads(cli.stdout)
+    if (
+        cli_output.get("execution") != "bounded_synthetic_only"
+        or len(cli_output.get("properties", ())) != 10
+    ):
+        raise ValueError("installed console entrypoint differs from its offline property catalog")
     return {
         "schema_version": "ordin.assurance_wheel_check.v1",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "wheel_sha256": hashlib.sha256(wheel.read_bytes()).hexdigest(),
         "wheel_entries": len(names),
+        "source_files_compared": source_files,
         "environment": {
             "python": platform.python_version(),
             "platform": platform.platform(),
         },
         "smoke": smoke,
         "doctor": doctor.stdout,
+        "console_entrypoint": {
+            "name": "ordin-assure",
+            "command": "challenge list --json",
+            "result": cli_output,
+        },
         "limitations": ["Single local platform/Python run; no remote CI result implied."],
     }
 
@@ -343,7 +415,19 @@ def main() -> int:
     with args.report.open("x", encoding="utf-8") as handle:
         json.dump(report, handle, indent=2, sort_keys=True)
         handle.write("\n")
-    print(json.dumps(report["smoke"]))
+    print(
+        json.dumps(
+            {
+                "ok": report["smoke"]["ok"],
+                "schemas": report["smoke"]["schemas"],
+                "source_files_compared": len(report["source_files_compared"]),
+                "standalone_examples": report["smoke"]["standalone_examples"]["example_count"],
+                "assurance_modules_imported": len(report["smoke"]["assurance_modules_imported"]),
+                "optional_solver": report["smoke"]["optional_solver_unavailable"]["solver_result"],
+                "console_entrypoint": "passed",
+            }
+        )
+    )
     return 0
 
 

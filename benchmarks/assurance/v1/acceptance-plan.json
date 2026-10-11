@@ -169,11 +169,12 @@
       "id": "AT-15",
       "family": "abstraction_limit",
       "test_nodes": [
-        "tests/assurance/test_challenge.py::test_replay_requires_same_revision_and_does_not_trust_claimed_failure"
+        "tests/assurance/test_challenge.py::test_replay_requires_same_revision_and_does_not_trust_claimed_failure",
+        "tests/assurance/test_solver.py::test_solver_abstraction_candidate_is_not_a_confirmed_failure"
       ],
-      "coverage": "partial",
+      "coverage": "finite_fixture",
       "limitations": [
-        "No actual external solver or abstract-to-concrete solver candidate is exercised."
+        "Real optional Z3 produces a SAT candidate in a deliberately inaccurate three-bit abstraction; concrete delegation replay rejects it. Exhaustive exact-rights replay verifies the finite encoding; arbitrary solvers, complex policies and physical enforcement remain outside this fixture."
       ]
     },
     {
@@ -326,11 +327,12 @@
       "family": "wheel_surface",
       "test_nodes": [
         "tests/test_schemas.py",
-        "tests/test_public_api.py"
+        "tests/test_public_api.py",
+        "tests/assurance/test_packaged_examples.py::test_every_standalone_example_runs_without_execution_or_network"
       ],
-      "coverage": "partial",
+      "coverage": "finite_fixture",
       "limitations": [
-        "Selected public contracts and supplied fresh-wheel smoke are checked; all documented standalone examples still require release audit."
+        "The supplied fresh-wheel audit compares every current Python/JSON package file, imports every Assurance module and runs all eight standalone examples plus packaged quickstart/validation/REST demos with process/network spies. Optional model/scanner wheels and supported-platform CI remain separate gates."
       ]
     },
     {

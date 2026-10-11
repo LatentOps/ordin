@@ -248,4 +248,9 @@ def assurance_contract_examples(tmp_path):
             ).as_dict(),
         }
     )
+    from ordin.assurance.solver import challenge_capability_intersection
+
+    samples["assurance_solver_challenge"] = challenge_capability_intersection(
+        revision="fixture-v1"
+    ).as_dict()
     return samples
