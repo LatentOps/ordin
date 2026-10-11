@@ -347,6 +347,22 @@ COUNTEREXAMPLE = artifact(
     safe_fixture_only={"type": "boolean", "const": True},
     proof_gaps=array(text(), 32),
 )
+BOUNDARY_REGRESSION = artifact(
+    "assurance_boundary_regression",
+    case_id=ID,
+    counterexample=COUNTEREXAMPLE,
+    source_revision=REVISION,
+    reproducer_digest=DIGEST,
+    benign_input=text(),
+    benign_digest=DIGEST,
+    benign_expected=ID,
+    review_digest=nullable(DIGEST),
+    reviewer_source_digest=nullable(DIGEST),
+    profile_digest=nullable(DIGEST),
+    provenance_kind={"type": "string", "const": "closed_fixture_regression"},
+    advisory_only={"type": "boolean", "const": True},
+    host_boundary_exercised={"type": "boolean", "const": False},
+)
 DELEGATION = artifact(
     "assurance_delegation",
     grant_id=ID,
@@ -1344,6 +1360,7 @@ SOLVER_CHALLENGE = artifact(
 )
 
 SCHEMAS = {
+    "assurance_boundary_regression": BOUNDARY_REGRESSION,
     "assurance_solver_challenge": SOLVER_CHALLENGE,
     "assurance_rest_semantics": REST_SEMANTICS,
     "assurance_rest_authority": REST_AUTHORITY,

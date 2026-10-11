@@ -27,6 +27,7 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "assurance_boundary_regression": "assurance-boundary-regression.v1.schema.json",
     "assurance_rest_semantics": "assurance-rest-semantics.v1.schema.json",
     "assurance_rest_authority": "assurance-rest-authority.v1.schema.json",
     "assurance_rest_boundary": "assurance-rest-boundary.v1.schema.json",

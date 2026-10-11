@@ -18,6 +18,8 @@ Malformed input produces a coarse diagnostic without source/secret echo.
 | `challenge list` | List finite supported properties and proof limits |
 | `challenge run` | Seeded bounded synthetic property/authority tests |
 | `challenge replay` / `counterexample replay PATH --revision REV` | Reproduce the exact saved checker failure, not an unsafe action |
+| `counterexample regression-propose PATH --case-id ID --revision REV` | Prepare a reproduced failure plus benign control for host review; no adoption |
+| `counterexample regression-replay PATH --revision REV` | Recheck a saved boundary regression and its exact code/revision/control bindings |
 | `codex import` | Offline findings/SARIF ingestion |
 | `codex import-workflow` | Offline external validation/patch/fix/risk claims |
 | `codex mock` | Synthetic scanner lifecycle/status examples |

@@ -56,6 +56,16 @@ from .invariants import evaluate_approved_invariants
 from .challenge import ChallengeRun, challenge_authority_subset, replay_counterexample
 from .solver import SolverChallenge, challenge_capability_intersection, replay_solver_candidate
 from .property_challenge import ChallengeSuite, challenge_property, challenge_security_properties
+from .regression import (
+    BoundaryRegression,
+    ProtectedRegressionDestination,
+    prepare_boundary_regression,
+    regression_promotion_action,
+    promote_reviewed_boundary_regression,
+    load_boundary_regressions,
+    replay_boundary_regression,
+    replay_boundary_regression_corpus,
+)
 from .requests import verify_assurance_capability, verify_assurance_request_authority
 from .rest import (
     RestSemantics,
@@ -156,6 +166,14 @@ from .simulation import (
 )
 
 __all__ = [
+    "BoundaryRegression",
+    "ProtectedRegressionDestination",
+    "prepare_boundary_regression",
+    "regression_promotion_action",
+    "promote_reviewed_boundary_regression",
+    "load_boundary_regressions",
+    "replay_boundary_regression",
+    "replay_boundary_regression_corpus",
     "SolverChallenge",
     "challenge_capability_intersection",
     "replay_solver_candidate",

@@ -167,6 +167,20 @@ def _parser() -> argparse.ArgumentParser:
     counter.add_argument("path")
     counter.add_argument("--revision", required=True)
     counter.add_argument("--report")
+    regression_proposal = cases.add_parser(
+        "regression-propose",
+        help="prepare a verified boundary regression for host review; no adoption",
+    )
+    regression_proposal.add_argument("path")
+    regression_proposal.add_argument("--revision", required=True)
+    regression_proposal.add_argument("--case-id", required=True)
+    regression_proposal.add_argument("--report")
+    regression_replay = cases.add_parser(
+        "regression-replay", help="replay failure and benign counterpart; no host authority"
+    )
+    regression_replay.add_argument("path")
+    regression_replay.add_argument("--revision", required=True)
+    regression_replay.add_argument("--report")
     policy = groups.add_parser("policy").add_subparsers(dest="command", required=True)
     simulate = policy.add_parser(
         "simulate", help="replay independent baseline and candidate sessions"
@@ -421,20 +435,47 @@ def main(argv: Sequence[str] | None = None) -> int:
                 PolicySimulationReport.from_dict(_read(args.after)),
             )
         elif args.group == "counterexample":
-            record = CounterexampleRecord.from_dict(_read(args.path))
-            outcome = replay_counterexample(record, expected_revision=args.revision)
-            packet = {
-                "record_digest": record.digest,
-                "replay_outcome": outcome,
-                "host_boundary_exercised": False,
-            }
-            code = (
-                PASS
-                if outcome == "verified_failure"
-                else SECURITY_REGRESSION
-                if outcome == "not_reproduced"
-                else PARTIAL_OR_MALFORMED
-            )
+            if args.command == "regression-propose":
+                from .regression import prepare_boundary_regression
+
+                record = CounterexampleRecord.from_dict(_read(args.path))
+                proposal = prepare_boundary_regression(
+                    record, case_id=args.case_id, expected_revision=args.revision
+                )
+                packet, code = proposal.as_dict(), PASS
+            elif args.command == "regression-replay":
+                from .regression import BoundaryRegression, replay_boundary_regression
+
+                case = BoundaryRegression.from_dict(_read(args.path))
+                outcome = replay_boundary_regression(case, expected_revision=args.revision)
+                packet = {
+                    "case_digest": case.digest,
+                    "replay_outcome": outcome,
+                    "host_boundary_exercised": False,
+                    "advisory_only": True,
+                }
+                code = (
+                    PASS
+                    if outcome == "verified_failure_with_benign_control"
+                    else SECURITY_REGRESSION
+                    if outcome == "not_reproduced"
+                    else PARTIAL_OR_MALFORMED
+                )
+            else:
+                record = CounterexampleRecord.from_dict(_read(args.path))
+                outcome = replay_counterexample(record, expected_revision=args.revision)
+                packet = {
+                    "record_digest": record.digest,
+                    "replay_outcome": outcome,
+                    "host_boundary_exercised": False,
+                }
+                code = (
+                    PASS
+                    if outcome == "verified_failure"
+                    else SECURITY_REGRESSION
+                    if outcome == "not_reproduced"
+                    else PARTIAL_OR_MALFORMED
+                )
         elif args.group == "source":
             from .diff_triage import triage_source_diff
             from .inventory import AuthorizedRepository

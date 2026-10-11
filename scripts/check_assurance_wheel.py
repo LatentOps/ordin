@@ -69,6 +69,11 @@ assert finding_demo["patch_applied"] is False
 assert finding_demo["validation"]["result"] == "confirmed"
 assert finding_demo["validation"]["tested_scope"] == "gate_authority_subset"
 assert finding_demo["fix"]["result"] == "fixed-verified" and finding_demo["fix"]["integrated"] is False
+from ordin.assurance.regression_demo import run_demo as regression_demo
+regression_example = regression_demo(scratch_root=Path.cwd())
+assert regression_example["synthetic_review_only"] and regression_example["case_reviewed"]
+assert regression_example["failure_and_benign_replayed"] and regression_example["duplicate_refused"]
+assert not any(regression_example[key] for key in ("actions_executed", "target_code_executed", "live_corpus_or_policy_changed", "host_boundary_exercised", "artifacts_retained"))
 from ordin.assurance.quickstart import run_quickstart
 quickstart = run_quickstart()
 assert quickstart["actions_executed"] is False and quickstart["model_or_scanner_called"] is False
@@ -244,6 +249,7 @@ assert build_threat_model(scope, inventory).draft.authoritative is False
 print(json.dumps({"ok": True, "version": ordin.__version__, "schemas": len(SCHEMA_FILES),
                   "assurance_schemas": len(SCHEMAS), "exports": sorted(assurance.__all__),
                   "finding_validation_demo": finding_demo,
+                  "boundary_regression_demo": regression_example,
                   "vetted_test_no_execution": True,
                   "offline_workflow_claims": True,
                   "offline_quickstart": quickstart,

@@ -110,8 +110,8 @@ The property inventory and remaining integration work are:
 | Review-to-use binding | Exact reviewed action/resource/arguments/policy/session commitment | A changed request reuses authorization; generated nested-argument/identity/history/policy/receipt checks implemented |
 
 All these need faithful preconditions, concrete replay and benign counterparts.
-The default suite uses no solver, live model or external scanner. Hypothesis,
-safe promotion and the complete effectiveness corpus remain pending. The finite
+The default suite uses no solver, live model or external scanner. Hypothesis
+and the complete effectiveness corpus remain pending. The finite
 seeded checker is a test of the assurance harness, not a discovered Ordin
 vulnerability. M5 remains in progress.
 
@@ -149,6 +149,60 @@ revision="fixture-v1", generator_version="security-properties-v1")`.
 Replay binds generator version, property, scenario, variant, assumptions, action
 and policy in both captures. A changed generation cannot replace the original
 failure during shrinking or replay.
+
+Reviewed cases that retain protocol/authority/provider details use a dedicated
+boundary-regression corpus. Core-only action traces cannot losslessly represent
+those details. The new `BoundaryRegression` contract retains the full and
+minimized counterexample, a checked benign counterpart, exact source revision
+and a compatibility digest for the closed reproducer's code. It remains
+`closed_fixture_regression`, advisory and without a host-boundary claim.
+
+```console
+ordin-assure counterexample regression-propose ./counterexample.json --case-id reviewed-case --revision reviewed-sha --report /private/proposal.json
+ordin-assure counterexample regression-replay /private/proposal.json --revision reviewed-sha
+```
+
+These CLI commands prepare/replay data and never adopt a corpus case. The host
+selects an existing protected `ProtectedRegressionDestination`, checks the
+proposal and records actual review approval for the exact normalized action
+returned by `regression_promotion_action`. Its current source, approved profile,
+repository/revision, runtime policy, destination identity and case bytes must
+match. `promote_reviewed_boundary_regression` rejects caller JSON in place of a
+protected `HostApproval`, concretely replays failure and benign behavior again,
+then creates one new private case file. It changes no profile, source patch,
+permission, observation or finding status.
+
+The host must map the selected virtual protected path to the actual directory,
+enforce the declared filesystem boundary, and protect the directory ACL. The
+SDK refuses overlapping agent write/delete rights, unknown containment, links,
+device/remote paths, root-agent authority and writable POSIX directories. This
+is an existing host-selection/API trust boundary, not kernel sandbox proof or
+protection against arbitrary code in the host process.
+
+Adoption never overwrites an existing file. A scoped exclusive lease serializes
+cooperating writers and is never stolen. Case count and byte size are bounded.
+A crash or failed write may leave a partial case or stale lease; no successful
+adoption receipt is returned, and malformed/unreviewed corpus data is refused.
+The operator inspects retained state before manually removing it. No unrelated
+file is automatically deleted.
+
+`load_boundary_regressions` reads only the selected directory. A serialized
+review digest is an inspection label and cannot manufacture host approval.
+`replay_boundary_regression_corpus(destination, expected_cases={case_id:
+reviewed_case.digest})` requires a nonempty mandatory manifest, exact case
+inventory and content digests. Missing, corrupted, replaced or additional cases
+cannot pass. Every case replays its exact failure and its preserved benign
+counterpart; changed reproducer code requires preparation and review of a new
+case. Passes prove only this closed fixture scope, including deliberately seeded
+consumer defects, not a production vulnerability or general security claim.
+
+Run the complete owned example with
+`python -m ordin.assurance.regression_demo`. It creates a temporary synthetic
+profile/corpus, uses an explicitly synthetic review channel, adopts and replays
+one seeded case, verifies duplicate refusal, then removes its owned temporary
+artifacts. It uses no real human approval, application case, live policy, model,
+scanner or proposed-action execution. The built-wheel audit runs this example
+under its existing network/process denial spies.
 
 Explicit finite SMT challenges are available through the optional development
 extra `.[assurance-dev]`, pinned to Z3 5.1.0.0. Ordinary imports and default

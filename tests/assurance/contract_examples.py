@@ -253,4 +253,12 @@ def assurance_contract_examples(tmp_path):
     samples["assurance_solver_challenge"] = challenge_capability_intersection(
         revision="fixture-v1"
     ).as_dict()
+    from ordin.assurance import prepare_boundary_regression
+
+    record = challenge_authority_subset(
+        seed=14, revision="fixture-v1", trials=16, variant="seeded_prefix_bug"
+    ).counterexamples[0]
+    samples["assurance_boundary_regression"] = prepare_boundary_regression(
+        record, case_id="fixture-boundary", expected_revision="fixture-v1"
+    ).as_dict()
     return samples
