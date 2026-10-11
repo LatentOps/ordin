@@ -96,6 +96,30 @@ def test_remote_and_device_namespaces_are_not_enumerated(monkeypatch):
     assert module._names("\\\\?\\C:\\protected") is None
 
 
+def test_linux_windows_mounts_keep_fresh_stdlib_probing_without_enumeration(monkeypatch):
+    import ordin._path_lookup as module
+
+    monkeypatch.setattr(module.sys, "platform", "linux")
+    monkeypatch.setenv("PATH", "/mnt/c/Windows/System32:/mnt/D/owned-fixture")
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("PATH optimization enumerated a Windows mount")
+
+    calls = []
+
+    def resolve(command, *, path):
+        calls.append((command, path))
+        return None if len(calls) == 1 else "/mnt/D/owned-fixture/newtool"
+
+    monkeypatch.setattr(module.os, "scandir", forbidden)
+    monkeypatch.setattr(module.shutil, "which", resolve)
+    lookup = _Lookup()
+    assert lookup.which("newtool") is None
+    assert lookup.which("newtool") == "/mnt/D/owned-fixture/newtool"
+    assert all(path == "/mnt/c/Windows/System32:/mnt/D/owned-fixture" for _, path in calls)
+    lookup.verify()
+
+
 def test_new_membership_environment_and_resolver_changes_refuse_result(paths, monkeypatch):
     first, _ = paths
     lookup = _Lookup()

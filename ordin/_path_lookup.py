@@ -34,6 +34,19 @@ def _names(directory):
         # Preserve original which probing for remote/device namespaces; the
         # ranking optimization must not enumerate a network share.
         return None
+    if (
+        sys.platform == "linux"
+        and len(directory) >= 6
+        and directory.startswith("/mnt/")
+        and directory[5].isascii()
+        and directory[5].isalpha()
+        and (len(directory) == 6 or directory[6] == "/")
+    ):
+        # WSL commonly appends Windows PATH directories. Enumerating every
+        # entry through those mounts costs far more than probing a candidate.
+        # Keep each directory in the original stdlib resolver's PATH and make
+        # every lookup fresh, as for inaccessible/oversized directories.
+        return None
     try:
         names = set()
         with os.scandir(directory) as entries:
