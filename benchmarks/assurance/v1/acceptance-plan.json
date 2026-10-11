@@ -328,11 +328,12 @@
       "test_nodes": [
         "tests/test_schemas.py",
         "tests/test_public_api.py",
-        "tests/assurance/test_packaged_examples.py::test_every_standalone_example_runs_without_execution_or_network"
+        "tests/assurance/test_packaged_examples.py::test_checkout_entrypoints_retain_packaged_api_identity"
       ],
       "coverage": "finite_fixture",
       "limitations": [
-        "The supplied fresh-wheel audit compares every current Python/JSON package file, imports every Assurance module and runs all eight standalone examples plus packaged quickstart/validation/REST demos with process/network spies. Optional model/scanner wheels and supported-platform CI remain separate gates."
+        "The supplied fresh-wheel audit compares every current Python/JSON package file, imports every Assurance module and runs all eight standalone examples plus packaged quickstart/validation/REST demos with process/network spies. Optional model/scanner wheels and supported-platform CI remain separate gates.",
+        "The complete 320-case property example runs in the supplied fresh-wheel audit and full source suite; this minimum fixture checks installed entrypoint identity without repeating that workload inside the bounded event observer."
       ]
     },
     {
