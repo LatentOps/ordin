@@ -1114,6 +1114,48 @@ SANDBOX_TEST = artifact(
     advisory_only={"type": "boolean", "const": True},
 )
 
+LINUX_ISOLATION = obj(
+    backend={"type": "string", "const": "linux-memory-only-v1"},
+    landlock_abi={"type": "integer", "minimum": 1, "maximum": 128},
+    seccomp_mode={"type": "integer", "const": 2},
+    no_new_privileges={"type": "integer", "const": 1},
+    filter_digest=DIGEST,
+    limits=obj(
+        cpu_seconds={**array({"type": "integer", "minimum": 1, "maximum": 30}, 2), "minItems": 2},
+        memory_bytes={
+            **array({"type": "integer", "minimum": 33554432, "maximum": 1073741824}, 2),
+            "minItems": 2,
+        },
+        max_processes={"type": "array", "const": [1, 1], "items": {"type": "integer"}},
+        max_descriptors={"type": "array", "const": [3, 3], "items": {"type": "integer"}},
+        core_bytes={"type": "array", "const": [0, 0], "items": {"type": "integer"}},
+    ),
+    checks=obj(
+        **{
+            name: {"type": "boolean", "const": True}
+            for name in (
+                "filesystem_read_denied",
+                "filesystem_write_denied",
+                "network_socket_denied",
+                "process_fork_denied",
+                "executable_launch_denied",
+                "memory_ceiling_enforced",
+            )
+        }
+    ),
+    environment_empty={"type": "boolean", "const": True},
+    pipe_only_transport={"type": "boolean", "const": True},
+    filesystem_access={"type": "string", "const": "denied"},
+    network_access={"type": "string", "const": "denied"},
+    process_creation={"type": "string", "const": "denied"},
+    executable_launch={"type": "string", "const": "denied"},
+)
+LINUX_SANDBOX_TEST = artifact(
+    "assurance_linux_sandbox_test",
+    **{key: value for key, value in SANDBOX_TEST["properties"].items() if key != "schema_version"},
+    isolation_evidence=nullable(LINUX_ISOLATION),
+)
+
 SOURCE_FIX = artifact(
     "assurance_source_fix",
     proposal_digest=DIGEST,
@@ -1360,6 +1402,7 @@ SOLVER_CHALLENGE = artifact(
 )
 
 SCHEMAS = {
+    "assurance_linux_sandbox_test": LINUX_SANDBOX_TEST,
     "assurance_boundary_regression": BOUNDARY_REGRESSION,
     "assurance_solver_challenge": SOLVER_CHALLENGE,
     "assurance_rest_semantics": REST_SEMANTICS,
@@ -1422,6 +1465,7 @@ SCHEMAS = {
     "assurance_model_evidence": MODEL,
 }
 SHAPES = {
+    "linux_isolation_evidence": LINUX_ISOLATION,
     "synthetic_path_case": SYNTHETIC_PATH_CASE,
     "finding_rubric": FINDING_RUBRIC,
     "diff_file": DIFF_FILE,

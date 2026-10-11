@@ -299,10 +299,21 @@ def run_sandbox_test(
         or program.repository != scope.repository
     ):
         raise ValueError("test target/source scope mismatch")
+    from .linux_sandbox import (
+        LinuxVettedSandboxRuntime,
+        LinuxSandboxTestRun,
+        parse_linux_isolation_reply,
+    )
+    from ._sandbox_worker import LINUX_PROTOCOL
+
+    isolated = isinstance(runtime, LinuxVettedSandboxRuntime)
+    protocol = LINUX_PROTOCOL if isolated else PROTOCOL
+    result_model = LinuxSandboxTestRun if isolated else SandboxTestRun
+    isolation_evidence = None
     action = sandbox_test_action(runtime, program, suite, source)
     setup = core_digest(action.as_dict())
     payload = {
-        "protocol": PROTOCOL,
+        "protocol": protocol,
         "source_digest": program.source.content_digest,
         "suite_digest": suite.source.content_digest,
         "runtime_digest": runtime.digest,
@@ -357,7 +368,8 @@ def run_sandbox_test(
                 if (
                     set(packet)
                     != {"protocol", "request_digest", "source_digest", "suite_digest", "results"}
-                    or packet["protocol"] != PROTOCOL
+                    | ({"isolation"} if isolated else set())
+                    or packet["protocol"] != protocol
                     or packet["request_digest"] != request_digest
                     or packet["source_digest"] != program.source.content_digest
                     or packet["suite_digest"] != suite.source.content_digest
@@ -365,6 +377,8 @@ def run_sandbox_test(
                     or len(packet["results"]) != len(suite.suite.cases)
                 ):
                     raise ValueError("worker binding/result mismatch")
+                if isolated:
+                    isolation_evidence = parse_linux_isolation_reply(packet, runtime)
                 for case, reply in zip(suite.suite.cases, packet["results"]):
                     if (
                         not isinstance(reply, dict)
@@ -395,11 +409,12 @@ def run_sandbox_test(
         except (OSError, ValueError):
             observed["status"] = "malformed" if observed["status"] == "completed" else "refused"
             results = []
+            isolation_evidence = None
             gaps.append(
                 "Vetted source, installation, protocol or runtime scope could not be verified."
             )
     return _issue(
-        SandboxTestRun,
+        result_model,
         dict(
             request_digest=request_digest,
             source_digest=program.source.content_digest,
@@ -412,6 +427,7 @@ def run_sandbox_test(
             proof_gaps=tuple(gaps),
             authority_origin="protected_sandbox_test",
             advisory_only=True,
+            **({"isolation_evidence": isolation_evidence} if isolated else {}),
         ),
     )
 

@@ -13,6 +13,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  kernel-broker:
+    name: Vetted Linux kernel broker Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install declared hashed development tools
+        run: python -m pip install --require-hashes -r requirements/dev-baseline.txt
+      - name: Build and install the local core wheel
+        run: |
+          python -m build --no-isolation --outdir .assurance-work/ci-kernel-dist
+          python -m pip install --no-index --no-deps .assurance-work/ci-kernel-dist/*.whl
+      - name: Require real kernel containment and scoped source-fix controls
+        env:
+          ORDIN_REQUIRE_LINUX_BROKER: "1"
+        run: >-
+          python -m pytest -q -ra -p no:cacheprovider
+          tests/assurance/test_linux_sandbox.py
+          --basetemp=.assurance-work/ci-kernel-tests
+      - name: Preserve workflow credential and pinning boundaries
+        run: python scripts/check_workflow_security.py
+
   core:
     name: Offline Assurance ${{ matrix.os }} Python ${{ matrix.python }}
     runs-on: ${{ matrix.os }}

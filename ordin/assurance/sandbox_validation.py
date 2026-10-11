@@ -86,7 +86,11 @@ def validate_finding_sandboxed(
             limitations=(
                 "Only the selected canonical synthetic lexical path predicate was executed.",
                 "Filesystem aliases, real assets, other source code and broader exploitability are outside coverage.",
-                "Actual broker isolation must be verified by the protected host; this SDK does not supply an OS sandbox.",
+                (
+                    "The selected Linux broker supplied matched Landlock/seccomp/resource evidence for this run."
+                    if run is not None and getattr(run, "isolation_evidence", None) is not None
+                    else "Actual broker isolation must be verified by the protected host; the legacy runtime supplies no OS sandbox."
+                ),
             ),
             source_key=source.key,
             advisory_only=True,

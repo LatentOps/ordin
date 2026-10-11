@@ -154,6 +154,13 @@ from .sandbox_tests import (
     run_sandbox_test_async,
 )
 from .sandbox_validation import SourceFixVerification, validate_finding_sandboxed, verify_source_fix
+from .linux_sandbox import (
+    LinuxVettedSandboxRuntime,
+    LinuxSandboxTestRun,
+    LinuxIsolationEvidence,
+    install_linux_vetted_runtime,
+    assess_linux_vetted_isolation,
+)
 from .simulation import (
     FrozenCase,
     FrozenCorpus,
@@ -166,6 +173,11 @@ from .simulation import (
 )
 
 __all__ = [
+    "LinuxVettedSandboxRuntime",
+    "LinuxSandboxTestRun",
+    "LinuxIsolationEvidence",
+    "install_linux_vetted_runtime",
+    "assess_linux_vetted_isolation",
     "BoundaryRegression",
     "ProtectedRegressionDestination",
     "prepare_boundary_regression",

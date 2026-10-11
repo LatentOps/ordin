@@ -1,0 +1,348 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-linux-sandbox-test.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 19,
+  "properties": {
+    "advisory_only": {
+      "const": true,
+      "type": "boolean"
+    },
+    "authority_origin": {
+      "const": "protected_sandbox_test",
+      "type": "string"
+    },
+    "elapsed_ms": {
+      "maximum": 86400000,
+      "minimum": 0,
+      "type": "number"
+    },
+    "exit_code": {
+      "anyOf": [
+        {
+          "maximum": 4294967295,
+          "minimum": -2147483648,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "isolation_evidence": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "maxProperties": 13,
+          "properties": {
+            "backend": {
+              "const": "linux-memory-only-v1",
+              "type": "string"
+            },
+            "checks": {
+              "additionalProperties": false,
+              "maxProperties": 6,
+              "properties": {
+                "executable_launch_denied": {
+                  "const": true,
+                  "type": "boolean"
+                },
+                "filesystem_read_denied": {
+                  "const": true,
+                  "type": "boolean"
+                },
+                "filesystem_write_denied": {
+                  "const": true,
+                  "type": "boolean"
+                },
+                "memory_ceiling_enforced": {
+                  "const": true,
+                  "type": "boolean"
+                },
+                "network_socket_denied": {
+                  "const": true,
+                  "type": "boolean"
+                },
+                "process_fork_denied": {
+                  "const": true,
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "filesystem_read_denied",
+                "filesystem_write_denied",
+                "network_socket_denied",
+                "process_fork_denied",
+                "executable_launch_denied",
+                "memory_ceiling_enforced"
+              ],
+              "type": "object"
+            },
+            "environment_empty": {
+              "const": true,
+              "type": "boolean"
+            },
+            "executable_launch": {
+              "const": "denied",
+              "type": "string"
+            },
+            "filesystem_access": {
+              "const": "denied",
+              "type": "string"
+            },
+            "filter_digest": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "landlock_abi": {
+              "maximum": 128,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "limits": {
+              "additionalProperties": false,
+              "maxProperties": 5,
+              "properties": {
+                "core_bytes": {
+                  "const": [
+                    0,
+                    0
+                  ],
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "cpu_seconds": {
+                  "items": {
+                    "maximum": 30,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                },
+                "max_descriptors": {
+                  "const": [
+                    3,
+                    3
+                  ],
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "max_processes": {
+                  "const": [
+                    1,
+                    1
+                  ],
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "memory_bytes": {
+                  "items": {
+                    "maximum": 1073741824,
+                    "minimum": 33554432,
+                    "type": "integer"
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "cpu_seconds",
+                "memory_bytes",
+                "max_processes",
+                "max_descriptors",
+                "core_bytes"
+              ],
+              "type": "object"
+            },
+            "network_access": {
+              "const": "denied",
+              "type": "string"
+            },
+            "no_new_privileges": {
+              "const": 1,
+              "type": "integer"
+            },
+            "pipe_only_transport": {
+              "const": true,
+              "type": "boolean"
+            },
+            "process_creation": {
+              "const": "denied",
+              "type": "string"
+            },
+            "seccomp_mode": {
+              "const": 2,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "backend",
+            "landlock_abi",
+            "seccomp_mode",
+            "no_new_privileges",
+            "filter_digest",
+            "limits",
+            "checks",
+            "environment_empty",
+            "pipe_only_transport",
+            "filesystem_access",
+            "network_access",
+            "process_creation",
+            "executable_launch"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "proof_gaps": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
+    "request_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "results": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 3,
+        "properties": {
+          "actual": {
+            "type": "boolean"
+          },
+          "case_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "expected": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "case_digest",
+          "expected",
+          "actual"
+        ],
+        "type": "object"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
+    "runtime_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_linux_sandbox_test.v1",
+      "type": "string"
+    },
+    "setup_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "source_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "source_key": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "refused",
+        "unavailable",
+        "timeout",
+        "canceled",
+        "output_limit",
+        "malformed",
+        "error"
+      ],
+      "type": "string"
+    },
+    "stderr_bytes": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "stderr_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "stdout_bytes": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "stdout_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "suite_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_digest",
+    "source_digest",
+    "suite_digest",
+    "runtime_digest",
+    "source_key",
+    "setup_digest",
+    "status",
+    "exit_code",
+    "results",
+    "stdout_digest",
+    "stderr_digest",
+    "stdout_bytes",
+    "stderr_bytes",
+    "elapsed_ms",
+    "proof_gaps",
+    "authority_origin",
+    "advisory_only",
+    "isolation_evidence"
+  ],
+  "title": "Ordin assurance linux sandbox test v1",
+  "type": "object"
+}

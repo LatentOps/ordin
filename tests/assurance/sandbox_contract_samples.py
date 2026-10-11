@@ -12,6 +12,7 @@ from ordin.assurance import (
     SyntheticPathCase,
     SyntheticPathSuite,
     VettedSandboxRuntime,
+    LinuxVettedSandboxRuntime,
     load_vetted_program,
     load_synthetic_suite,
     run_sandbox_test,
@@ -55,7 +56,12 @@ def sandbox_contract_samples(tmp_path):
     cancel = threading.Event()
     cancel.set()
     record = run_sandbox_test(scope, source, runtime, program, suite, None, cancel=cancel)
+    linux = LinuxVettedSandboxRuntime(
+        **{name: getattr(runtime, name) for name in runtime.__dataclass_fields__}
+    )
+    linux_record = run_sandbox_test(scope, source, linux, program, suite, None, cancel=cancel)
     return {
+        "assurance_linux_sandbox_test": linux_record.as_dict(),
         "assurance_synthetic_path_suite": suite_data.as_dict(),
         "assurance_vetted_program": program.as_dict(),
         "assurance_sandbox_test": record.as_dict(),
