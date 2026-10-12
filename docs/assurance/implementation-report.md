@@ -1632,7 +1632,7 @@ afterward. Existing tests, safety thresholds and platform skips are preserved.
 
 The first sandboxed full baseline run retained 1,952 passes, 60 failures, 23
 errors and 56 skips in 347.21 seconds. The first diagnosed failure denied a
-protected directory handle under `C:/Users/dipes`; this is an environment
+protected directory handle outside the workspace; this is an environment
 restriction, not evidence that the safety check should be weakened. Its private
 JUnit is `D:/ordin/.assurance-work/leftovers-baseline.xml`. A subsequent native
 installed-wheel run retains **583 passes / 19 skips** in 170.56 seconds for the
@@ -1655,3 +1655,47 @@ because `https://github.com/login/device/code` was unreachable; connected GitHub
 tools also failed to reach their transport. No credentials were removed or
 replaced and no PR, publication or merge is claimed. PR creation and all-checks-
 passed squash merging remain pending restored GitHub access.
+
+## Optional semantic-policy simulation on 2026-10-12
+
+`feat/assurance-semantic-policy-replay` adds actual optional routing/fusion to
+read-only frozen replay through the independent model SDK. Each arm has fresh
+model state and a call budget spanning its principal/session/epoch sessions.
+Refused proposals stay in history, their observations are withheld, and actor
+or epoch changes cannot reuse another history or replenish an arm's budget.
+No reviewed command, target source, scanner or real provider executes.
+
+The driver accepts bounded explicit synthetic context and the project's closed
+mock only. Labels do not reach the provider. Report configuration digests bind
+deterministic settings, routing, selected task bytes and mock configuration;
+public output omits commands and task text. The additive versioned report is
+registered and packaged beside the source schema; existing v1 shapes remain
+unchanged. It retains separate total/core/wrapper and recorded inference timing,
+call counts, changed approvals, benign friction, critical misses and unknowns.
+Removed semantic enforcement is widening; changed enforced configurations with
+unproved containment do not obtain a passing guard. Required outages, malformed
+responses, missing context, uncertainty and exhausted budgets remain partial.
+The standalone installed demo deliberately illustrates false escalation cost.
+
+The first focused run retained nine failures and four passes; empty inference
+histograms, the schema registration and test fixture setup were corrected.
+An exact observation-ID setup error and a sorted-denial-set assertion were also
+retained and corrected. The final routing/schema/audit focus passes **38 tests**
+in 10.61 seconds. The complete native source Assurance/API/schema/security/
+session plus optional model focus passes **696 tests / 19 skips** in 200.04
+seconds. Ruff lint/format, workflow security and 87-file typed-boundary checking
+pass. Core and optional wheel/sdist metadata checks pass.
+
+The fresh core-only wheel verifies **350 Python/JSON files**, imports all **63
+Assurance modules**, checks **102 schemas**, runs eight standalone examples plus
+the existing synthetic promotion demo and the actual console entrypoint, and
+retains explicit optional solver absence under network/process denial spies.
+Private source JUnit, build logs and wheel report are under this checkout's
+`.assurance-work/semantic-*` paths. Installed full regression, minimum acceptance,
+native Linux compatibility and original paired timing are being run separately;
+this source focus does not substitute for them or for remote CI.
+
+M4's optional model routing slice is implemented; actual delegated-grant replay,
+broader M10 predicates/lifecycle, independent labels/effectiveness, real
+provider/scanner exercise and full supported-platform/release acceptance remain
+open. The full specification is not marked complete. No PR or merge has occurred.
