@@ -148,6 +148,7 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
         "pack_list": pack_list_payload(),
     }
     from tests.assurance.contract_examples import assurance_contract_examples
+
     samples.update(assurance_contract_examples(tmp_path))
     assert set(samples) == set(SCHEMA_FILES)
     for name, payload in samples.items():

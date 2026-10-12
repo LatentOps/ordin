@@ -1591,3 +1591,42 @@ generated checks are not proof of the full objective.
 Carry the existing Windows shell/latency/SQLite failures into the compatibility
 audit; they must be resolved or explicitly verified on supported platforms
 before any full completion claim. No background evaluation remains running.
+
+## Remaining-work CI verification on 2026-10-12
+
+Work starts from `8edf4aaa3d9e938106e413b84c1ed5e5537af687` in an isolated
+checkout under `.assurance-work/leftovers-checkout`; the original checkout and
+all preexisting report/evidence edits remain preserved. The CI slice is on
+`fix/assurance-ci-completion`.
+
+The shared quality gate now checks Assurance and both optional packages.
+Formatting failures in the simulation evidence script and contract audit are
+corrected. Every Assurance CI test job pins the installed core/selected optional
+namespace before pytest loads source helpers and audits loaded module origins
+afterward. Existing tests, safety thresholds and platform skips are preserved.
+
+The first sandboxed full baseline run retained 1,952 passes, 60 failures, 23
+errors and 56 skips in 347.21 seconds. The first diagnosed failure denied a
+protected directory handle under `C:/Users/dipes`; this is an environment
+restriction, not evidence that the safety check should be weakened. Its private
+JUnit is `D:/ordin/.assurance-work/leftovers-baseline.xml`. A subsequent native
+installed-wheel run retains **583 passes / 19 skips** in 170.56 seconds for the
+core Assurance/API/schema/security/session focus, **97 passes** in 20.76 seconds
+for the optional model SDK and **85 passes** in 13.84 seconds for the saved
+artifact/fake scanner suites. The new runner/security focus passes **13 tests /
+one POSIX skip**. Ruff lint/format and workflow security pass; mypy without
+ambient optional site packages passes **85 source files**. This avoids unrelated
+installed NumPy stubs using a Python syntax newer than the supported 3.10 target.
+
+Core and both optional wheel/sdist builds and local wheel installation succeed.
+Native metadata validation is recorded separately; generated artifact read
+permissions blocked the first metadata attempt. These local results do not
+establish remote CI or full release acceptance. Original timing requirements,
+complete native regression, independent effectiveness, real provider/scanner
+exercises and supported-platform checks remain open.
+
+GitHub's stored CLI credential is invalid. The requested browser sign-in failed
+because `https://github.com/login/device/code` was unreachable; connected GitHub
+tools also failed to reach their transport. No credentials were removed or
+replaced and no PR, publication or merge is claimed. PR creation and all-checks-
+passed squash merging remain pending restored GitHub access.

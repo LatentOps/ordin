@@ -38,9 +38,9 @@ jobs:
         env:
           ORDIN_REQUIRE_LINUX_BROKER: "1"
         run: >-
-          python -m pytest -q -ra -p no:cacheprovider
-          tests/assurance/test_linux_sandbox.py
+          python -I scripts/run_installed_assurance_tests.py --suite kernel
           --basetemp=.assurance-work/ci-kernel-tests
+          --junitxml=.assurance-work/ci-kernel-tests.xml
       - name: Preserve workflow credential and pinning boundaries
         run: python scripts/check_workflow_security.py
 
@@ -71,11 +71,9 @@ jobs:
           python -m pip install --no-index --no-deps .assurance-work/ci-core-dist/*.whl
       - name: Run bounded deterministic and hostile-input fixtures
         run: >-
-          python -m pytest -q -ra -p no:cacheprovider
-          tests/assurance tests/test_schemas.py tests/test_public_api.py
-          tests/test_security_integrity.py tests/test_namespace_guard.py
-          tests/test_docs_links.py tests/test_session.py
+          python -I scripts/run_installed_assurance_tests.py --suite core
           --basetemp=.assurance-work/ci-core-tests
+          --junitxml=.assurance-work/ci-core-tests.xml
       - name: Verify fresh wheel, no-network quickstart and packaged schemas
         shell: bash
         run: >-
@@ -121,8 +119,11 @@ jobs:
           python -m pip install --no-index --no-deps .assurance-work/ci-core-dist/*.whl .assurance-work/ci-optional-dist/*.whl
       - name: Run mock providers, saved artifacts and fake scanner processes
         env:
-          TEST_PATHS: ${{ matrix.tests }}
-        run: python -m pytest -q -ra -p no:cacheprovider $TEST_PATHS --basetemp=.assurance-work/ci-optional-tests
+          INTEGRATION: ${{ matrix.integration }}
+        run: >-
+          python -I scripts/run_installed_assurance_tests.py --suite "$INTEGRATION"
+          --basetemp=.assurance-work/ci-optional-tests
+          --junitxml=.assurance-work/ci-optional-tests.xml
       - name: Verify source-independent optional namespace without extras
         env:
           INTEGRATION: ${{ matrix.integration }}
@@ -159,7 +160,6 @@ jobs:
           python -m pip install --no-build-isolation '.[assurance-dev]'
       - name: Run real SMT and exhaustive concrete finite replay
         run: >-
-          python -m pytest -q -ra -p no:cacheprovider
-          tests/assurance/test_solver.py tests/assurance/test_contract_coverage.py
-          tests/assurance/test_schema_roundtrip.py tests/test_schemas.py
+          python -I scripts/run_installed_assurance_tests.py --suite solver
           --basetemp=.assurance-work/ci-solver-tests
+          --junitxml=.assurance-work/ci-solver-tests.xml

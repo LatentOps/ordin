@@ -53,6 +53,13 @@ permissions are read-only. The workflow contains no real-provider/scanner job,
 upload, publication or enforcement installation.
 
 Local workflow parsing/security checks do not establish successful remote CI.
+The Assurance jobs preload their core and selected optional namespace from
+the installed wheel before pytest can add checkout paths. The installed runner
+rejects editable/source imports and audits every loaded module afterward for
+source overlays. Core, optional, solver and kernel suites retain their existing
+assertions and write JUnit results. Shared quality hooks also cover both optional
+packages and the Assurance typed boundaries.
+
 The existing full-suite, safety, trajectory, replay, integration, runtime,
 OpenShell/native prover, packaging and exact release-candidate gates remain
 mandatory. Their original thresholds, including the failed predeclared Assurance

@@ -40,8 +40,21 @@ def main() -> int:
     if status.stdout.strip():
         raise ValueError("pinned simulation capture requires unchanged package source")
     pinned = subprocess.run(
-        ["rtk", "proxy", "git", "diff", "--quiet", REVISION, "--", "ordin", "schemas", "pyproject.toml"],
-        cwd=ROOT, capture_output=True, check=False,
+        [
+            "rtk",
+            "proxy",
+            "git",
+            "diff",
+            "--quiet",
+            REVISION,
+            "--",
+            "ordin",
+            "schemas",
+            "pyproject.toml",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
     )
     if pinned.returncode != 0:
         raise ValueError("package source differs from the declared pinned simulator revision")
