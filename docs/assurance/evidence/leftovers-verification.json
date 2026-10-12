@@ -1,0 +1,185 @@
+{
+  "ci_branch": {
+    "commit": "d2904e178b0ded9f9f7dce15d2ed4ca4b48b494b",
+    "name": "fix/assurance-ci-completion"
+  },
+  "core_wheel": {
+    "assurance_modules": 63,
+    "console_entrypoint": "passed",
+    "offline_examples": 8,
+    "python_json_files_compared": 350,
+    "schemas": 102,
+    "sha256": "319d21eb8fcfb0972a913c05ae11fdf4c94f461b55cd2661e106f9f90171ea37"
+  },
+  "current_main_preserved": "5e741a7a4d16becb43cf46f416c0a30341e5e31d",
+  "full_installed_regression": {
+    "junit": {
+      "errors": 0,
+      "failures": 0,
+      "seconds": 565.698,
+      "sha256": "9e5fa07ee50b644c1496a0ddd12b11246409c15f60ae794f22e4010b8326881a",
+      "skipped": 56,
+      "tests": 2110
+    },
+    "returncode": 0,
+    "status": "completed"
+  },
+  "functional_test_revision": "807ba8447d7cbb307aeedacdfc7ddcb6718c6687",
+  "github": {
+    "api_tree_upload": "timed_out_outcome_unknown",
+    "credential_replaced": false,
+    "existing_credential_authenticated": true,
+    "git_push": "connection_failed",
+    "merged": false,
+    "pr_created": false,
+    "remote_ci_verified": false,
+    "upload_readback": "automatic_approval_review_timed_out_twice"
+  },
+  "installed_codex_artifacts_ci": {
+    "errors": 0,
+    "failures": 0,
+    "seconds": 13.545,
+    "sha256": "762fa6186470d1313b66da3e71589c49191f817c1955f0771e057934bcb5c424",
+    "skipped": 0,
+    "tests": 85
+  },
+  "installed_core_ci": {
+    "errors": 0,
+    "failures": 0,
+    "seconds": 170.159,
+    "sha256": "957e9ca47c8770bc2d31ba83ba7cb2d3c6fb9571318fe231240e5c33db9453c7",
+    "skipped": 19,
+    "tests": 602
+  },
+  "installed_optional_models_ci": {
+    "errors": 0,
+    "failures": 0,
+    "seconds": 20.497,
+    "sha256": "65b860bb149eb5fac33fa19ddfebc62316f7c0af63d36cf62d7673497e3dedee",
+    "skipped": 0,
+    "tests": 97
+  },
+  "linux_installed": {
+    "core_wheel_sha256": "319d21eb8fcfb0972a913c05ae11fdf4c94f461b55cd2661e106f9f90171ea37",
+    "kernel": "5.15.167.4-microsoft-standard-WSL2",
+    "model_wheel_sha256": "5bc7db0a9969923e9ef70a9e288b328453c5d7fb8565d6fd98104906539a2563",
+    "overall_acceptance": "incomplete",
+    "python": "3.12.3",
+    "revision": "807ba8447d7cbb307aeedacdfc7ddcb6718c6687",
+    "source_archive_sha256": "ac04b51d6c5b313457661f14848e3495c04d0f722bd3764cc165a23bf2abb6d1",
+    "suites": {
+      "decision_models": {
+        "counts": {
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "113",
+          "time": "20.096"
+        },
+        "junit_sha256": "8e93f8647cbc9de5b0c9510aa806905d72eefc4c5cc4c7f9998a0bdfed526884",
+        "returncode": 0
+      },
+      "kernel": {
+        "counts": {
+          "errors": "0",
+          "failures": "0",
+          "skipped": "1",
+          "tests": "20",
+          "time": "6.688"
+        },
+        "junit_sha256": "23caddb6cb87755b28f2ee0aec71878546885385cd935f0953b8ac0342862f49",
+        "returncode": 0
+      },
+      "solver": {
+        "counts": {
+          "errors": "0",
+          "failures": "0",
+          "skipped": "0",
+          "tests": "27",
+          "time": "19.156"
+        },
+        "junit_sha256": "65202a1660a227814298227a477836ae99daedcadcea856ac71f19cd195c9e3b",
+        "returncode": 0
+      }
+    }
+  },
+  "original_timing": {
+    "added_profile_overhead": {
+      "p50_ms": 2.4341999999999997,
+      "p95_ms": 21.773199999999996,
+      "p99_ms": 42.6314,
+      "samples": 400
+    },
+    "case_count": 4,
+    "core": {
+      "p50_ms": 62.6656,
+      "p95_ms": 101.7448,
+      "p99_ms": 128.8739,
+      "samples": 400
+    },
+    "declared_p95_overhead_budget_ms": 5,
+    "disabled_wrapper": {
+      "p50_ms": 64.8115,
+      "p95_ms": 103.8144,
+      "p99_ms": 127.7486,
+      "samples": 400
+    },
+    "intrinsic_layer_meets_budget": true,
+    "intrinsic_profile_layer": {
+      "p50_ms": 1.4334,
+      "p95_ms": 3.6026,
+      "p99_ms": 4.0951,
+      "samples": 400
+    },
+    "limitations": [
+      "Synthetic fixture measurements, not real-world security effectiveness.",
+      "Host contention influences tail latency; no scanner/model/enforcement timing included.",
+      "Counterexample/delegation/provider and complete release gates remain separate."
+    ],
+    "mismatches": [],
+    "ok": false,
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.12",
+    "repetitions": 100,
+    "revision": "807ba8447d7cbb307aeedacdfc7ddcb6718c6687",
+    "schema_version": "ordin.assurance_gate_measurement.v1",
+    "warmup_rounds": 10,
+    "with_profile": {
+      "p50_ms": 65.9878,
+      "p95_ms": 104.1227,
+      "p99_ms": 130.429,
+      "samples": 400
+    }
+  },
+  "overall_acceptance": "incomplete",
+  "provider_selection": "project_offline_mock_and_frozen_provisional_corpus",
+  "remaining": [
+    "Complete interrupted GitHub upload readback, focused PR creation, exact-head CI and conditional squash merge.",
+    "Original paired 5 ms added-p95 budget remains failed; preserve this result.",
+    "Live provider/scanner acceptance requires configured credentials/checkpoint and an installed reviewed scanner.",
+    "Independent effectiveness labels remain absent; existing corpus remains provisional.",
+    "Actual delegated-grant policy replay and broader M10 predicates/lifecycle remain open.",
+    "Local Windows skips include unsupported Linux primitives and absent optional native prover/solver tools; remote supported-platform CI remains required."
+  ],
+  "sandboxed_baseline": {
+    "errors": 23,
+    "failures": 60,
+    "seconds": 347.014,
+    "sha256": "dd8feecee9652237294af1b1b3b6e434ced8123a070481c3217455438626694c",
+    "skipped": 56,
+    "tests": 2091
+  },
+  "schema_version": "ordin.assurance_leftovers_verification.v1",
+  "semantic_branch": {
+    "commit": "f5a3495a0ff8782bbe33cabd83c2f46045d6b507",
+    "name": "feat/assurance-semantic-policy-replay"
+  },
+  "source_compatibility": {
+    "errors": 0,
+    "failures": 0,
+    "seconds": 199.677,
+    "sha256": "2a4152a66d6a94b684ca3941c45a52146cb7889dc57e8883c8b7008a67d95f98",
+    "skipped": 19,
+    "tests": 715
+  }
+}

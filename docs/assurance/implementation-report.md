@@ -1650,11 +1650,13 @@ establish remote CI or full release acceptance. Original timing requirements,
 complete native regression, independent effectiveness, real provider/scanner
 exercises and supported-platform checks remain open.
 
-GitHub's stored CLI credential is invalid. The requested browser sign-in failed
+The Windows CLI initially reported an invalid credential while its GitHub
+connection was unavailable. The requested browser sign-in failed
 because `https://github.com/login/device/code` was unreachable; connected GitHub
 tools also failed to reach their transport. No credentials were removed or
 replaced and no PR, publication or merge is claimed. PR creation and all-checks-
-passed squash merging remain pending restored GitHub access.
+passed squash merging remain pending restored GitHub access. A later native
+authenticated request verified the existing credential; replacement is unnecessary.
 
 ## Optional semantic-policy simulation on 2026-10-12
 
@@ -1699,3 +1701,62 @@ M4's optional model routing slice is implemented; actual delegated-grant replay,
 broader M10 predicates/lifecycle, independent labels/effectiveness, real
 provider/scanner exercise and full supported-platform/release acceptance remain
 open. The full specification is not marked complete. No PR or merge has occurred.
+
+## Installed regression, Linux proof and interrupted PR upload
+
+The full original/Assurance/OpenShell/optional-model installed run on functional
+revision `807ba8447d7cbb307aeedacdfc7ddcb6718c6687` is terminal and passes **2,054
+tests / 56 explicit skips** in **565.98 seconds**. The skips include Linux-only
+primitives on Windows and absent optional solver/native prover prerequisites;
+their identities remain in private JUnit. No failing test or threshold was waived.
+
+The same exact any-platform wheels and committed source archive were installed
+in a fresh private native Linux/Python 3.12.3 environment using cached pinned
+test/solver wheels. Installed module namespaces were checked before and after
+each suite. With real kernel primitives required, the physical broker passes
+**19 tests / one unsupported-platform control skip** in 6.688 seconds; real SMT
+and concrete finite replay pass **27 tests** in 19.156 seconds; the optional mock
+model SDK passes **113 tests** in 20.096 seconds. No host policy or live cloud
+configuration changed. This does not replace remote Python/OS matrix CI.
+
+The original four-case, 100-repetition, ten-warmup paired Windows measurement
+retains 400 samples and zero disposition mismatches. Core p50/p95/p99 is
+**62.67 / 101.74 / 128.87 ms**; with profile it is **65.99 / 104.12 / 130.43 ms**.
+Added paired p50/p95/p99 is **2.43 / 21.77 / 42.63 ms**, so the unchanged **5 ms
+added-p95** gate fails. Intrinsic layer p95 is 3.60 ms; that separate passing
+measurement does not substitute for the failed paired metric. The first base-
+interpreter attempt lacked installed Ordin and was retained before selecting
+the actual installed candidate interpreter. No metric, warmup or sample budget
+changed, and no full latency acceptance is claimed.
+
+Current upstream main `5e741a7a4d16becb43cf46f416c0a30341e5e31d` was verified
+through GitHub's API and reconciled without discarding its four dependency/
+release-workflow updates. The CI branch is now `d2904e1`; semantic replay was
+rebased to `f5a3495`. Functional package bytes remain the verified candidate;
+only upstream requirements/workflow metadata changed during reconciliation.
+
+The original GitHub credential authenticated successfully through native Linux;
+it was neither printed nor replaced. Native Git push/fetch and subsequent API
+requests remain intermittent. A deterministic tracked-tree upload to the
+authorized repository timed out with an unknown outcome. No commit, ref, PR or
+merge request was sent afterward. Automatic approval review then timed out
+twice on the read-only upload reconciliation. Its response explicitly said not
+to infer that the action was unsafe from that timeout. Further GitHub work stays
+pending approval-service/connectivity restoration and upload readback.
+
+Focused PR bodies and deterministic tree/commit payloads are prepared privately
+under `.assurance-work/github-upload`; they exclude untracked files, raw logs
+and credentials. The existing implementation is an unmerged prerequisite to
+the two focused remaining-work commits. Each actual PR still needs review and
+all exact-head CI checks before any squash merge. No remote CI pass is claimed.
+
+The most appropriate currently configured provider is the project-owned offline
+mock over the frozen provisional corpus. No TypeSafe/OpenAI API key or reviewed
+Codex Security CLI is configured. Existing mock/source fixtures are not
+independent effectiveness labels. Live provider/scanner and generalization
+acceptance remain open; no model weights or private source were uploaded.
+
+The [sanitized verification summary](evidence/leftovers-verification.json)
+pins private JUnit/archive/wheel hashes and preserves the baseline failures,
+skips, failed timing and interrupted upload. All known test/build/measurement
+handles are terminal. Overall implementation acceptance remains incomplete.
