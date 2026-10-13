@@ -36,6 +36,7 @@ Issues = "https://github.com/LatentOps/ordin/issues"
 
 [project.optional-dependencies]
 semantic = ["sentence-transformers>=6.1.0,<7"]
+assurance-dev = ["z3-solver==5.1.0.0"]
 dev = [
     "build>=1.2,<2",
     "mypy>=2.3.1,<3",
@@ -47,6 +48,7 @@ dev = [
 
 [project.scripts]
 ordin = "ordin.entrypoint:main"
+ordin-assure = "ordin.assurance.cli:main"
 ordin-claude-hook = "ordin.claude_code:main"
 ordin-codex-hook = "ordin.codex:main"
 ordin-cursor-hook = "ordin.cursor:main"
@@ -54,10 +56,10 @@ ordin-mcp-proxy = "ordin.mcp_proxy:main"
 ordin-mcp-http = "ordin.mcp_http:main"
 
 [tool.setuptools]
-packages = ["ordin", "ordin.analyzers"]
+packages = ["ordin", "ordin.analyzers", "ordin.assurance", "ordin.assurance.codex_security", "ordin.assurance.examples"]
 
 [tool.setuptools.package-data]
-ordin = ["resources/*.json", "resources/**/*.json", "plugin_assets/ordin/.codex-plugin/*.json", "plugin_assets/ordin/hooks/*.json", "plugin_assets/ordin/scripts/*.py"]
+ordin = ["resources/*.json", "resources/**/*.json", "resources/codex_security/LICENSE.upstream", "plugin_assets/ordin/.codex-plugin/*.json", "plugin_assets/ordin/hooks/*.json", "plugin_assets/ordin/scripts/*.py"]
 
 [tool.ruff]
 target-version = "py310"

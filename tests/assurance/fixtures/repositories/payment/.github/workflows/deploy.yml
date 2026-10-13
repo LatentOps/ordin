@@ -1,0 +1,7 @@
+name: Synthetic deployment fixture
+on: workflow_dispatch
+jobs:
+  fixture:
+    runs-on: fixture-only
+    steps:
+      - run: fixture-publish

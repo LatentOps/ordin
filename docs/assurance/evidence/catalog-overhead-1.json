@@ -1,0 +1,48 @@
+{
+  "schema_version": "ordin.assurance_gate_measurement.v1",
+  "revision": "04f40d05d85aeab244c149757a6a0a0e655ad060",
+  "python": "3.13.12",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "warmup_rounds": 10,
+  "repetitions": 100,
+  "case_count": 4,
+  "core": {
+    "p50_ms": 54.9632,
+    "p95_ms": 100.0906,
+    "p99_ms": 122.2729,
+    "samples": 400
+  },
+  "with_profile": {
+    "p50_ms": 56.6662,
+    "p95_ms": 103.8479,
+    "p99_ms": 134.7776,
+    "samples": 400
+  },
+  "disabled_wrapper": {
+    "p50_ms": 55.623,
+    "p95_ms": 107.5914,
+    "p99_ms": 118.654,
+    "samples": 400
+  },
+  "added_profile_overhead": {
+    "p50_ms": 2.3754,
+    "p95_ms": 20.730900000000005,
+    "p99_ms": 52.70100000000001,
+    "samples": 400
+  },
+  "declared_p95_overhead_budget_ms": 5,
+  "mismatches": [],
+  "limitations": [
+    "Synthetic fixture measurements, not real-world security effectiveness.",
+    "Host contention influences tail latency; no scanner/model/enforcement timing included.",
+    "Counterexample/delegation/provider and complete release gates remain separate."
+  ],
+  "intrinsic_profile_layer": {
+    "p50_ms": 1.9922,
+    "p95_ms": 3.8321,
+    "p99_ms": 5.1545,
+    "samples": 400
+  },
+  "intrinsic_layer_meets_budget": true,
+  "ok": false
+}

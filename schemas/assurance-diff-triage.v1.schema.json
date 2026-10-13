@@ -1,0 +1,295 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-diff-triage.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 15,
+  "properties": {
+    "advisory_only": {
+      "const": true,
+      "type": "boolean"
+    },
+    "baseline_policy_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "baseline_snapshot_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "candidate_policy_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "candidate_snapshot_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "changes": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 6,
+        "properties": {
+          "after_digest": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "before_digest": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "categories": {
+            "items": {
+              "enum": [
+                "documentation_only",
+                "protected_surface",
+                "new_subprocess_sink",
+                "new_network_sink",
+                "new_tool_surface",
+                "enforcement_modified",
+                "mcp_schema_modified",
+                "dependency_modified",
+                "host_boundary_modified",
+                "source_modified"
+              ],
+              "type": "string"
+            },
+            "maxItems": 16,
+            "type": "array"
+          },
+          "change": {
+            "enum": [
+              "added",
+              "modified",
+              "deleted"
+            ],
+            "type": "string"
+          },
+          "path_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "additionalProperties": false,
+              "maxProperties": 5,
+              "properties": {
+                "content_digest": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "pattern": "^[a-f0-9]{64}$",
+                  "type": "string"
+                },
+                "line": {
+                  "maximum": 10000000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "path": {
+                  "maxLength": 1024,
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+                  "type": "string"
+                },
+                "revision": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                  "type": "string"
+                },
+                "symbol": {
+                  "anyOf": [
+                    {
+                      "maxLength": 128,
+                      "minLength": 1,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "path",
+                "line",
+                "revision",
+                "content_digest",
+                "symbol"
+              ],
+              "type": "object"
+            },
+            "maxItems": 16,
+            "type": "array"
+          }
+        },
+        "required": [
+          "path_digest",
+          "change",
+          "before_digest",
+          "after_digest",
+          "categories",
+          "sources"
+        ],
+        "type": "object"
+      },
+      "maxItems": 512,
+      "type": "array"
+    },
+    "completeness": {
+      "enum": [
+        "complete",
+        "partial"
+      ],
+      "type": "string"
+    },
+    "gaps": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
+    "policy_authority_delta": {
+      "enum": [
+        "unchanged",
+        "narrowed",
+        "widened",
+        "unknown",
+        "unsupported",
+        "not_supplied"
+      ],
+      "type": "string"
+    },
+    "profile_changed": {
+      "type": "boolean"
+    },
+    "repository_after": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "repository_before": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "review_required": {
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_diff_triage.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "repository_before",
+    "repository_after",
+    "baseline_snapshot_digest",
+    "candidate_snapshot_digest",
+    "baseline_policy_digest",
+    "candidate_policy_digest",
+    "policy_authority_delta",
+    "profile_changed",
+    "changes",
+    "review_required",
+    "completeness",
+    "gaps",
+    "limitations",
+    "advisory_only"
+  ],
+  "title": "Ordin assurance diff triage v1",
+  "type": "object"
+}

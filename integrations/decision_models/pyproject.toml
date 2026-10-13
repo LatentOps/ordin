@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ordin-decision-models"
+version = "0.1.0"
+description = "Explicit optional typed semantic risk evidence for Ordin Assurance"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["ordin>=0.4.0.dev0"]
+license = {text = "Apache-2.0"}
+
+[project.optional-dependencies]
+laya = ["laya==0.4.1"]
+
+[tool.setuptools]
+packages = ["ordin_decision_models"]
+
+[tool.setuptools.package-data]
+ordin_decision_models = ["resources/*.json"]

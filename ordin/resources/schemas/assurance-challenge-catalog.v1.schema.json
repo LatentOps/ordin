@@ -1,0 +1,43 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-challenge-catalog.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 5,
+  "properties": {
+    "execution": {
+      "const": "bounded_synthetic_only",
+      "type": "string"
+    },
+    "optional_providers": {
+      "const": "not_called",
+      "type": "string"
+    },
+    "proof_scope": {
+      "const": "finite_tested_inputs",
+      "type": "string"
+    },
+    "properties": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 10,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_challenge_catalog.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "properties",
+    "execution",
+    "proof_scope",
+    "optional_providers"
+  ],
+  "title": "Ordin assurance challenge catalog v1",
+  "type": "object"
+}

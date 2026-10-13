@@ -1,0 +1,129 @@
+# Optional example only. Install under .github/workflows after operator review.
+# Requires an ephemeral broker-isolated private runner and trusted installations
+# under /opt/ordin-scanner. No dependencies are installed from the target checkout.
+name: optional-private-security-diff
+on:
+  workflow_dispatch:
+    inputs:
+      base_revision:
+        description: Reviewed immutable base Git SHA
+        required: true
+        type: string
+      approve_source_upload:
+        description: Approve sending this private revision to the reviewed OpenAI API service
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  private-diff:
+    if: github.ref == 'refs/heads/main' && github.event.repository.private && inputs.approve_source_upload
+    runs-on: [self-hosted, linux, ordin-assurance-isolated-ephemeral]
+    environment: ordin-private-security
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Inspect trusted installation and create private output
+        id: inspection
+        env:
+          NODE_SHA256: ${{ vars.CODEX_SECURITY_NODE_SHA256 }}
+          CLI_SHA256: ${{ vars.CODEX_SECURITY_CLI_SHA256 }}
+          BASE_SHA: ${{ inputs.base_revision }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          ulimit -f 2048 # Bound each scanner/diagnostic file; broker also caps total disk.
+          [[ "$BASE_SHA" =~ ^[a-f0-9]{40}$ || "$BASE_SHA" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$NODE_SHA256" =~ ^[a-f0-9]{64}$ && "$CLI_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          printf '%s  %s\n' "$NODE_SHA256" /opt/ordin-scanner/node/bin/node | sha256sum --check --status
+          printf '%s  %s\n' "$CLI_SHA256" /opt/ordin-scanner/cli/cli.js | sha256sum --check --status
+          state="$(mktemp -d "$RUNNER_TEMP/ordin-private-scan.XXXXXXXX")"
+          [[ "$state" != "$GITHUB_WORKSPACE"/* ]]
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          env -i PATH=/opt/ordin-scanner/bin HOME="$state" CODEX_HOME="$state/codex-home" \
+            /opt/ordin-scanner/node/bin/node /opt/ordin-scanner/cli/cli.js --version > "$state/version.txt"
+          [[ "$(cat "$state/version.txt")" == '0.2.0' ]]
+          env -i PATH=/opt/ordin-scanner/bin HOME="$state" CODEX_HOME="$state/codex-home" \
+            /opt/ordin-scanner/node/bin/node /opt/ordin-scanner/cli/cli.js scan --help > "$state/help.txt"
+          env -i PATH=/opt/ordin-scanner/bin HOME="$state" CODEX_HOME="$state/codex-home" \
+            /opt/ordin-scanner/node/bin/node /opt/ordin-scanner/cli/cli.js info --json > "$state/info.json"
+          /opt/ordin-scanner/venv/bin/python -I -c 'import json,sys; p=json.load(open(sys.argv[1])); p=p.get("data",p); assert p["cliVersion"]==p["sdkVersion"]=="0.2.0" and p["scanMcp"] is False and "path" not in p["configuration"]' "$state/info.json"
+      - name: Scan approved pinned diff inside the runner broker
+        if: success()
+        env:
+          OPENAI_API_KEY: ${{ secrets.CODEX_SECURITY_API_KEY }}
+          BASE_SHA: ${{ inputs.base_revision }}
+          TARGET_SHA: ${{ github.sha }}
+          STATE: ${{ steps.inspection.outputs.state }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          ulimit -f 2048
+          test -n "$OPENAI_API_KEY"
+          # The runner broker supplies read-only target mounts, reviewed config,
+          # executable restrictions and API-only egress before this step starts.
+          # env -i excludes repo project selection, native overrides and preloads.
+          set +e
+          env -i PATH=/opt/ordin-scanner/bin HOME="$STATE" USERPROFILE="$STATE" \
+            CODEX_HOME="$STATE/codex-home" CODEX_SECURITY_STATE_DIR="$STATE" \
+            OPENAI_API_KEY="$OPENAI_API_KEY" GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null \
+            GIT_TERMINAL_PROMPT=0 GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=core.hooksPath \
+            GIT_CONFIG_VALUE_0=/dev/null GIT_CONFIG_KEY_1=core.fsmonitor GIT_CONFIG_VALUE_1=false \
+            timeout --kill-after=5s 20m /opt/ordin-scanner/node/bin/node /opt/ordin-scanner/cli/cli.js \
+            scan "$GITHUB_WORKSPACE" --diff "$BASE_SHA" --head "$TARGET_SHA" --mode standard \
+            --auth api-key --provider openai --headless --json --fail-on-severity high \
+            --output-dir "$STATE/scan" > "$STATE/scan.stdout" 2> "$STATE/scan.stderr"
+          status=$?
+          set -e
+          printf '%s\n' "$status" > "$STATE/scanner.exit"
+      - name: Import saved reports using the trusted Ordin installation
+        if: always() && steps.inspection.outputs.state != ''
+        env:
+          STATE: ${{ steps.inspection.outputs.state }}
+          TARGET_SHA: ${{ github.sha }}
+          REPOSITORY_ID: ${{ vars.CODEX_SECURITY_REPOSITORY_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          ulimit -f 2048
+          set +e
+          /opt/ordin-scanner/venv/bin/ordin-assure codex import --artifact-root "$STATE/scan" \
+            --repository "$REPOSITORY_ID" --revision "$TARGET_SHA" --fail-on-severity high \
+            --report "$STATE/ordin-advisory.json" > "$STATE/import.stdout" 2> "$STATE/import.stderr"
+          status=$?
+          set -e
+          printf '%s\n' "$status" > "$STATE/import.exit"
+      - name: Retain only the redacted advisory in this private repository
+        if: always() && steps.inspection.outputs.state != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: private-ordin-advisory
+          path: ${{ steps.inspection.outputs.state }}/ordin-advisory.json
+          retention-days: 3
+          if-no-files-found: error
+      - name: Preserve scanner and import exit states
+        if: always() && steps.inspection.outputs.state != ''
+        env:
+          STATE: ${{ steps.inspection.outputs.state }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$STATE/scanner.exit" && test -f "$STATE/import.exit"
+          scanner="$(cat "$STATE/scanner.exit")"
+          importer="$(cat "$STATE/import.exit")"
+          if [[ "$scanner" == 130 || "$scanner" == 143 || "$scanner" == 124 || "$scanner" == 137 ]]; then exit "$scanner"; fi
+          if [[ "$scanner" != 0 && "$scanner" != 1 ]]; then exit 2; fi
+          if [[ "$importer" == 2 ]]; then exit 2; fi
+          if [[ "$importer" != 0 && "$importer" != 1 ]]; then exit 2; fi
+          if [[ "$scanner" == 1 || "$importer" == 1 ]]; then exit 1; fi
+          exit 0

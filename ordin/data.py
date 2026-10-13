@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from . import EFFECT_CATALOG_SCHEMA_VERSION, RISK_RULES_SCHEMA_VERSION
+from ._catalog_snapshot import catalog_exists, catalog_paths, read_catalog_json
 from .indexer import DEFAULT_INDEX_PATH
 from .packs import (
     discover_packs,
@@ -24,9 +25,12 @@ DATA_DIR = SOURCE_DATA_DIR if SOURCE_DATA_DIR.exists() else PACKAGE_DATA_DIR
 INDEX_ENV_VAR = "ORDIN_INDEX"
 
 
+def _catalog_root():
+    return DATA_DIR
+
+
 def load_json(path: Path) -> Any:
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    return read_catalog_json(path, anchor=_catalog_root)
 
 
 def load_synonyms() -> dict[str, list[str]]:
@@ -35,7 +39,7 @@ def load_synonyms() -> dict[str, list[str]]:
 
 def _load_core_commands() -> list[dict[str, Any]]:
     commands_dir = DATA_DIR / "commands"
-    return [load_json(path) for path in sorted(commands_dir.glob("*.json"))]
+    return [load_json(path) for path in catalog_paths(commands_dir, "json", anchor=_catalog_root)]
 
 
 def _load_core_risk_rules() -> list[dict[str, Any]]:
@@ -80,7 +84,7 @@ def load_man_index(path: Path | None = None) -> list[dict[str, Any]]:
     if index_path is None:
         configured = os.environ.get(INDEX_ENV_VAR)
         index_path = Path(configured) if configured else DEFAULT_INDEX_PATH
-    if not index_path.exists():
+    if not catalog_exists(index_path):
         return []
 
     try:

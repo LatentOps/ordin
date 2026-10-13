@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from . import RISK_SCHEMA_VERSION
+from ._catalog_snapshot import snapshot_review
 from .analyzers import analyze_tokens
 from .context import ExecutionContext
 from .data import find_command, load_risk_rules
@@ -500,6 +501,7 @@ def _check_command(
     return _merge_reviews(reviews)
 
 
+@snapshot_review
 def check_command(
     command: str,
     context: ExecutionContext | None = None,

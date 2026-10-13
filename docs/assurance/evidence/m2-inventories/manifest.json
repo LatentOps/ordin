@@ -1,0 +1,52 @@
+{
+  "fixture_source_sha256": {
+    "documentation/README.md": "c2276c21ec538656a7039c38fa3bde80da2b0cc058e80d8d7eabe5cc77f8afff",
+    "mcp/server.py": "1eaf6a728f3deabdf973b68367139a6534b471624cee08fee54cd03bfa666c33",
+    "monorepo/README.md": "576411e0a84186135cecb0556a8e32df757128d92399993a7091b47406e4ba69",
+    "monorepo/packages/production/app.py": "854e10f9d48f6bffc31a171cb4dd7ff3eb46eef0a77a63331880a7da9f5b2e9f",
+    "monorepo/packages/test/app.py": "f3422b1013c06ccfeea2b23653deb778d9408824f58f33d30efd31493b98b5a9",
+    "payment/.github/workflows/deploy.yml": "86edab3bf8df8bbb28a037620ec50beb4f77f5af58be9ab0519b2f154b97aeb4",
+    "payment/AGENTS.md": "e0c95dc3ca99bf085730df40ea640bbacd62e092b564809e7037e003256efb80",
+    "payment/README.md": "695201ef6beed8d2b291edd52ca19176505d3337d85c45ff8628c072efaf7ee6",
+    "payment/payments.py": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289"
+  },
+  "limitations": [
+    "Synthetic fixture syntax only; no actual reachability or host enforcement claim.",
+    "Runtime root-identity digests are environment specific."
+  ],
+  "reports": {
+    "documentation": {
+      "completeness": "complete",
+      "facts": 1,
+      "files": 1,
+      "model_digest": "b41cc52f0281e76306006c37f781dd4b753590c5e3f47ee0e88cfd94c0617da4",
+      "routes": 0,
+      "snapshot_digest": "0bf90389f98591f52841c5422f8aa75e79b673542c431de42fe18d3986b43c9a"
+    },
+    "mcp": {
+      "completeness": "complete",
+      "facts": 3,
+      "files": 1,
+      "model_digest": "71a0d1b9456552be843ba2342b03809c9148a7e29b0405448d04444f834fcaa6",
+      "routes": 1,
+      "snapshot_digest": "14127b7c34b13571643d9a77317dabc8b209f23801368f66accd2cbfdb1c3b5d"
+    },
+    "monorepo": {
+      "completeness": "complete",
+      "facts": 6,
+      "files": 3,
+      "model_digest": "0f534b2c60d5038dba8366e8e18809bf029e8944b1c919fc2f44d913cdfdd4ff",
+      "routes": 2,
+      "snapshot_digest": "899346fbd837af974e04f3bad1536518af50b3b2e50a50c432853ed8dfe8340d"
+    },
+    "payment": {
+      "completeness": "complete",
+      "facts": 10,
+      "files": 4,
+      "model_digest": "85389ed84238ee4d47ea47cd80cda41a11cff1ac9469e260845905f55443cbe0",
+      "routes": 2,
+      "snapshot_digest": "e7d1a78137d4bc99f501c213e3e3cbfaca2f712844c527db354c20b3eacacf0a"
+    }
+  },
+  "schema_version": "ordin.assurance_inventory_fixture_manifest.v1"
+}

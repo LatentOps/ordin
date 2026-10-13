@@ -1,0 +1,168 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-sandbox-test.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 18,
+  "properties": {
+    "advisory_only": {
+      "const": true,
+      "type": "boolean"
+    },
+    "authority_origin": {
+      "const": "protected_sandbox_test",
+      "type": "string"
+    },
+    "elapsed_ms": {
+      "maximum": 86400000,
+      "minimum": 0,
+      "type": "number"
+    },
+    "exit_code": {
+      "anyOf": [
+        {
+          "maximum": 4294967295,
+          "minimum": -2147483648,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "proof_gaps": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
+    "request_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "results": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 3,
+        "properties": {
+          "actual": {
+            "type": "boolean"
+          },
+          "case_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "expected": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "case_digest",
+          "expected",
+          "actual"
+        ],
+        "type": "object"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
+    "runtime_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_sandbox_test.v1",
+      "type": "string"
+    },
+    "setup_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "source_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "source_key": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "refused",
+        "unavailable",
+        "timeout",
+        "canceled",
+        "output_limit",
+        "malformed",
+        "error"
+      ],
+      "type": "string"
+    },
+    "stderr_bytes": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "stderr_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "stdout_bytes": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "stdout_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "suite_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_digest",
+    "source_digest",
+    "suite_digest",
+    "runtime_digest",
+    "source_key",
+    "setup_digest",
+    "status",
+    "exit_code",
+    "results",
+    "stdout_digest",
+    "stderr_digest",
+    "stdout_bytes",
+    "stderr_bytes",
+    "elapsed_ms",
+    "proof_gaps",
+    "authority_origin",
+    "advisory_only"
+  ],
+  "title": "Ordin assurance sandbox test v1",
+  "type": "object"
+}

@@ -1,0 +1,2581 @@
+{
+  "implemented_revision": "d24ccd4978a8ff6bb41dbe160425eca5cff21068",
+  "installed_wheel_check": {
+    "doctor": "commands: 48\nrisk_rules: 16\neffects: 43\nschemas: 81\npacks: 11/11 loaded\nloaded_packs: aws, azure, database, docker, gcloud, git, github, kubernetes, remote, systemd, terraform\npack_errors: 0\nschema_errors: 0\nrisk_rule_errors: 0\ntemplate_errors: 0\nresource_parity_errors: 0\ngraph_nodes: 497\ngraph_edges: 540\ngraph_errors: 0\nmissing_schema: 0\nduplicate_commands: 0\nok: true\n",
+    "limitations": [
+      "Local Windows/Python version only; no remote CI result implied."
+    ],
+    "schema_version": "ordin.assurance_wheel_check.v1",
+    "smoke": {
+      "assurance_schemas": 41,
+      "exports": [
+        "ActionKindCoverage",
+        "ApprovedSecurityProfile",
+        "AssuranceDecision",
+        "AssuranceGate",
+        "AssuranceHostContext",
+        "AttackEdge",
+        "AttackNode",
+        "AttackPathEvidence",
+        "AuthorizedRepository",
+        "ChallengeRun",
+        "ChallengeSuite",
+        "CompiledSecurityProfile",
+        "CounterexampleRecord",
+        "DelegatedDecision",
+        "DelegatingAssuranceGate",
+        "DelegationAuthority",
+        "DelegationGrant",
+        "DelegationIssuer",
+        "DelegationLimits",
+        "DelegationVerification",
+        "EvidenceLink",
+        "FindingReview",
+        "FindingRubric",
+        "FindingValidation",
+        "FixVerification",
+        "FrozenCase",
+        "FrozenCorpus",
+        "HostApproval",
+        "HostCapabilityAuthority",
+        "HostConstraintAssessment",
+        "HostContractAuthorization",
+        "HostCredentialUse",
+        "HostEvidenceSource",
+        "HostRequestAuthority",
+        "InstructionOrigin",
+        "InvariantEvaluation",
+        "InvariantSelectors",
+        "InventoryLimits",
+        "IssuedDelegation",
+        "LatencyDistribution",
+        "ModelAnswer",
+        "ModelRiskEvidence",
+        "PolicySimulationReport",
+        "ProtectedAsset",
+        "ProtectedProfileSelection",
+        "RemediationProposal",
+        "ReplayFixture",
+        "RepositoryInventory",
+        "RepositoryScope",
+        "RepositoryThreatModel",
+        "ReviewedAction",
+        "SecurityFinding",
+        "SecurityInvariant",
+        "SecurityProfile",
+        "SecurityProfileDraft",
+        "SimulationCase",
+        "SimulationPolicy",
+        "SourcePatchProposal",
+        "SourceProvenance",
+        "SourceReference",
+        "SourceUse",
+        "TrustBoundary",
+        "assess_source_flow",
+        "build_attack_path",
+        "build_delegated_attack_path",
+        "build_threat_model",
+        "challenge_authority_subset",
+        "challenge_property",
+        "challenge_security_properties",
+        "close_finding",
+        "compare_capability_boundaries",
+        "compile_approved_profile",
+        "correlate_source_use",
+        "deduplicate_attack_paths",
+        "deduplicate_findings",
+        "evaluate_approved_invariants",
+        "freeze_trace_candidate",
+        "freeze_trajectory",
+        "inspect_profile",
+        "inventory_repository",
+        "load_approved_profile",
+        "load_replay_fixture",
+        "policy_authority_delta",
+        "propose_attack_path_tests",
+        "propose_invariant_remediation",
+        "propose_profile",
+        "propose_remediation",
+        "propose_source_patch",
+        "record_contract_authorization",
+        "record_source_provenance",
+        "register_instruction_origin",
+        "render_attack_path",
+        "render_threat_model",
+        "replay_counterexample",
+        "review_finding",
+        "simulate_policy_change",
+        "validate_finding_host_observation",
+        "validate_finding_replay",
+        "validate_finding_static",
+        "verify_assurance_capability",
+        "verify_assurance_request_authority",
+        "verify_delegation_subset",
+        "verify_fix",
+        "verify_source_reference",
+        "verify_source_use"
+      ],
+      "finding_validation_demo": {
+        "actions_executed": false,
+        "closure": {
+          "status": "confirmed",
+          "validation_digest": "32eb83aad0d8058ac628191eb4448fc5b93b2bba1be1fe790bd033b4590be93a",
+          "verification_scope": "gate_authority_subset"
+        },
+        "fix": {
+          "advisory_only": true,
+          "alternative_route_misses": 0,
+          "authority_delta": "narrowed",
+          "baseline_p95_ms": 6.4007,
+          "benign_fixture_digests": [
+            "c5d8219182c8cb2c1060a92231e8f8ec5c56849744a336f040e3f05564e7700f"
+          ],
+          "benign_regressions": 0,
+          "candidate_fixture_digest": "de6af0923d6c4bb50b91bbef701f936896b56e260f1041cc9ef06388f98059bf",
+          "candidate_p95_ms": 6.0434,
+          "candidate_validation_digest": "681bb7425fb2f34965a171fa72dbb0bc0c9d77b91bc57ce19fa2bbfb0ac26cf4",
+          "integrated": false,
+          "limitations": [
+            "Verified means the exact tested policy/fixture property, not all vulnerabilities or physical host enforcement.",
+            "This finite affected-boundary replay does not replace safety/unit/integration or full release suites.",
+            "Latency samples are reported, not repeated matched performance acceptance.",
+            "Unprovided alternative routes remain outside coverage; source patches are not exercised."
+          ],
+          "original_fixture_digest": "de6af0923d6c4bb50b91bbef701f936896b56e260f1041cc9ef06388f98059bf",
+          "original_validation_digest": "32eb83aad0d8058ac628191eb4448fc5b93b2bba1be1fe790bd033b4590be93a",
+          "proof_gaps": [],
+          "proposal_digest": "247d3f6cc521e6033df013710d94e02c6d719faafc79ae7b75331a94fe7a86b3",
+          "report_digest": "0da5f20e539603f42e42aa8a1e29c8c765731d6e640914ef131e880683913c1c",
+          "repository_after": "4edd3f626d78bdc755dc37c3ebcd945e490a0d72a445d0d58bddd985da90f7ca",
+          "repository_before": "50cc3ff7fc899d28717063360771455949c01a08c667bbca3c1795a98f3bc091",
+          "result": "fixed-verified",
+          "schema_version": "ordin.assurance_fix_verification_summary.v1",
+          "simulation_digest": "93192b69fe951ae26625e673d72a10efb5109d17a1d1afb07223859627590489",
+          "tested_scope": "policy_replay"
+        },
+        "limitations": [
+          "Synthetic gate/policy replay only; no target-code fix, real exploit, host sandbox or release acceptance is established."
+        ],
+        "patch_applied": false,
+        "policy_proposal": {
+          "applied": false,
+          "authority_delta": "narrowed",
+          "baseline_policy_digest": "6aa2076c1b44e1555d146e527b5a97beebbe72e2e1847cd353884ee873e5422e",
+          "candidate_policy_digest": "7d8551cd990a0e3214444f25cca5876716832d5c88144e8ef682b57bb2ca8084",
+          "expected_authority_digest": "d65cda4117f3d6ac26ec771732efca5edf0e36e4e90139c109ea7195f39fe430",
+          "finding_digest": "be47de0b7911869e755881f91b0cf4d93161206ff85be696f3840ca18bf6b573",
+          "limitations": [
+            "A proposal is never applied, activated, published or integrated.",
+            "Profile/host configuration changes with unknown containment remain unresolved."
+          ],
+          "proposal_id": "proposal:c83f073b19433b43ecde4dd9",
+          "proposed_source_patch_digest": null,
+          "protected_host_configuration_changed": false,
+          "report_digest": "247d3f6cc521e6033df013710d94e02c6d719faafc79ae7b75331a94fe7a86b3",
+          "repository_after": "4edd3f626d78bdc755dc37c3ebcd945e490a0d72a445d0d58bddd985da90f7ca",
+          "repository_before": "50cc3ff7fc899d28717063360771455949c01a08c667bbca3c1795a98f3bc091",
+          "review_required": true,
+          "schema_version": "ordin.assurance_remediation_proposal_summary.v1",
+          "validation_digest": "32eb83aad0d8058ac628191eb4448fc5b93b2bba1be1fe790bd033b4590be93a"
+        },
+        "review": {
+          "advisory_only": true,
+          "counterevidence_digests": [],
+          "evidence_digests": [
+            "254640f0c4c09a855c8f59a8ed76d06c1d98525fa94c3b1bfb94c87fec8a0dff"
+          ],
+          "finding_digest": "be47de0b7911869e755881f91b0cf4d93161206ff85be696f3840ca18bf6b573",
+          "proof_gaps": [],
+          "report_digest": "9094a0efa52c99a7947c3d39e89a6a200f3f9c8f45b4ca3798cbca685a468541",
+          "repository_digest": "50cc3ff7fc899d28717063360771455949c01a08c667bbca3c1795a98f3bc091",
+          "rubric_digest": "ccd9a79a1debe7699058aa04fe93f1b174bfcdd7ab8d968a943a372632979903",
+          "schema_version": "ordin.assurance_finding_review_summary.v1",
+          "source_snapshot_digest": "de1389bcdcec2a4c7c7e6170e424c3eff4af445d5015091a5ce1e7b1b5b408b3",
+          "status": "reviewed",
+          "verified_source_digests": [
+            "8e9f2eef01c1387be5a117653152a769db70ec8441301237ac05c9883dd55ec7"
+          ]
+        },
+        "schema_version": "ordin.assurance_validation_demo.v1",
+        "source_patch": {
+          "applied": false,
+          "candidate_file_digest": "a18c398f9131fca45aaa6431932459c5781adcb4758587d8d5e2df9971becafa",
+          "patch_bytes": 142,
+          "patch_digest": "26dbcf1a51c6076bb039b9af1440a05ac3b9a6ea792e6329380f2180c2c51971",
+          "proposal_id": "patch:4c1b7d81e69c8c6a8536264e",
+          "report_digest": "48a3df14db123d3ccfa42927f351a18c61947169d8d1e2107fed2f182297d6ab",
+          "repository": "50cc3ff7fc899d28717063360771455949c01a08c667bbca3c1795a98f3bc091",
+          "review_required": true,
+          "schema_version": "ordin.assurance_source_patch_summary.v1",
+          "source": "8e9f2eef01c1387be5a117653152a769db70ec8441301237ac05c9883dd55ec7",
+          "validation_digest": "32eb83aad0d8058ac628191eb4448fc5b93b2bba1be1fe790bd033b4590be93a"
+        },
+        "synthetic_only": true,
+        "target_code_executed": false,
+        "validation": {
+          "action_digest": "673d4063406801678e36de5539a9bae2d8adb515e9be462587fcba0487fc9228",
+          "action_kind": "a7a661d6a0cfae69a1dd5a8e8dda36b1430118a9e3f6222839695f0b000f4b84",
+          "advisory_only": true,
+          "boundary_digest": "d65cda4117f3d6ac26ec771732efca5edf0e36e4e90139c109ea7195f39fe430",
+          "configuration_digest": "c2783f645a6821567911612979ff5a547c9b44b63ea7d1cbc1d4af826d3b8c35",
+          "contract_authorization_digest": null,
+          "counterevidence": [],
+          "evidence": [
+            "95a5518e2c5c2570cdc7ac55f977ee5463ce34087cf4840e29a59b6e4ade696e",
+            "5bce45d0059cdcb175adefbfcd4ec50a832d4ece68688de821e2e68ce0ae199f"
+          ],
+          "finding_digest": "be47de0b7911869e755881f91b0cf4d93161206ff85be696f3840ca18bf6b573",
+          "fixture_digest": "de6af0923d6c4bb50b91bbef701f936896b56e260f1041cc9ef06388f98059bf",
+          "fixture_source": "b46146fe9a76e546ef9542fa4d6d7e1c134dd1b57c8625906fceca5503f683aa",
+          "invariant_id": "0f412533ce1a801d96a4d57e09fd3e8a236948dcc5fc9e4a934df386ef5757dc",
+          "limitations": [
+            "Closure is limited to this exact revision, fixture, bound and configuration.",
+            "Replay does not execute proposals or establish backend exploit reachability.",
+            "Static references establish bytes; they do not prove causality or control effectiveness."
+          ],
+          "mode": "replay",
+          "proof_gaps": [],
+          "report_digest": "32eb83aad0d8058ac628191eb4448fc5b93b2bba1be1fe790bd033b4590be93a",
+          "repository": "50cc3ff7fc899d28717063360771455949c01a08c667bbca3c1795a98f3bc091",
+          "result": "confirmed",
+          "review_digest": "9094a0efa52c99a7947c3d39e89a6a200f3f9c8f45b4ca3798cbca685a468541",
+          "safe_reproducer_ref": "d87cfae377964590d9f4d158003d342dc1b414c476d11e2cdba85b74a2d67afa",
+          "schema_version": "ordin.assurance_finding_validation_summary.v1",
+          "source_key": "490221ae5986868ae21b42cfb2e19dba13dee0bd483a97812e6652fb418309bf",
+          "tested_scope": "gate_authority_subset",
+          "validation_id": "validation:279699797f1c1a3dff52994b"
+        }
+      },
+      "ok": true,
+      "schemas": 81,
+      "version": "0.4.0.dev0"
+    },
+    "timestamp": "2026-10-10T13:09:01.303246+00:00",
+    "wheel_entries": 306,
+    "wheel_sha256": "2bc2cc2a7ebb657075124b783949a5da02935ca175f80e016711dd497e0747d1"
+  },
+  "limitations": [
+    "Synthetic source, pure gate/policy replay and protected SDK receipt tests only; no live exploit or target-code execution.",
+    "Physical host grant/sandbox enforcement is not independently exercised; protected host channels must report actual facts.",
+    "Current finding predicates are limited to gate/contract authority subset; other vulnerability classes remain inconclusive.",
+    "Sandboxed target-code tests, external Codex validation/fix reports, full CLI lifecycle, broader acceptance and release gates remain open."
+  ],
+  "schema_version": "ordin.assurance_m10_validation_replay_evidence.v1",
+  "source_gate": {
+    "cases": [
+      {
+        "class": "tests.assurance.test_assurance_cli",
+        "name": "test_cli_valid_and_read_only_by_default",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_assurance_cli",
+        "name": "test_cli_security_regression_returns_one",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_assurance_cli",
+        "name": "test_cli_partial_missing_revision_and_unknown_label",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_assurance_cli",
+        "name": "test_explicit_output_refuses_overwrite_and_never_alters_policy",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_assurance_cli",
+        "name": "test_malformed_input_uses_safe_error_without_source_echo[{\"schema_version\":NaN}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_assurance_cli",
+        "name": "test_malformed_input_uses_safe_error_without_source_echo[{\"core\":{},\"core\":{}}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_assurance_cli",
+        "name": "test_malformed_input_uses_safe_error_without_source_echo[{\"schema_version\":\"unknown\"}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_assurance_cli",
+        "name": "test_profile_validate_does_not_approve",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_assurance_cli",
+        "name": "test_default_report_contains_no_fixture_parameters_or_source_command",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_assurance_cli",
+        "name": "test_diff_requires_same_corpus_and_rejects_partial_reports",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_predicted_secret_read_is_hypothesis_and_host_read_is_established",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_fake_secret_text_and_weak_observation_cannot_become_host_effect",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_authenticated_denial_and_failure_are_counterevidence",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_unrelated_completed_effect_does_not_establish_sink_reachability",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_instruction_span_proves_inclusion_but_influence_stays_hypothetical",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_completed_event_after_assurance_denial_is_rejected",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_foreign_sibling_epoch_policy_or_runtime_source_is_rejected",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_review_mutation_and_json_evidence_cannot_mint_a_graph_fact",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_graph_is_reproducible_bounded_and_rejects_cycles_or_excess_depth",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_reordered_rows_never_claim_authenticated_temporal_order",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_dedup_keeps_occurrences_and_distinct_authority_boundaries",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_graph_builder_performs_no_network_or_subprocess",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_download_permission_execute_chain_and_benign_install_control",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_attack_paths",
+        "name": "test_graph_suggestions_are_only_drafts_and_renderer_hides_private_labels",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_seeded_defect_is_found_minimized_and_replayed_with_benign_controls",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_actual_verifier_disagrees_with_no_supported_fixture_but_unknown_stays_partial",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_seed_and_generator_manifest_are_reproducible",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_replay_requires_same_revision_and_does_not_trust_claimed_failure",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_shrink_cannot_change_the_property_preconditions_or_variant",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_hostile_configuration_is_refused[kwargs0]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_hostile_configuration_is_refused[kwargs1]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_hostile_configuration_is_refused[kwargs2]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_hostile_configuration_is_refused[kwargs3]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_hostile_configuration_is_refused[kwargs4]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_hostile_configuration_is_refused[kwargs5]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_hostile_configuration_is_refused[kwargs6]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_timeout_is_partial_not_a_security_pass",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_serialized_run_cannot_promote_unknown_coverage_or_host_enforcement",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_challenge",
+        "name": "test_cli_seeded_run_and_pinned_replay",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_complete_json_preserves_vendor_claim_fields_without_confirmation",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_incomplete_zero_findings_never_implies_complete_or_clean[partial]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_incomplete_zero_findings_never_implies_complete_or_clean[unknown]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_missing_metadata_and_revision_mismatch_remain_explicit",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_duplicate_and_multi_occurrence_records_are_retained",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_changed_sealed_artifact_unknown_schema_or_confirmed_import_are_rejected",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_unsafe_source_references_are_rejected_without_reading_them[../outside.py]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_unsafe_source_references_are_rejected_without_reading_them[/outside.py]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_unsafe_source_references_are_rejected_without_reading_them[C:/private.py]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_unsafe_source_references_are_rejected_without_reading_them[src/%2e%2e/outside.py]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_unsafe_source_references_are_rejected_without_reading_them[src\\\\outside.py]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_malicious_links_are_refused_as_data[javascript:alert(1)]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_malicious_links_are_refused_as_data[data:text/html,hello]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_malicious_links_are_refused_as_data[file:///private]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_malicious_links_are_refused_as_data[https://user:password@fixture.invalid]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_threatmodel_instructions_remain_inert_and_public_summary_redacts_values",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_symlink_artifact_is_not_treated_as_missing_or_complete",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_duplicate_nonfinite_and_unsafe_json_fail_with_generic_errors[{\"documentType\":\"x\",\"documentType\":\"y\"}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_duplicate_nonfinite_and_unsafe_json_fail_with_generic_errors[{\"score\":NaN}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_duplicate_nonfinite_and_unsafe_json_fail_with_generic_errors[{\"value\":Infinity}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_duplicate_nonfinite_and_unsafe_json_fail_with_generic_errors[{\"value\":\"\\u0000\"}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_duplicate_nonfinite_and_unsafe_json_fail_with_generic_errors[{\"value\":\"\\ud800\"}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_unbounded_nested_payload_and_executable_config_fields_are_refused",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_authorized_source_verification_and_renamed_location_do_not_claim_match",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_cli_import_defaults_to_redaction_and_distinguishes_partial_and_severity",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_import",
+        "name": "test_report_summary_cannot_misstate_original_vendor_data",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_scan_preserves_states_and_redacts_raw_outputs[0-completed]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_scan_preserves_states_and_redacts_raw_outputs[1-severity_violation]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_scan_preserves_states_and_redacts_raw_outputs[2-incomplete]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_scan_preserves_states_and_redacts_raw_outputs[130-canceled]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_scan_preserves_states_and_redacts_raw_outputs[143-canceled]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_partial_zero_findings_is_incomplete",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_invalid_export_schema_never_becomes_success",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_inflight_cancel_ends_process_tree",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_inspection_timeout_not_replaced_by_json_error",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_installed_version_and_metadata_refuse_drift[0.3.0-False-version_mismatch]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_installed_version_and_metadata_refuse_drift[0.2.0-True-error]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_installed_version_and_metadata_refuse_drift[bad\\nversion-False-error]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_process_timeout_output_budget_and_no_raw_diagnostics[time.sleep(60)-timeout]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_process_timeout_output_budget_and_no_raw_diagnostics[sys.stdout.write('x' * 200000); sys.stdout.flush(); time.sleep(60)-output_limit]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_timeout_kills_inherited_pipe_child",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_explicit_cancel_does_not_launch_and_returns_cancel",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_missing_changed_and_unexecutable_selection",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_approval_config_and_isolation_cannot_be_invented",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_nested_worktree_and_state_reuse_refused",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_nonfinite_or_invalid_timeout_refused[nan]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_nonfinite_or_invalid_timeout_refused[inf]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_nonfinite_or_invalid_timeout_refused[True]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_nonfinite_or_invalid_timeout_refused[-1]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_codex_scanner",
+        "name": "test_mock_mode_never_spawns",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_contract_coverage",
+        "name": "test_every_assurance_schema_has_a_valid_runtime_or_data_example",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegated_paths",
+        "name": "test_current_delegation_has_explicit_edge_and_distinct_scoped_nodes",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegated_paths",
+        "name": "test_child_denial_is_retained_as_counterevidence",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegated_paths",
+        "name": "test_sibling_forged_parent_and_revoked_relationship_are_rejected",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegated_paths",
+        "name": "test_cross_action_source_lineage_requires_retained_parent_and_exact_child_bytes",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegating_gate",
+        "name": "test_normal_child_read_binds_and_commits_only_once",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegating_gate",
+        "name": "test_child_cannot_read_env_or_lexical_neighbor_or_impersonate_parent",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegating_gate",
+        "name": "test_pending_operation_refuses_expired_or_revoked_parent",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegating_gate",
+        "name": "test_changed_argument_policy_or_action_id_cannot_reuse_ticket",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegating_gate",
+        "name": "test_inflight_and_action_quotas_are_host_owned",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegating_gate",
+        "name": "test_sibling_sessions_do_not_share_actions_or_observations",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegating_gate",
+        "name": "test_concurrent_child_reviews_have_exact_independent_tickets",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegating_gate",
+        "name": "test_core_block_stays_denied_and_denied_proposals_remain_in_child_history",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegating_gate",
+        "name": "test_host_session_or_maximum_change_invalidates_existing_grants",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegating_gate",
+        "name": "test_mutation_between_review_and_commit_is_rechecked_under_issuer_lock",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegating_gate",
+        "name": "test_mandatory_profile_delegation_guard_uses_current_verified_assessment",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegation",
+        "name": "test_child_subset_requires_all_parent_operator_task_domains",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegation",
+        "name": "test_unknown_domains_and_unbounded_child_rights_are_not_dropped",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegation",
+        "name": "test_http_method_path_and_protocol_rights_are_exact",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegation",
+        "name": "test_overlapping_network_rights_permit_only_a_verified_exact_intersection",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegation",
+        "name": "test_request_arguments_versions_and_approval_cannot_expand",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegation",
+        "name": "test_host_issuance_json_and_mutation_never_restore_authority",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegation",
+        "name": "test_revocation_expiry_depth_cycles_and_sibling_spoof_fail",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegation",
+        "name": "test_expired_parent_and_backward_host_clock_never_issue",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegation",
+        "name": "test_concurrent_issuance_enforces_host_child_quota_without_parent_mutation",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegation_runtime",
+        "name": "test_exact_readonly_mcp_args_version_and_identity_remain_inside_child",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegation_runtime",
+        "name": "test_child_collector_cannot_accept_fabricated_or_sibling_observations",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_delegation_runtime",
+        "name": "test_normal_compile_test_review_is_not_unnecessarily_denied",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_doc_only_changes_have_finite_scope_and_no_execution",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_changed_security_surfaces_are_candidates[src/app.py-import subprocess\\nsubprocess.run(['fixture'])-new_subprocess_sink]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_changed_security_surfaces_are_candidates[src/app.py-import urllib.request\\nurllib.request.urlopen('https://fixture.invalid')-new_network_sink]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_changed_security_surfaces_are_candidates[src/tools.py-@server.tool()\\ndef fixture():\\n    pass-new_tool_surface]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_changed_security_surfaces_are_candidates[schemas/mcp.json-{}-mcp_schema_modified]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_changed_security_surfaces_are_candidates[requirements.txt-synthetic==1-dependency_modified]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_changed_security_surfaces_are_candidates[uv.lock-version = 1-dependency_modified]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_changed_security_surfaces_are_candidates[host/boundary.py-authority = None-host_boundary_modified]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_changed_security_surfaces_are_candidates[src/policy.py-allow = True-enforcement_modified]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_modified_protected_deploy_and_profile_only_change",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_existing_sink_moved_lines_is_not_claimed_new",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_network_permission_widening_uses_existing_validator",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_unknown_policy_algebra_and_source_gaps_remain_partial",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_unknown_network_scope_remains_unsupported",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_policy_only_change_requires_review_without_source_edits",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_optional_ci_example_passes_project_workflow_guard",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_diff_triage",
+        "name": "test_cli_diff_and_mock_are_offline_with_distinct_exit_codes",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[warn-action0]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[warn-action1]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[warn-action2]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[warn-action3]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[warn-action4]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[warn-action5]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[ask-action0]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[ask-action1]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[ask-action2]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[ask-action3]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[ask-action4]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[ask-action5]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[block-action0]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[block-action1]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[block-action2]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[block-action3]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[block-action4]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_disabled_gate_preserves_complete_baseline_review_and_disposition[block-action5]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_core_denial_is_immediate_and_skips_new_evidence",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_protected_mutation_and_benign_directory_boundary_controls",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_host_approval_is_exact_and_cannot_relax_a_core_escalation",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_source_scope_and_receipts_cannot_cross_policy_session_epoch_or_principal",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_mandatory_profile_and_unknown_evidence_do_not_disappear",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_authenticated_principal_does_not_come_from_action_arguments",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_resource_subset_uses_all_existing_capability_domains",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_exact_request_subset_does_not_reuse_changed_body_or_protocol",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_credential_bindings_are_host_routing_and_destination_constraints",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_authenticated_host_assessments_bind_dynamic_constraint_results[source_flow_guard]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_authenticated_host_assessments_bind_dynamic_constraint_results[delegated_authority_subset]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_temporal_guard_requires_exact_retained_history_and_preserves_core_detection",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_attention_labels_cannot_auto_execute_with_an_active_profile",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_binding_rechecks_action_host_epoch_policy_profile_and_original_review",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_changed_requirement_configuration_invalidates_a_previous_result",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_action_mutation_during_core_review_denies_and_original_input_is_isolated",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_invariants",
+        "name": "test_default_report_has_no_raw_arguments_paths_session_or_profile_source",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_frozen_repositories_have_verified_source_references_and_only_draft_authority[documentation]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_frozen_repositories_have_verified_source_references_and_only_draft_authority[payment]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_frozen_repositories_have_verified_source_references_and_only_draft_authority[mcp]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_frozen_repositories_have_verified_source_references_and_only_draft_authority[monorepo]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_threat_model_identifies_actual_entry_control_transform_and_sinks_without_importing_code",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_harmless_docs_do_not_invent_sinks_invariants_or_deployment_policy",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_mcp_forged_annotations_do_not_change_trust_and_test_prod_files_are_not_merged",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_sensitive_files_are_not_read_and_reports_redact_asset_and_source_paths",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_changed_or_forged_inventory_is_not_promoted_to_source_backed_model",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_scope_root_revision_and_virtual_mapping_are_explicit",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_limits_and_parser_failures_leave_explicit_partial_coverage",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_symlinks_and_hardlinks_do_not_read_outside_root",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_oversize_file_and_directory_fail_with_controlled_errors",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_directory_link_cannot_escape_authorized_root",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_inventory",
+        "name": "test_windows_directory_handles_pin_path_during_scoped_access",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_roundtrip_is_detached_canonical_and_immutable[assurance_security_profile]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_roundtrip_is_detached_canonical_and_immutable[assurance_security_profile_draft]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_roundtrip_is_detached_canonical_and_immutable[assurance_invariant]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_roundtrip_is_detached_canonical_and_immutable[assurance_invariant_evaluation]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_roundtrip_is_detached_canonical_and_immutable[assurance_finding]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_roundtrip_is_detached_canonical_and_immutable[assurance_attack_path]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_roundtrip_is_detached_canonical_and_immutable[assurance_simulation]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_roundtrip_is_detached_canonical_and_immutable[assurance_counterexample]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_roundtrip_is_detached_canonical_and_immutable[assurance_delegation]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_roundtrip_is_detached_canonical_and_immutable[assurance_model_evidence]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_collections_are_copied_and_cannot_be_modified",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_hostile_json_is_rejected_without_echoing_values[{\"approved\":false,\"approved\":true}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_hostile_json_is_rejected_without_echoing_values[{\"\\\\u0061\":1,\"a\":2}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_hostile_json_is_rejected_without_echoing_values[{\"x\":NaN}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_hostile_json_is_rejected_without_echoing_values[{\"x\":Infinity}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_hostile_json_is_rejected_without_echoing_values[{\"x\":-Infinity}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_hostile_json_is_rejected_without_echoing_values[{\"x\":1e999}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_hostile_json_is_rejected_without_echoing_values[{\"x\":\"\\\\ud800\"}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_hostile_json_is_rejected_without_echoing_values[[1]]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_hostile_json_is_rejected_without_echoing_values[{\"x\":[[[[[[[[[[[[[[0]]]]]]]]]]]]]]}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_json_boundary_limits_and_safe_duplicate_error",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_unknown_fields_versions_and_missing_fields_rejected[assurance_security_profile]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_unknown_fields_versions_and_missing_fields_rejected[assurance_security_profile_draft]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_unknown_fields_versions_and_missing_fields_rejected[assurance_invariant]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_unknown_fields_versions_and_missing_fields_rejected[assurance_invariant_evaluation]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_unknown_fields_versions_and_missing_fields_rejected[assurance_finding]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_unknown_fields_versions_and_missing_fields_rejected[assurance_attack_path]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_unknown_fields_versions_and_missing_fields_rejected[assurance_simulation]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_unknown_fields_versions_and_missing_fields_rejected[assurance_counterexample]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_unknown_fields_versions_and_missing_fields_rejected[assurance_delegation]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_unknown_fields_versions_and_missing_fields_rejected[assurance_model_evidence]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_strong_provenance_cannot_be_claimed_from_json_or_constructor[policy_verified]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_strong_provenance_cannot_be_claimed_from_json_or_constructor[runtime_backend_observed]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_strong_provenance_cannot_be_claimed_from_json_or_constructor[deterministically_derived]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_draft_cannot_activate_or_claim_approval",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_source_references_have_no_external_or_ambiguous_path_authority[../secret]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_source_references_have_no_external_or_ambiguous_path_authority[/etc/passwd]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_source_references_have_no_external_or_ambiguous_path_authority[C:/secret]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_source_references_have_no_external_or_ambiguous_path_authority[src/../secret]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_source_references_have_no_external_or_ambiguous_path_authority[src/./secret]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_source_references_have_no_external_or_ambiguous_path_authority[src//secret]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_source_references_have_no_external_or_ambiguous_path_authority[src\\\\secret]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_source_references_have_no_external_or_ambiguous_path_authority[https://fixture.invalid]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_profile_and_graph_reject_ambiguous_references",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_unverified_findings_and_partial_simulations_cannot_claim_success",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_counterexample_changes_invalidate_binding",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_model_scores_are_finite_bounded_numbers[nan]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_model_scores_are_finite_bounded_numbers[inf]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_model_scores_are_finite_bounded_numbers[-0.1]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_model_scores_are_finite_bounded_numbers[1.1]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_model_scores_are_finite_bounded_numbers[True]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_model_outages_duplicate_answers_and_missing_answers_remain_visible",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_grant_metadata_alone_is_a_proposal_and_lifetimes_are_bounded",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_digest_is_domain_separated",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_endpoint_assets_reuse_existing_strict_request_parser[javascript:alert(1)]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_endpoint_assets_reuse_existing_strict_request_parser[file:///etc/passwd]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_endpoint_assets_reuse_existing_strict_request_parser[https://@fixture.invalid/path]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_endpoint_assets_reuse_existing_strict_request_parser[https://fixture.invalid/a?token=x]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_endpoint_assets_reuse_existing_strict_request_parser[https://fixture.invalid/a#fragment]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_endpoint_assets_reuse_existing_strict_request_parser[https://fixture.invalid/a%2fb]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_models",
+        "name": "test_supported_assets_do_not_expand_uri_or_path_authority",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_origins",
+        "name": "test_exact_span_correlates_without_retaining_raw_source_or_secret",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_origins",
+        "name": "test_origin_and_use_cannot_be_imported_or_mutated_into_authority",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_origins",
+        "name": "test_other_principal_session_epoch_or_policy_cannot_reuse_source[change0]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_origins",
+        "name": "test_other_principal_session_epoch_or_policy_cannot_reuse_source[change1]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_origins",
+        "name": "test_other_principal_session_epoch_or_policy_cannot_reuse_source[change2]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_origins",
+        "name": "test_other_principal_session_epoch_or_policy_cannot_reuse_source[change3]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_origins",
+        "name": "test_other_principal_session_epoch_or_policy_cannot_reuse_source[change4]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_origins",
+        "name": "test_source_reference_binds_exact_repository_version_and_bytes",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_origins",
+        "name": "test_utf8_bytes_match_exactly_without_unicode_normalization",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_origins",
+        "name": "test_bounded_spans_and_fields_refuse_ambiguous_claims",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_validation_and_draft_conversion_are_not_approval",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_explicit_operator_selection_binds_profile_scope_content_and_active_policy",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_whitespace_and_meaningful_profile_changes_both_invalidate_the_selected_bytes",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_agent_authority_to_mutate_profile_or_ancestor_cannot_activate_it[capability0]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_agent_authority_to_mutate_profile_or_ancestor_cannot_activate_it[capability1]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_agent_authority_to_mutate_profile_or_ancestor_cannot_activate_it[capability2]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_agent_authority_to_mutate_profile_or_ancestor_cannot_activate_it[capability3]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_unknown_or_unenforced_filesystem_protection_is_refused",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_profile_scope_and_digest_cannot_be_self_approved_by_json",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_profile_hardlinks_are_refused_without_leaking_open_handles",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_precise_restrictions_and_baseline_no_downgrade_on_varied_actions",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_missing_host_evidence_is_not_projected_to_an_overbroad_catch_all_rule",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_tampered_compilation_cannot_remove_an_approved_constraint",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_noncanonical_asset_paths_and_unproven_prefix_protection_refuse_activation",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_group_readable_selected_profile_is_not_a_private_configuration",
+        "outcome": "skipped"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_actual_suite_accounts_for_all_required_properties_and_uncertainty",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_seeded_defects_shrink_replay_and_preserve_action_and_policy",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_protocol_compatibility_difference_is_recorded_without_changing_legacy",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_missing_or_short_property_selection_cannot_report_complete",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_replay_rejects_mutated_context_and_failure_claim",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_fixture_suite_performs_no_subprocess_network_or_fixture_file_reads",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_generators_preserve_every_declared_scenario_and_seed_digest[exact_request_commitment]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_generators_preserve_every_declared_scenario_and_seed_digest[protocol_separation]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_generators_preserve_every_declared_scenario_and_seed_digest[tool_identity]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_generators_preserve_every_declared_scenario_and_seed_digest[history_observations]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_generators_preserve_every_declared_scenario_and_seed_digest[monotonicity]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_generators_preserve_every_declared_scenario_and_seed_digest[trust_origin]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_generators_preserve_every_declared_scenario_and_seed_digest[review_to_use_binding]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_generators_preserve_every_declared_scenario_and_seed_digest[delegation_subset]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_cli_property_selection_and_general_counterexample_replay",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_property_challenge",
+        "name": "test_suite_time_budget_never_turns_skipped_work_into_success",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_remediation",
+        "name": "test_narrow_policy_fix_and_benign_counterpart_verified_without_application",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_remediation",
+        "name": "test_apparent_fix_that_leaves_the_path_executable_is_still_vulnerable",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_remediation",
+        "name": "test_test_suppression_and_missing_provenance_do_not_verify[changed_test]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_remediation",
+        "name": "test_test_suppression_and_missing_provenance_do_not_verify[deleted_test]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_remediation",
+        "name": "test_test_suppression_and_missing_provenance_do_not_verify[missing_control]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_remediation",
+        "name": "test_patch_that_breaks_benign_behavior_retains_regression_and_unknown_containment",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_remediation",
+        "name": "test_overbroad_policy_patch_cannot_become_verified",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_remediation",
+        "name": "test_alternative_route_keeps_an_apparent_fix_still_vulnerable",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_remediation",
+        "name": "test_source_patch_is_private_exact_data_and_never_evidence_of_a_fix",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_remediation",
+        "name": "test_unterminated_line_patch_has_explicit_marker",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_request_protocols",
+        "name": "test_raw_tcp_does_not_supply_rest_authority_to_assurance",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_request_protocols",
+        "name": "test_strict_projection_cannot_hide_another_domain_or_body_violation",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_sarif_import",
+        "name": "test_sarif_details_and_reported_claims_survive_without_validation",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_sarif_import",
+        "name": "test_zero_sarif_results_do_not_mean_clean_scan",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_sarif_import",
+        "name": "test_unsafe_sarif_artifact_uris_are_refused[file:///outside]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_sarif_import",
+        "name": "test_unsafe_sarif_artifact_uris_are_refused[https://outside.invalid/app.py]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_sarif_import",
+        "name": "test_unsafe_sarif_artifact_uris_are_refused[../outside]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_sarif_import",
+        "name": "test_unsafe_sarif_artifact_uris_are_refused[src/%2e%2e/outside]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_sarif_import",
+        "name": "test_unsafe_sarif_artifact_uris_are_refused[C:/private.py]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_sarif_import",
+        "name": "test_external_property_file_or_uri_base_is_not_loaded",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_sarif_import",
+        "name": "test_related_codeflow_location_cannot_hide_an_external_uri",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_sarif_import",
+        "name": "test_missing_optional_metadata_stays_unknown_and_private_message_redacted",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_schema_roundtrip",
+        "name": "test_all_assurance_schemas_registered_packaged_and_byte_identical",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_schema_roundtrip",
+        "name": "test_record_examples_match_shipped_schemas",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_schema_roundtrip",
+        "name": "test_draft_authority_and_model_number_bounds_are_in_both_validators",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_identical_configuration_replays_baseline_without_permission_change",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_approval_becomes_execution_and_critical_miss_rejects_guard",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_tighter_threshold_reports_new_escalation_and_benign_friction",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_profile_blocks_production_and_preserves_benign_control",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_independent_session_history_includes_denied_proposals",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_sessions_and_epochs_do_not_reuse_state",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_deep_freeze_actions_and_policy_and_public_copies",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_missing_changed_duplicate_or_unknown_fixtures_cannot_pass",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_imported_report_cannot_hide_regressions_or_contradict_passing_summary",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_caller_observation_after_refused_proposal_is_partial",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_unresolved_mandatory_profile_evidence_stays_partial",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_boundary_comparison_checks_every_domain_and_directory_boundary",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_json_never_imports_profile_authority_and_audit_sink_never_runs",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_existing_trajectory_adapter_preserves_order_and_contract_checks",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_principal_selected_maxima_produce_distinct_agent_outcomes",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_simulation",
+        "name": "test_golden_scenarios_are_offline_read_only_and_preserve_decision_replay",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_source_flow",
+        "name": "test_sensitive_source_in_proposed_egress_becomes_profile_violation",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_source_flow",
+        "name": "test_untrusted_instruction_context_is_violation_without_inventing_persuasion",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_source_flow",
+        "name": "test_absent_or_partial_provenance_cannot_imply_satisfied",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_source_flow",
+        "name": "test_unknown_origin_classification_stays_inconclusive_even_with_complete_collection",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_source_flow",
+        "name": "test_json_stale_action_scope_and_collection_changes_are_rejected",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_source_flow",
+        "name": "test_non_applicable_rule_uses_actual_core_scope",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_static_review_retains_counterevidence_and_cannot_reproduce",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_true_positive_pure_replay_and_imported_origin_preserved_separately",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_existing_control_refutes_only_the_tested_path",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_invalid_unexercised_and_nonreproducible_findings_stay_inconclusive[reference]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_invalid_unexercised_and_nonreproducible_findings_stay_inconclusive[fixture]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_invalid_unexercised_and_nonreproducible_findings_stay_inconclusive[precondition]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_invalid_unexercised_and_nonreproducible_findings_stay_inconclusive[unknown]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_invalid_unexercised_and_nonreproducible_findings_stay_inconclusive[class]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_invalid_unexercised_and_nonreproducible_findings_stay_inconclusive[actor]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_stale_source_and_foreign_boundary_cannot_close",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_authenticated_host_outcomes_have_scoped_closure[completed-inconclusive]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_authenticated_host_outcomes_have_scoped_closure[allowed-confirmed]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_authenticated_host_outcomes_have_scoped_closure[denied-refuted]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_authenticated_host_outcomes_have_scoped_closure[failed-inconclusive]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_forged_and_cross_session_observations_are_not_validation",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_duplicates_preserve_occurrences_without_merging_proof",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_fixture_mutation_after_validation_prevents_closure",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_public_review_and_validation_omit_secret_looking_metadata",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.assurance.test_validation",
+        "name": "test_explicit_repository_snapshot_pin_is_enforced",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_every_registered_schema_has_a_canonical_runtime_or_data_example",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_validator_enforces_all_declared_numeric_and_uniqueness_bounds",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_typed_json_contracts_reject_nonfinite_payloads[nan]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_typed_json_contracts_reject_nonfinite_payloads[inf]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_typed_json_contracts_reject_nonfinite_payloads[-inf]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_typed_context_trace_and_policy_constructors_match_wire_bounds",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_configuration_parsers_reject_duplicate_members_before_schema_validation[load_action_policy]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_configuration_parsers_reject_duplicate_members_before_schema_validation[load_temporal_policy]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_configuration_parsers_reject_duplicate_members_before_schema_validation[load_tool_semantics]",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_configuration_reader_bounds_and_finite_numbers",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_input_builders_preserve_v02_defaults_but_reject_unknown_members",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_claude_help_does_not_read_hook_input",
+        "outcome": "passed"
+      },
+      {
+        "class": "tests.test_contract_audit",
+        "name": "test_public_export_and_console_inventory_matches_frozen_manifest",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_metric_values_and_ties_against_hand_calculation",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_partition_freeze_and_duplicate_content_checks",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_threshold_selected_only_from_complete_development_controls",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_aggregate_retains_deterministic_blocks_and_model_coverage",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_abstentions_are_not_removed_from_system_misses",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_provider_threshold_version_and_partition_drift_refuse_evaluation",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_opt_in_examples_are_disabled_without_any_setup",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_rate_intervals_and_full_timing_are_explicit",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_measured_threshold_async_replay_and_configuration_binding",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_measured_development_refuses_missing_scores_and_wrong_modes",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_family_renaming_cannot_hide_partition_leakage",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_session_factory_runs_only_after_gate_and_cannot_change_provider",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_async_collection_timeout_and_cancellation_keep_budget_bounded",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_async_hosted_workload_uses_fresh_exact_disclosures",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_frozen_provisional_workload_hashes_labels_and_disjointness",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_evaluation",
+        "name": "test_mid_run_routing_drift_refuses_measurement_receipt",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_https",
+        "name": "test_fixed_endpoint_auth_and_bounded_json_stream",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_https",
+        "name": "test_unsafe_framing_and_malformed_payloads_refused[HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\nContent-Length: 2048\\r\\n\\r\\n]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_https",
+        "name": "test_unsafe_framing_and_malformed_payloads_refused[HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\nTransfer-Encoding: chunked\\r\\n\\r\\n]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_https",
+        "name": "test_unsafe_framing_and_malformed_payloads_refused[HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\nContent-Encoding: gzip\\r\\n\\r\\n]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_https",
+        "name": "test_unsafe_framing_and_malformed_payloads_refused[HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\nContent-Type: text/plain\\r\\n\\r\\n]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_https",
+        "name": "test_unsafe_framing_and_malformed_payloads_refused[HTTP/1.1 200 OK\\r\\nContent-Type: text/html\\r\\n\\r\\n<script>bad</script>]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_https",
+        "name": "test_unsafe_framing_and_malformed_payloads_refused[HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\n\\r\\n{\"key\":1,\"key\":2}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_https",
+        "name": "test_unsafe_framing_and_malformed_payloads_refused[HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\n\\r\\n{\"score\":NaN}]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_https",
+        "name": "test_unsafe_framing_and_malformed_payloads_refused[HTTP/1.1 200 OK\\r\\nContent-Type: application/json\\r\\n\\r\\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_https",
+        "name": "test_redirect_does_not_parse_echoed_secrets_or_follow_location",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_https",
+        "name": "test_ca_drift_bad_path_and_header_injection_refused_before_connect",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_persistent_typed_worker_and_redacted_metadata",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_failure_output_timeout_and_descendants_end_worker[malformed-malformed]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_failure_output_timeout_and_descendants_end_worker[wrong_request-malformed]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_failure_output_timeout_and_descendants_end_worker[wrong_digest-version_mismatch]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_failure_output_timeout_and_descendants_end_worker[bad_probability-malformed]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_failure_output_timeout_and_descendants_end_worker[truncated-refused]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_failure_output_timeout_and_descendants_end_worker[overflow-malformed]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_failure_output_timeout_and_descendants_end_worker[stderr_overflow-malformed]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_failure_output_timeout_and_descendants_end_worker[eval_timeout-timeout]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_failure_output_timeout_and_descendants_end_worker[child_hang-timeout]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_initialization_failure_never_leaves_a_live_worker[bad_handshake]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_initialization_failure_never_leaves_a_live_worker[setup_timeout]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_async_cancel_and_call_budget_end_process",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_checkpoint_mutation_and_untrusted_config_refused_before_spawn",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_tokenizer_vocabulary_not_subject_to_advisory_array_limits",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_no_model_load_or_process_before_explicit_initialize",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_changed_runtime_binding_and_call_budget_refuse_further_use",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_configuration_change_invalidates_initialized_worker",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_tokenizer_mutation_and_executable_config_are_not_silently_accepted",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_foreign_state_setup_reuse_and_home_root_refused",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_pending_setup_cancellation_kills_process",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_laya",
+        "name": "test_already_canceled_setup_never_spawns",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_hard_block_never_calls_provider[disabled]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_hard_block_never_calls_provider[shadow]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_hard_block_never_calls_provider[enforced-escalation]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_default_disabled_bitwise_review_parity_and_no_provider_calls",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_shadow_preserves_gate_and_enforced_model_only_escalates",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_core_ask_cannot_execute_on_low_model_score",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_mandatory_provider_failures_fail_closed[timeout]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_mandatory_provider_failures_fail_closed[malformed]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_mandatory_provider_failures_fail_closed[refused]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_mandatory_provider_failures_fail_closed[transport]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_mandatory_provider_failures_fail_closed[untrusted_content]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_mandatory_provider_failures_fail_closed[version_mismatch]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_mandatory_provider_failures_fail_closed[question_mismatch]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_missing_task_required_class_escalates_without_inference",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_ambiguous_score_has_explicit_uncertainty_and_mandatory_escalation",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_no_question_skips_optional_model_and_does_not_invent_context",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_privacy_and_untrusted_instructions_cannot_authenticate_task",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_hosted_privacy_refusal_precedes_provider_call",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_selected_bytes_context_and_json_question_set_are_strict",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_timeout_leases_remain_reserved_until_actual_worker_finishes",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_routing",
+        "name": "test_async_timeout_and_cancellation_release_leases",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_discovery_and_batched_typed_answers_are_current_and_non_authoritative",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_malformed_version_and_question_answers_are_refused[<lambda>-version_mismatch]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_malformed_version_and_question_answers_are_refused[<lambda>-question_mismatch0]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_malformed_version_and_question_answers_are_refused[<lambda>-question_mismatch1]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_malformed_version_and_question_answers_are_refused[<lambda>-malformed0]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_malformed_version_and_question_answers_are_refused[<lambda>-malformed1]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_malformed_version_and_question_answers_are_refused[<lambda>-malformed2]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_malformed_version_and_question_answers_are_refused[<lambda>-malformed3]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_malformed_version_and_question_answers_are_refused[<lambda>-malformed4]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_redirects_auth_and_service_errors_do_not_parse_or_follow[301]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_redirects_auth_and_service_errors_do_not_parse_or_follow[302]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_redirects_auth_and_service_errors_do_not_parse_or_follow[307]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_redirects_auth_and_service_errors_do_not_parse_or_follow[401]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_redirects_auth_and_service_errors_do_not_parse_or_follow[403]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_redirects_auth_and_service_errors_do_not_parse_or_follow[422]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_redirects_auth_and_service_errors_do_not_parse_or_follow[429]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_redirects_auth_and_service_errors_do_not_parse_or_follow[500]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_invalid_credential_alias_unknown_models_and_source_scope",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_reported_token_budget_failure_is_not_a_success",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_async_timeout_and_sync_refusal",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_direct_provider_method_enforces_its_own_deadline",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_discovery_enforces_deadline_for_custom_transport",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_http_deadlines_validated_before_network[0]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_http_deadlines_validated_before_network[-1]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_http_deadlines_validated_before_network[True]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_http_deadlines_validated_before_network[nan]",
+        "outcome": "passed"
+      },
+      {
+        "class": "integrations.decision_models.tests.test_typesafe",
+        "name": "test_http_deadlines_validated_before_network[30001]",
+        "outcome": "passed"
+      }
+    ],
+    "junit_sha256": "a59e174cc7bcf2efc55212ab6da777c1064d6b40f0e2a896c776aef80060cb9c",
+    "passed": 461,
+    "skipped": 1
+  }
+}

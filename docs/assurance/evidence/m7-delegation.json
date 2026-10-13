@@ -1,0 +1,1941 @@
+{
+  "actual_challenger": {
+    "benign_controls": 8,
+    "counterexamples": [],
+    "elapsed_ms": 547.5829,
+    "evaluated": 32,
+    "failures": 0,
+    "generated": 32,
+    "generator_version": "security-properties-v1",
+    "host_boundary_exercised": false,
+    "input_manifest_digest": "7326435c4992e5648d0ed79fe353792923260496fdddbb198435c967ddbf4214",
+    "limitations": [
+      "Fixed synthetic property fixtures; no network, target execution, host grant, or real runtime enforcement."
+    ],
+    "missing_scenarios": [],
+    "property_id": "delegation_subset",
+    "requested_trials": 32,
+    "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+    "samples": [
+      {
+        "action_digest": "f51540b9ac6c4ec5668e3cb0fb787fa11c51bfebaa30874e7d174fef7a91d7bb",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:0",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "97efb36cb5ddddea958a17aff64c37d1f3e9f56498ea91983a8446c2362ec4a8",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "filesystem_same"
+      },
+      {
+        "action_digest": "56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:1",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "c33aac2294aab4baf94bdc6fa0162ed9d59c513db2a9a636e92b3cd5bd321948",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "filesystem_narrow"
+      },
+      {
+        "action_digest": "929f8f88bd26669330613bde5d73eacaf8936d5feae112def1e36df6b06712da",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:2",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "2d5b2e9e6ead702685bd159f7398f249b8e938de4b862fbe8538657b76c996e4",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "filesystem_neighbor"
+      },
+      {
+        "action_digest": "1a369a02788ed26edccbc21868d775087c4815fba3bda899f31d097f3ad3cf79",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:3",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "87e1edff6bf6cca8fef773db867f5dc3b15eb37b5ce4db51224d3292ece12b96",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "filesystem_delete"
+      },
+      {
+        "action_digest": "917c22be073fc72f7a24206100d478a1ec9cec7f39fba76e447d12fa7075b3c0",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:4",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "706c5998ce3c95b4c2fb77b2f0f60d3e416e664b0c53d0dea7c5a0d98c38bdaa",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "rest_same"
+      },
+      {
+        "action_digest": "49ce0f2f0cd2f11dac419ab503b89b9d4f1a04cb9e8f807c5f58501e9d60be5c",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:5",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "22a1119f3b33442ad5face6991a5d194e24a4d88c224cce87d92752a4e02123f",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "rest_method"
+      },
+      {
+        "action_digest": "598637f6eadaa53418427c26494f012950c52d6334bf0c16ab9745f8189029f4",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:6",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "de1cf06432938ba84f225e13a5498b8441bd58fca70aaeb16b0e783310df5632",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "rest_path"
+      },
+      {
+        "action_digest": "bdc061250730748f41d7ffe01bc9531e529dbd80c86203715fd0ef91c4d3024f",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:7",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "bafbf261e30a07cdd1bf11dd695f4f816122a34dfce124ce762a58a5ef541c37",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "rest_protocol"
+      },
+      {
+        "action_digest": "f28450b59272312b7fdf59b4607187ebb12306af3f370aa4e96120b4a73f0b60",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:8",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "f75b7c937698f04bcfb981a6dc8ebae7233873774fc4d5cc873c11e486faa1f9",
+        "legacy_actual": null,
+        "policy_digest": "c15987190bcd7a5ecefc948b848a0377a1618bdc9d88d9c76ded5b327fc602e5",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "tool_same"
+      },
+      {
+        "action_digest": "3bf778e25bb00690b429fc6a8ed56df26440640a90d16392f2838bbc6eb1c2e2",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:9",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "1fb2c0b882c0dcb81cb5b7e1470baea93e8b40a14729404dec2d910249c0b8e9",
+        "legacy_actual": null,
+        "policy_digest": "c15987190bcd7a5ecefc948b848a0377a1618bdc9d88d9c76ded5b327fc602e5",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "tool_write"
+      },
+      {
+        "action_digest": "1d72fcbbdf06fb4e1e04947b8a108f1b1588c749cc8b6eea7a68f77dd7282764",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:10",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "6a4d84f07373104a67ce7588afc9879b0aee412ae226ce2cd7695a830e2a23e3",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "process_unbounded"
+      },
+      {
+        "action_digest": "ad542f213596526b75c6bc4249a9cb18301bf5c57c2f0e758785dfe0ba78b30b",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:11",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "fbe8c8dc50f6d5d595624f9d3222cb2f273b2d1b534afe0af9dce2ab2331fa52",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "credential_extra"
+      },
+      {
+        "action_digest": "a1ed2f7232a6fab72e4c5942bf021e33cbb1e428ede5626f1f476c1450b18d15",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:12",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "0778a6bf7684093e9db9d748c36cbeccce1066abdf87e5955f0695f64bd921c0",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "privilege_extra"
+      },
+      {
+        "action_digest": "56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:13",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "0a82f4097b30947f1fe7ff7bee87ebe913ee9c8d51306ea0e4fc3c07998d5f06",
+        "legacy_actual": null,
+        "policy_digest": "648abeeb5a805d330089da2de12ede5d3c25bb9a6e68a171b95470ffc6cd4420",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "approval_removed"
+      },
+      {
+        "action_digest": "56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:14",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "a0a3dbfab7d91ec6084ae7c8522d7694f1d70ff52c21a1988af42b0acabf7b11",
+        "legacy_actual": null,
+        "policy_digest": "a994c881c7d0f04d1f8c48dc23358bd0a4b1fd21016e67d37129f04fce443f27",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "task_narrowed"
+      },
+      {
+        "action_digest": "c7753aafdf6e34e001b6eb219356248944c29ecbad0aac8c6fe250885852f6c0",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:15",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "298291d3b3959060ff6d5b64d56f7f1790845edf4f1a396ab02d016dbf87423a",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "child_wildcard"
+      },
+      {
+        "action_digest": "f51540b9ac6c4ec5668e3cb0fb787fa11c51bfebaa30874e7d174fef7a91d7bb",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:16",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "05f1f2c81ed31ae3af818f983012b164f63a082ad955dff094536f0639bfbb34",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "filesystem_same"
+      },
+      {
+        "action_digest": "56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:17",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "b868cba74c5ff3e99fb530eb36a8ddd23a0503fe3487c92f7ec502f81e8ad64a",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "filesystem_narrow"
+      },
+      {
+        "action_digest": "929f8f88bd26669330613bde5d73eacaf8936d5feae112def1e36df6b06712da",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:18",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "572582088d962478bb1d2338040fd0604fc7e52b39c700502e725675961236ff",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "filesystem_neighbor"
+      },
+      {
+        "action_digest": "1a369a02788ed26edccbc21868d775087c4815fba3bda899f31d097f3ad3cf79",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:19",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "2b157119bb81f89b020593253fe7b7b494f8b3b9454a5a1a266255547d3c7816",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "filesystem_delete"
+      },
+      {
+        "action_digest": "917c22be073fc72f7a24206100d478a1ec9cec7f39fba76e447d12fa7075b3c0",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:20",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "504767e73529f5189f2762115b85e699e75d747d8e07789cc0e49256e94ee150",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "rest_same"
+      },
+      {
+        "action_digest": "49ce0f2f0cd2f11dac419ab503b89b9d4f1a04cb9e8f807c5f58501e9d60be5c",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:21",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "c6ed1c33d5d1c33596514c2a92b1ff81aaae898c7de85b0e99e9e4497c30da5f",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "rest_method"
+      },
+      {
+        "action_digest": "598637f6eadaa53418427c26494f012950c52d6334bf0c16ab9745f8189029f4",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:22",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "bfe8c9016f6bfda30d5211b76a96c0b56ed3aa410977c7afc60ed82d9f711117",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "rest_path"
+      },
+      {
+        "action_digest": "bdc061250730748f41d7ffe01bc9531e529dbd80c86203715fd0ef91c4d3024f",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:23",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "ea18aa5715a146c83ef53b40103c0fd25eb52f82e97afa46cf35ecfc22444607",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "rest_protocol"
+      },
+      {
+        "action_digest": "f28450b59272312b7fdf59b4607187ebb12306af3f370aa4e96120b4a73f0b60",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:24",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "d6e2b7f5aeda6eee73bee805d4ff55d5f638a926b8a70a9bbf9e929e53e1fe97",
+        "legacy_actual": null,
+        "policy_digest": "c15987190bcd7a5ecefc948b848a0377a1618bdc9d88d9c76ded5b327fc602e5",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "tool_same"
+      },
+      {
+        "action_digest": "3bf778e25bb00690b429fc6a8ed56df26440640a90d16392f2838bbc6eb1c2e2",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:25",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "1e88cd0140c7f6b33472c6668c50edf604b14a2b626c67c9e167c12bb8812b0a",
+        "legacy_actual": null,
+        "policy_digest": "c15987190bcd7a5ecefc948b848a0377a1618bdc9d88d9c76ded5b327fc602e5",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "tool_write"
+      },
+      {
+        "action_digest": "1d72fcbbdf06fb4e1e04947b8a108f1b1588c749cc8b6eea7a68f77dd7282764",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:26",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "a174af0dc057e5f1e8ec39208b021fd3cf6c36c4c9083cf92e6b7e38a66b78c5",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "process_unbounded"
+      },
+      {
+        "action_digest": "ad542f213596526b75c6bc4249a9cb18301bf5c57c2f0e758785dfe0ba78b30b",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:27",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "cf5e9f000bcc7a8c4007f6ab67c9998127a001ecf54c5f18fad4df767f280cae",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "credential_extra"
+      },
+      {
+        "action_digest": "a1ed2f7232a6fab72e4c5942bf021e33cbb1e428ede5626f1f476c1450b18d15",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:28",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "ff85a2ac9a121a34f76d962b1e9733589cf9eaf4f2481268d4b2c4a7796694af",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "privilege_extra"
+      },
+      {
+        "action_digest": "56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:29",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "74b17f644f4c2d891cce3f551d252d6d785a93fbf479f5f01f80b20a7a989191",
+        "legacy_actual": null,
+        "policy_digest": "648abeeb5a805d330089da2de12ede5d3c25bb9a6e68a171b95470ffc6cd4420",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "approval_removed"
+      },
+      {
+        "action_digest": "56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:30",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "66f49adb09105f05c76cc1852e742c370e225be47a74fcd115c1bf08d7f103c6",
+        "legacy_actual": null,
+        "policy_digest": "a994c881c7d0f04d1f8c48dc23358bd0a4b1fd21016e67d37129f04fce443f27",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "task_narrowed"
+      },
+      {
+        "action_digest": "c7753aafdf6e34e001b6eb219356248944c29ecbad0aac8c6fe250885852f6c0",
+        "actual": "rejected",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:31",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "5240a24921467da21e105407aeecdfe7c221cffb33ceac0dd6b59d776f700189",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "child_wildcard"
+      }
+    ],
+    "schema_version": "ordin.assurance_challenge_run.v1",
+    "seed": 14,
+    "status": "passed",
+    "unresolved": 0,
+    "variant": "actual"
+  },
+  "allowed_review": {
+    "action_digest": "190437d34b03b84a31c06027df8d2479c65ac6512964939a047394b3a652c81f",
+    "assurance_digest": "f47411fb38168b74c009b34b1dc86aae22d6117aa57c82364336411f849262d1",
+    "baseline_disposition": "execute",
+    "contract_digest": "a0472e8163a0ad398f6d8832d03d3931371039b9f120ab5aa30cb7652fa40ab4",
+    "disposition": "execute",
+    "grant_digest": "66955bf97d56804a30c4470b9e4901f66fe3a9cb5fd80432f9084512104d7711",
+    "issuer_generation": 0,
+    "reason_codes": [],
+    "schema_version": "ordin.assurance_delegated_decision.v1",
+    "verification": {
+      "child_authority_digest": "b1513e567ae4e910976ec93a4d4e8a6e699f72e8717a4c47db0b7741b3ca53e9",
+      "coverage": {
+        "approval": true,
+        "credentials": true,
+        "filesystem": true,
+        "network": true,
+        "privilege": true,
+        "process": true,
+        "requests": true,
+        "tools": true
+      },
+      "operator_authority_digest": "d11f2558808961e3be9a79ee20585b91bd9482be34f1976c9d399baac05bae39",
+      "parent_authority_digest": "b1513e567ae4e910976ec93a4d4e8a6e699f72e8717a4c47db0b7741b3ca53e9",
+      "proof_gaps": [],
+      "reason_codes": [
+        "runtime_boundary_within"
+      ],
+      "result": "within_boundary",
+      "schema_version": "ordin.assurance_delegation_verification.v1",
+      "task_authority_digest": "d11f2558808961e3be9a79ee20585b91bd9482be34f1976c9d399baac05bae39"
+    }
+  },
+  "cross_agent_path": {
+    "boundary_digest": "d78b51393c50ce091f05f2c147bb651e32728d8d00490d60ca707b6a95cfef87",
+    "counterevidence": [
+      {
+        "action_digest": "29e73783429339dada1d3cd31f7aa52622f1a6b84b6ae7834df199a86ae046e7",
+        "contract_id": null,
+        "evidence_id": "delegated-review:3707e3ef074d948e61ca43ed",
+        "origin": "policy_verified",
+        "proof_gaps": [
+          "The delegated disposition is a software review requirement, not physical enforcement."
+        ],
+        "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "source": null
+      }
+    ],
+    "edges": [
+      {
+        "confidence": null,
+        "correlation_id": null,
+        "edge_id": "delegated-review:3707e3ef074d948e61ca43ed",
+        "evidence": {
+          "action_digest": "29e73783429339dada1d3cd31f7aa52622f1a6b84b6ae7834df199a86ae046e7",
+          "contract_id": null,
+          "evidence_id": "delegated-review:3707e3ef074d948e61ca43ed",
+          "origin": "policy_verified",
+          "proof_gaps": [
+            "The delegated disposition is a software review requirement, not physical enforcement."
+          ],
+          "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "enforced_by",
+        "proof_gaps": [],
+        "source_id": "action:c45ca49a521fb97481e55b6f",
+        "target_id": "delegated-control:3707e3ef074d948e61ca43ed"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "child",
+        "edge_id": "delegated:66955bf97d56804a30c4470b",
+        "evidence": {
+          "action_digest": null,
+          "contract_id": null,
+          "evidence_id": "delegation:66955bf97d56804a30c4470b",
+          "origin": "policy_verified",
+          "proof_gaps": [
+            "Current delegation establishes bounded authority, not causal influence or physical process isolation."
+          ],
+          "session_digest": null,
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "delegated_to",
+        "proof_gaps": [],
+        "source_id": "principal:3b6353a2d93f6cfc55771176",
+        "target_id": "principal:8f798b771cd3adc052f2bb54"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+        "edge_id": "edge:19ce723452f6de3617022aa4",
+        "evidence": {
+          "action_digest": "29e73783429339dada1d3cd31f7aa52622f1a6b84b6ae7834df199a86ae046e7",
+          "contract_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+          "evidence_id": "review:29e73783429339dada1d3cd3",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "temporally_precedes",
+        "proof_gaps": [
+          "Ordering establishes a temporal relation, not causal influence."
+        ],
+        "source_id": "action:33b70b5a4e3a7baa50ead69b",
+        "target_id": "action:c45ca49a521fb97481e55b6f"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:7d3f2154b07d07a6e6b251f0a5d4b7db269619730bdb82b130ca62ad71d9dd88",
+        "edge_id": "edge:34b21b77dcff0696fb056317",
+        "evidence": {
+          "action_digest": "190437d34b03b84a31c06027df8d2479c65ac6512964939a047394b3a652c81f",
+          "contract_id": "rc:7d3f2154b07d07a6e6b251f0a5d4b7db269619730bdb82b130ca62ad71d9dd88",
+          "evidence_id": "review:190437d34b03b84a31c06027",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "requires_capability",
+        "proof_gaps": [],
+        "source_id": "action:33b70b5a4e3a7baa50ead69b",
+        "target_id": "tool_or_server:8a0bf0ccc61f4a81e598b3da"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+        "edge_id": "edge:529a972541e25344677825db",
+        "evidence": {
+          "action_digest": "29e73783429339dada1d3cd31f7aa52622f1a6b84b6ae7834df199a86ae046e7",
+          "contract_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+          "evidence_id": "review:29e73783429339dada1d3cd3",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "requires_capability",
+        "proof_gaps": [],
+        "source_id": "action:c45ca49a521fb97481e55b6f",
+        "target_id": "tool_or_server:8a0bf0ccc61f4a81e598b3da"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:c533c12b435b7057c92ec75958a3da54916f677a17c547364708c9186e43667b",
+        "edge_id": "edge:597126ce2687028eca9d7d9c",
+        "evidence": {
+          "action_digest": "7bdd08a28fdde1ea86a30dc0a2d5f41a42d9c16f9b5791b1a181eac539c69d4b",
+          "contract_id": "rc:c533c12b435b7057c92ec75958a3da54916f677a17c547364708c9186e43667b",
+          "evidence_id": "review:7bdd08a28fdde1ea86a30dc0",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "read_from",
+        "proof_gaps": [],
+        "source_id": "resource:7f8c50c8b8ef9f7817bc2928",
+        "target_id": "action:be0acfc76fe5f892e652d4c2"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:7d3f2154b07d07a6e6b251f0a5d4b7db269619730bdb82b130ca62ad71d9dd88",
+        "edge_id": "edge:5cd0642091972469e0e45127",
+        "evidence": {
+          "action_digest": "190437d34b03b84a31c06027df8d2479c65ac6512964939a047394b3a652c81f",
+          "contract_id": "rc:7d3f2154b07d07a6e6b251f0a5d4b7db269619730bdb82b130ca62ad71d9dd88",
+          "evidence_id": "review:190437d34b03b84a31c06027",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "crosses_boundary",
+        "proof_gaps": [
+          "Declared software maxima require external enforcement at execution time."
+        ],
+        "source_id": "action:33b70b5a4e3a7baa50ead69b",
+        "target_id": "boundary:076568718670d6ed3fbd6252"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+        "edge_id": "edge:6cb328fb1ed5afac7806a08a",
+        "evidence": {
+          "action_digest": "29e73783429339dada1d3cd31f7aa52622f1a6b84b6ae7834df199a86ae046e7",
+          "contract_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+          "evidence_id": "review:29e73783429339dada1d3cd3",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "requires_capability",
+        "proof_gaps": [],
+        "source_id": "action:c45ca49a521fb97481e55b6f",
+        "target_id": "capability:eae16fd110c3e2652a91f070"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:c533c12b435b7057c92ec75958a3da54916f677a17c547364708c9186e43667b",
+        "edge_id": "edge:70cfe95a481ded53dd423667",
+        "evidence": {
+          "action_digest": "7bdd08a28fdde1ea86a30dc0a2d5f41a42d9c16f9b5791b1a181eac539c69d4b",
+          "contract_id": "rc:c533c12b435b7057c92ec75958a3da54916f677a17c547364708c9186e43667b",
+          "evidence_id": "review:7bdd08a28fdde1ea86a30dc0",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "requires_capability",
+        "proof_gaps": [],
+        "source_id": "action:be0acfc76fe5f892e652d4c2",
+        "target_id": "capability:52b3ebe80459306acafc42ea"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:c533c12b435b7057c92ec75958a3da54916f677a17c547364708c9186e43667b",
+        "edge_id": "edge:800b2ad6dca82135d99659a9",
+        "evidence": {
+          "action_digest": "7bdd08a28fdde1ea86a30dc0a2d5f41a42d9c16f9b5791b1a181eac539c69d4b",
+          "contract_id": "rc:c533c12b435b7057c92ec75958a3da54916f677a17c547364708c9186e43667b",
+          "evidence_id": "review:7bdd08a28fdde1ea86a30dc0",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "crosses_boundary",
+        "proof_gaps": [
+          "Declared software maxima require external enforcement at execution time."
+        ],
+        "source_id": "action:be0acfc76fe5f892e652d4c2",
+        "target_id": "boundary:66e91efa75a63f4f5182c90e"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:c533c12b435b7057c92ec75958a3da54916f677a17c547364708c9186e43667b",
+        "edge_id": "edge:82844eddfda1f0e1b1becc75",
+        "evidence": {
+          "action_digest": "7bdd08a28fdde1ea86a30dc0a2d5f41a42d9c16f9b5791b1a181eac539c69d4b",
+          "contract_id": "rc:c533c12b435b7057c92ec75958a3da54916f677a17c547364708c9186e43667b",
+          "evidence_id": "review:7bdd08a28fdde1ea86a30dc0",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "proposed_by",
+        "proof_gaps": [],
+        "source_id": "action:be0acfc76fe5f892e652d4c2",
+        "target_id": "principal:3b6353a2d93f6cfc55771176"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+        "edge_id": "edge:84c1a7b810a8868896492178",
+        "evidence": {
+          "action_digest": "29e73783429339dada1d3cd31f7aa52622f1a6b84b6ae7834df199a86ae046e7",
+          "contract_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+          "evidence_id": "review:29e73783429339dada1d3cd3",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "proposed_by",
+        "proof_gaps": [],
+        "source_id": "action:c45ca49a521fb97481e55b6f",
+        "target_id": "principal:8f798b771cd3adc052f2bb54"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:7d3f2154b07d07a6e6b251f0a5d4b7db269619730bdb82b130ca62ad71d9dd88",
+        "edge_id": "edge:b3fc3d45668fdf5a86424118",
+        "evidence": {
+          "action_digest": "190437d34b03b84a31c06027df8d2479c65ac6512964939a047394b3a652c81f",
+          "contract_id": "rc:7d3f2154b07d07a6e6b251f0a5d4b7db269619730bdb82b130ca62ad71d9dd88",
+          "evidence_id": "review:190437d34b03b84a31c06027",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "read_from",
+        "proof_gaps": [],
+        "source_id": "resource:3e0d7c6c291f5e0e8a4fe068",
+        "target_id": "action:33b70b5a4e3a7baa50ead69b"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+        "edge_id": "edge:b9af034b769ce8d7da0ab98a",
+        "evidence": {
+          "action_digest": "29e73783429339dada1d3cd31f7aa52622f1a6b84b6ae7834df199a86ae046e7",
+          "contract_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+          "evidence_id": "review:29e73783429339dada1d3cd3",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "crosses_boundary",
+        "proof_gaps": [
+          "Declared software maxima require external enforcement at execution time."
+        ],
+        "source_id": "action:c45ca49a521fb97481e55b6f",
+        "target_id": "boundary:076568718670d6ed3fbd6252"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:c533c12b435b7057c92ec75958a3da54916f677a17c547364708c9186e43667b",
+        "edge_id": "edge:cfc996965b8b77fa932dad7a",
+        "evidence": {
+          "action_digest": "7bdd08a28fdde1ea86a30dc0a2d5f41a42d9c16f9b5791b1a181eac539c69d4b",
+          "contract_id": "rc:c533c12b435b7057c92ec75958a3da54916f677a17c547364708c9186e43667b",
+          "evidence_id": "review:7bdd08a28fdde1ea86a30dc0",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "requires_capability",
+        "proof_gaps": [],
+        "source_id": "action:be0acfc76fe5f892e652d4c2",
+        "target_id": "tool_or_server:de8ce4189395157dc8b2848f"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:7d3f2154b07d07a6e6b251f0a5d4b7db269619730bdb82b130ca62ad71d9dd88",
+        "edge_id": "edge:e56e3be609a5f9b85e92f7a8",
+        "evidence": {
+          "action_digest": "190437d34b03b84a31c06027df8d2479c65ac6512964939a047394b3a652c81f",
+          "contract_id": "rc:7d3f2154b07d07a6e6b251f0a5d4b7db269619730bdb82b130ca62ad71d9dd88",
+          "evidence_id": "review:190437d34b03b84a31c06027",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "proposed_by",
+        "proof_gaps": [],
+        "source_id": "action:33b70b5a4e3a7baa50ead69b",
+        "target_id": "principal:8f798b771cd3adc052f2bb54"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:7d3f2154b07d07a6e6b251f0a5d4b7db269619730bdb82b130ca62ad71d9dd88",
+        "edge_id": "edge:f6c14758bf70ba5467cff917",
+        "evidence": {
+          "action_digest": "190437d34b03b84a31c06027df8d2479c65ac6512964939a047394b3a652c81f",
+          "contract_id": "rc:7d3f2154b07d07a6e6b251f0a5d4b7db269619730bdb82b130ca62ad71d9dd88",
+          "evidence_id": "review:190437d34b03b84a31c06027",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "requires_capability",
+        "proof_gaps": [],
+        "source_id": "action:33b70b5a4e3a7baa50ead69b",
+        "target_id": "capability:aeca8d8b3310ee084be706ce"
+      },
+      {
+        "confidence": null,
+        "correlation_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+        "edge_id": "edge:f7ed4243246c31ee11870ae1",
+        "evidence": {
+          "action_digest": "29e73783429339dada1d3cd31f7aa52622f1a6b84b6ae7834df199a86ae046e7",
+          "contract_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+          "evidence_id": "review:29e73783429339dada1d3cd3",
+          "origin": "deterministically_derived",
+          "proof_gaps": [
+            "Reviewed effects predict requirements; they do not establish execution."
+          ],
+          "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "source": null
+        },
+        "evidence_kind": "deterministic_inference",
+        "kind": "read_from",
+        "proof_gaps": [],
+        "source_id": "resource:6cfd0349fc43de5671e2575c",
+        "target_id": "action:c45ca49a521fb97481e55b6f"
+      }
+    ],
+    "exposure": "unknown",
+    "max_depth": 64,
+    "nodes": [
+      {
+        "category": "tool",
+        "kind": "action",
+        "node_id": "action:33b70b5a4e3a7baa50ead69b",
+        "value_digest": "ad4a83d296bc55b215c50bc3ce2ea1ee7aca168b21c3b717ac7fff716adaf254"
+      },
+      {
+        "category": "tool",
+        "kind": "action",
+        "node_id": "action:be0acfc76fe5f892e652d4c2",
+        "value_digest": "453f8a2b755d34393eb78540eda05742d0b61a66249e49009329fd162f9e663b"
+      },
+      {
+        "category": "tool",
+        "kind": "action",
+        "node_id": "action:c45ca49a521fb97481e55b6f",
+        "value_digest": "33148e1f5d10b54d50a3202245a543ec17a3c9e8e0348ba8cd35928e8ad7e65c"
+      },
+      {
+        "category": "authority_unknown",
+        "kind": "boundary",
+        "node_id": "boundary:076568718670d6ed3fbd6252",
+        "value_digest": "b1d68babfe8d40e035f081edac222a5bc368a64993ee2b2f9538286e86e1d6fb"
+      },
+      {
+        "category": "authority_unknown",
+        "kind": "boundary",
+        "node_id": "boundary:66e91efa75a63f4f5182c90e",
+        "value_digest": "b1d68babfe8d40e035f081edac222a5bc368a64993ee2b2f9538286e86e1d6fb"
+      },
+      {
+        "category": "reviewed_requirements",
+        "kind": "capability",
+        "node_id": "capability:52b3ebe80459306acafc42ea",
+        "value_digest": "3ccce234b3ae14d6ab8b823600bdb9e73f7641e0f5639184bb43da9d242b0669"
+      },
+      {
+        "category": "reviewed_requirements",
+        "kind": "capability",
+        "node_id": "capability:aeca8d8b3310ee084be706ce",
+        "value_digest": "35a5c887cb58b3a249a4e8fa2bab6b0b46058112235b6836ced8d51a936862b4"
+      },
+      {
+        "category": "reviewed_requirements",
+        "kind": "capability",
+        "node_id": "capability:eae16fd110c3e2652a91f070",
+        "value_digest": "c1d4b3476293cd6a499407861880eff1b08ce76437160dd7aa7d8e9e78684d54"
+      },
+      {
+        "category": "delegation_denied",
+        "kind": "control",
+        "node_id": "delegated-control:3707e3ef074d948e61ca43ed",
+        "value_digest": "3707e3ef074d948e61ca43ed83f21cdcace9a2c4971e9713ec1d4e97cdfe66fe"
+      },
+      {
+        "category": "host_principal",
+        "kind": "principal",
+        "node_id": "principal:3b6353a2d93f6cfc55771176",
+        "value_digest": "f25141eed1d5acd70f6f1ef2148935612c2bba5291ec97cd57274b23f30fe908"
+      },
+      {
+        "category": "host_principal",
+        "kind": "principal",
+        "node_id": "principal:8f798b771cd3adc052f2bb54",
+        "value_digest": "0846eba729cc25b2ef094c461be541840f4ed6c6dcd3f0dc6d9e086a8453a80d"
+      },
+      {
+        "category": "path",
+        "kind": "resource",
+        "node_id": "resource:3e0d7c6c291f5e0e8a4fe068",
+        "value_digest": "fea88755498e408fe742275bcb8cbc57ee74fa9050fdff937c9cadf844df0189"
+      },
+      {
+        "category": "path",
+        "kind": "resource",
+        "node_id": "resource:6cfd0349fc43de5671e2575c",
+        "value_digest": "bb57a2e7108afc880b01bf7d7adf78b8c800cf32201a5efb47967f2309f7294e"
+      },
+      {
+        "category": "path",
+        "kind": "resource",
+        "node_id": "resource:7f8c50c8b8ef9f7817bc2928",
+        "value_digest": "fea88755498e408fe742275bcb8cbc57ee74fa9050fdff937c9cadf844df0189"
+      },
+      {
+        "category": "normalized_identity",
+        "kind": "tool_or_server",
+        "node_id": "tool_or_server:8a0bf0ccc61f4a81e598b3da",
+        "value_digest": "b18377ac086fabae97c70e43be0e2fad8146379f33258c3479dc16c928e3b0f2"
+      },
+      {
+        "category": "normalized_identity",
+        "kind": "tool_or_server",
+        "node_id": "tool_or_server:de8ce4189395157dc8b2848f",
+        "value_digest": "b18377ac086fabae97c70e43be0e2fad8146379f33258c3479dc16c928e3b0f2"
+      }
+    ],
+    "occurrence_ids": [
+      "occurrence:7bdd08a28fdde1ea86a30dc0",
+      "occurrence:29e73783429339dada1d3cd3"
+    ],
+    "path_id": "delegated-path:f18ef59cb7594cc44d83bfcc",
+    "permissions": "exceeds_boundary",
+    "possible_impact": [],
+    "proof_gaps": [
+      "Instruction/data origin spans are unavailable; influence remains unknown_origin.",
+      "No authenticated cross-action source span supplied; actions are related only by delegation.",
+      "Temporal ordering and predicted effects do not prove a causal exploitation chain.",
+      "The focus action has no authenticated completed execution observation."
+    ],
+    "reachability": "blocked",
+    "repository": {
+      "id": "fixture/delegation",
+      "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b"
+    },
+    "root_cause_digest": "da2bda8f4aae4575eb7b86ef9b13ded9a16244dfd40ddefc6be890709d2d7388",
+    "schema_version": "ordin.assurance_attack_path.v1",
+    "session_digest": "1ebb8dc901810fd18c73118bfd9a9a9ee086921b129119ebd85d0c72b14ecaea",
+    "session_digests": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    ],
+    "supporting_evidence": [
+      {
+        "action_digest": null,
+        "contract_id": null,
+        "evidence_id": "delegation:66955bf97d56804a30c4470b",
+        "origin": "policy_verified",
+        "proof_gaps": [
+          "Current delegation establishes bounded authority, not causal influence or physical process isolation."
+        ],
+        "session_digest": null,
+        "source": null
+      },
+      {
+        "action_digest": "29e73783429339dada1d3cd31f7aa52622f1a6b84b6ae7834df199a86ae046e7",
+        "contract_id": "rc:2bb6e5e02a4e400927dfbbc97d6b23bcebb457a07489e84d0a166dbd5091be86",
+        "evidence_id": "review:29e73783429339dada1d3cd3",
+        "origin": "deterministically_derived",
+        "proof_gaps": [
+          "Reviewed effects predict requirements; they do not establish execution."
+        ],
+        "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "source": null
+      },
+      {
+        "action_digest": "7bdd08a28fdde1ea86a30dc0a2d5f41a42d9c16f9b5791b1a181eac539c69d4b",
+        "contract_id": "rc:c533c12b435b7057c92ec75958a3da54916f677a17c547364708c9186e43667b",
+        "evidence_id": "review:7bdd08a28fdde1ea86a30dc0",
+        "origin": "deterministically_derived",
+        "proof_gaps": [
+          "Reviewed effects predict requirements; they do not establish execution."
+        ],
+        "session_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "source": null
+      },
+      {
+        "action_digest": "29e73783429339dada1d3cd31f7aa52622f1a6b84b6ae7834df199a86ae046e7",
+        "contract_id": null,
+        "evidence_id": "delegated-review:3707e3ef074d948e61ca43ed",
+        "origin": "policy_verified",
+        "proof_gaps": [
+          "The delegated disposition is a software review requirement, not physical enforcement."
+        ],
+        "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "source": null
+      },
+      {
+        "action_digest": "190437d34b03b84a31c06027df8d2479c65ac6512964939a047394b3a652c81f",
+        "contract_id": "rc:7d3f2154b07d07a6e6b251f0a5d4b7db269619730bdb82b130ca62ad71d9dd88",
+        "evidence_id": "review:190437d34b03b84a31c06027",
+        "origin": "deterministically_derived",
+        "proof_gaps": [
+          "Reviewed effects predict requirements; they do not establish execution."
+        ],
+        "session_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "source": null
+      }
+    ]
+  },
+  "denied_review": {
+    "action_digest": "29e73783429339dada1d3cd31f7aa52622f1a6b84b6ae7834df199a86ae046e7",
+    "assurance_digest": "5b0a154deee277a8e8fd7dcae930eb45fc474f25408f827495bb2d8ba0e58a68",
+    "baseline_disposition": "execute",
+    "contract_digest": "8b490a71b13586370b1dce5703d7dda094b5b893195413a9f5c26d4e21abd726",
+    "disposition": "deny",
+    "grant_digest": "66955bf97d56804a30c4470b9e4901f66fe3a9cb5fd80432f9084512104d7711",
+    "issuer_generation": 0,
+    "reason_codes": [
+      "delegation.operation_exceeds_boundary"
+    ],
+    "schema_version": "ordin.assurance_delegated_decision.v1",
+    "verification": {
+      "child_authority_digest": "b1513e567ae4e910976ec93a4d4e8a6e699f72e8717a4c47db0b7741b3ca53e9",
+      "coverage": {
+        "approval": true,
+        "credentials": true,
+        "filesystem": true,
+        "network": true,
+        "privilege": true,
+        "process": true,
+        "requests": true,
+        "tools": true
+      },
+      "operator_authority_digest": "d11f2558808961e3be9a79ee20585b91bd9482be34f1976c9d399baac05bae39",
+      "parent_authority_digest": "b1513e567ae4e910976ec93a4d4e8a6e699f72e8717a4c47db0b7741b3ca53e9",
+      "proof_gaps": [],
+      "reason_codes": [
+        "filesystem_access_exceeds_boundary"
+      ],
+      "result": "exceeds_boundary",
+      "schema_version": "ordin.assurance_delegation_verification.v1",
+      "task_authority_digest": "d11f2558808961e3be9a79ee20585b91bd9482be34f1976c9d399baac05bae39"
+    }
+  },
+  "implemented_revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+  "limitations": [
+    "Synthetic protected host fixtures; no real execution, credentials, OS permission grant or physical process isolation."
+  ],
+  "pending_commit_after_revocation": false,
+  "revoked_grants": [
+    "child",
+    "root"
+  ],
+  "schema_version": "ordin.assurance_m7_evidence.v1",
+  "seeded_challenger": {
+    "benign_controls": 8,
+    "counterexamples": [
+      {
+        "baseline_result": "rejected",
+        "candidate_result": "accepted",
+        "claimed_property": "delegation_subset",
+        "environment": "Python 3.13.12; win32 10.0.26200",
+        "generator_version": "security-properties-v1",
+        "initial_digest": "1318564a1691894d7a2ef6ff83219c057b5e567b3ac252e5a6df152f9ff177b6",
+        "initial_input": "{\"action_digest\":\"929f8f88bd26669330613bde5d73eacaf8936d5feae112def1e36df6b06712da\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"noise\":{\"synthetic_padding\":[\"unused719\",\"benign fixture notes\"]},\"property_id\":\"delegation_subset\",\"scenario\":\"filesystem_neighbor\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":719,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e\"}",
+        "minimized_digest": "71809fc844e1c060185a6b8638c1695f9866cba6948a30aa6cf0c959d354db4a",
+        "minimized_input": "{\"action_digest\":\"929f8f88bd26669330613bde5d73eacaf8936d5feae112def1e36df6b06712da\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"property_id\":\"delegation_subset\",\"scenario\":\"filesystem_neighbor\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":719,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e\"}",
+        "mutation": "property_preserving_shrink",
+        "proof_gaps": [
+          "Closed synthetic property fixture only; no live host boundary was exercised."
+        ],
+        "provenance_kind": "synthetic_fixture",
+        "record_id": "counterexample:b02e7a34fee0a482e4da732b",
+        "replay_outcome": "verified_failure",
+        "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+        "safe_fixture_only": true,
+        "schema_version": "ordin.assurance_counterexample.v1",
+        "seed": 14
+      },
+      {
+        "baseline_result": "rejected",
+        "candidate_result": "accepted",
+        "claimed_property": "delegation_subset",
+        "environment": "Python 3.13.12; win32 10.0.26200",
+        "generator_version": "security-properties-v1",
+        "initial_digest": "b2f0590a62ecca4163d746d8a9f5b8cbbcb80cb43d424e95936b49506ba62ba8",
+        "initial_input": "{\"action_digest\":\"1a369a02788ed26edccbc21868d775087c4815fba3bda899f31d097f3ad3cf79\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"noise\":{\"synthetic_padding\":[\"unused773\",\"benign fixture notes\"]},\"property_id\":\"delegation_subset\",\"scenario\":\"filesystem_delete\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":773,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e\"}",
+        "minimized_digest": "e69d3577e712e9953a9933028ef4b79caf5f28c0614ea13bf6433f67dccaaa22",
+        "minimized_input": "{\"action_digest\":\"1a369a02788ed26edccbc21868d775087c4815fba3bda899f31d097f3ad3cf79\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"property_id\":\"delegation_subset\",\"scenario\":\"filesystem_delete\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":773,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e\"}",
+        "mutation": "property_preserving_shrink",
+        "proof_gaps": [
+          "Closed synthetic property fixture only; no live host boundary was exercised."
+        ],
+        "provenance_kind": "synthetic_fixture",
+        "record_id": "counterexample:ae4cc16a525c6ac357ae0038",
+        "replay_outcome": "verified_failure",
+        "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+        "safe_fixture_only": true,
+        "schema_version": "ordin.assurance_counterexample.v1",
+        "seed": 14
+      },
+      {
+        "baseline_result": "rejected",
+        "candidate_result": "accepted",
+        "claimed_property": "delegation_subset",
+        "environment": "Python 3.13.12; win32 10.0.26200",
+        "generator_version": "security-properties-v1",
+        "initial_digest": "a7f88f346c9674d82597b991d26c824625db8b06fb6fc916f72e03ef25f1ba5b",
+        "initial_input": "{\"action_digest\":\"49ce0f2f0cd2f11dac419ab503b89b9d4f1a04cb9e8f807c5f58501e9d60be5c\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"noise\":{\"synthetic_padding\":[\"unused539\",\"benign fixture notes\"]},\"property_id\":\"delegation_subset\",\"scenario\":\"rest_method\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":539,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3\"}",
+        "minimized_digest": "5708d0a5d869ade27006903f6b3ce26ef49da49dc8d7b014af6d595fa8a49f0b",
+        "minimized_input": "{\"action_digest\":\"49ce0f2f0cd2f11dac419ab503b89b9d4f1a04cb9e8f807c5f58501e9d60be5c\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"property_id\":\"delegation_subset\",\"scenario\":\"rest_method\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":539,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3\"}",
+        "mutation": "property_preserving_shrink",
+        "proof_gaps": [
+          "Closed synthetic property fixture only; no live host boundary was exercised."
+        ],
+        "provenance_kind": "synthetic_fixture",
+        "record_id": "counterexample:d880867952a0b0ad57c8d9c9",
+        "replay_outcome": "verified_failure",
+        "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+        "safe_fixture_only": true,
+        "schema_version": "ordin.assurance_counterexample.v1",
+        "seed": 14
+      },
+      {
+        "baseline_result": "rejected",
+        "candidate_result": "accepted",
+        "claimed_property": "delegation_subset",
+        "environment": "Python 3.13.12; win32 10.0.26200",
+        "generator_version": "security-properties-v1",
+        "initial_digest": "d88a14a66e27c8be1bd1dbe9849a79d617507c9e97bd60bbb802b3866546a6f1",
+        "initial_input": "{\"action_digest\":\"598637f6eadaa53418427c26494f012950c52d6334bf0c16ab9745f8189029f4\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"noise\":{\"synthetic_padding\":[\"unused962\",\"benign fixture notes\"]},\"property_id\":\"delegation_subset\",\"scenario\":\"rest_path\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":962,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3\"}",
+        "minimized_digest": "54ce2f1bc1a598cb39d0a213977c6d65152371eddaa13dcd3efc4bcfb81e2a5f",
+        "minimized_input": "{\"action_digest\":\"598637f6eadaa53418427c26494f012950c52d6334bf0c16ab9745f8189029f4\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"property_id\":\"delegation_subset\",\"scenario\":\"rest_path\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":962,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3\"}",
+        "mutation": "property_preserving_shrink",
+        "proof_gaps": [
+          "Closed synthetic property fixture only; no live host boundary was exercised."
+        ],
+        "provenance_kind": "synthetic_fixture",
+        "record_id": "counterexample:aecccefbd21b8243c546a241",
+        "replay_outcome": "verified_failure",
+        "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+        "safe_fixture_only": true,
+        "schema_version": "ordin.assurance_counterexample.v1",
+        "seed": 14
+      },
+      {
+        "baseline_result": "rejected",
+        "candidate_result": "accepted",
+        "claimed_property": "delegation_subset",
+        "environment": "Python 3.13.12; win32 10.0.26200",
+        "generator_version": "security-properties-v1",
+        "initial_digest": "ecba80a11e21a886786dc43399ed15f49dd983a1c78f29dc2b90fb5c8f539168",
+        "initial_input": "{\"action_digest\":\"bdc061250730748f41d7ffe01bc9531e529dbd80c86203715fd0ef91c4d3024f\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"noise\":{\"synthetic_padding\":[\"unused252\",\"benign fixture notes\"]},\"property_id\":\"delegation_subset\",\"scenario\":\"rest_protocol\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":252,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3\"}",
+        "minimized_digest": "e85a14ce0ecd03d2a5a44b22a06888518770cd1aa273651bef78821cde24ba67",
+        "minimized_input": "{\"action_digest\":\"bdc061250730748f41d7ffe01bc9531e529dbd80c86203715fd0ef91c4d3024f\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"property_id\":\"delegation_subset\",\"scenario\":\"rest_protocol\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":252,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3\"}",
+        "mutation": "property_preserving_shrink",
+        "proof_gaps": [
+          "Closed synthetic property fixture only; no live host boundary was exercised."
+        ],
+        "provenance_kind": "synthetic_fixture",
+        "record_id": "counterexample:b419bf6ae3b4340506a73e77",
+        "replay_outcome": "verified_failure",
+        "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+        "safe_fixture_only": true,
+        "schema_version": "ordin.assurance_counterexample.v1",
+        "seed": 14
+      },
+      {
+        "baseline_result": "rejected",
+        "candidate_result": "accepted",
+        "claimed_property": "delegation_subset",
+        "environment": "Python 3.13.12; win32 10.0.26200",
+        "generator_version": "security-properties-v1",
+        "initial_digest": "fb325875de81820ae58bcf1c6261f5bff0614577a9b3f9cecaa8405407a5a622",
+        "initial_input": "{\"action_digest\":\"3bf778e25bb00690b429fc6a8ed56df26440640a90d16392f2838bbc6eb1c2e2\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"noise\":{\"synthetic_padding\":[\"unused752\",\"benign fixture notes\"]},\"property_id\":\"delegation_subset\",\"scenario\":\"tool_write\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":752,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"c15987190bcd7a5ecefc948b848a0377a1618bdc9d88d9c76ded5b327fc602e5\"}",
+        "minimized_digest": "1e0a35d7b9dd72c7ecb05504137ec3437b2922311cc6282b909353538347787f",
+        "minimized_input": "{\"action_digest\":\"3bf778e25bb00690b429fc6a8ed56df26440640a90d16392f2838bbc6eb1c2e2\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"property_id\":\"delegation_subset\",\"scenario\":\"tool_write\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":752,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"c15987190bcd7a5ecefc948b848a0377a1618bdc9d88d9c76ded5b327fc602e5\"}",
+        "mutation": "property_preserving_shrink",
+        "proof_gaps": [
+          "Closed synthetic property fixture only; no live host boundary was exercised."
+        ],
+        "provenance_kind": "synthetic_fixture",
+        "record_id": "counterexample:c8c640d7b1e2ca3c0882b2bf",
+        "replay_outcome": "verified_failure",
+        "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+        "safe_fixture_only": true,
+        "schema_version": "ordin.assurance_counterexample.v1",
+        "seed": 14
+      },
+      {
+        "baseline_result": "rejected",
+        "candidate_result": "accepted",
+        "claimed_property": "delegation_subset",
+        "environment": "Python 3.13.12; win32 10.0.26200",
+        "generator_version": "security-properties-v1",
+        "initial_digest": "645a8925aa9a94878baef44b543140baab0f007b549c9e27514ea87e44d25808",
+        "initial_input": "{\"action_digest\":\"1d72fcbbdf06fb4e1e04947b8a108f1b1588c749cc8b6eea7a68f77dd7282764\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"noise\":{\"synthetic_padding\":[\"unused261\",\"benign fixture notes\"]},\"property_id\":\"delegation_subset\",\"scenario\":\"process_unbounded\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":261,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e\"}",
+        "minimized_digest": "21fa4dde14e0de1c296cd88ac68ea055ec9a5291d4421d6b8fbe700e842008e8",
+        "minimized_input": "{\"action_digest\":\"1d72fcbbdf06fb4e1e04947b8a108f1b1588c749cc8b6eea7a68f77dd7282764\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"property_id\":\"delegation_subset\",\"scenario\":\"process_unbounded\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":261,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e\"}",
+        "mutation": "property_preserving_shrink",
+        "proof_gaps": [
+          "Closed synthetic property fixture only; no live host boundary was exercised."
+        ],
+        "provenance_kind": "synthetic_fixture",
+        "record_id": "counterexample:8ad5b8b625af3ef60eb7cc38",
+        "replay_outcome": "verified_failure",
+        "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+        "safe_fixture_only": true,
+        "schema_version": "ordin.assurance_counterexample.v1",
+        "seed": 14
+      },
+      {
+        "baseline_result": "rejected",
+        "candidate_result": "accepted",
+        "claimed_property": "delegation_subset",
+        "environment": "Python 3.13.12; win32 10.0.26200",
+        "generator_version": "security-properties-v1",
+        "initial_digest": "e349dfb9fcb5a4772fbb167fb248eb9997d29235c284d96f9d6d8ab12e2e1f65",
+        "initial_input": "{\"action_digest\":\"ad542f213596526b75c6bc4249a9cb18301bf5c57c2f0e758785dfe0ba78b30b\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"noise\":{\"synthetic_padding\":[\"unused298\",\"benign fixture notes\"]},\"property_id\":\"delegation_subset\",\"scenario\":\"credential_extra\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":298,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e\"}",
+        "minimized_digest": "7e5a921981255866f1c62b8882482ac9647cec8f7fc1d703c6886874cefdd0d6",
+        "minimized_input": "{\"action_digest\":\"ad542f213596526b75c6bc4249a9cb18301bf5c57c2f0e758785dfe0ba78b30b\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"property_id\":\"delegation_subset\",\"scenario\":\"credential_extra\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":298,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e\"}",
+        "mutation": "property_preserving_shrink",
+        "proof_gaps": [
+          "Closed synthetic property fixture only; no live host boundary was exercised."
+        ],
+        "provenance_kind": "synthetic_fixture",
+        "record_id": "counterexample:cb7abb573ab6d3a754e59619",
+        "replay_outcome": "verified_failure",
+        "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+        "safe_fixture_only": true,
+        "schema_version": "ordin.assurance_counterexample.v1",
+        "seed": 14
+      },
+      {
+        "baseline_result": "rejected",
+        "candidate_result": "accepted",
+        "claimed_property": "delegation_subset",
+        "environment": "Python 3.13.12; win32 10.0.26200",
+        "generator_version": "security-properties-v1",
+        "initial_digest": "959e097f247ce7002ad6bef8500d27521191c5425f6cd49c857b44d560d94d52",
+        "initial_input": "{\"action_digest\":\"a1ed2f7232a6fab72e4c5942bf021e33cbb1e428ede5626f1f476c1450b18d15\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"noise\":{\"synthetic_padding\":[\"unused751\",\"benign fixture notes\"]},\"property_id\":\"delegation_subset\",\"scenario\":\"privilege_extra\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":751,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e\"}",
+        "minimized_digest": "84e3ebcc1c59b28a37227acdf7d29a41eadddff9da631881227570e01cece46e",
+        "minimized_input": "{\"action_digest\":\"a1ed2f7232a6fab72e4c5942bf021e33cbb1e428ede5626f1f476c1450b18d15\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"property_id\":\"delegation_subset\",\"scenario\":\"privilege_extra\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":751,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e\"}",
+        "mutation": "property_preserving_shrink",
+        "proof_gaps": [
+          "Closed synthetic property fixture only; no live host boundary was exercised."
+        ],
+        "provenance_kind": "synthetic_fixture",
+        "record_id": "counterexample:8d37ef325c56cb7f8e9f8941",
+        "replay_outcome": "verified_failure",
+        "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+        "safe_fixture_only": true,
+        "schema_version": "ordin.assurance_counterexample.v1",
+        "seed": 14
+      },
+      {
+        "baseline_result": "rejected",
+        "candidate_result": "accepted",
+        "claimed_property": "delegation_subset",
+        "environment": "Python 3.13.12; win32 10.0.26200",
+        "generator_version": "security-properties-v1",
+        "initial_digest": "cca08c8146c4ee26d2e0ec486ae37fd0668c0649ab6104a6b214d6c925c97e14",
+        "initial_input": "{\"action_digest\":\"56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"noise\":{\"synthetic_padding\":[\"unused74\",\"benign fixture notes\"]},\"property_id\":\"delegation_subset\",\"scenario\":\"approval_removed\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":74,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"648abeeb5a805d330089da2de12ede5d3c25bb9a6e68a171b95470ffc6cd4420\"}",
+        "minimized_digest": "0fb6df584b84d8b6035a213fca12acf7a69f6e560c6f1cbc9636a612a7454cb6",
+        "minimized_input": "{\"action_digest\":\"56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"property_id\":\"delegation_subset\",\"scenario\":\"approval_removed\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":74,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"648abeeb5a805d330089da2de12ede5d3c25bb9a6e68a171b95470ffc6cd4420\"}",
+        "mutation": "property_preserving_shrink",
+        "proof_gaps": [
+          "Closed synthetic property fixture only; no live host boundary was exercised."
+        ],
+        "provenance_kind": "synthetic_fixture",
+        "record_id": "counterexample:3eedadfb276a215df64ef0ab",
+        "replay_outcome": "verified_failure",
+        "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+        "safe_fixture_only": true,
+        "schema_version": "ordin.assurance_counterexample.v1",
+        "seed": 14
+      },
+      {
+        "baseline_result": "rejected",
+        "candidate_result": "accepted",
+        "claimed_property": "delegation_subset",
+        "environment": "Python 3.13.12; win32 10.0.26200",
+        "generator_version": "security-properties-v1",
+        "initial_digest": "ea1bf8d3d9770638e4c0b18a14794e4b13d36977440b683f709404a9e8baaf1d",
+        "initial_input": "{\"action_digest\":\"56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"noise\":{\"synthetic_padding\":[\"unused674\",\"benign fixture notes\"]},\"property_id\":\"delegation_subset\",\"scenario\":\"task_narrowed\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":674,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"a994c881c7d0f04d1f8c48dc23358bd0a4b1fd21016e67d37129f04fce443f27\"}",
+        "minimized_digest": "eea891bb0a2c9e6d2bade1195251ae67db47781e2786ab9ecb536e66e38d2706",
+        "minimized_input": "{\"action_digest\":\"56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"property_id\":\"delegation_subset\",\"scenario\":\"task_narrowed\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":674,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"a994c881c7d0f04d1f8c48dc23358bd0a4b1fd21016e67d37129f04fce443f27\"}",
+        "mutation": "property_preserving_shrink",
+        "proof_gaps": [
+          "Closed synthetic property fixture only; no live host boundary was exercised."
+        ],
+        "provenance_kind": "synthetic_fixture",
+        "record_id": "counterexample:e30fa835152b71dcaccd18fa",
+        "replay_outcome": "verified_failure",
+        "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+        "safe_fixture_only": true,
+        "schema_version": "ordin.assurance_counterexample.v1",
+        "seed": 14
+      },
+      {
+        "baseline_result": "rejected",
+        "candidate_result": "accepted",
+        "claimed_property": "delegation_subset",
+        "environment": "Python 3.13.12; win32 10.0.26200",
+        "generator_version": "security-properties-v1",
+        "initial_digest": "63fddf959b5de8be803ea5ffd80b0d5dc8bb8eb9f8381ac0f091861cd1bfab2b",
+        "initial_input": "{\"action_digest\":\"c7753aafdf6e34e001b6eb219356248944c29ecbad0aac8c6fe250885852f6c0\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"noise\":{\"synthetic_padding\":[\"unused460\",\"benign fixture notes\"]},\"property_id\":\"delegation_subset\",\"scenario\":\"child_wildcard\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":460,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e\"}",
+        "minimized_digest": "4651567a08605d4c04be099506be8b8d5bd6b90da9e086bef8365576fb60431f",
+        "minimized_input": "{\"action_digest\":\"c7753aafdf6e34e001b6eb219356248944c29ecbad0aac8c6fe250885852f6c0\",\"fixture\":{\"assumptions_digest\":\"3bb6ca0695939e9bc7d6d6135c6bf6523e071338ac8d99049d71942f436e58eb\",\"generator_version\":\"security-properties-v1\",\"property_id\":\"delegation_subset\",\"scenario\":\"child_wildcard\",\"schema_version\":\"ordin.assurance_property_input.v1\",\"value\":460,\"variant\":\"seeded_unsafe_checker\"},\"policy_digest\":\"13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e\"}",
+        "mutation": "property_preserving_shrink",
+        "proof_gaps": [
+          "Closed synthetic property fixture only; no live host boundary was exercised."
+        ],
+        "provenance_kind": "synthetic_fixture",
+        "record_id": "counterexample:771e2f5ddb4f87a1f47c6dcd",
+        "replay_outcome": "verified_failure",
+        "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+        "safe_fixture_only": true,
+        "schema_version": "ordin.assurance_counterexample.v1",
+        "seed": 14
+      }
+    ],
+    "elapsed_ms": 943.9919,
+    "evaluated": 32,
+    "failures": 24,
+    "generated": 32,
+    "generator_version": "security-properties-v1",
+    "host_boundary_exercised": false,
+    "input_manifest_digest": "b3946aa1c3c62d40ecfa021843c68c79839566b1a2b3557d1f884e23ccec7244",
+    "limitations": [
+      "Fixed synthetic property fixtures; no network, target execution, host grant, or real runtime enforcement."
+    ],
+    "missing_scenarios": [],
+    "property_id": "delegation_subset",
+    "requested_trials": 32,
+    "revision": "edd661204ae8426aa4d491e8df1cd3dd31c69b3b",
+    "samples": [
+      {
+        "action_digest": "f51540b9ac6c4ec5668e3cb0fb787fa11c51bfebaa30874e7d174fef7a91d7bb",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:0",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "bdc2305292abe33af20e3e3f3f380db49f86896905d35ad76c2189a6466e50d2",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "filesystem_same"
+      },
+      {
+        "action_digest": "56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:1",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "25c9d9895ffdbb741f15a6df72acac93529f3824185737582c73d5b5ceee247c",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "filesystem_narrow"
+      },
+      {
+        "action_digest": "929f8f88bd26669330613bde5d73eacaf8936d5feae112def1e36df6b06712da",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:2",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "17a937a1a28435105cba8c763ea9db442f8f4ee53629e416de460aaa09a82aa6",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "filesystem_neighbor"
+      },
+      {
+        "action_digest": "1a369a02788ed26edccbc21868d775087c4815fba3bda899f31d097f3ad3cf79",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:3",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "2da803f1f31a20ac5ad75fa18c5f9a0f3c7412bf03cc5a075e63db75935be998",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "filesystem_delete"
+      },
+      {
+        "action_digest": "917c22be073fc72f7a24206100d478a1ec9cec7f39fba76e447d12fa7075b3c0",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:4",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "8fd495d5e33830508ed9f0c067eb54905c2c34cc91f031a3dd0761e888bbd030",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "rest_same"
+      },
+      {
+        "action_digest": "49ce0f2f0cd2f11dac419ab503b89b9d4f1a04cb9e8f807c5f58501e9d60be5c",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:5",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "a270356852f797a4ceb81fea930769349a272bec4cd6082c4ca0dcde2dcf5edb",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "rest_method"
+      },
+      {
+        "action_digest": "598637f6eadaa53418427c26494f012950c52d6334bf0c16ab9745f8189029f4",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:6",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "c2d012d0a878a284fe533673ca65a3906435aba084dd800d34af10fc5749c656",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "rest_path"
+      },
+      {
+        "action_digest": "bdc061250730748f41d7ffe01bc9531e529dbd80c86203715fd0ef91c4d3024f",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:7",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "b0b5fa88ce8b0f3eabad26aaa3e83f9d7b3594eccd7f61e074113b3018b25468",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "rest_protocol"
+      },
+      {
+        "action_digest": "f28450b59272312b7fdf59b4607187ebb12306af3f370aa4e96120b4a73f0b60",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:8",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "3ea32e92ed7daf6426feed602463b74bfa47b94444084a2e1a69733abaaaed3b",
+        "legacy_actual": null,
+        "policy_digest": "c15987190bcd7a5ecefc948b848a0377a1618bdc9d88d9c76ded5b327fc602e5",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "tool_same"
+      },
+      {
+        "action_digest": "3bf778e25bb00690b429fc6a8ed56df26440640a90d16392f2838bbc6eb1c2e2",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:9",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "af2b223ead6787a5871b03caf5606b256873f9ec87a83d64b1b6f4c605d51223",
+        "legacy_actual": null,
+        "policy_digest": "c15987190bcd7a5ecefc948b848a0377a1618bdc9d88d9c76ded5b327fc602e5",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "tool_write"
+      },
+      {
+        "action_digest": "1d72fcbbdf06fb4e1e04947b8a108f1b1588c749cc8b6eea7a68f77dd7282764",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:10",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "690bbf1d6d8131a55c55b5a1756b12bdf7c785901ed58a58f3174877f63577d0",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "process_unbounded"
+      },
+      {
+        "action_digest": "ad542f213596526b75c6bc4249a9cb18301bf5c57c2f0e758785dfe0ba78b30b",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:11",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "3e788468998acc2aa19bdf04d553051c6c41a408646112aeeee9d9f465f74047",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "credential_extra"
+      },
+      {
+        "action_digest": "a1ed2f7232a6fab72e4c5942bf021e33cbb1e428ede5626f1f476c1450b18d15",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:12",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "5d442284547009ff09d2bb74beb91e9960a4c6faa5ada79ddf9e5f20e9c287ce",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "privilege_extra"
+      },
+      {
+        "action_digest": "56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:13",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "bbc39d90b7cb73c40b0ac06a9a4fe35cab737c86157c8d6ef968a0e9a10b25f5",
+        "legacy_actual": null,
+        "policy_digest": "648abeeb5a805d330089da2de12ede5d3c25bb9a6e68a171b95470ffc6cd4420",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "approval_removed"
+      },
+      {
+        "action_digest": "56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:14",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "c3c1afc2b5182f6600beb922d517be32b88e27ce5d97dd6e678adcd7e8b8de73",
+        "legacy_actual": null,
+        "policy_digest": "a994c881c7d0f04d1f8c48dc23358bd0a4b1fd21016e67d37129f04fce443f27",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "task_narrowed"
+      },
+      {
+        "action_digest": "c7753aafdf6e34e001b6eb219356248944c29ecbad0aac8c6fe250885852f6c0",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:15",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "d0a93457471006207bec21a740a66dd69bf3105519403447d5694ce2cf4b7f67",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "child_wildcard"
+      },
+      {
+        "action_digest": "f51540b9ac6c4ec5668e3cb0fb787fa11c51bfebaa30874e7d174fef7a91d7bb",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:16",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "73fe2de1d6536b93ac1c02e46b923570eac049e5969e262f3356918dab192315",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "filesystem_same"
+      },
+      {
+        "action_digest": "56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:17",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "9314e5922eca8d456cbdb714ce8e436b3d663e327773bd0b5ded19aaeffad825",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "filesystem_narrow"
+      },
+      {
+        "action_digest": "929f8f88bd26669330613bde5d73eacaf8936d5feae112def1e36df6b06712da",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:18",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "beff9c7bd9faeb31ae2d8328d4d29ffc4e1ab60a5bbe5ca107e5474c0f00dc2a",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "filesystem_neighbor"
+      },
+      {
+        "action_digest": "1a369a02788ed26edccbc21868d775087c4815fba3bda899f31d097f3ad3cf79",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:19",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "8714fbfd9480d3de94579319f92b6d53433e0f89c7fae9c59aac4a64425d1d30",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "filesystem_delete"
+      },
+      {
+        "action_digest": "917c22be073fc72f7a24206100d478a1ec9cec7f39fba76e447d12fa7075b3c0",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:20",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "da9d8fc8999944aaad5fe30ce5d681a434db65ab5cabc309d1d3407568928f93",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "rest_same"
+      },
+      {
+        "action_digest": "49ce0f2f0cd2f11dac419ab503b89b9d4f1a04cb9e8f807c5f58501e9d60be5c",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:21",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "9c9be5210f19016c970823204d33c334af24f2ec36c3cd2af7be7122b92dad9b",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "rest_method"
+      },
+      {
+        "action_digest": "598637f6eadaa53418427c26494f012950c52d6334bf0c16ab9745f8189029f4",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:22",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "33eab2c89f1d5554284c7bdb92c71e0cb4ff9966d9ea58e2379033e6375f2987",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "rest_path"
+      },
+      {
+        "action_digest": "bdc061250730748f41d7ffe01bc9531e529dbd80c86203715fd0ef91c4d3024f",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:23",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "4cb5e07dfdbbbe6b6b5cc37544d2c4976d6263b82df15d0a0553ca7a7c6c851f",
+        "legacy_actual": null,
+        "policy_digest": "e9daf356ba90a710e5affd6aec65b5158852595ea24cdef42d651691c502c4e3",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "rest_protocol"
+      },
+      {
+        "action_digest": "f28450b59272312b7fdf59b4607187ebb12306af3f370aa4e96120b4a73f0b60",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": true,
+        "case_id": "delegation_subset:24",
+        "comparison": "none",
+        "expected": "accepted",
+        "input_digest": "7fbb6b6b1c292ca0568ffced3a025e33a6cacdc2a2de7b4234df5e78f653d437",
+        "legacy_actual": null,
+        "policy_digest": "c15987190bcd7a5ecefc948b848a0377a1618bdc9d88d9c76ded5b327fc602e5",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "control",
+        "scenario": "tool_same"
+      },
+      {
+        "action_digest": "3bf778e25bb00690b429fc6a8ed56df26440640a90d16392f2838bbc6eb1c2e2",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:25",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "a6792aaee3c88732686c65e6b2a258500fde01fab296ef647ca91935bc65ff1f",
+        "legacy_actual": null,
+        "policy_digest": "c15987190bcd7a5ecefc948b848a0377a1618bdc9d88d9c76ded5b327fc602e5",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "tool_write"
+      },
+      {
+        "action_digest": "1d72fcbbdf06fb4e1e04947b8a108f1b1588c749cc8b6eea7a68f77dd7282764",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:26",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "8093cd3353729ee2e4c168d38b5e77e14e370d96f26b9bda0d5e60f54cffa2ae",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "process_unbounded"
+      },
+      {
+        "action_digest": "ad542f213596526b75c6bc4249a9cb18301bf5c57c2f0e758785dfe0ba78b30b",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:27",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "6e8335f25269b1735062904d420dd9b2f2a11ad4153cc281f17a07f4953c3804",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "credential_extra"
+      },
+      {
+        "action_digest": "a1ed2f7232a6fab72e4c5942bf021e33cbb1e428ede5626f1f476c1450b18d15",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:28",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "d90711afcfaa045575cfc2fdb79ca29b58f33318775259a5eb7ba931e1eaf8db",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "privilege_extra"
+      },
+      {
+        "action_digest": "56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:29",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "e2282bddb1afe3426e2228d0f2bb1eaf0ef2608196ece8436ea280b1ff01004f",
+        "legacy_actual": null,
+        "policy_digest": "648abeeb5a805d330089da2de12ede5d3c25bb9a6e68a171b95470ffc6cd4420",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "approval_removed"
+      },
+      {
+        "action_digest": "56ede96564084f2ef84ea9c374da87059575c8e057d8e00ff06184b254582532",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:30",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "7347ee183e45002ff8af97ce8aabc93ef1b83fea2747d6d6de6696e04f116782",
+        "legacy_actual": null,
+        "policy_digest": "a994c881c7d0f04d1f8c48dc23358bd0a4b1fd21016e67d37129f04fce443f27",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "task_narrowed"
+      },
+      {
+        "action_digest": "c7753aafdf6e34e001b6eb219356248944c29ecbad0aac8c6fe250885852f6c0",
+        "actual": "accepted",
+        "assessable": true,
+        "benign": false,
+        "case_id": "delegation_subset:31",
+        "comparison": "none",
+        "expected": "rejected",
+        "input_digest": "e93155231f42f2a7401d8315a0882c5eebea55b0a651c8c6f2cfe8d1729e0182",
+        "legacy_actual": null,
+        "policy_digest": "13ce557ef76d1dadc487353ea487c424e5334a07fb092311f1fb98a41019bb8e",
+        "reason_code": "assurance.challenge.evaluated",
+        "relation": "expected_difference",
+        "scenario": "child_wildcard"
+      }
+    ],
+    "schema_version": "ordin.assurance_challenge_run.v1",
+    "seed": 14,
+    "status": "failing",
+    "unresolved": 0,
+    "variant": "seeded_unsafe_checker"
+  }
+}

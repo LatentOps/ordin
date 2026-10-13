@@ -5,8 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+from collections.abc import Mapping
 from types import MappingProxyType
-from typing import Any, Mapping
+from typing import Any
 
 MAX_RUNTIME_BYTES = 1_048_576
 MAX_RUNTIME_ITEMS = 128
@@ -73,16 +74,22 @@ def validate(name: str, payload: Any) -> None:
     from .schema import validate_instance
     from ._runtime_schemas import SCHEMAS, SHAPES
 
-    freeze(
+    frozen = freeze(
         payload,
         max_items=4096
         if name
         in {"request_authority", "runtime_request_contract_v2", "runtime_request_boundary_v2"}
         else MAX_RUNTIME_ITEMS,
     )
-    if len(canonical_json(payload).encode("utf-8")) > MAX_RUNTIME_BYTES:
+    # All subsequent checks examine the same detached, bounded snapshot.
+    # Do not traverse the caller's possibly mutable mapping again.
+    detached = thaw(frozen)
+    encoded = json.dumps(
+        detached, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+    )
+    if len(encoded.encode("utf-8")) > MAX_RUNTIME_BYTES:
         raise ValueError("runtime JSON byte limit exceeded")
-    errors = validate_instance(thaw(payload), SCHEMAS[name] if name in SCHEMAS else SHAPES[name])
+    errors = validate_instance(detached, SCHEMAS[name] if name in SCHEMAS else SHAPES[name])
     if errors:
         # Validation errors can contain rejected values or property names. Keep
         # arbitrary input (including accidentally supplied secrets) out of logs.

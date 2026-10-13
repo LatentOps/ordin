@@ -1,0 +1,14 @@
+{
+  "revision": "9f2568f70c677f607d631e252f609207f6a2cd60",
+  "reports": {
+    "baseline-safety.json": "a2da04d7c0be2f5c9fad145985ac3fa3b66a5262e0d85da501aa86c28b8a55ef",
+    "baseline-integration.json": "f4966268f46eb0103957873ca64c1cc4fce32c45cd27f5398b89fc5d55486a8e"
+  },
+  "environment": "Windows 11 / Python 3.13.12",
+  "repetitions": 20,
+  "concurrent_with_original_suite": true,
+  "limitations": [
+    "Latency includes concurrent host workload; no Assurance path was active.",
+    "Exact fixture decisions are engineering controls, not real-world effectiveness."
+  ]
+}

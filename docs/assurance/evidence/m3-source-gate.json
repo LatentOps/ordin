@@ -1,0 +1,22 @@
+{
+  "schema_version": "ordin.assurance_test_gate.v1",
+  "results": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "1",
+    "tests": "241",
+    "time": "43.598",
+    "timestamp": "2026-10-09T20:34:45.215007-04:00"
+  },
+  "skips": [
+    {
+      "case": "tests.assurance.test_profiles.test_group_readable_selected_profile_is_not_a_private_configuration",
+      "reason": "POSIX ownership/mode checks require POSIX CI"
+    }
+  ],
+  "junit_sha256": "cb06343a4e8b2d966473d2617464abc5b02251ba9c3d5deae1675dc4bb2c36d3",
+  "limitations": [
+    "Focused functional/compatibility gate; complete regression and end-to-end latency gates remain open."
+  ]
+}

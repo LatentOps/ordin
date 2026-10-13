@@ -1,0 +1,165 @@
+name: assurance offline
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assurance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kernel-broker:
+    name: Vetted Linux kernel broker Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install declared hashed development tools
+        run: python -m pip install --require-hashes -r requirements/dev-baseline.txt
+      - name: Build and install the local core wheel
+        run: |
+          python -m build --no-isolation --outdir .assurance-work/ci-kernel-dist
+          python -m pip install --no-index --no-deps .assurance-work/ci-kernel-dist/*.whl
+      - name: Require real kernel containment and scoped source-fix controls
+        env:
+          ORDIN_REQUIRE_LINUX_BROKER: "1"
+        run: >-
+          python -I scripts/run_installed_assurance_tests.py --suite kernel
+          --basetemp=.assurance-work/ci-kernel-tests
+          --junitxml=.assurance-work/ci-kernel-tests.xml
+      - name: Preserve workflow credential and pinning boundaries
+        run: python scripts/check_workflow_security.py
+
+  core:
+    name: Offline Assurance ${{ matrix.os }} Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install declared hashed development tools
+        run: python -m pip install --require-hashes -r requirements/dev-baseline.txt
+      - name: Build offline core distributions
+        run: python -m build --no-isolation --outdir .assurance-work/ci-core-dist
+      - name: Validate and install the built wheel
+        shell: bash
+        run: |
+          python -m twine check .assurance-work/ci-core-dist/*
+          python -m pip install --no-index --no-deps .assurance-work/ci-core-dist/*.whl
+      - name: Run bounded deterministic and hostile-input fixtures
+        run: >-
+          python -I scripts/run_installed_assurance_tests.py --suite core
+          --basetemp=.assurance-work/ci-core-tests
+          --junitxml=.assurance-work/ci-core-tests.xml
+      - name: Verify fresh wheel, no-network quickstart and packaged schemas
+        shell: bash
+        run: >-
+          python scripts/check_assurance_wheel.py
+          --wheel .assurance-work/ci-core-dist/*.whl
+          --venv .assurance-work/ci-core-smoke
+          --report .assurance-work/ci-core-wheel.json
+      - name: Check installed deterministic CLI and resources
+        run: python -I -m ordin doctor
+      - name: Check workflow credential and pinning boundaries
+        run: python scripts/check_workflow_security.py
+
+  optional:
+    name: Offline optional ${{ matrix.integration }} Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.13"]
+        integration: [decision_models, codex_security]
+        include:
+          - integration: decision_models
+            tests: integrations/decision_models/tests
+          - integration: codex_security
+            tests: tests/assurance/test_codex_import.py tests/assurance/test_sarif_import.py tests/assurance/test_codex_scanner.py tests/assurance/test_workflow_import.py
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install declared hashed development tools
+        run: python -m pip install --require-hashes -r requirements/dev-baseline.txt
+      - name: Build and install core and the independent optional wheel
+        env:
+          INTEGRATION: ${{ matrix.integration }}
+        run: |
+          python -m build --no-isolation --outdir .assurance-work/ci-core-dist
+          python -m build --no-isolation "integrations/$INTEGRATION" --outdir .assurance-work/ci-optional-dist
+          python -m twine check .assurance-work/ci-core-dist/* .assurance-work/ci-optional-dist/*
+          python -m pip install --no-index --no-deps .assurance-work/ci-core-dist/*.whl .assurance-work/ci-optional-dist/*.whl
+      - name: Run mock providers, saved artifacts and fake scanner processes
+        env:
+          INTEGRATION: ${{ matrix.integration }}
+        run: >-
+          python -I scripts/run_installed_assurance_tests.py --suite "$INTEGRATION"
+          --basetemp=.assurance-work/ci-optional-tests
+          --junitxml=.assurance-work/ci-optional-tests.xml
+      - name: Verify source-independent optional namespace without extras
+        env:
+          INTEGRATION: ${{ matrix.integration }}
+        run: >-
+          python -I -c "import importlib, os;
+          module = importlib.import_module('ordin_' + os.environ['INTEGRATION']);
+          assert module.__file__ and 'site-packages' in module.__file__"
+      - name: Verify installed minimum acceptance fixtures
+        if: matrix.integration == 'decision_models'
+        run: |
+          python -m pip install 'z3-solver==5.1.0.0'
+          python scripts/check_assurance_wheel.py --wheel .assurance-work/ci-core-dist/*.whl --venv .assurance-work/ci-acceptance-smoke --report .assurance-work/ci-acceptance-wheel.json
+          python -I scripts/run_assurance_acceptance.py --revision "$GITHUB_SHA" --wheel-check .assurance-work/ci-acceptance-wheel.json --output .assurance-work/ci-acceptance
+
+  solver:
+    name: Finite solver ${{ matrix.os }} Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install declared hashed development tools and pinned optional solver
+        run: |
+          python -m pip install --require-hashes -r requirements/dev-baseline.txt
+          python -m pip install --no-build-isolation '.[assurance-dev]'
+      - name: Run real SMT and exhaustive concrete finite replay
+        run: >-
+          python -I scripts/run_installed_assurance_tests.py --suite solver
+          --basetemp=.assurance-work/ci-solver-tests
+          --junitxml=.assurance-work/ci-solver-tests.xml

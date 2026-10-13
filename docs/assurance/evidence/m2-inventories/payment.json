@@ -1,0 +1,415 @@
+{
+  "actors": [
+    "outside_attacker",
+    "malicious_dependency_or_mcp_server",
+    "compromised_sibling_agent",
+    "unauthorized_insider"
+  ],
+  "assumptions": [
+    "The host supplied the repository revision and action-space mapping; no Git attestation is inferred.",
+    "Static parsing establishes inspected syntax, not execution, authentication effectiveness or data flow.",
+    "Deployment infrastructure, filesystem aliases and actual process privileges are uninspected."
+  ],
+  "counterevidence_refs": [
+    "fact-3af7de68ae192e1fab43fe46",
+    "fact-3b0963a29328d61808d5b5d7",
+    "fact-577b3dd9258ee5ddc02b1ba4"
+  ],
+  "draft": {
+    "authoritative": false,
+    "completeness": "unknown",
+    "draft_id": "draft-e7d1a78137d4bc99f501c213",
+    "entry_points": [
+      {
+        "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+        "line": 12,
+        "path": "payments.py",
+        "revision": "fixture-v1",
+        "symbol": "handle_request"
+      }
+    ],
+    "generator": "ordin.static_inventory.v1",
+    "invariant_suggestions": [
+      {
+        "authority_ref": null,
+        "invariant_id": "protect-config-3ec43173a7a9108d08742630",
+        "kind": "protected_policy_mutation",
+        "mandatory": true,
+        "on_violation": "escalate",
+        "provenance": [
+          {
+            "action_digest": null,
+            "contract_id": null,
+            "evidence_id": "source-8c33c8621628628889fc13c8",
+            "origin": "static_evidence",
+            "proof_gaps": [
+              "Deployment protections require operator review."
+            ],
+            "session_digest": null,
+            "source": {
+              "content_digest": "86edab3bf8df8bbb28a037620ec50beb4f77f5af58be9ab0519b2f154b97aeb4",
+              "line": 1,
+              "path": ".github/workflows/deploy.yml",
+              "revision": "fixture-v1",
+              "symbol": null
+            }
+          }
+        ],
+        "schema_version": "ordin.assurance_invariant.v1",
+        "selectors": {
+          "effects": [],
+          "kinds": [],
+          "principal": null,
+          "resource_ref": "config-3ec43173a7a9108d08742630"
+        },
+        "severity": "high"
+      }
+    ],
+    "protected_assets": [
+      {
+        "id": "config-3ec43173a7a9108d08742630",
+        "kind": "policy",
+        "match": "exact",
+        "value": "/fixture/payment/.github/workflows/deploy.yml"
+      }
+    ],
+    "repository": {
+      "id": "fixture/payment",
+      "revision": "fixture-v1"
+    },
+    "risk_hypotheses": [
+      "route-cc1d4aa09d95f07b7d3e27d6: possible source-to-sink route; reachability unverified.",
+      "route-cae7a0ec8d26e3c5d8b1a6c4: possible source-to-sink route; reachability unverified."
+    ],
+    "scan_digest": null,
+    "schema_version": "ordin.assurance_security_profile_draft.v1",
+    "source_evidence": [
+      {
+        "content_digest": "86edab3bf8df8bbb28a037620ec50beb4f77f5af58be9ab0519b2f154b97aeb4",
+        "line": 1,
+        "path": ".github/workflows/deploy.yml",
+        "revision": "fixture-v1",
+        "symbol": null
+      },
+      {
+        "content_digest": "e0c95dc3ca99bf085730df40ea640bbacd62e092b564809e7037e003256efb80",
+        "line": 1,
+        "path": "AGENTS.md",
+        "revision": "fixture-v1",
+        "symbol": null
+      },
+      {
+        "content_digest": "695201ef6beed8d2b291edd52ca19176505d3337d85c45ff8628c072efaf7ee6",
+        "line": 1,
+        "path": "README.md",
+        "revision": "fixture-v1",
+        "symbol": null
+      },
+      {
+        "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+        "line": 12,
+        "path": "payments.py",
+        "revision": "fixture-v1",
+        "symbol": "handle_request"
+      },
+      {
+        "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+        "line": 13,
+        "path": "payments.py",
+        "revision": "fixture-v1",
+        "symbol": "handle_request"
+      },
+      {
+        "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+        "line": 14,
+        "path": "payments.py",
+        "revision": "fixture-v1",
+        "symbol": "handle_request"
+      },
+      {
+        "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+        "line": 16,
+        "path": "payments.py",
+        "revision": "fixture-v1",
+        "symbol": "handle_request"
+      },
+      {
+        "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+        "line": 17,
+        "path": "payments.py",
+        "revision": "fixture-v1",
+        "symbol": "handle_request"
+      },
+      {
+        "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+        "line": 20,
+        "path": "payments.py",
+        "revision": "fixture-v1",
+        "symbol": null
+      }
+    ],
+    "trust_boundaries": [
+      {
+        "id": "external-input",
+        "sink": "application_handler",
+        "source": "outside_attacker"
+      },
+      {
+        "id": "tool-to-executor",
+        "sink": "executor",
+        "source": "malicious_dependency_or_mcp_server"
+      },
+      {
+        "id": "child-to-parent",
+        "sink": "parent_agent",
+        "source": "compromised_sibling_agent"
+      },
+      {
+        "id": "repository-to-ci",
+        "sink": "ci_runtime",
+        "source": "repository_data"
+      }
+    ],
+    "unresolved_facts": [
+      "Which inputs are attacker controlled and which handlers are externally reachable?",
+      "Which host enforces filesystem, network, tool and credential constraints?",
+      "Are candidate authorization controls unavoidable on each relevant route?",
+      "Which assets are production and where are credentials mounted?",
+      "How are child identities, grants and approval workflows authenticated?"
+    ]
+  },
+  "inventory": {
+    "assets": [
+      {
+        "id": "config-3ec43173a7a9108d08742630",
+        "kind": "policy",
+        "match": "exact",
+        "value": "/fixture/payment/.github/workflows/deploy.yml"
+      }
+    ],
+    "completeness": "complete",
+    "facts": [
+      {
+        "category": "approval.workflow",
+        "enclosing_symbol": null,
+        "fact_id": "fact-8c33c8621628628889fc13c8",
+        "kind": "asset",
+        "source": {
+          "content_digest": "86edab3bf8df8bbb28a037620ec50beb4f77f5af58be9ab0519b2f154b97aeb4",
+          "line": 1,
+          "path": ".github/workflows/deploy.yml",
+          "revision": "fixture-v1",
+          "symbol": null
+        }
+      },
+      {
+        "category": "repository.instructions_untrusted",
+        "enclosing_symbol": null,
+        "fact_id": "fact-c20b985375355182cd7f2e4a",
+        "kind": "instruction_data",
+        "source": {
+          "content_digest": "e0c95dc3ca99bf085730df40ea640bbacd62e092b564809e7037e003256efb80",
+          "line": 1,
+          "path": "AGENTS.md",
+          "revision": "fixture-v1",
+          "symbol": null
+        }
+      },
+      {
+        "category": "repository.instructions_untrusted",
+        "enclosing_symbol": null,
+        "fact_id": "fact-6155572a45b774cd0b1c938e",
+        "kind": "instruction_data",
+        "source": {
+          "content_digest": "695201ef6beed8d2b291edd52ca19176505d3337d85c45ff8628c072efaf7ee6",
+          "line": 1,
+          "path": "README.md",
+          "revision": "fixture-v1",
+          "symbol": null
+        }
+      },
+      {
+        "category": "handler.declaration",
+        "enclosing_symbol": "handle_request",
+        "fact_id": "fact-de00240330ed20c31678bb36",
+        "kind": "entrypoint",
+        "source": {
+          "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+          "line": 12,
+          "path": "payments.py",
+          "revision": "fixture-v1",
+          "symbol": "handle_request"
+        }
+      },
+      {
+        "category": "serialization.parse",
+        "enclosing_symbol": "handle_request",
+        "fact_id": "fact-11011c615ab8983caf0d836c",
+        "kind": "transformation",
+        "source": {
+          "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+          "line": 13,
+          "path": "payments.py",
+          "revision": "fixture-v1",
+          "symbol": "handle_request"
+        }
+      },
+      {
+        "category": "approval.guard_candidate",
+        "enclosing_symbol": "handle_request",
+        "fact_id": "fact-3af7de68ae192e1fab43fe46",
+        "kind": "control",
+        "source": {
+          "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+          "line": 14,
+          "path": "payments.py",
+          "revision": "fixture-v1",
+          "symbol": "handle_request"
+        }
+      },
+      {
+        "category": "authorization.control_candidate",
+        "enclosing_symbol": "handle_request",
+        "fact_id": "fact-3b0963a29328d61808d5b5d7",
+        "kind": "control",
+        "source": {
+          "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+          "line": 14,
+          "path": "payments.py",
+          "revision": "fixture-v1",
+          "symbol": "handle_request"
+        }
+      },
+      {
+        "category": "subprocess.execute",
+        "enclosing_symbol": "handle_request",
+        "fact_id": "fact-cc1d4aa09d95f07b7d3e27d6",
+        "kind": "sink",
+        "source": {
+          "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+          "line": 16,
+          "path": "payments.py",
+          "revision": "fixture-v1",
+          "symbol": "handle_request"
+        }
+      },
+      {
+        "category": "network.egress",
+        "enclosing_symbol": "handle_request",
+        "fact_id": "fact-cae7a0ec8d26e3c5d8b1a6c4",
+        "kind": "sink",
+        "source": {
+          "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+          "line": 17,
+          "path": "payments.py",
+          "revision": "fixture-v1",
+          "symbol": "handle_request"
+        }
+      },
+      {
+        "category": "module.load_stop_candidate",
+        "enclosing_symbol": null,
+        "fact_id": "fact-577b3dd9258ee5ddc02b1ba4",
+        "kind": "control",
+        "source": {
+          "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+          "line": 20,
+          "path": "payments.py",
+          "revision": "fixture-v1",
+          "symbol": null
+        }
+      }
+    ],
+    "files": [
+      {
+        "bytes": 140,
+        "content_digest": "86edab3bf8df8bbb28a037620ec50beb4f77f5af58be9ab0519b2f154b97aeb4",
+        "language": "configuration",
+        "lines": 7,
+        "path": ".github/workflows/deploy.yml"
+      },
+      {
+        "bytes": 198,
+        "content_digest": "e0c95dc3ca99bf085730df40ea640bbacd62e092b564809e7037e003256efb80",
+        "language": "text",
+        "lines": 4,
+        "path": "AGENTS.md"
+      },
+      {
+        "bytes": 192,
+        "content_digest": "695201ef6beed8d2b291edd52ca19176505d3337d85c45ff8628c072efaf7ee6",
+        "language": "text",
+        "lines": 4,
+        "path": "README.md"
+      },
+      {
+        "bytes": 540,
+        "content_digest": "e23ccf2a95d949f0a891c11462e9ed684841030e2a178e399308595d0f8cb289",
+        "language": "python",
+        "lines": 20,
+        "path": "payments.py"
+      }
+    ],
+    "generator": "ordin.static_inventory.v1",
+    "issues": [],
+    "limits": {
+      "max_depth": 8,
+      "max_files": 256,
+      "max_total_bytes": 16777216
+    },
+    "repository": {
+      "id": "fixture/payment",
+      "revision": "fixture-v1"
+    },
+    "root_identity_digest": "8852ebfcdf83b95510019420ab9611fe33715b349d2d5bd93cd0ae582aa2ff35",
+    "schema_version": "ordin.assurance_repository_inventory.v1",
+    "snapshot_digest": "e7d1a78137d4bc99f501c213e3e3cbfaca2f712844c527db354c20b3eacacf0a"
+  },
+  "model_id": "model-e7d1a78137d4bc99f501c213",
+  "open_questions": [
+    "Which inputs are attacker controlled and which handlers are externally reachable?",
+    "Which host enforces filesystem, network, tool and credential constraints?",
+    "Are candidate authorization controls unavoidable on each relevant route?",
+    "Which assets are production and where are credentials mounted?",
+    "How are child identities, grants and approval workflows authenticated?"
+  ],
+  "routes": [
+    {
+      "actor": "outside_attacker",
+      "boundary_id": "external-input",
+      "control_refs": [
+        "fact-3af7de68ae192e1fab43fe46",
+        "fact-3b0963a29328d61808d5b5d7"
+      ],
+      "entrypoint_ref": "fact-de00240330ed20c31678bb36",
+      "hypothesis_id": "route-cc1d4aa09d95f07b7d3e27d6",
+      "proof_gaps": [
+        "Static colocation does not prove data flow or reachability."
+      ],
+      "sink_ref": "fact-cc1d4aa09d95f07b7d3e27d6",
+      "status": "hypothesis",
+      "transformation_refs": [
+        "fact-11011c615ab8983caf0d836c"
+      ]
+    },
+    {
+      "actor": "outside_attacker",
+      "boundary_id": "external-input",
+      "control_refs": [
+        "fact-3af7de68ae192e1fab43fe46",
+        "fact-3b0963a29328d61808d5b5d7"
+      ],
+      "entrypoint_ref": "fact-de00240330ed20c31678bb36",
+      "hypothesis_id": "route-cae7a0ec8d26e3c5d8b1a6c4",
+      "proof_gaps": [
+        "Static colocation does not prove data flow or reachability."
+      ],
+      "sink_ref": "fact-cae7a0ec8d26e3c5d8b1a6c4",
+      "status": "hypothesis",
+      "transformation_refs": [
+        "fact-11011c615ab8983caf0d836c"
+      ]
+    }
+  ],
+  "schema_version": "ordin.assurance_repository_threat_model.v1"
+}

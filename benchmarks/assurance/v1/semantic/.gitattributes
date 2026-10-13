@@ -1,0 +1,2 @@
+# Corpus and manifest hashes refer to LF bytes on every checkout platform.
+*.json text eol=lf
