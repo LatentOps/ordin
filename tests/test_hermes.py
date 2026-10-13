@@ -215,6 +215,20 @@ def test_contradictory_error_report_cannot_produce_temporal_success():
     assert "signal:observed-success" not in evidence.signals
 
 
+def test_unmodeled_file_calls_keep_exact_host_tool_identity():
+    arguments = {"path": "same.txt", "cross_profile": True}
+    read = hook("read_file", arguments)
+    write = hook("write_file", arguments)
+    adapter = active(HermesIntegration(), read)
+    adapter.review_pre_tool(read)
+    assert adapter.adapt(read).action_id != adapter.adapt(write).action_id
+    assert adapter.adapt(read).parameters["source_tool"] == "read_file"
+    assert adapter.adapt(write).parameters["source_tool"] == "write_file"
+    with pytest.raises(ValueError):
+        adapter.observation_from_hook(post(write, result="{}"))
+    assert adapter.observation_from_hook(post(read, result="{}")) is not None
+
+
 def invoke(monkeypatch, capsys, payload, mode="pre"):
     monkeypatch.setattr(
         sys, "stdin", io.StringIO(payload if isinstance(payload, str) else json.dumps(payload))
