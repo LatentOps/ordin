@@ -453,8 +453,16 @@ def _run(
         status = "canceled"
     finally:
         # End descendants, including a background child after normal exit.
-        tree.close()
-        process.wait(timeout=2)
+        try:
+            tree.close()
+        except OSError:
+            # The owned job still closes through ProcessTree's kill-on-close
+            # fallback. Unconfirmed cleanup cannot yield completed evidence.
+            status = "error"
+        try:
+            process.wait(timeout=2)
+        except (OSError, subprocess.TimeoutExpired):
+            status = "error"
     for reader in readers:
         reader.join(timeout=1)
     if any(reader.is_alive() for reader in readers):

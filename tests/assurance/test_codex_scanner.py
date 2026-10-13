@@ -3,6 +3,7 @@
 from dataclasses import replace
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 import sys
 import tempfile
@@ -221,6 +222,46 @@ def test_installed_version_and_metadata_refuse_drift(installation, version, malf
     selection = fake(installation[0], version=version, malformed=malformed)
     result = inspect_scanner(selection)
     assert result.status == status and not result.model_or_network_enabled
+
+
+@pytest.mark.parametrize("failure", ["job_inventory", "process_wait"])
+def test_unconfirmed_process_cleanup_never_yields_scanner_evidence(
+    installation, monkeypatch, failure
+):
+    from ordin.assurance.codex_security import scanner
+
+    launch = scanner.launch_managed_process
+    cleanup_attempts = []
+
+    def failing_cleanup(*args, **kwargs):
+        process, tree = launch(*args, **kwargs)
+        close, wait = tree.close, process.wait
+
+        def close_owned_tree():
+            try:
+                close()
+            finally:
+                cleanup_attempts.append("close")
+            if failure == "job_inventory":
+                raise OSError("owned synthetic cleanup inventory failure")
+
+        def wait_owned_process(*args, **kwargs):
+            result = wait(*args, **kwargs)
+            cleanup_attempts.append("wait")
+            if failure == "process_wait":
+                raise subprocess.TimeoutExpired("owned synthetic scanner", 2)
+            return result
+
+        monkeypatch.setattr(tree, "close", close_owned_tree)
+        monkeypatch.setattr(process, "wait", wait_owned_process)
+        return process, tree
+
+    monkeypatch.setattr(scanner, "launch_managed_process", failing_cleanup)
+    result = inspect_scanner(fake(installation[0]))
+    assert result.status == "error" and result.completeness == "unknown"
+    assert result.observed_cli_version is None and result.imported_report_digest is None
+    assert not result.model_or_network_enabled
+    assert cleanup_attempts == ["close", "wait"]
 
 
 @pytest.mark.parametrize(
