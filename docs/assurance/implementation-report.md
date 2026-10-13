@@ -1760,3 +1760,24 @@ The [sanitized verification summary](evidence/leftovers-verification.json)
 pins private JUnit/archive/wheel hashes and preserves the baseline failures,
 skips, failed timing and interrupted upload. All known test/build/measurement
 handles are terminal. Overall implementation acceptance remains incomplete.
+
+## Verified GitHub merges and remaining acceptance on 2026-10-13
+
+Native authenticated GitHub access was restored without replacing credentials. The earlier upload/authentication sections retain their outcomes at capture; the verified merged PRs below supersede their pending publication status. Each merge used the checked head with current main, all applicable check runs successful, and GitHub branch protection satisfied. The two release-only attestation/publication jobs are intentionally skipped on PRs.
+
+| PR | Verified change | Passing applicable checks before squash merge |
+| --- | --- | --- |
+| [#222](https://github.com/LatentOps/ordin/pull/222) | Bounded Assurance implementation and installed-wheel CI | 47 |
+| [#223](https://github.com/LatentOps/ordin/pull/223) | Optional semantic-policy replay with independent sessions | 34 |
+| [#209](https://github.com/LatentOps/ordin/pull/209) | Upload-artifact update and optional SDK test setup | 34 |
+| [#221](https://github.com/LatentOps/ordin/pull/221) | Synchronized CodeQL 4.38.2 and grouped future updates | 35 |
+| [#213](https://github.com/LatentOps/ordin/pull/213) | Cryptography update and explicit scanner cleanup-error refusal | 34 |
+| [#230](https://github.com/LatentOps/ordin/pull/230) | Combined Ruff, mypy, virtualenv and pycparser baseline | 34 |
+
+The original local branch audit accounts for all 14 branch tips: their committed changes were included in the recorded squash merges or are already ancestors of main. The separately authored live-mutation commit has matching report bytes and acceptance prose in the historical evidence merged by #207. Preexisting uncommitted reports/evidence in the original checkout remain preserved.
+
+The Windows optional regression now loads its required SDK during test setup before starting discovery; its time budget is unchanged. Scanner process-tree cleanup and process-wait failures produce an explicit error with no accepted version or imported report. The owned Windows job retains its kill-on-close fallback, and the existing cleanup deadlines remain unchanged.
+
+This final CI maintenance change updates both CodeQL actions together to the same pinned 4.38.3 revision and records these verified outcomes. Its own PR also requires successful applicable CI before squash merge.
+
+Overall implementation acceptance remains incomplete. The frozen paired measurement still records added p95 21.77 ms against the unchanged 5 ms requirement. Live provider/scanner exercises need configured credentials and a reviewed scanner installation; the configured offline mock and provisional corpus do not establish independently labeled effectiveness. Delegated-grant replay, broader M10 predicates/lifecycle and remaining partial acceptance scenarios also retain their open status. Passing remote CI closes the supported-platform CI gate, while these separate acceptance requirements retain their original limits and evidence.
