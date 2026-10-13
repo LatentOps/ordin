@@ -136,6 +136,7 @@ def run_quickstarts() -> dict[str, Any]:
             "ordin-claude-hook",
             "ordin-codex-hook",
             "ordin-cursor-hook",
+            "ordin-hermes-hook",
             "ordin-mcp-proxy",
             "ordin-mcp-http",
         ):
@@ -154,6 +155,7 @@ def run_quickstarts() -> dict[str, Any]:
                 ("claude", ["--state", "--audit", "--observations"]),
                 ("codex", ["--state"]),
                 ("cursor", ["--state", "--observations"]),
+                ("hermes", ["--state", "--audit", "--observations"]),
                 ("shell", ["--shell", "bash"]),
                 ("mcp", ["--server-id", "fixture", "--", sys.executable, "-m", "fixture_server"]),
                 ("mcp-http", ["--server-id", "fixture", "--upstream", "http://127.0.0.1:9999/mcp"]),

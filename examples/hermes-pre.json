@@ -1,0 +1,9 @@
+{
+  "hook_event_name": "pre_tool_call",
+  "tool_name": "terminal",
+  "tool_input": {"command": "git status --short"},
+  "session_id": "example-conversation",
+  "profile": "default",
+  "cwd": "/host-process",
+  "extra": {"tool_call_id": "example-call", "turn_id": "example-turn", "task_id": "example-task"}
+}

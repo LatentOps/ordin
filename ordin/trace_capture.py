@@ -31,7 +31,7 @@ TRACE_EVENT_SCHEMA_VERSION = "ordin.trace_event.v1"
 MAX_TRACE_EVENTS = 4096
 MAX_TRACE_EVENT_BYTES = 1_048_576
 _HEX = re.compile(r"^[a-f0-9]{64}$")
-_INTEGRATIONS = {"python", "claude-code", "codex", "cursor", "mcp-proxy", "mcp-http"}
+_INTEGRATIONS = {"python", "claude-code", "codex", "cursor", "hermes", "mcp-proxy", "mcp-http"}
 _RESOURCE_TYPES = {
     "path",
     "file",

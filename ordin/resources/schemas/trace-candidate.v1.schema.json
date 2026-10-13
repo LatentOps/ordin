@@ -27,7 +27,8 @@
         "codex",
         "mcp-proxy",
         "mcp-http",
-        "cursor"
+        "cursor",
+        "hermes"
       ]
     },
     "review_policy": {

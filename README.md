@@ -169,7 +169,7 @@ ordin setup cursor
 ordin setup smoke cursor
 ```
 
-Choose `claude`, `codex`, `cursor`, `mcp`, `mcp-http`, or `shell`.
+Choose `claude`, `codex`, `cursor`, `hermes`, `mcp`, `mcp-http`, or `shell`.
 `ordin setup status` checks configuration; `ordin setup remove cursor` removes an
 unchanged owned profile. Review host trust before real use. Existing files are
 preserved; the guides below retain manual configuration for v0.3 and advanced use.
@@ -179,6 +179,7 @@ preserved; the guides below retain manual configuration for v0.3 and advanced us
 | Claude Code hooks | `ordin-claude-hook` | [Hook configuration and supported tools](docs/claude-code-integration.md) |
 | Codex hooks | `ordin-codex-hook` | [Hooks and plugin configuration](docs/codex-integration.md) |
 | Cursor hooks (0.4 development) | `ordin-cursor-hook` | [Native hooks and host limitations](docs/cursor-integration.md) |
+| Hermes Agent hooks (0.4 development) | `ordin-hermes-hook` | [Pinned hook contract and profile setup](docs/hermes-integration.md) |
 | An MCP client and stdio server | `ordin-mcp-proxy` | [Proxy setup and tool semantics](docs/mcp-safety-proxy.md) |
 | An MCP client and HTTP server | `ordin-mcp-http` | [Streamable HTTP setup](docs/mcp-http-proxy.md) |
 | Bash or Zsh | `ordin shell-init` and `orun` | [Reviewed shell execution](docs/shell-integration.md) |

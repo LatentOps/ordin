@@ -34,6 +34,12 @@ from .tool_calls import ToolSemanticRule, ToolSemanticsRegistry
 
 
 def default_root(integration: str, supplied: Path | None) -> Path:
+    if integration == "hermes":
+        return (
+            (supplied or Path(os.environ.get("HERMES_HOME") or Path.home() / ".hermes"))
+            .expanduser()
+            .absolute()
+        )
     return (
         (supplied or (Path.home() if integration == "codex" else Path.cwd()))
         .expanduser()
@@ -44,7 +50,52 @@ def default_root(integration: str, supplied: Path | None) -> Path:
 def smoke(root: Path, integration: str) -> dict[str, Any]:
     settings = load_owned(root, integration)
     details = []
-    if integration in MODULES:
+    if integration == "hermes":
+        from .hermes import _EVENTS
+
+        with tempfile.TemporaryDirectory(prefix="ordin-hermes-smoke-") as directory:
+            temporary = Path(directory).resolve()
+            apply(settings, temporary)
+            hermes_payload: dict[str, Any] = {
+                "session_id": "setup-smoke",
+                "profile": "default",
+                "tool_name": "terminal",
+                "tool_input": {"command": "git status --short"},
+                "extra": {"tool_call_id": "read"},
+            }
+            env = {key: value for key, value in os.environ.items() if not key.startswith("ORDIN_")}
+            for mode in ("session-start", "pre", "post", "session-end"):
+                message = {**hermes_payload, "hook_event_name": _EVENTS[mode]}
+                if mode == "post":
+                    message["extra"] = {
+                        "tool_call_id": "read",
+                        "status": "ok",
+                        "result": '{"exit_code":0}',
+                    }
+                command = json.loads(config_content(settings, temporary))["hooks"][_EVENTS[mode]][
+                    0
+                ]["command"]
+                invocation = shlex.split(command, posix=os.name != "nt")
+                if os.name == "nt":
+                    invocation = [
+                        arg[1:-1]
+                        if len(arg) >= 2 and arg[0] == arg[-1] and arg[0] in {"'", '"'}
+                        else arg
+                        for arg in invocation
+                    ]
+                result = subprocess.run(
+                    invocation,
+                    input=json.dumps(message),
+                    text=True,
+                    capture_output=True,
+                    env=env,
+                    cwd=temporary,
+                    timeout=15,
+                )
+                if result.returncode or json.loads(result.stdout) != {}:
+                    raise SetupError("installed_hermes_hook_smoke_failed")
+            details.append("installed_hook_lifecycle")
+    elif integration in MODULES:
         with tempfile.TemporaryDirectory(prefix="ordin-setup-smoke-") as directory:
             temporary = Path(directory)
             private = temporary / ".ordin/private" / integration

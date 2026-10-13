@@ -201,6 +201,30 @@ def test_opt_in_evidence_and_launcher_configuration_are_explicit(tmp_path, integ
     assert not list((root / ".ordin/private" / integration).iterdir())
 
 
+def test_hermes_native_launcher_and_isolated_evidence_smoke(tmp_path):
+    root = tmp_path.resolve()
+    options = settings("hermes", state=True, audit=True, observations=True)
+    apply(options, root)
+    hooks = json.loads(config_content(options, root))["hooks"]
+    assert hooks["pre_tool_call"][0]["fail_closed"] is True
+    assert "on_session_finalize" in hooks and "on_session_end" not in hooks
+    assert all(
+        "||" not in entry[0]["command"] and "ORDIN_" not in entry[0]["command"]
+        for entry in hooks.values()
+    )
+    assert smoke(root, "hermes")["ok"]
+    assert not list((root / ".ordin/private/hermes").iterdir())
+
+
+def test_hermes_default_root_follows_active_profile(monkeypatch, tmp_path):
+    from ordin.setup_cli import default_root
+
+    profile = tmp_path / "profile"
+    monkeypatch.setenv("HERMES_HOME", str(profile))
+    assert default_root("hermes", None) == profile.absolute()
+    assert default_root("hermes", tmp_path) == tmp_path.absolute()
+
+
 def test_mcp_setup_requires_reviewed_pins_and_keeps_unknowns_untrusted(tmp_path):
     root = tmp_path.resolve()
     options = settings("mcp")
@@ -273,4 +297,4 @@ def test_main_cli_discovers_setup_and_machine_readable_preview(tmp_path, capsys)
     preview = json.loads(capsys.readouterr().out)
     assert preview["ok"] and not (tmp_path / ".ordin").exists()
     assert main(["status", "--root", str(tmp_path.resolve()), "--json"]) == 0
-    assert len(json.loads(capsys.readouterr().out)["integrations"]) == 6
+    assert len(json.loads(capsys.readouterr().out)["integrations"]) == 7
