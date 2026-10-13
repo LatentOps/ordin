@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from ._async_lifetime import bounded_await
 import hashlib
 import json
 import math
@@ -335,7 +336,7 @@ class AsyncHTTPS:
             return status, loads(data)
 
         try:
-            return await asyncio.wait_for(request(), deadline_ms / 1000)
+            return await bounded_await(request(), deadline_ms / 1000)
         finally:
             if writer is not None:
                 writer.close()
@@ -388,7 +389,7 @@ async def discover_models(
     if not isinstance(disclosure, HostedDisclosure) or not disclosure.consume(request, config):
         raise ValueError("model discovery lacks current explicit consent/scope")
     key = _api_key(api_key)
-    status, packet = await asyncio.wait_for(
+    status, packet = await bounded_await(
         (transport or AsyncHTTPS(config)).request_json(
             "GET", "/v1/models", api_key=key, body=None, deadline_ms=deadline_ms
         ),
@@ -506,7 +507,7 @@ class TypeSafeDecisionModel:
             return evidence(self.descriptor, state, questions, error_class="budget")
         try:
             self._metrics["calls"] += 1
-            status, packet = await asyncio.wait_for(
+            status, packet = await bounded_await(
                 self._transport.request_json(
                     "POST", "/v1/systemone", api_key=self._key, body=body, deadline_ms=deadline_ms
                 ),
