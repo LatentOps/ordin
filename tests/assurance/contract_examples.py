@@ -261,4 +261,27 @@ def assurance_contract_examples(tmp_path):
     samples["assurance_boundary_regression"] = prepare_boundary_regression(
         record, case_id="fixture-boundary", expected_revision="fixture-v1"
     ).as_dict()
+    samples["assurance_semantic_simulation"] = {
+        "schema_version": "ordin.assurance_semantic_simulation.v1",
+        "simulation": samples["assurance_simulation"],
+        "baseline_configuration_digest": samples["assurance_simulation"]["old_policy_digest"],
+        "candidate_configuration_digest": samples["assurance_simulation"]["new_policy_digest"],
+        "baseline_model_latency": {
+            "p50_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "samples": 0,
+        },
+        "candidate_model_latency": {
+            "p50_ms": 0,
+            "p95_ms": 0,
+            "p99_ms": 0,
+            "samples": 0,
+        },
+        "baseline_model_calls": 0,
+        "candidate_model_calls": 0,
+        "synthetic_only": True,
+        "model_locality": "mock",
+        "actions_executed": False,
+    }
     return samples

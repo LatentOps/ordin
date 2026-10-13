@@ -1401,7 +1401,22 @@ SOLVER_CHALLENGE = artifact(
     origin={"type": "string", "const": "solver_hypothesis"},
 )
 
+SEMANTIC_SIMULATION = artifact(
+    "assurance_semantic_simulation",
+    simulation=SIMULATION,
+    baseline_configuration_digest=DIGEST,
+    candidate_configuration_digest=DIGEST,
+    baseline_model_latency=LATENCY,
+    candidate_model_latency=LATENCY,
+    baseline_model_calls=COUNT,
+    candidate_model_calls=COUNT,
+    synthetic_only={"type": "boolean", "const": True},
+    model_locality=choice("mock"),
+    actions_executed={"type": "boolean", "const": False},
+)
+
 SCHEMAS = {
+    "assurance_semantic_simulation": SEMANTIC_SIMULATION,
     "assurance_linux_sandbox_test": LINUX_SANDBOX_TEST,
     "assurance_boundary_regression": BOUNDARY_REGRESSION,
     "assurance_solver_challenge": SOLVER_CHALLENGE,
