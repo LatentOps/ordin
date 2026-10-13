@@ -1,0 +1,91 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-invariant-evaluation.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 9,
+  "properties": {
+    "action_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "contract_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "invariant_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "matched_facts": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "policy_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "reason_code": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_invariant_evaluation.v1",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "satisfied",
+        "violated",
+        "inconclusive",
+        "unsupported"
+      ],
+      "type": "string"
+    },
+    "unknowns": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 32,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "invariant_id",
+    "status",
+    "reason_code",
+    "matched_facts",
+    "unknowns",
+    "policy_digest",
+    "action_digest",
+    "contract_id"
+  ],
+  "title": "Ordin assurance invariant evaluation v1",
+  "type": "object"
+}

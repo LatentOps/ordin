@@ -1,0 +1,208 @@
+{
+  "historical_benign_control_failure": {
+    "cases": [
+      {
+        "class": "tests.assurance.test_boundary_regression",
+        "name": "test_every_core_property_retains_a_valid_benign_counterpart[parameter:7c69f14b108b8beb]",
+        "outcome": "failed"
+      }
+    ],
+    "failed": 1,
+    "passed": 38,
+    "passed_case_ids_omitted": true,
+    "sha256": "90ee89374cd492f459516f1c66eb357019a3758779ad6061e2cc7cbce8083d05",
+    "skipped": 0
+  },
+  "installed_promotion_schema_focus": {
+    "cases": [
+      {
+        "class": "tests.assurance.test_boundary_regression",
+        "name": "test_fifo_and_public_permissions_are_refused_before_read",
+        "outcome": "skipped"
+      }
+    ],
+    "failed": 0,
+    "passed": 48,
+    "passed_case_ids_omitted": true,
+    "sha256": "1eb03ff76468242a0ea7c7304d03ab869f29d41680125ebd696e8c95157424af",
+    "skipped": 1
+  },
+  "limitations": [
+    "Owned synthetic review/corpus fixtures; no real human review or live corpus/policy installation claimed.",
+    "Dedicated closed fixture regressions preserve scoped evidence and cannot issue host execution authority.",
+    "All old core-only trace promotion contracts remain separate and unchanged.",
+    "Current native/full original regression and paired latency remain separate release gates.",
+    "Broader M10 physical isolation/predicates, real providers and independent effectiveness labels remain open."
+  ],
+  "minimum": {
+    "observer_errors": [],
+    "partial": [
+      "AT-26",
+      "AT-28"
+    ],
+    "passed": 35,
+    "sha256": "a8aed1ab1a0591990872ad2d340807ca98128c8c12198fa09d3c7b1254d15886"
+  },
+  "overall_acceptance": "incomplete",
+  "promotion_cli_compatibility": {
+    "cases": [
+      {
+        "class": "tests.assurance.test_boundary_regression",
+        "name": "test_fifo_and_public_permissions_are_refused_before_read",
+        "outcome": "skipped"
+      }
+    ],
+    "failed": 0,
+    "passed": 54,
+    "passed_case_ids_omitted": true,
+    "sha256": "6b92b35d01045b02f92897ef56f84664a6b6d1ca9be1ea20f521175c05869d1a",
+    "skipped": 1
+  },
+  "revision": "916a2dba84efcd716c281d420d3a6a5b4985bdf3",
+  "runnable_demo_and_examples": {
+    "cases": [
+      {
+        "class": "tests.assurance.test_boundary_regression",
+        "name": "test_fifo_and_public_permissions_are_refused_before_read",
+        "outcome": "skipped"
+      }
+    ],
+    "failed": 0,
+    "passed": 41,
+    "passed_case_ids_omitted": true,
+    "sha256": "6b91e78d8adefe3c77bda4326cd2822de88eb28463b9ceb90c459b8e963de23d",
+    "skipped": 1
+  },
+  "schema_version": "ordin.assurance_boundary_promotion_verification.v1",
+  "source_focus_before_demo_addition": {
+    "cases": [
+      {
+        "class": "tests.assurance.test_boundary_regression",
+        "name": "test_fifo_and_public_permissions_are_refused_before_read",
+        "outcome": "skipped"
+      },
+      {
+        "class": "tests.assurance.test_profiles",
+        "name": "test_group_readable_selected_profile_is_not_a_private_configuration",
+        "outcome": "skipped"
+      },
+      {
+        "class": "tests.assurance.test_solver",
+        "name": "test_solver_abstraction_candidate_is_not_a_confirmed_failure",
+        "outcome": "skipped"
+      },
+      {
+        "class": "tests.assurance.test_solver",
+        "name": "test_exact_intersection_solver_and_concrete_verifier_agree",
+        "outcome": "skipped"
+      },
+      {
+        "class": "tests.assurance.test_solver",
+        "name": "test_solver_unknown_is_never_a_finite_pass",
+        "outcome": "skipped"
+      },
+      {
+        "class": "tests.assurance.test_solver",
+        "name": "test_solver_cli_candidate_and_revision_bound_replay",
+        "outcome": "skipped"
+      },
+      {
+        "class": "tests.test_security_integrity",
+        "name": "test_audit_rejects_public_modes_and_symlinks",
+        "outcome": "skipped"
+      },
+      {
+        "class": "tests.test_session",
+        "name": "test_store_requires_private_file_and_rejects_symlinks",
+        "outcome": "skipped"
+      }
+    ],
+    "failed": 0,
+    "passed": 570,
+    "passed_case_ids_omitted": true,
+    "sha256": "a7319d280978a2e19f0ba514798700e2c230352f4331b74195d2ebe1077effe5",
+    "skipped": 8
+  },
+  "wheel": {
+    "existing_examples": {
+      "actions_executed": false,
+      "all_passed": true,
+      "artifacts_retained": false,
+      "example_count": 8,
+      "examples": [
+        {
+          "module": "ordin.assurance.examples.attack_path",
+          "result": "passed",
+          "source_sha256": "9cf3e5da700d5ece440c38214587741b7d719aa81d9d360b362615292ec5285d",
+          "stdout_sha256": "aa9a39474254332d4ae4c76971f179e20c62681df5dae711fc62de122ef9cbf6"
+        },
+        {
+          "module": "ordin.assurance.examples.codex_import",
+          "result": "passed",
+          "source_sha256": "5677b27beab093d8d9623571405fe0a883c23139d3352397959cb502a87117c2",
+          "stdout_sha256": "d30eb0c92ca22a1f4815db634204ca4339446a8476a42f80d22f459b1e7fb298"
+        },
+        {
+          "module": "ordin.assurance.examples.delegation",
+          "result": "passed",
+          "source_sha256": "803873ae7d43f4d9215f693d49bf59487a8313db22c26debb88ac2c6081e44d1",
+          "stdout_sha256": "4cbdf8500623c5db737eb149f73790fb907118e333bff31bcaeb1626b8fae72e"
+        },
+        {
+          "module": "ordin.assurance.examples.gate_review",
+          "result": "passed",
+          "source_sha256": "2ed4e94036571fe541fc053621b9047d95588c894353b452a6f83d00d54ea980",
+          "stdout_sha256": "4dc9a26792703c132737ff2663f1ca6363313537b4611952cdf0f147f3be7bad"
+        },
+        {
+          "module": "ordin.assurance.examples.policy_simulation",
+          "result": "passed",
+          "source_sha256": "974cd12ca1a3fa86911dc649a2fc8bd4252681631b2f5225912ea6ee8e1d65c8",
+          "stdout_sha256": "5299db15e527331fdfe5a71c4cb6f56219f676d2580c17d76bfaa52bdc6c8c5e"
+        },
+        {
+          "module": "ordin.assurance.examples.profile_inventory",
+          "result": "passed",
+          "source_sha256": "4f9f5a81fc7ef6d829b90753dc54840d8f39325621043ccedb0e1804525b48e9",
+          "stdout_sha256": "6c662eeffbf24dbbf4ea185770ef1557f1e3f78faf3ec29ca459ac24c27d5029"
+        },
+        {
+          "module": "ordin.assurance.examples.property_challengers",
+          "result": "passed",
+          "source_sha256": "4fb71f7f581153ea92ff16009f7fde80d6d99ee82a18ecbdbe7c47926c039469",
+          "stdout_sha256": "d0fb4ea93d57bdc0524ca1d90480d5195d5461a332ba634e27d8d7787ea1af9a"
+        },
+        {
+          "module": "ordin.assurance.examples.source_diff",
+          "result": "passed",
+          "source_sha256": "6cc3589e232776cb30435dafaa4995a246af75a8143a052316a53d4940ad25d0",
+          "stdout_sha256": "6c4634f3a6065265bb6476c78f6cab9e1a4a2012b7fc1b47ec9b3930edfffefa"
+        }
+      ],
+      "model_or_scanner_called": false,
+      "schema_version": "ordin.assurance_offline_examples.v1",
+      "scope": "Owned synthetic offline fixtures; no physical enforcement or effectiveness claim.",
+      "target_code_executed": false
+    },
+    "modules": 62,
+    "promotion_demo": {
+      "actions_executed": false,
+      "artifacts_retained": false,
+      "case_count": 1,
+      "case_digest": "9218e2036dd299e843fe2ce22c9525028afd678812f14d0ea054bdf41edb3376",
+      "case_reviewed": true,
+      "duplicate_refused": true,
+      "failure_and_benign_replayed": true,
+      "host_boundary_exercised": false,
+      "live_corpus_or_policy_changed": false,
+      "provenance_kind": "closed_fixture_regression",
+      "schema_version": "ordin.assurance_regression_demo.v1",
+      "synthetic_review_only": true,
+      "target_code_executed": false
+    },
+    "report_sha256": "264cd4d0023f24a74a38839fe0941cbeba3155d9044fca39025f96aa4c794d27",
+    "schemas": 100,
+    "source_files": 347,
+    "wheel_sha256": "7d20a1122de18dc7fa7b1b6de1378d2f4c50d30f08f76ae0e1fba8ce3d9a5399"
+  }
+}

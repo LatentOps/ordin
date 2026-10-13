@@ -1,0 +1,221 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-solver-challenge.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 23,
+  "properties": {
+    "assumptions": {
+      "items": {
+        "maxLength": 1024,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 16,
+      "type": "array"
+    },
+    "benign_control_result": {
+      "enum": [
+        "within_boundary",
+        "exceeds_boundary",
+        "unsupported",
+        "inconclusive"
+      ],
+      "type": "string"
+    },
+    "conclusion": {
+      "enum": [
+        "candidate_not_reproduced",
+        "verified_finite_failure",
+        "no_counterexample_in_finite_model",
+        "inconclusive"
+      ],
+      "type": "string"
+    },
+    "concrete_replay_result": {
+      "anyOf": [
+        {
+          "enum": [
+            "within_boundary",
+            "exceeds_boundary",
+            "unsupported",
+            "inconclusive"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "encoding": {
+      "enum": [
+        "exact_intersection",
+        "seeded_union_abstraction"
+      ],
+      "type": "string"
+    },
+    "generator_version": {
+      "const": "capability-intersection-smt-v1",
+      "type": "string"
+    },
+    "host_boundary_exercised": {
+      "const": false,
+      "type": "boolean"
+    },
+    "initial_mask": {
+      "anyOf": [
+        {
+          "maximum": 7,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "initial_replay_result": {
+      "anyOf": [
+        {
+          "enum": [
+            "within_boundary",
+            "exceeds_boundary",
+            "unsupported",
+            "inconclusive"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "minimized_mask": {
+      "anyOf": [
+        {
+          "maximum": 7,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "operator_mask": {
+      "maximum": 7,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "origin": {
+      "const": "solver_hypothesis",
+      "type": "string"
+    },
+    "parent_mask": {
+      "maximum": 7,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "proof_gaps": {
+      "items": {
+        "maxLength": 1024,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 16,
+      "type": "array"
+    },
+    "revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_solver_challenge.v1",
+      "type": "string"
+    },
+    "seed": {
+      "maximum": 2147483647,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "solver_input_parts": {
+      "items": {
+        "maxLength": 1024,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
+    "solver_input_sha256": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "solver_result": {
+      "enum": [
+        "sat",
+        "unsat",
+        "unknown",
+        "unavailable"
+      ],
+      "type": "string"
+    },
+    "solver_version": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "task_mask": {
+      "maximum": 7,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "timeout_ms": {
+      "maximum": 10000,
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "generator_version",
+    "revision",
+    "encoding",
+    "parent_mask",
+    "operator_mask",
+    "task_mask",
+    "seed",
+    "timeout_ms",
+    "solver_version",
+    "solver_result",
+    "solver_input_parts",
+    "solver_input_sha256",
+    "initial_mask",
+    "minimized_mask",
+    "initial_replay_result",
+    "concrete_replay_result",
+    "benign_control_result",
+    "conclusion",
+    "assumptions",
+    "proof_gaps",
+    "host_boundary_exercised",
+    "origin"
+  ],
+  "title": "Ordin assurance solver challenge v1",
+  "type": "object"
+}

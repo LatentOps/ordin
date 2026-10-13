@@ -369,6 +369,23 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
             if not any(r.value == url for r in net_resources)
         )
     request = _literal_http_request(review)
+    if review.adapter == "network.rest":
+        from ._rest_semantics import prepare_rest
+
+        try:
+            _, method, _, reading = prepare_rest(review.action.parameters)
+            if set(review.effects) != {"network.download" if reading else "network.upload"}:
+                raise ValueError("REST effects differ from exact request")
+            request = method, review.action.parameters["url"]
+            unknown(
+                "network",
+                "runtime_rest_request_commitment_required",
+                "REST scheme, headers and body require separate exact request authority.",
+            )
+        except (ValueError, TypeError):
+            unknown(
+                "network", "runtime_rest_request_unsupported", "REST request scope is unsupported."
+            )
     if net_effects:
         access = "write" if "network.upload" in effects else "read"
         if not net_effects.issubset(_NETWORK_EFFECTS):

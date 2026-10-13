@@ -1,0 +1,59 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-synthetic-path-suite.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 3,
+  "properties": {
+    "cases": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 3,
+        "properties": {
+          "case_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+            "type": "string"
+          },
+          "root": {
+            "maxLength": 256,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_id",
+          "path",
+          "root"
+        ],
+        "type": "object"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_synthetic_path_suite.v1",
+      "type": "string"
+    },
+    "suite_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "suite_id",
+    "cases"
+  ],
+  "title": "Ordin assurance synthetic path suite v1",
+  "type": "object"
+}

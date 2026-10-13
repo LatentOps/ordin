@@ -1,0 +1,186 @@
+{
+  "actors": [
+    "outside_attacker",
+    "malicious_dependency_or_mcp_server",
+    "compromised_sibling_agent",
+    "unauthorized_insider"
+  ],
+  "assumptions": [
+    "The host supplied the repository revision and action-space mapping; no Git attestation is inferred.",
+    "Static parsing establishes inspected syntax, not execution, authentication effectiveness or data flow.",
+    "Deployment infrastructure, filesystem aliases and actual process privileges are uninspected."
+  ],
+  "counterevidence_refs": [
+    "fact-ea5c4f4f1f43d3ec153619d0"
+  ],
+  "draft": {
+    "authoritative": false,
+    "completeness": "unknown",
+    "draft_id": "draft-14127b7c34b13571643d9a77",
+    "entry_points": [
+      {
+        "content_digest": "1eaf6a728f3deabdf973b68367139a6534b471624cee08fee54cd03bfa666c33",
+        "line": 10,
+        "path": "server.py",
+        "revision": "fixture-v1",
+        "symbol": "upload_note"
+      }
+    ],
+    "generator": "ordin.static_inventory.v1",
+    "invariant_suggestions": [],
+    "protected_assets": [],
+    "repository": {
+      "id": "fixture/mcp",
+      "revision": "fixture-v1"
+    },
+    "risk_hypotheses": [
+      "route-f4b4b4737385a38a0ca01830: possible source-to-sink route; reachability unverified."
+    ],
+    "scan_digest": null,
+    "schema_version": "ordin.assurance_security_profile_draft.v1",
+    "source_evidence": [
+      {
+        "content_digest": "1eaf6a728f3deabdf973b68367139a6534b471624cee08fee54cd03bfa666c33",
+        "line": 10,
+        "path": "server.py",
+        "revision": "fixture-v1",
+        "symbol": "upload_note"
+      },
+      {
+        "content_digest": "1eaf6a728f3deabdf973b68367139a6534b471624cee08fee54cd03bfa666c33",
+        "line": 11,
+        "path": "server.py",
+        "revision": "fixture-v1",
+        "symbol": "upload_note"
+      },
+      {
+        "content_digest": "1eaf6a728f3deabdf973b68367139a6534b471624cee08fee54cd03bfa666c33",
+        "line": 14,
+        "path": "server.py",
+        "revision": "fixture-v1",
+        "symbol": null
+      }
+    ],
+    "trust_boundaries": [
+      {
+        "id": "external-input",
+        "sink": "application_handler",
+        "source": "outside_attacker"
+      },
+      {
+        "id": "tool-to-executor",
+        "sink": "executor",
+        "source": "malicious_dependency_or_mcp_server"
+      },
+      {
+        "id": "child-to-parent",
+        "sink": "parent_agent",
+        "source": "compromised_sibling_agent"
+      },
+      {
+        "id": "repository-to-ci",
+        "sink": "ci_runtime",
+        "source": "repository_data"
+      }
+    ],
+    "unresolved_facts": [
+      "Which inputs are attacker controlled and which handlers are externally reachable?",
+      "Which host enforces filesystem, network, tool and credential constraints?",
+      "Are candidate authorization controls unavoidable on each relevant route?",
+      "Which assets are production and where are credentials mounted?",
+      "How are child identities, grants and approval workflows authenticated?"
+    ]
+  },
+  "inventory": {
+    "assets": [],
+    "completeness": "complete",
+    "facts": [
+      {
+        "category": "mcp.handler_candidate",
+        "enclosing_symbol": "upload_note",
+        "fact_id": "fact-1a0aa9b9f8bfcad0333fec18",
+        "kind": "entrypoint",
+        "source": {
+          "content_digest": "1eaf6a728f3deabdf973b68367139a6534b471624cee08fee54cd03bfa666c33",
+          "line": 10,
+          "path": "server.py",
+          "revision": "fixture-v1",
+          "symbol": "upload_note"
+        }
+      },
+      {
+        "category": "network.egress",
+        "enclosing_symbol": "upload_note",
+        "fact_id": "fact-f4b4b4737385a38a0ca01830",
+        "kind": "sink",
+        "source": {
+          "content_digest": "1eaf6a728f3deabdf973b68367139a6534b471624cee08fee54cd03bfa666c33",
+          "line": 11,
+          "path": "server.py",
+          "revision": "fixture-v1",
+          "symbol": "upload_note"
+        }
+      },
+      {
+        "category": "module.load_stop_candidate",
+        "enclosing_symbol": null,
+        "fact_id": "fact-ea5c4f4f1f43d3ec153619d0",
+        "kind": "control",
+        "source": {
+          "content_digest": "1eaf6a728f3deabdf973b68367139a6534b471624cee08fee54cd03bfa666c33",
+          "line": 14,
+          "path": "server.py",
+          "revision": "fixture-v1",
+          "symbol": null
+        }
+      }
+    ],
+    "files": [
+      {
+        "bytes": 365,
+        "content_digest": "1eaf6a728f3deabdf973b68367139a6534b471624cee08fee54cd03bfa666c33",
+        "language": "python",
+        "lines": 14,
+        "path": "server.py"
+      }
+    ],
+    "generator": "ordin.static_inventory.v1",
+    "issues": [],
+    "limits": {
+      "max_depth": 8,
+      "max_files": 256,
+      "max_total_bytes": 16777216
+    },
+    "repository": {
+      "id": "fixture/mcp",
+      "revision": "fixture-v1"
+    },
+    "root_identity_digest": "688124ccc18dee715468621df4599b3b429fd2983918651822eb56509e0c72ce",
+    "schema_version": "ordin.assurance_repository_inventory.v1",
+    "snapshot_digest": "14127b7c34b13571643d9a77317dabc8b209f23801368f66accd2cbfdb1c3b5d"
+  },
+  "model_id": "model-14127b7c34b13571643d9a77",
+  "open_questions": [
+    "Which inputs are attacker controlled and which handlers are externally reachable?",
+    "Which host enforces filesystem, network, tool and credential constraints?",
+    "Are candidate authorization controls unavoidable on each relevant route?",
+    "Which assets are production and where are credentials mounted?",
+    "How are child identities, grants and approval workflows authenticated?"
+  ],
+  "routes": [
+    {
+      "actor": "malicious_dependency_or_mcp_server",
+      "boundary_id": "tool-to-executor",
+      "control_refs": [],
+      "entrypoint_ref": "fact-1a0aa9b9f8bfcad0333fec18",
+      "hypothesis_id": "route-f4b4b4737385a38a0ca01830",
+      "proof_gaps": [
+        "Static colocation does not prove data flow or reachability."
+      ],
+      "sink_ref": "fact-f4b4b4737385a38a0ca01830",
+      "status": "hypothesis",
+      "transformation_refs": []
+    }
+  ],
+  "schema_version": "ordin.assurance_repository_threat_model.v1"
+}

@@ -1,0 +1,195 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-instruction-origin.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 15,
+  "properties": {
+    "classification": {
+      "enum": [
+        "public",
+        "internal",
+        "sensitive",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "content_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "epoch": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "kind": {
+      "enum": [
+        "authorized_user",
+        "repository_file",
+        "mcp_result",
+        "web_content",
+        "model_reasoning",
+        "unknown_origin"
+      ],
+      "type": "string"
+    },
+    "origin_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "parent_action_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "principal": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "repository": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_instruction_origin.v1",
+      "type": "string"
+    },
+    "session_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "maxProperties": 5,
+          "properties": {
+            "content_digest": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "line": {
+              "maximum": 10000000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "path": {
+              "maxLength": 1024,
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+              "type": "string"
+            },
+            "revision": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+              "type": "string"
+            },
+            "symbol": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "line",
+            "revision",
+            "content_digest",
+            "symbol"
+          ],
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "source_key": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "span_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "span_end": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "span_start": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "origin_id",
+    "source_key",
+    "principal",
+    "repository",
+    "session_digest",
+    "epoch",
+    "kind",
+    "classification",
+    "content_digest",
+    "span_digest",
+    "span_start",
+    "span_end",
+    "source",
+    "parent_action_digest"
+  ],
+  "title": "Ordin assurance instruction origin v1",
+  "type": "object"
+}

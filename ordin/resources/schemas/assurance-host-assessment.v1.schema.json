@@ -1,0 +1,104 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-host-assessment.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 11,
+  "properties": {
+    "action_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "assessment_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "contract_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "invariant_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "source_flow_guard",
+        "delegated_authority_subset",
+        "scanner_isolation",
+        "semantic_hosted_scope",
+        "semantic_local_scope",
+        "validation_isolation"
+      ],
+      "type": "string"
+    },
+    "origin": {
+      "const": "host_authenticated_assessment",
+      "type": "string"
+    },
+    "profile_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "proof_gaps": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_host_assessment.v1",
+      "type": "string"
+    },
+    "source_key": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "satisfied",
+        "violated",
+        "unsupported",
+        "inconclusive"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "assessment_id",
+    "source_key",
+    "action_digest",
+    "profile_digest",
+    "invariant_id",
+    "kind",
+    "status",
+    "contract_id",
+    "proof_gaps",
+    "origin"
+  ],
+  "title": "Ordin assurance host assessment v1",
+  "type": "object"
+}

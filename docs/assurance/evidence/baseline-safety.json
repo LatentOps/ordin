@@ -1,0 +1,76 @@
+{
+  "ask_rate": 0.0882,
+  "asks": 3,
+  "cases": 34,
+  "critical_misses": 0,
+  "domain_coverage": {
+    "aws": {
+      "cases": 2,
+      "semantic_matches": 2
+    },
+    "azure": {
+      "cases": 2,
+      "semantic_matches": 2
+    },
+    "database": {
+      "cases": 2,
+      "semantic_matches": 2
+    },
+    "gcloud": {
+      "cases": 2,
+      "semantic_matches": 2
+    },
+    "github": {
+      "cases": 2,
+      "semantic_matches": 2
+    },
+    "kubernetes": {
+      "cases": 2,
+      "semantic_matches": 2
+    },
+    "remote": {
+      "cases": 2,
+      "semantic_matches": 2
+    },
+    "systemd": {
+      "cases": 2,
+      "semantic_matches": 2
+    },
+    "terraform": {
+      "cases": 2,
+      "semantic_matches": 2
+    }
+  },
+  "exact_match_rate": 1.0,
+  "exact_matches": 34,
+  "false_allow_rate": 0.0,
+  "false_allows": 0,
+  "false_block_rate": 0.0,
+  "false_blocks": 0,
+  "fixture_schema_version": "ordin.safety_fixture.v1",
+  "fuzz_errors": [],
+  "fuzz_iterations": 32,
+  "fuzz_seed": 1729,
+  "generic_fuzz_errors": [],
+  "latency_ms": {
+    "p50": 930.1453,
+    "p95": 3309.7194,
+    "p99": 3968.4999
+  },
+  "mismatches": [],
+  "mode": "ci-smoke",
+  "ok": false,
+  "performance_budgets_ms": {
+    "p95": 250.0,
+    "p99": 500.0
+  },
+  "policy_errors": [],
+  "regression_errors": [
+    "p95 latency 3309.72ms exceeds 250.00ms",
+    "p99 latency 3968.50ms exceeds 500.00ms"
+  ],
+  "repetitions": 20,
+  "semantic_mismatches": [],
+  "semantic_misses": 0,
+  "trajectory_detection_rate": 1.0
+}

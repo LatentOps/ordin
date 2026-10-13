@@ -1,0 +1,84 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-rest-authority.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 10,
+  "properties": {
+    "access": {
+      "enum": [
+        "read",
+        "write"
+      ],
+      "type": "string"
+    },
+    "algorithm": {
+      "enum": [
+        "ordin.authority-json.sha256.v1"
+      ],
+      "type": "string"
+    },
+    "body_present": {
+      "type": "boolean"
+    },
+    "commitment": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "host": {
+      "maxLength": 253,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+      "type": "string"
+    },
+    "method": {
+      "enum": [
+        "GET",
+        "HEAD",
+        "OPTIONS",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE"
+      ],
+      "type": "string"
+    },
+    "path": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+      "type": "string"
+    },
+    "port": {
+      "maximum": 65535,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_rest_authority.v1",
+      "type": "string"
+    },
+    "scheme": {
+      "enum": [
+        "http",
+        "https"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "scheme",
+    "host",
+    "port",
+    "path",
+    "method",
+    "access",
+    "body_present",
+    "commitment",
+    "algorithm"
+  ],
+  "title": "Ordin assurance rest authority v1",
+  "type": "object"
+}

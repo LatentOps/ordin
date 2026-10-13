@@ -1,0 +1,135 @@
+{
+  "schema_version": "ordin.assurance_full_regression_summary.v1",
+  "source": "installed candidate wheel before canonical schema audit additions",
+  "results": {
+    "name": "pytest",
+    "errors": "0",
+    "failures": "5",
+    "skipped": "27",
+    "tests": "1167",
+    "time": "530.787",
+    "timestamp": "2026-10-09T20:42:54.316334-04:00"
+  },
+  "failed_cases": [
+    "tests.test_contract_audit.test_every_registered_schema_has_a_canonical_runtime_or_data_example",
+    "tests.test_contract_audit.test_public_export_and_console_inventory_matches_frozen_manifest",
+    "tests.test_integration_evaluation.test_real_agent_evaluation_reports_required_scope_and_metrics",
+    "tests.test_integration_examples.test_python_quickstart_reviews_executes_and_records_observation",
+    "tests.test_safety_benchmark.test_repository_safety_fixtures_have_zero_false_allows_and_critical_misses"
+  ],
+  "skipped_cases": [
+    {
+      "case": "tests.assurance.test_profiles.test_group_readable_selected_profile_is_not_a_private_configuration",
+      "reason": "POSIX ownership/mode checks require POSIX CI"
+    },
+    {
+      "case": "tests.test_codex.test_installation_writes_native_hooks_without_overwriting_existing_config",
+      "reason": "POSIX hook installation"
+    },
+    {
+      "case": "tests.test_cursor.test_installer_uses_absolute_interpreter_and_never_overwrites",
+      "reason": "POSIX hook launcher"
+    },
+    {
+      "case": "tests.test_macos_platform.test_native_private_store_and_uid_in_temporary_directory",
+      "reason": "native POSIX mode and symlink contract"
+    },
+    {
+      "case": "tests.test_runtime_cli.test_world_readable_or_symlink_trusted_source_is_rejected_on_posix",
+      "reason": "owner-only mode checks are POSIX-specific"
+    },
+    {
+      "case": "tests.test_security_integrity.test_audit_rejects_public_modes_and_symlinks",
+      "reason": "POSIX mode and symlink controls"
+    },
+    {
+      "case": "tests.test_session.test_store_requires_private_file_and_rejects_symlinks",
+      "reason": "POSIX private storage contract"
+    },
+    {
+      "case": "tests.test_setup.test_symlink_and_insecure_private_state_refusal",
+      "reason": "POSIX ownership and hooks"
+    },
+    {
+      "case": "tests.test_shell_integration.test_wrapper_executes_allowed_exact_text[bash]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_wrapper_executes_allowed_exact_text[zsh]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_wrapper_does_not_execute_rejected_text[bash-10]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_wrapper_does_not_execute_rejected_text[bash-20]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_wrapper_does_not_execute_rejected_text[bash-30]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_wrapper_does_not_execute_rejected_text[bash-127]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_wrapper_does_not_execute_rejected_text[zsh-10]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_wrapper_does_not_execute_rejected_text[zsh-20]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_wrapper_does_not_execute_rejected_text[zsh-30]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_wrapper_does_not_execute_rejected_text[zsh-127]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_generated_script_has_valid_syntax[bash]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_generated_script_has_valid_syntax[zsh]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_wrapper_rejects_bad_threshold_and_can_be_disabled[bash]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_wrapper_rejects_bad_threshold_and_can_be_disabled[zsh]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_zsh_widget_obeys_review_result[bash-0-True]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_zsh_widget_obeys_review_result[bash-30-False]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_zsh_widget_obeys_review_result[zsh-0-True]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_shell_integration.test_zsh_widget_obeys_review_result[zsh-30-False]",
+      "reason": "shell execution fixtures require POSIX paths and executable modes"
+    },
+    {
+      "case": "tests.test_trace_capture.test_capture_private_permissions_and_symlink_refusal",
+      "reason": "POSIX owner-only modes"
+    }
+  ],
+  "junit_sha256": "c4f22f147c0b045ed17e7b7eddcf923ff0cc0162ad0f6449a6d6974ac1cb435d",
+  "limitations": [
+    "Full run predates schema-audit example coverage fixes; those fixes pass a focused 14-test recheck.",
+    "Windows/Python 3.13 local run; Linux/macOS and exact-SHA release gates remain open."
+  ]
+}

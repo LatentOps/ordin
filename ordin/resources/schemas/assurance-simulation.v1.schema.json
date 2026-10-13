@@ -1,0 +1,590 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-simulation.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 30,
+  "properties": {
+    "activation_safe": {
+      "type": "boolean"
+    },
+    "baseline_latency": {
+      "additionalProperties": false,
+      "maxProperties": 4,
+      "properties": {
+        "p50_ms": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "p95_ms": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "p99_ms": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "samples": {
+          "maximum": 1000000000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "p50_ms",
+        "p95_ms",
+        "p99_ms",
+        "samples"
+      ],
+      "type": "object"
+    },
+    "baseline_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "benign_false_denials": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "benign_false_escalations": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "candidate_latency": {
+      "additionalProperties": false,
+      "maxProperties": 4,
+      "properties": {
+        "p50_ms": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "p95_ms": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "p99_ms": {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        "samples": {
+          "maximum": 1000000000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "p50_ms",
+        "p95_ms",
+        "p99_ms",
+        "samples"
+      ],
+      "type": "object"
+    },
+    "candidate_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "cases": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 26,
+        "properties": {
+          "action_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "action_kind": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "assessable": {
+            "type": "boolean"
+          },
+          "authority_delta": {
+            "enum": [
+              "unchanged",
+              "narrowed",
+              "widened",
+              "unsupported",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "baseline_capability_digest": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "baseline_core": {
+            "enum": [
+              "execute",
+              "escalate",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "baseline_core_ms": {
+            "maximum": 86400000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "baseline_effects": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+              "type": "string"
+            },
+            "maxItems": 128,
+            "type": "array"
+          },
+          "baseline_final": {
+            "enum": [
+              "execute",
+              "escalate",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "baseline_ms": {
+            "maximum": 86400000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "baseline_temporal": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "baseline_wrapper_ms": {
+            "maximum": 86400000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "candidate_capability_digest": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidate_core": {
+            "enum": [
+              "execute",
+              "escalate",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "candidate_core_ms": {
+            "maximum": 86400000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "candidate_effects": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+              "type": "string"
+            },
+            "maxItems": 128,
+            "type": "array"
+          },
+          "candidate_final": {
+            "enum": [
+              "execute",
+              "escalate",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "candidate_ms": {
+            "maximum": 86400000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "candidate_temporal": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "candidate_wrapper_ms": {
+            "maximum": 86400000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "case_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "change": {
+            "enum": [
+              "newly_denied",
+              "newly_escalated",
+              "newly_executable",
+              "unchanged",
+              "unassessable"
+            ],
+            "type": "string"
+          },
+          "critical": {
+            "type": "boolean"
+          },
+          "expected": {
+            "enum": [
+              "execute",
+              "escalate",
+              "deny"
+            ],
+            "type": "string"
+          },
+          "label": {
+            "enum": [
+              "benign",
+              "adversarial",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "reason_codes": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array"
+          }
+        },
+        "required": [
+          "case_id",
+          "action_digest",
+          "baseline_core",
+          "candidate_core",
+          "baseline_final",
+          "candidate_final",
+          "change",
+          "reason_codes",
+          "authority_delta",
+          "label",
+          "baseline_ms",
+          "candidate_ms",
+          "baseline_core_ms",
+          "candidate_core_ms",
+          "baseline_wrapper_ms",
+          "candidate_wrapper_ms",
+          "expected",
+          "critical",
+          "action_kind",
+          "assessable",
+          "baseline_effects",
+          "candidate_effects",
+          "baseline_temporal",
+          "candidate_temporal",
+          "baseline_capability_digest",
+          "candidate_capability_digest"
+        ],
+        "type": "object"
+      },
+      "maxItems": 4096,
+      "type": "array"
+    },
+    "corpus_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "coverage": {
+      "enum": [
+        "complete",
+        "partial",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "coverage_by_kind": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 4,
+        "properties": {
+          "action_kind": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "assessable": {
+            "maximum": 1000000000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "maximum": 1000000000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unresolved": {
+            "maximum": 1000000000,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action_kind",
+          "total",
+          "assessable",
+          "unresolved"
+        ],
+        "type": "object"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "critical_caught": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "critical_misses": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "environment": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 256,
+      "type": "array"
+    },
+    "missing_required_cases": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 4096,
+      "type": "array"
+    },
+    "new_policy_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "new_profile_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "new_profile_selection_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "newly_denied": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 4096,
+      "type": "array"
+    },
+    "newly_escalated": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 4096,
+      "type": "array"
+    },
+    "newly_executable": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 4096,
+      "type": "array"
+    },
+    "old_policy_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "old_profile_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "old_profile_selection_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "policy_authority_delta": {
+      "enum": [
+        "unchanged",
+        "narrowed",
+        "widened",
+        "unsupported",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "report_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_simulation.v1",
+      "type": "string"
+    },
+    "source_permissions": {
+      "enum": [
+        "synthetic_fixture",
+        "authorized_sanitized_replay",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "unassessable": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 4096,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "report_id",
+    "corpus_digest",
+    "baseline_revision",
+    "candidate_revision",
+    "old_policy_digest",
+    "new_policy_digest",
+    "old_profile_digest",
+    "new_profile_digest",
+    "old_profile_selection_digest",
+    "new_profile_selection_digest",
+    "cases",
+    "critical_misses",
+    "critical_caught",
+    "benign_false_escalations",
+    "benign_false_denials",
+    "baseline_latency",
+    "candidate_latency",
+    "coverage",
+    "activation_safe",
+    "environment",
+    "limitations",
+    "newly_denied",
+    "newly_escalated",
+    "newly_executable",
+    "unassessable",
+    "missing_required_cases",
+    "policy_authority_delta",
+    "source_permissions",
+    "coverage_by_kind"
+  ],
+  "title": "Ordin assurance simulation v1",
+  "type": "object"
+}

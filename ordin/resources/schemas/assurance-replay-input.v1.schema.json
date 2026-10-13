@@ -1,0 +1,100 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-replay-input.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 3,
+  "properties": {
+    "action": {
+      "additionalProperties": false,
+      "maxProperties": 7,
+      "properties": {
+        "action_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "context": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "maxProperties": 32,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "intent": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "operation": {
+          "maxLength": 256,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "maxProperties": 128,
+          "type": "object"
+        },
+        "schema_version": {
+          "const": "ordin.action_envelope.v1",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "action_id",
+        "kind",
+        "operation",
+        "parameters",
+        "intent",
+        "context"
+      ],
+      "type": "object"
+    },
+    "case_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_replay_input.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "case_id",
+    "action"
+  ],
+  "title": "Ordin assurance replay input v1",
+  "type": "object"
+}

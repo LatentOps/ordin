@@ -1,0 +1,157 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-workflow-capture.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 11,
+  "properties": {
+    "artifact_sha256": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "expected_identifiers": {
+      "items": {
+        "maxLength": 256,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 128,
+      "type": "array"
+    },
+    "native_repository": {
+      "anyOf": [
+        {
+          "maxLength": 1024,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "patch_sha256": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reported_exit_code": {
+      "anyOf": [
+        {
+          "maximum": 4294967295,
+          "minimum": -2147483648,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reported_status": {
+      "enum": [
+        "completed",
+        "partial",
+        "failed",
+        "canceled",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "repository": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "scan_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema_version": {
+      "const": "ordin.assurance_workflow_capture.v1",
+      "type": "string"
+    },
+    "source_tool": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "name": {
+          "const": "codex-security",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "type": "object"
+    },
+    "workflow": {
+      "enum": [
+        "validate",
+        "patch",
+        "verify_fix",
+        "patch_risk"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "workflow",
+    "repository",
+    "source_tool",
+    "scan_id",
+    "native_repository",
+    "expected_identifiers",
+    "artifact_sha256",
+    "reported_exit_code",
+    "reported_status",
+    "patch_sha256"
+  ],
+  "title": "Ordin assurance workflow capture v1",
+  "type": "object"
+}

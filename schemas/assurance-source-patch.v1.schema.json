@@ -1,0 +1,136 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-source-patch.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 10,
+  "properties": {
+    "applied": {
+      "const": false,
+      "type": "boolean"
+    },
+    "candidate_file_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "patch_bytes": {
+      "maximum": 131072,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "patch_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "proposal_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "repository": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "review_required": {
+      "const": true,
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_source_patch.v1",
+      "type": "string"
+    },
+    "source": {
+      "additionalProperties": false,
+      "maxProperties": 5,
+      "properties": {
+        "content_digest": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        "line": {
+          "maximum": 10000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "path": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "symbol": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "line",
+        "revision",
+        "content_digest",
+        "symbol"
+      ],
+      "type": "object"
+    },
+    "validation_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "proposal_id",
+    "validation_digest",
+    "repository",
+    "source",
+    "candidate_file_digest",
+    "patch_digest",
+    "patch_bytes",
+    "applied",
+    "review_required"
+  ],
+  "title": "Ordin assurance source patch v1",
+  "type": "object"
+}

@@ -1,0 +1,46 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-semantic-inspection.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 4,
+  "properties": {
+    "action_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "reasons": {
+      "items": {
+        "enum": [
+          "ambiguous_task_alignment",
+          "unclear_effect",
+          "near_trust_boundary",
+          "cross_agent_flow"
+        ],
+        "type": "string"
+      },
+      "maxItems": 4,
+      "minItems": 1,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_semantic_inspection.v1",
+      "type": "string"
+    },
+    "source_key": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "source_key",
+    "action_digest",
+    "reasons"
+  ],
+  "title": "Ordin assurance semantic inspection v1",
+  "type": "object"
+}

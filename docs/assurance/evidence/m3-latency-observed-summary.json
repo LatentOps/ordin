@@ -1,0 +1,19 @@
+{
+  "schema_version": "ordin.assurance_latency_observed_summary.v1",
+  "source": "Actual command stdout from four completed benchmark runs",
+  "raw_report_access": "PermissionError persisted when reading workspace reports, including escalated read; metrics below are transcribed from tool-observed output",
+  "environment": "Windows 11 / Python 3.13.12",
+  "declared_p95_overhead_budget_ms": 5,
+  "measurements": [
+    {"revision": "uncommitted-m3", "samples": 400, "added_p50_ms": 63.1553, "added_p95_ms": 142.1518, "added_p99_ms": 259.168, "mismatches": 0, "ok": false},
+    {"revision": "uncommitted-m3-catalog-snapshot", "samples": 200, "added_p50_ms": 17.5582, "added_p95_ms": 78.1451, "added_p99_ms": 165.9614, "mismatches": 0, "ok": false},
+    {"revision": "uncommitted-m3-regex-and-catalog", "samples": 120, "added_p50_ms": 3.8262, "added_p95_ms": 48.1091, "added_p99_ms": 107.0886, "intrinsic_p50_ms": 8.9541, "intrinsic_p95_ms": 16.9161, "intrinsic_p99_ms": 19.2804, "mismatches": 0, "ok": false},
+    {"revision": "uncommitted-m3-immutable-digest-cache", "samples": 80, "added_p50_ms": 4.0545, "added_p95_ms": 50.2829, "added_p99_ms": 75.0808, "intrinsic_p50_ms": 2.5064, "intrinsic_p95_ms": 4.9858, "intrinsic_p99_ms": 6.3382, "mismatches": 0, "intrinsic_layer_meets_budget": true, "ok": false}
+  ],
+  "limitations": [
+    "Uncommitted source versions and local synthetic controls; not an exact-SHA release benchmark",
+    "Some measurements overlapped development/source verification on the host",
+    "The end-to-end added latency gate remains failed; isolated-layer success does not replace it",
+    "No scanner/model/enforcement or production effectiveness timing is included"
+  ]
+}

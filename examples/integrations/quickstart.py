@@ -6,12 +6,13 @@ from ordin import ActionEnvelope, ActionObservation, AgentGate, ExecutionContext
 
 
 def main() -> int:
-    command = "ls README.md"
+    command_args = ("git", "ls-files", "--", "README.md")
+    command = " ".join(command_args)
     action = ActionEnvelope(
         kind="shell",
         operation="execute",
         parameters={"command": command},
-        intent="list files",
+        intent="list tracked repository files",
         context=ExecutionContext(cwd=".", agent="starter-kit"),
         action_id="starter-kit-shell-1",
     )
@@ -24,7 +25,7 @@ def main() -> int:
 
     # Execution is intentionally caller-owned. Ordin only reviewed the action.
     completed = subprocess.run(
-        ["sh", "-c", command],
+        command_args,
         check=False,
         capture_output=True,
         text=True,

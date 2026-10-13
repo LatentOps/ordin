@@ -1,0 +1,214 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-delegated-decision.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 10,
+  "properties": {
+    "action_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "assurance_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "baseline_disposition": {
+      "enum": [
+        "execute",
+        "escalate",
+        "deny"
+      ],
+      "type": "string"
+    },
+    "contract_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "disposition": {
+      "enum": [
+        "execute",
+        "escalate",
+        "deny"
+      ],
+      "type": "string"
+    },
+    "grant_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "issuer_generation": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "reason_codes": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_delegated_decision.v1",
+      "type": "string"
+    },
+    "verification": {
+      "anyOf": [
+        {
+          "$id": "https://latentops.space/ordin/schemas/assurance-delegation-verification.v1.schema.json",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": false,
+          "maxProperties": 9,
+          "properties": {
+            "child_authority_digest": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "coverage": {
+              "additionalProperties": false,
+              "maxProperties": 8,
+              "properties": {
+                "approval": {
+                  "type": "boolean"
+                },
+                "credentials": {
+                  "type": "boolean"
+                },
+                "filesystem": {
+                  "type": "boolean"
+                },
+                "network": {
+                  "type": "boolean"
+                },
+                "privilege": {
+                  "type": "boolean"
+                },
+                "process": {
+                  "type": "boolean"
+                },
+                "requests": {
+                  "type": "boolean"
+                },
+                "tools": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "filesystem",
+                "network",
+                "tools",
+                "process",
+                "privilege",
+                "credentials",
+                "requests",
+                "approval"
+              ],
+              "type": "object"
+            },
+            "operator_authority_digest": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "parent_authority_digest": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            "proof_gaps": {
+              "items": {
+                "maxLength": 4096,
+                "minLength": 1,
+                "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+                "type": "string"
+              },
+              "maxItems": 32,
+              "type": "array"
+            },
+            "reason_codes": {
+              "items": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                "type": "string"
+              },
+              "maxItems": 64,
+              "type": "array"
+            },
+            "result": {
+              "enum": [
+                "within_boundary",
+                "exceeds_boundary",
+                "unsupported",
+                "inconclusive"
+              ],
+              "type": "string"
+            },
+            "schema_version": {
+              "const": "ordin.assurance_delegation_verification.v1",
+              "type": "string"
+            },
+            "task_authority_digest": {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "schema_version",
+            "result",
+            "reason_codes",
+            "child_authority_digest",
+            "parent_authority_digest",
+            "operator_authority_digest",
+            "task_authority_digest",
+            "coverage",
+            "proof_gaps"
+          ],
+          "title": "Ordin assurance delegation verification v1",
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "disposition",
+    "baseline_disposition",
+    "assurance_digest",
+    "grant_digest",
+    "action_digest",
+    "contract_digest",
+    "issuer_generation",
+    "verification",
+    "reason_codes"
+  ],
+  "title": "Ordin assurance delegated decision v1",
+  "type": "object"
+}

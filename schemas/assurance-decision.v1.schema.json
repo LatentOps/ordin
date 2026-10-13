@@ -1,0 +1,432 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-decision.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 14,
+  "properties": {
+    "action_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "assurance_configuration_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "baseline": {
+      "additionalProperties": false,
+      "maxProperties": 5,
+      "properties": {
+        "decision": {
+          "enum": [
+            "allow",
+            "warn",
+            "ask",
+            "block"
+          ],
+          "type": "string"
+        },
+        "disposition": {
+          "enum": [
+            "execute",
+            "escalate",
+            "deny"
+          ],
+          "type": "string"
+        },
+        "effects": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "maxItems": 64,
+          "type": "array"
+        },
+        "omitted_effects": {
+          "maximum": 1000000000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "risk": {
+          "enum": [
+            "unknown",
+            "low",
+            "medium",
+            "high",
+            "critical"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "disposition",
+        "decision",
+        "risk",
+        "effects",
+        "omitted_effects"
+      ],
+      "type": "object"
+    },
+    "baseline_configuration_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "contract_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "disposition": {
+      "enum": [
+        "execute",
+        "escalate",
+        "deny"
+      ],
+      "type": "string"
+    },
+    "evidence_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "history_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "host_context_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "invariant_evaluations": {
+      "items": {
+        "$id": "https://latentops.space/ordin/schemas/assurance-invariant-evaluation.v1.schema.json",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "maxProperties": 9,
+        "properties": {
+          "action_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "contract_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invariant_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "matched_facts": {
+            "items": {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+              "type": "string"
+            },
+            "maxItems": 64,
+            "type": "array"
+          },
+          "policy_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "reason_code": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ordin.assurance_invariant_evaluation.v1",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "satisfied",
+              "violated",
+              "inconclusive",
+              "unsupported"
+            ],
+            "type": "string"
+          },
+          "unknowns": {
+            "items": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            "maxItems": 32,
+            "type": "array"
+          }
+        },
+        "required": [
+          "schema_version",
+          "invariant_id",
+          "status",
+          "reason_code",
+          "matched_facts",
+          "unknowns",
+          "policy_digest",
+          "action_digest",
+          "contract_id"
+        ],
+        "title": "Ordin assurance invariant evaluation v1",
+        "type": "object"
+      },
+      "maxItems": 256,
+      "type": "array"
+    },
+    "model_evidence": {
+      "items": {
+        "$id": "https://latentops.space/ordin/schemas/assurance-model-evidence.v1.schema.json",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "maxProperties": 14,
+        "properties": {
+          "answers": {
+            "items": {
+              "additionalProperties": false,
+              "maxProperties": 2,
+              "properties": {
+                "p_yes": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "question_id": {
+                  "maxLength": 128,
+                  "minLength": 1,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "question_id",
+                "p_yes"
+              ],
+              "type": "object"
+            },
+            "maxItems": 32,
+            "type": "array"
+          },
+          "calibration_ref": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "consent_ref": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "error_class": {
+            "enum": [
+              "none",
+              "timeout",
+              "unavailable",
+              "malformed",
+              "refused",
+              "version_mismatch",
+              "transport",
+              "question_mismatch",
+              "canceled",
+              "privacy",
+              "budget"
+            ],
+            "type": "string"
+          },
+          "evidence_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "input_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "latency_ms": {
+            "maximum": 86400000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "model_version": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "provider": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "question_set_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "question_set_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "redaction_policy_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ordin.assurance_model_evidence.v1",
+            "type": "string"
+          },
+          "supportedness": {
+            "enum": [
+              "supported",
+              "unsupported",
+              "inconclusive"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "evidence_id",
+          "provider",
+          "model_version",
+          "question_set_id",
+          "question_set_digest",
+          "redaction_policy_id",
+          "input_digest",
+          "answers",
+          "supportedness",
+          "latency_ms",
+          "error_class",
+          "calibration_ref",
+          "consent_ref"
+        ],
+        "title": "Ordin assurance model evidence v1",
+        "type": "object"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
+    "profile_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reason_codes": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 256,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_decision.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "baseline",
+    "disposition",
+    "action_digest",
+    "contract_id",
+    "profile_digest",
+    "baseline_configuration_digest",
+    "assurance_configuration_digest",
+    "host_context_digest",
+    "history_digest",
+    "invariant_evaluations",
+    "model_evidence",
+    "reason_codes",
+    "evidence_digest"
+  ],
+  "title": "Ordin assurance decision v1",
+  "type": "object"
+}

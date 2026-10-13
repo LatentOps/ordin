@@ -18,6 +18,7 @@ from .temporal import CompiledTemporalPolicySet, TemporalPolicySet
 from .tool_calls import CompiledToolSemanticsRegistry, ToolSemanticsRegistry
 from .trace import ActionTrace
 from .runtime_requirements import RuntimeRequirementProfile
+from ._rest_semantics import RestSemantics
 
 if TYPE_CHECKING:
     from .runtime_observation import RuntimeObservationHistory, RuntimeReviewBinding
@@ -39,8 +40,11 @@ class Ordin:
     tool_semantics: ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None = None
     audit: AuditSink | None = None
     runtime_requirements: RuntimeRequirementProfile | None = None
+    rest_semantics: RestSemantics | None = None
 
     def __post_init__(self) -> None:
+        if self.rest_semantics is not None and not isinstance(self.rest_semantics, RestSemantics):
+            raise ValueError("REST semantics require an explicit typed host selection")
         if self.runtime_requirements is not None and not isinstance(
             self.runtime_requirements, RuntimeRequirementProfile
         ):
@@ -157,6 +161,7 @@ class Ordin:
                 if isinstance(tool_semantics, CompiledToolSemanticsRegistry)
                 else None
             ),
+            rest_semantics=self.rest_semantics,
         )
         compiled_policy = self.action_policy
         if isinstance(compiled_policy, CompiledActionPolicySet):

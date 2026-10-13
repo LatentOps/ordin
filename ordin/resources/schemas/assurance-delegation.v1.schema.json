@@ -1,0 +1,157 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-delegation.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 19,
+  "properties": {
+    "authorization_channel": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "capability_refs": {
+      "items": {
+        "maxLength": 64,
+        "minLength": 1,
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "maxItems": 128,
+      "type": "array"
+    },
+    "child_principal": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "contract_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "depth": {
+      "maximum": 16,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "epoch": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "expires_at": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "grant_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "issued_at": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "issuer_identity": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "maximum_delegation_depth": {
+      "maximum": 16,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "parent_grant_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "parent_policy_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "parent_principal": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "profile_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "revoked_at": {
+      "anyOf": [
+        {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema_version": {
+      "const": "ordin.assurance_delegation.v1",
+      "type": "string"
+    },
+    "session_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "proposal",
+        "issued",
+        "revoked"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "grant_id",
+    "parent_principal",
+    "child_principal",
+    "parent_grant_id",
+    "issuer_identity",
+    "authorization_channel",
+    "session_digest",
+    "epoch",
+    "issued_at",
+    "expires_at",
+    "revoked_at",
+    "parent_policy_digest",
+    "profile_digest",
+    "contract_digest",
+    "capability_refs",
+    "maximum_delegation_depth",
+    "depth",
+    "status"
+  ],
+  "title": "Ordin assurance delegation v1",
+  "type": "object"
+}
