@@ -309,6 +309,10 @@ class HermesIntegration:
                 if isinstance(candidate, bool) or not isinstance(candidate, int):
                     raise ValueError("Hermes exit_code must be integer")
                 exit_code = candidate
+                if candidate == 0 and (host_status == "error" or value.get("error")):
+                    # Temporal evidence derives success from exit_code, not metadata.
+                    # Contradictory host reports must never contribute observed-success.
+                    exit_code = None
                 status = (
                     "success"
                     if candidate == 0 and host_status == "ok" and not value.get("error")

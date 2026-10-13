@@ -186,7 +186,8 @@ def test_observation_binds_exact_review_and_profile_and_does_not_store_output():
     [
         ("blocked", "{}", None, None),
         ("ok", '{"session_id":"job","status":"yielded_to_background"}', "reported", None),
-        ("error", '{"exit_code":0,"error":"failed"}', "failure", 0),
+        ("error", '{"exit_code":0,"error":"failed"}', "failure", None),
+        ("ok", '{"exit_code":0,"error":"failed"}', "failure", None),
         ("ok", '{"exit_code":3}', "failure", 3),
         ("ok", "{}", "reported", None),
     ],
@@ -201,6 +202,17 @@ def test_host_reports_are_not_inferred_execution_evidence(status, result, expect
     else:
         assert observation.metadata["status"] == expected and observation.exit_code == exit_code
         assert observation.effects == ()
+
+
+def test_contradictory_error_report_cannot_produce_temporal_success():
+    from ordin.action import _temporal_evidence_for_action
+
+    payload = hook()
+    adapter = active(HermesIntegration(), payload)
+    decision = adapter.review_pre_tool(payload)
+    observation = adapter.observation_from_hook(post(payload, "error", '{"exit_code":0}'))
+    evidence = _temporal_evidence_for_action(decision.review.action, observation=observation)
+    assert "signal:observed-success" not in evidence.signals
 
 
 def invoke(monkeypatch, capsys, payload, mode="pre"):
