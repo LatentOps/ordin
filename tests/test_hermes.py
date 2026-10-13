@@ -329,3 +329,109 @@ def test_configuration_errors_and_capture_write_errors_fail_closed(monkeypatch, 
     blocked.write_bytes(b"fixture")
     monkeypatch.setenv("ORDIN_HERMES_TRACE", str(blocked / "trace.db"))
     assert invoke(monkeypatch, capsys, hook())[1]["action"] == "block"
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        "Private custom-tool text",
+        {"_multimodal": True, "content": [{"type": "text", "text": "private"}]},
+    ],
+)
+def test_custom_results_accept_host_formats_without_retaining_content(result):
+    payload = hook("custom_tool", {})
+    adapter = active(HermesIntegration(), payload)
+    adapter.review_pre_tool(payload)
+    observation = adapter.observation_from_hook(post(payload, result=result))
+    assert observation.metadata["status"] == "reported"
+    assert observation.exit_code is None
+    assert "private" not in json.dumps(observation.as_dict()).lower()
+
+
+def test_approval_rule_is_bound_to_the_reviewed_snapshot():
+    from ordin import AgentGate, Ordin
+    from ordin.audit import build_audit_event
+    from ordin.trace_capture import digest
+
+    payload = hook("custom_tool", {"scope": "reviewed"})
+
+    class MutatingAudit:
+        action = None
+
+        def record(self, review):
+            self.action = review.action
+            payload["tool_input"]["scope"] = "changed-after-review"
+            return build_audit_event(review)
+
+    audit = MutatingAudit()
+    adapter = HermesIntegration(gate=AgentGate(Ordin(audit=audit)))
+    output = adapter.pre_tool_output(payload)
+    assert output["action"] == "approve"
+    assert output["rule_key"] == "ordin:" + digest(audit.action.as_dict())
+
+
+def test_failed_trace_write_does_not_poison_in_memory_observation(monkeypatch, tmp_path):
+    payload = hook()
+    adapter = active(build_hermes_integration(trace_path=tmp_path / "trace.db"), payload)
+    adapter.review_pre_tool(payload)
+    snapshot = adapter.session.snapshot()
+    record = adapter.trace.record_observation
+
+    def unavailable(*args, **kwargs):
+        raise OSError("fixture trace write failure")
+
+    monkeypatch.setattr(adapter.trace, "record_observation", unavailable)
+    with pytest.raises(OSError):
+        adapter.observation_from_hook(post(payload))
+    assert adapter.session.snapshot() == snapshot
+    monkeypatch.setattr(adapter.trace, "record_observation", record)
+    assert adapter.observation_from_hook(post(payload)).metadata["status"] == "success"
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        0,
+        [],
+        {"content": []},
+        {"_multimodal": True, "content": "wrong"},
+        {"_multimodal": True, "content": [float("nan")]},
+        "x" * 1_048_577,
+    ],
+    ids=["number", "array", "unmarked-object", "wrong-content", "nonfinite", "oversized"],
+)
+def test_custom_result_bounds_and_envelope_are_still_enforced(result):
+    payload = hook("custom_tool", {})
+    adapter = active(HermesIntegration(), payload)
+    adapter.review_pre_tool(payload)
+    with pytest.raises(ValueError):
+        adapter.observation_from_hook(post(payload, result=result))
+    assert adapter.session.snapshot()["observations"]["observations"] == []
+
+
+@pytest.mark.parametrize("status,expected", [("ok", "reported"), ("error", "failure")])
+def test_cli_correlates_plain_and_multimodal_results_without_capturing_them(
+    monkeypatch, capsys, tmp_path, status, expected
+):
+    monkeypatch.setenv("ORDIN_HERMES_STATE", str(tmp_path / "state.db"))
+    capture = tmp_path / "trace.db"
+    monkeypatch.setenv("ORDIN_HERMES_TRACE", str(capture))
+    for number, result in enumerate(
+        [
+            "private plain result",
+            {
+                "_multimodal": True,
+                "content": [{"type": "text", "text": "private multimodal result"}],
+            },
+        ]
+    ):
+        payload = hook("custom_tool", {}, call=str(number))
+        assert invoke(monkeypatch, capsys, payload)[1]["action"] == "approve"
+        assert invoke(monkeypatch, capsys, post(payload, status, result), "post") == (0, {})
+    events = read_capture(capture)["events"]
+    assert [event["status"] for event in events if event["event"] == "observation"] == [
+        expected,
+        expected,
+    ]
+    assert "private plain result" not in json.dumps(events)
+    assert "private multimodal result" not in json.dumps(events)

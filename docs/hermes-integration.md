@@ -100,9 +100,14 @@ intentionally not wired to conversation cleanup.
 Action identity binds profile, conversation, tool call ID, tool identity, full
 input digest and pinned contract. Changed post-tool arguments, missing reviews,
 duplicate observations and cross-session evidence are rejected. Blocked host
-results do not become observations. Terminal completion uses only an explicit
-integer `exit_code`; background acceptance remains `reported`. Host-reported
+results do not become observations. Custom-tool results can be ordinary text
+or Hermes multimodal envelopes; their contents are validated for size and
+format but are not retained or interpreted as exit codes. Terminal completion
+uses only an explicit integer `exit_code`; background acceptance remains `reported`. Host-reported
 success does not prove physical effects. Raw result output is not retained.
+Approval keys use the reviewed action snapshot, even if a caller or audit
+callback changes its original input. A failed observation trace write leaves
+in-memory session state unchanged so the same matching observation can be retried.
 
 `--audit` records private review evidence; `--observations` enables metadata-only
 trace capture. Sensitive native file contents, code and delegation prompts are
@@ -135,11 +140,15 @@ python -I scripts/check_hermes_integration.py --json-out hermes-contract-report.
 ```
 
 The dedicated CI check builds and installs an isolated Ordin wheel, fetches
-four upstream files at the pinned commit and verifies their SHA256 digests. It
+five upstream files at the pinned commit and verifies their SHA256 digests. It
 runs Hermes' real shell launcher/parser plus unmodified AST-selected production
-approval and pre-dispatch functions. It verifies allow, approval/denial, approval
-errors, malformed identity, profile isolation, crashes, timeouts, missing
-executables, lifecycle callbacks and changed post-tool arguments. It also tests
-and reports the downstream rewrite coverage limit. Profile, environment,
-approval UI, ACP and tool execution are explicit harmless fixtures. This proves
+approval, pre-dispatch, result-normalization and post-tool emission functions.
+It verifies allow, approval/denial, approval errors, malformed identity,
+profile isolation, crashes, timeouts, missing
+executables, lifecycle callbacks, plain/multimodal post-tool results and changed
+post-tool arguments. It also tests and reports the downstream rewrite coverage
+limit. Transient download failures
+get at most three attempts; missing files, bad hashes and exhausted retries
+fail the check. Profile, environment, approval UI, ACP, post-hook suppression
+and tool execution are explicit harmless fixtures. This proves
 the pinned hook contract, not a live model run or sandbox containment.

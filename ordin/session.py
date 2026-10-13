@@ -10,7 +10,7 @@ import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Iterator, Mapping
+from typing import Any, Callable, Iterable, Iterator, Mapping
 
 from . import __version__
 from ._private_storage import MAX_DATABASE_BYTES, private_database
@@ -465,7 +465,17 @@ class IntegrationSession:
             self._sequence += 1
             return decision
 
-    def observe(self, observation: ActionObservation) -> None:
+    def observe(
+        self,
+        observation: ActionObservation,
+        *,
+        before_commit: Callable[[ActionObservation], None] | None = None,
+    ) -> None:
+        """Validate and record evidence before retaining it; sink errors leave state intact.
+
+        The optional sink runs under the session lock and must not change this
+        session. Its observation is detached from the retained snapshot.
+        """
         with self._lock:
             self.require_identity(self.identity)
             if not any(action.action_id == observation.action_id for action in self._actions):
@@ -478,6 +488,8 @@ class IntegrationSession:
             proposed = dict(self._observations)
             proposed[observation.action_id] = copied
             self._bounded(self._snapshot(self._actions, proposed, self._denied, self._sequence))
+            if before_commit is not None:
+                before_commit(ActionObservation.from_dict(copied.as_dict()))
             self._observations = proposed
 
     def reset(self) -> None:
