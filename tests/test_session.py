@@ -58,6 +58,42 @@ def _call(command="git status --short", request_id=1):
     }
 
 
+def test_observation_sink_failure_leaves_session_retryable_and_receives_detached_data():
+    session = IntegrationSession(SessionIdentity("fixture", "s"), AgentGate())
+    action = _shell()
+    session.evaluate(action)
+    snapshot = session.snapshot()
+    observation = ActionObservation(action.action_id, exit_code=0, metadata={"status": "success"})
+
+    def unavailable(copied):
+        copied.metadata["status"] = "changed-by-sink"
+        raise OSError("fixture unavailable recorder")
+
+    with pytest.raises(OSError):
+        session.observe(observation, before_commit=unavailable)
+    assert session.snapshot() == snapshot
+
+    def recorder(copied):
+        assert session.snapshot()["observations"]["observations"] == []
+        copied.metadata["status"] = "changed-by-sink"
+
+    session.observe(observation, before_commit=recorder)
+    assert session.snapshot()["observations"]["observations"][0]["metadata"]["status"] == "success"
+
+
+def test_invalid_or_duplicate_observation_never_reaches_sink():
+    session = IntegrationSession(SessionIdentity("fixture", "s"), AgentGate())
+    session.evaluate(_shell())
+    written = []
+    with pytest.raises(ValueError):
+        session.observe(ActionObservation("wrong-action"), before_commit=written.append)
+    observation = ActionObservation("action-1", exit_code=0)
+    session.observe(observation, before_commit=written.append)
+    with pytest.raises(ValueError):
+        session.observe(observation, before_commit=written.append)
+    assert len(written) == 1
+
+
 def test_live_claude_repeated_destructive_and_privileged_actions():
     integration = _claude()
     results = [

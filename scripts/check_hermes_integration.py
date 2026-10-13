@@ -22,9 +22,11 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import types
 from typing import Any, Optional
-from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from ordin.hermes import HERMES_REVISION, HERMES_VERSION
 from ordin.setup import TARGETS, apply, config_content
@@ -35,7 +37,25 @@ SOURCES = {
     "hermes_cli/_subprocess_compat.py": "4d036c56de8065099f4b82a50fde9095c43dab7e851e0e3a3fe4cd5c143a212e",
     "hermes_cli/plugins.py": "f5a1c27a22025984bbf956b58154ce23914592307bd945d7a1c0167cc443d771",
     "model_tools.py": "872ca571c17379c8df19c0bcf639919bb0cb3a2706efc08e4dc6a1f3d8789662",
+    "tools/registry.py": "4a05aae5b4dd40bf9a104d23582d4363326ad7ce3fdac1ac249e0af04334d909",
 }
+
+
+def _download_source(url: str) -> bytes:
+    """Bounded retries for transient transport errors; every byte is still hash-checked."""
+    request = Request(url, headers={"User-Agent": "ordin-hermes-contract/1"})
+    for attempt in range(3):
+        try:
+            with urlopen(request, timeout=30) as response:
+                return response.read(5_000_001)
+        except HTTPError as exc:
+            if exc.code not in {429, 500, 502, 503, 504} or attempt == 2:
+                raise
+        except (URLError, TimeoutError, ConnectionError):
+            if attempt == 2:
+                raise
+        time.sleep(2**attempt)
+    raise AssertionError("unreachable source download retry")
 
 
 def fixture(name: str, **attributes: Any) -> types.ModuleType:
@@ -67,6 +87,32 @@ def load_functions(module: types.ModuleType, path: Path, names: set[str]) -> Non
     exec(compile(tree, str(path), "exec"), module.__dict__)
 
 
+def load_registry_normalizer(module: types.ModuleType, path: Path) -> None:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id in {
+                    "_MAX_TOOL_ERROR_CHARS",
+                    "_MAX_LOGGED_ERROR_CHARS",
+                    "_TOOL_ERROR_TRUNCATION_MARKER",
+                }:
+                    module.__dict__[target.id] = ast.literal_eval(node.value)
+    load_functions(module, path, {"_bound_json_error_result", "_bound_error_text", "tool_error"})
+    registry = next(
+        node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "ToolRegistry"
+    )
+    method = next(
+        node
+        for node in registry.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_normalize_handler_result"
+    )
+    # Keep the method and decorators unchanged; other registry services are not used.
+    registry.body = [method]
+    selected = ast.fix_missing_locations(ast.Module(body=[registry], type_ignores=[]))
+    exec(compile(selected, str(path), "exec"), module.__dict__)
+
+
 def run(source: Path | None = None) -> dict[str, Any]:
     checks = []
 
@@ -81,8 +127,7 @@ def run(source: Path | None = None) -> dict[str, Any]:
         for relative, expected in SOURCES.items():
             if source is None:
                 url = f"https://raw.githubusercontent.com/NousResearch/hermes-agent/{HERMES_REVISION}/{relative}"
-                with urlopen(url, timeout=30) as response:
-                    raw = response.read(5_000_001)
+                raw = _download_source(url)
             else:
                 raw = (source / relative).read_bytes()
             check(
@@ -148,11 +193,23 @@ def run(source: Path | None = None) -> dict[str, Any]:
             event: shell.ShellHookSpec(event=event, **entries[0])
             for event, entries in hooks.items()
         }
+        posts: list[dict[str, Any]] = []
+
+        def invoke_lifecycle(event: str, **kwargs: Any) -> list[Any]:
+            if event == "post_tool_call":
+                result = shell.run_once(specs[event], kwargs)
+                posts.append(result)
+                return [result["parsed"]]
+            return (
+                [shell._make_callback(specs[event])(**kwargs), *contributions]
+                if event in specs
+                else []
+            )
+
         fixture(
             "hermes_cli.lifecycle",
-            invoke_hook=lambda event, **kw: (
-                [shell._make_callback(specs[event])(**kw), *contributions] if event in specs else []
-            ),
+            invoke_hook=invoke_lifecycle,
+            has_hook=lambda event: event in specs,
         )
         plugins = fixture(
             "hermes_cli.plugins",
@@ -200,8 +257,19 @@ def run(source: Path | None = None) -> dict[str, Any]:
             Optional=Optional,
             logger=logging.getLogger("hermes-contract"),
             tool_error=lambda message: message,
+            _post_tool_call_hook_suppressed=types.SimpleNamespace(get=lambda: False),
         )
-        load_functions(guards, upstream / "model_tools.py", {"_CallIds", "_pre_dispatch_guards"})
+        load_functions(
+            guards,
+            upstream / "model_tools.py",
+            {"_CallIds", "_pre_dispatch_guards", "_emit_post_tool_call_hook"},
+        )
+        normalization = fixture(
+            "ordin_hermes_result_normalization",
+            json=json,
+            logger=logging.getLogger("hermes-contract"),
+        )
+        load_registry_normalizer(normalization, upstream / "tools/registry.py")
         executions = []
 
         def dispatch(tool: str, arguments: dict[str, Any], call: str) -> Any:
@@ -241,6 +309,29 @@ def run(source: Path | None = None) -> dict[str, Any]:
             dispatch("unknown_tool", {}, "ask-error")[1] is not None,
         )
         approval["error"] = False
+        for call, result in (
+            ("plain-result", "private plain result"),
+            (
+                "multimodal-result",
+                {
+                    "_multimodal": True,
+                    "content": [{"type": "text", "text": "private multimodal result"}],
+                },
+            ),
+        ):
+            check(call + "_review_allowed", dispatch("unknown_tool", {}, call)[1] is None)
+            normalized = normalization.ToolRegistry._normalize_handler_result(
+                "unknown_tool", result
+            )
+            guards._emit_post_tool_call_hook(
+                function_name="unknown_tool",
+                function_args={},
+                result=normalized,
+                session_id="conversation",
+                tool_call_id=call,
+                status="ok",
+            )
+            check(call + "_production_post_callback", posts[-1]["returncode"] == 0)
         check(
             "missing_call_id_blocks",
             dispatch("terminal", {"command": "git status"}, "")[1] is not None,
@@ -309,7 +400,14 @@ def run(source: Path | None = None) -> dict[str, Any]:
         "checks": checks,
         "live_model": False,
         "real_tool_execution": False,
-        "fixtures": ["profile", "environment", "approval UI", "ACP", "tool recorder"],
+        "fixtures": [
+            "profile",
+            "environment",
+            "approval UI",
+            "ACP",
+            "post-hook suppression",
+            "tool recorder",
+        ],
         "coverage_limit": "Other modifying hooks and execution middleware can rewrite after review; use an isolated profile without them.",
     }
 

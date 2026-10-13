@@ -11,7 +11,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import MappingProxyType
 from typing import Any, Mapping, Sequence
 
-from .action import ActionEnvelope
+from .action import ActionEnvelope, ActionReview
 from .action_policy import load_action_policy
 from .adapters import MCPAdapter, ToolCallAdapter
 from .agent import AgentDecision, AgentGate
@@ -271,11 +271,13 @@ class HermesIntegration:
         decision = self.review_pre_tool(payload)
         if decision.may_execute:
             return {}
+        if not isinstance(decision.review, ActionReview):
+            raise ValueError("Hermes approval requires a reviewed action snapshot")
         return {
             "action": "block" if decision.disposition == "deny" else "approve",
             "message": f"Ordin {decision.review.decision}/{decision.review.risk}",
             # Approval allowlists must not grant every future call of this tool.
-            "rule_key": "ordin:" + digest(self.adapt(payload).as_dict()),
+            "rule_key": "ordin:" + digest(decision.review.action.as_dict()),
         }
 
     def observation_from_hook(
@@ -299,9 +301,25 @@ class HermesIntegration:
         if host_status not in {"ok", "error"}:
             raise ValueError("unknown Hermes post-tool status")
         result = extra.get("result")
-        if not isinstance(result, str) or len(result.encode()) > MAX_HOOK_BYTES:
-            raise ValueError("Hermes result must be bounded JSON text")
-        value = _parse_json_value(result.encode())
+        value = None
+        if isinstance(result, str):
+            if len(result.encode()) > MAX_HOOK_BYTES:
+                raise ValueError("Hermes result exceeds byte limit")
+            # Registry handlers may return ordinary text. Only the native terminal
+            # JSON contract can establish an exit code; custom output stays opaque.
+            if payload["tool_name"] == "terminal":
+                value = _parse_json_value(result.encode())
+        elif (
+            isinstance(result, dict)
+            and result.get("_multimodal") is True
+            and isinstance(result.get("content"), list)
+        ):
+            raw_result = json.dumps(result, allow_nan=False).encode()
+            if len(raw_result) > MAX_HOOK_BYTES:
+                raise ValueError("Hermes multimodal result exceeds byte limit")
+            _parse_json_value(raw_result)
+        else:
+            raise ValueError("Hermes result requires text or a multimodal envelope")
         exit_code = None
         status = "failure" if host_status == "error" else "reported"
         if payload["tool_name"] == "terminal" and isinstance(value, Mapping):
@@ -326,10 +344,17 @@ class HermesIntegration:
             effects=observed_effects,
             metadata={"runtime": HERMES_RUNTIME, "status": status},
         )
+
+        def record(observed: ActionObservation) -> None:
+            if self.trace is not None:
+                self.trace.record_observation(observed, session_key=identity.key)
+
         if self.session is not None:
-            self.session.observe(observation)
-        if self.trace is not None:
-            self.trace.record_observation(observation, session_key=identity.key)
+            self.session.observe(
+                observation, before_commit=record if self.trace is not None else None
+            )
+        else:
+            record(observation)
         return observation
 
 
