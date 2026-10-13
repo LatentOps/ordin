@@ -528,6 +528,7 @@ def run_integration_conformance(
                 *_contract_checks(),
                 *_codex_checks(),
                 *_cursor_checks(),
+                *_hermes_checks(),
                 *_http_checks(),
                 *captured,
             ]
@@ -618,6 +619,43 @@ def _codex_checks() -> list[ConformanceCheck]:
                 "codex", name, passed, "pass" if passed else "Codex decision mapping failed"
             )
         )
+    return checks
+
+
+def _hermes_checks() -> list[ConformanceCheck]:
+    from .hermes import HermesIntegration
+
+    integration = HermesIntegration()
+    checks = []
+    for name, tool, arguments, expected in (
+        ("benign_read", "terminal", {"command": "git status --short"}, None),
+        ("destructive_block", "terminal", {"command": "rm -rf /"}, "block"),
+        ("unknown_requires_approval", "future_tool", {}, "approve"),
+        (
+            "background_requires_approval",
+            "terminal",
+            {"command": "git status", "background": True},
+            "approve",
+        ),
+        (
+            "multifile_patch_requires_approval",
+            "patch",
+            {"mode": "patch", "patch": "opaque"},
+            "approve",
+        ),
+    ):
+        output = integration.pre_tool_output(
+            {
+                "hook_event_name": "pre_tool_call",
+                "profile": "default",
+                "session_id": "conformance",
+                "extra": {"tool_call_id": name},
+                "tool_name": tool,
+                "tool_input": arguments,
+            }
+        )
+        passed = output.get("action") == expected
+        checks.append(ConformanceCheck("hermes", name, passed, "pass" if passed else name))
     return checks
 
 

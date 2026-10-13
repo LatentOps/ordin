@@ -618,6 +618,7 @@ def run_integration_evaluation(
             *_mcp_workloads(repetitions),
             *_codex_workloads(repetitions),
             *_cursor_workloads(repetitions),
+            *_hermes_workloads(repetitions),
         ]
     )
     return IntegrationEvaluationReport(
@@ -754,6 +755,73 @@ def _cursor_workloads(repetitions: int) -> list[IntegrationWorkloadResult]:
                 provenance_ok=_has_linked_provenance(review),
                 observation_expected=expected == "allow",
                 observation_ok=observation is None or observation.action_id == action.action_id,
+                core_latency_ns=core,
+                integration_latency_ns=boundary,
+                identity_control=expected == "ask",
+            )
+        )
+    return results
+
+
+def _hermes_workloads(repetitions: int) -> list[IntegrationWorkloadResult]:
+    from .hermes import HermesIntegration
+
+    integration = HermesIntegration()
+    results = []
+    specs: tuple[tuple[str, str, dict[str, Any], Decision], ...] = (
+        ("hermes-read", "read_file", {"path": "/workspace/file"}, "allow"),
+        ("hermes-shell", "terminal", {"command": "git status"}, "allow"),
+        ("hermes-write", "write_file", {"path": "/workspace/out", "content": "fixture"}, "warn"),
+        (
+            "hermes-patch",
+            "patch",
+            {"path": "/workspace/out", "old_string": "a", "new_string": "b"},
+            "warn",
+        ),
+        ("hermes-destructive", "terminal", {"command": "rm -rf /"}, "block"),
+        ("hermes-unknown", "future_tool", {}, "ask"),
+        ("hermes-background", "terminal", {"command": "git status", "background": True}, "ask"),
+    )
+    for case_id, tool, arguments, expected in specs:
+        payload = {
+            "hook_event_name": "pre_tool_call",
+            "session_id": "evaluation",
+            "profile": "default",
+            "tool_name": tool,
+            "tool_input": arguments,
+            "extra": {"tool_call_id": case_id},
+        }
+        action = integration.adapt(payload)
+        core, _ = _measure(lambda: integration.gate.ordin.review_action(action), repetitions)
+        boundary, decision = _measure(lambda: integration.review_pre_tool(payload), repetitions)
+        observation = (
+            integration.observation_from_hook(
+                {
+                    **payload,
+                    "hook_event_name": "post_tool_call",
+                    "extra": {"tool_call_id": case_id, "status": "ok", "result": '{"exit_code":0}'},
+                }
+            )
+            if expected == "allow"
+            else None
+        )
+        review = _action_review(decision)
+        results.append(
+            IntegrationWorkloadResult(
+                id=case_id,
+                integration="hermes",
+                action_kind=action.kind,
+                expected=expected,
+                actual=review.decision,
+                integration_mapping_ok=integration.pre_tool_output(payload).get("action")
+                == (None if expected == "allow" else "block" if expected == "block" else "approve"),
+                provenance_ok=_has_linked_provenance(review),
+                observation_expected=expected == "allow",
+                observation_ok=(
+                    observation is not None and observation.action_id == action.action_id
+                )
+                if expected == "allow"
+                else True,
                 core_latency_ns=core,
                 integration_latency_ns=boundary,
                 identity_control=expected == "ask",

@@ -18,6 +18,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  hermes-contract:
+    name: Hermes v0.21.7 hook contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install isolated Ordin wheel
+        run: |
+          python -m pip install build "setuptools>=68"
+          python -m build --wheel
+          python -m venv /tmp/ordin-hermes
+          /tmp/ordin-hermes/bin/python -m pip install dist/*.whl
+      - name: Verify pinned upstream launcher and tool guard
+        run: /tmp/ordin-hermes/bin/python -I scripts/check_hermes_integration.py --json-out hermes-contract-report.json
+      - name: Upload Hermes compatibility evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ordin-hermes-contract
+          path: hermes-contract-report.json
+          if-no-files-found: error
+
   quality:
     name: Quality
     runs-on: ubuntu-latest

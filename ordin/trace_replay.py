@@ -431,13 +431,14 @@ def replay_integration_candidate(candidate: Mapping[str, Any]) -> dict[str, Any]
     from .claude_code import ClaudeCodeIntegration
     from .codex import CodexIntegration
     from .cursor import CursorIntegration, _identity as cursor_identity
+    from .hermes import HermesIntegration, _identity as hermes_identity
     from .mcp_proxy import MCPStdioSafetyProxy
     from .policy import ReviewPolicy, validate_fail_threshold
     from .session import IntegrationSession, SessionIdentity
 
     case = validate_candidate(candidate)
     runtime = candidate["integration"]
-    if runtime not in {"claude-code", "codex", "cursor", "mcp-proxy", "mcp-http"}:
+    if runtime not in {"claude-code", "codex", "cursor", "hermes", "mcp-proxy", "mcp-http"}:
         return {
             "ok": False,
             "errors": ["integration reconstruction requires supported abstract tool actions"],
@@ -484,6 +485,8 @@ def replay_integration_candidate(candidate: Mapping[str, Any]) -> dict[str, Any]
     state = IntegrationSession(
         cursor_identity({"conversation_id": "capture-fixture"})
         if runtime == "cursor"
+        else hermes_identity({"profile": "default", "session_id": "capture-fixture"})
+        if runtime == "hermes"
         else SessionIdentity(runtime, "capture-fixture"),
         gate,
     )
@@ -494,6 +497,8 @@ def replay_integration_candidate(candidate: Mapping[str, Any]) -> dict[str, Any]
         if runtime == "codex"
         else CursorIntegration(gate=gate, session=state)
         if runtime == "cursor"
+        else HermesIntegration(gate=gate, session=state)
+        if runtime == "hermes"
         else None
     )
     proxy = (
@@ -521,6 +526,8 @@ def replay_integration_candidate(candidate: Mapping[str, Any]) -> dict[str, Any]
             alias = "Bash" if integration is not None else "captured_path_execute"
             if runtime == "cursor":
                 alias = "Shell"
+            elif runtime == "hermes":
+                alias = "terminal"
             arguments = {"command": parameters["command"]}
         if integration is not None:
             payload = {
@@ -540,17 +547,33 @@ def replay_integration_candidate(candidate: Mapping[str, Any]) -> dict[str, Any]
                     generation_id="capture-turn",
                     cursor_version="1.7.2",
                 )
+            elif runtime == "hermes":
+                payload.update(
+                    hook_event_name="pre_tool_call",
+                    profile="default",
+                    extra={"tool_call_id": str(index)},
+                )
             decision = integration.review_pre_tool(payload)
             actual = decision.review.decision
             categories = decision.review.trajectory_categories or []
             if step.observation:
+                observation_payload = {
+                    **payload,
+                    "hook_event_name": "postToolUse" if runtime == "cursor" else "PostToolUse",
+                    "tool_response": {"exit_code": step.observation.exit_code},
+                    "tool_output": json.dumps({"exitCode": step.observation.exit_code}),
+                }
+                if runtime == "hermes":
+                    observation_payload.update(
+                        hook_event_name="post_tool_call",
+                        extra={
+                            "tool_call_id": str(index),
+                            "status": "ok",
+                            "result": json.dumps({"exit_code": step.observation.exit_code}),
+                        },
+                    )
                 integration.observation_from_hook(
-                    {
-                        **payload,
-                        "hook_event_name": "postToolUse" if runtime == "cursor" else "PostToolUse",
-                        "tool_response": {"exit_code": step.observation.exit_code},
-                        "tool_output": json.dumps({"exitCode": step.observation.exit_code}),
-                    },
+                    observation_payload,
                     observed_effects=step.observation.effects,
                 )
         else:

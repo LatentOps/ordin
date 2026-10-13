@@ -11,6 +11,7 @@ import re
 import shlex
 import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 from typing import Any, Iterator
@@ -30,11 +31,12 @@ TARGETS = {
     "claude": ".claude/settings.local.json",
     "codex": ".codex/hooks.json",
     "cursor": ".cursor/hooks.json",
+    "hermes": "config.yaml",
     "mcp": ".mcp.json",
     "mcp-http": ".ordin/mcp-http.json",
     "shell": ".ordin/shell-init.sh",
 }
-MODULES = {"claude": "claude_code", "codex": "codex", "cursor": "cursor"}
+MODULES = {"claude": "claude_code", "codex": "codex", "cursor": "cursor", "hermes": "hermes"}
 SETTINGS = {
     "integration",
     "config",
@@ -182,9 +184,13 @@ def hook_environment(settings: dict[str, Any], root: Path) -> dict[str, str]:
             (
                 "OBSERVATIONS",
                 "observations.jsonl",
-                settings["observations"] and settings["integration"] != "cursor",
+                settings["observations"] and settings["integration"] not in {"cursor", "hermes"},
             ),
-            ("TRACE", "trace.db", settings["observations"] and settings["integration"] == "cursor"),
+            (
+                "TRACE",
+                "trace.db",
+                settings["observations"] and settings["integration"] in {"cursor", "hermes"},
+            ),
         )
     } | {prefix + "_TRACE_RAW": "0"}
 
@@ -195,6 +201,28 @@ def config_content(
     validate_settings(settings, validate_contracts=validate_contracts)
     integration = settings["integration"]
     python = settings["python"]
+    if integration == "hermes":
+        from .hermes import _EVENTS
+
+        # Hermes calls argv directly with shell=False. No shell env assignments or
+        # fallback operators: settings are read from the verified owned receipt.
+        join = subprocess.list2cmdline if os.name == "nt" else shlex.join
+        return encoded(
+            {
+                "hooks": {
+                    event: [
+                        {
+                            "command": join(
+                                [python, "-I", "-m", "ordin.hermes", mode, "--root", str(root)]
+                            ),
+                            "timeout": 30,
+                            "fail_closed": event == "pre_tool_call",
+                        }
+                    ]
+                    for mode, event in _EVENTS.items()
+                }
+            }
+        )
     if integration in MODULES:
         events = {
             "SessionStart": "session-start",

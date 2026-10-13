@@ -17,7 +17,8 @@
             "codex",
             "mcp-proxy",
             "mcp-http",
-            "cursor"
+            "cursor",
+            "hermes"
           ]
         },
         "effects": {
@@ -329,7 +330,8 @@
             "codex",
             "mcp-proxy",
             "mcp-http",
-            "cursor"
+            "cursor",
+            "hermes"
           ]
         },
         "effects": {
@@ -427,7 +429,8 @@
             "codex",
             "mcp-proxy",
             "mcp-http",
-            "cursor"
+            "cursor",
+            "hermes"
           ]
         }
       },
