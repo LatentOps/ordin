@@ -18,6 +18,7 @@ def run_test_process(runtime, data, cancel):
     overflow = threading.Event()
     writer_error = threading.Event()
     threads = []
+    owned_streams = []
     status = "error"
     exit_code = None
 
@@ -36,6 +37,11 @@ def run_test_process(runtime, data, cancel):
                     buffers[name].extend(chunk)
         except (OSError, ValueError):
             writer_error.set()
+        finally:
+            try:
+                stream.close()
+            except (OSError, ValueError):
+                writer_error.set()
 
     try:
         if cancel.is_set():
@@ -63,6 +69,7 @@ def run_test_process(runtime, data, cancel):
                     target=read, args=(getattr(process, name), name), daemon=True
                 )
                 threads.append(thread)
+                owned_streams.append((thread, getattr(process, name)))
                 thread.start()
 
             def write():
@@ -80,6 +87,7 @@ def run_test_process(runtime, data, cancel):
 
             sender = threading.Thread(target=write, daemon=True)
             threads.append(sender)
+            owned_streams.append((sender, process.stdin))
             sender.start()
             deadline = started + runtime.timeout_ms / 1000
             while True:
@@ -97,7 +105,7 @@ def run_test_process(runtime, data, cancel):
                     status = "completed" if exit_code == 0 else "refused"
                     break
                 time.sleep(0.01)
-    except (OSError, ValueError):
+    except (OSError, ValueError, RuntimeError):
         status = "unavailable"
     finally:
         if tree is not None:
@@ -114,14 +122,30 @@ def run_test_process(runtime, data, cancel):
             try:
                 process.wait(timeout=2)
             except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=2)
+                status = "error"
+                try:
+                    process.kill()
+                    process.wait(timeout=2)
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+            except OSError:
+                status = "error"
             exit_code = process.returncode
             for thread in threads:
-                thread.join(timeout=2)
+                if thread.ident is not None:
+                    thread.join(timeout=2)
+            if any(thread.is_alive() for thread in threads):
+                status = "error"
             for stream in (process.stdin, process.stdout, process.stderr):
-                if stream is not None:
-                    stream.close()
+                if stream is not None and not any(
+                    owner.is_alive() and owned is stream for owner, owned in owned_streams
+                ):
+                    # A busy buffered stream owns a lock. Its I/O thread must
+                    # close it itself; closing here could block past cleanup.
+                    try:
+                        stream.close()
+                    except (OSError, ValueError):
+                        status = "error"
             if overflow.is_set():
                 status = "output_limit"
             elif writer_error.is_set() and status == "completed":

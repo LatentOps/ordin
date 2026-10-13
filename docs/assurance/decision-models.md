@@ -39,11 +39,16 @@ results seal their baseline/configuration/state and cannot be restored from JSON
 or changed through a dataclass replacement. Use `binding_matches` before forwarding
 an action; the caller still owns approval, execution and physical enforcement.
 
-Call count, concurrency, input bytes and deadlines are bounded. Timed-out sync
-workers keep their lease until they actually finish, preventing unbounded
-background work. The host must isolate a local inference worker against resource
+Call count, concurrency, input bytes and deadlines are bounded. Timed-out work
+keeps its lease until it actually finishes, including nested async transport
+cleanup. Async waits request cancellation and return without awaiting a provider
+that suppresses cancellation; late answers cannot become accepted evidence.
+Routing settings are captured for each request. Changes during inference retain
+the original enforcement mode and invalidate the result; updated call limits
+apply to later reservations without resetting spent calls.
+The host must isolate a local inference worker against resource
 or process escape; a Python thread timeout does not stop arbitrary native code.
-Async provider cancellation propagates and closes the transport. Synchronous
+Async caller cancellation propagates while unfinished cleanup retains its slot. Synchronous
 routing refuses an async-only hosted provider, rather than hiding a network wait
 inside a hook. Host-specific adapter deadline/response integration remains M11.
 

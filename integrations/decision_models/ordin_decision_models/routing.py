@@ -22,6 +22,7 @@ from .protocol import (
     evidence,
 )
 from .privacy import sanitize_decision_state
+from ._async_lifetime import bounded_await
 
 
 @dataclass(frozen=True)
@@ -65,12 +66,10 @@ class _Budget:
         self.lock = threading.Lock()
         self.calls = self.inflight = self.canceled = self.timeouts = 0
 
-    def reserve(self):
+    def reserve(self, policy=None):
+        policy = policy or self.policy
         with self.lock:
-            if (
-                self.calls >= self.policy.max_total_calls
-                or self.inflight >= self.policy.max_concurrency
-            ):
+            if self.calls >= policy.max_total_calls or self.inflight >= policy.max_concurrency:
                 return False
             self.calls += 1
             self.inflight += 1
@@ -123,6 +122,9 @@ class SemanticInspectionRouter:
         )
 
     def questions_for_state(self, state: SanitizedDecisionState):
+        return self._questions_for_state(state, self.policy)
+
+    def _questions_for_state(self, state: SanitizedDecisionState, policy: RoutingPolicy):
         if not isinstance(state, SanitizedDecisionState):
             raise ValueError("routing state must be issued by the privacy builder")
         signals = set(state.signals)
@@ -137,12 +139,12 @@ class SemanticInspectionRouter:
             available.add("untrusted_instruction_following")
         if "delegation_candidate" in signals and state.authorized_task:
             available.add("suspicious_delegation")
-        mandatory = state.action_kind in self.policy.mandatory_action_kinds or any(
-            effect in self.policy.mandatory_effects for effect in state.effects
+        mandatory = state.action_kind in policy.mandatory_action_kinds or any(
+            effect in policy.mandatory_effects for effect in state.effects
         )
-        selected = tuple(key for key in self.policy.enabled_question_ids if key in available)
+        selected = tuple(key for key in policy.enabled_question_ids if key in available)
         missing = (
-            tuple(key for key in self.policy.required_question_ids if key not in selected)
+            tuple(key for key in policy.required_question_ids if key not in selected)
             if mandatory
             else ()
         )
@@ -150,10 +152,11 @@ class SemanticInspectionRouter:
 
     def _prepare(self, action, state, kwargs):
         started = time.monotonic()
+        policy, provider = self.policy, self.provider
         configuration = self.configuration_digest
         baseline = self.gate.evaluate_action(action, **kwargs)
-        if self.policy.mode == "disabled" or baseline.denied:
-            return baseline, None, None, False, (), started, configuration
+        if policy.mode == "disabled" or baseline.denied:
+            return baseline, None, None, False, (), started, configuration, policy, provider
         if state is None:
             state = sanitize_decision_state(
                 self.gate,
@@ -169,46 +172,58 @@ class SemanticInspectionRouter:
             or state.host_context_digest != baseline.host_context_digest
         ):
             raise ValueError("semantic input is stale or belongs to another action/context")
-        questions, mandatory, missing = self.questions_for_state(state)
-        return baseline, state, questions, mandatory, missing, started, configuration
+        questions, mandatory, missing = self._questions_for_state(state, policy)
+        return (
+            baseline,
+            state,
+            questions,
+            mandatory,
+            missing,
+            started,
+            configuration,
+            policy,
+            provider,
+        )
 
-    def _skip_reason(self, state, questions, missing):
+    def _skip_reason(self, state, questions, missing, policy, provider):
         if missing:
             return "semantic.required_context_missing"
         if questions is None:
             return "semantic.no_question"
-        if self.provider is None:
+        if provider is None:
             return "semantic.provider_unavailable"
-        if self.provider.descriptor.locality == "hosted" and not state.remote_eligible:
+        if provider.descriptor.locality == "hosted" and not state.remote_eligible:
             return "semantic.hosted_content_refused"
-        if len(canonical_json(state.as_dict()).encode()) > self.policy.max_input_bytes:
+        if len(canonical_json(state.as_dict()).encode()) > policy.max_input_bytes:
             return "semantic.input_budget_exceeded"
         return None
 
     def _finish(self, prepared, model=None, *, invoked=False, reason=None, kwargs=None):
-        baseline, state, questions, mandatory, missing, started, configuration = prepared
+        baseline, state, questions, mandatory, missing, started, configuration, policy, provider = (
+            prepared
+        )
         final = baseline.disposition
         reasons = []
         uncertain = ()
-        if self.policy.mode == "disabled":
+        if policy.mode == "disabled":
             reasons.append("semantic.disabled")
         elif baseline.denied:
             reasons.append("semantic.deterministic_denial")
         elif reason:
             reasons.append(reason)
-        if model is not None and self.provider is not None:
-            model = check_evidence(model, self.provider.descriptor, state, questions)
+        if model is not None and provider is not None:
+            model = check_evidence(model, provider.descriptor, state, questions)
             if model.error_class != "none" or model.supportedness != "supported":
                 reasons.append("semantic.provider_" + model.error_class)
             else:
                 uncertain = tuple(
                     a.question_id
                     for a in model.answers
-                    if abs(a.p_yes - 0.5) <= self.policy.uncertainty_margin
+                    if abs(a.p_yes - 0.5) <= policy.uncertainty_margin
                 )
-                if any(a.p_yes >= self.policy.escalation_threshold for a in model.answers):
+                if any(a.p_yes >= policy.escalation_threshold for a in model.answers):
                     reasons.append("semantic.risk_threshold_crossed")
-                    if self.policy.mode == "enforced-escalation" and final == "execute":
+                    if policy.mode == "enforced-escalation" and final == "execute":
                         final = "escalate"
                 if uncertain:
                     reasons.append("semantic.prediction_uncertain")
@@ -219,27 +234,31 @@ class SemanticInspectionRouter:
             or model.supportedness != "supported"
             or bool(uncertain)
         )
-        if self.policy.mode == "enforced-escalation" and not baseline.denied:
+        if policy.mode == "enforced-escalation" and not baseline.denied:
             if (mandatory and failed_inspection) or baseline.review.decision == "ask":
                 if final == "execute":
                     final = "escalate"
                 reasons.append("semantic.mandatory_attention_required")
-        if configuration != self.configuration_digest or not self.gate.binding_matches(
-            baseline,
-            baseline.review.action,
-            host_context=(kwargs or {}).get("host_context"),
-            history=(kwargs or {}).get("history"),
+        if (
+            policy != self.policy
+            or configuration != self.configuration_digest
+            or not self.gate.binding_matches(
+                baseline,
+                baseline.review.action,
+                host_context=(kwargs or {}).get("host_context"),
+                history=(kwargs or {}).get("history"),
+            )
         ):
             # A changed binding cannot produce an executable result. Shadow also
             # refuses stale reviews at use time while preserving its sampled parity.
             reasons.append("semantic.configuration_changed")
-            if self.policy.mode == "enforced-escalation":
+            if policy.mode == "enforced-escalation":
                 final = "deny"
         return issue_semantic_decision(
             baseline,
             decision_id="semantic:"
             + digest("semantic_decision_id", [baseline.evidence_digest, configuration])[:24],
-            mode=self.policy.mode,
+            mode=policy.mode,
             disposition=final,
             baseline_disposition=baseline.disposition,
             baseline_evidence_digest=baseline.evidence_digest,
@@ -256,35 +275,44 @@ class SemanticInspectionRouter:
 
     def evaluate_action(self, action, *, state=None, **kwargs) -> SemanticDecision:
         prepared = self._prepare(action, state, kwargs)
-        baseline, state, questions, mandatory, missing, started, configuration = prepared
-        if self.policy.mode == "disabled" or baseline.denied:
+        baseline, state, questions, mandatory, missing, started, configuration, policy, provider = (
+            prepared
+        )
+        if policy.mode == "disabled" or baseline.denied:
             return self._finish(prepared, kwargs=kwargs)
-        reason = self._skip_reason(state, questions, missing)
+        reason = self._skip_reason(state, questions, missing, policy, provider)
         if reason:
             return self._finish(prepared, reason=reason, kwargs=kwargs)
-        if not callable(getattr(self.provider, "evaluate", None)):
+        if not callable(getattr(provider, "evaluate", None)):
             return self._finish(
                 prepared, reason="semantic.async_provider_requires_async", kwargs=kwargs
             )
-        if not self._budget.reserve():
+        if not self._budget.reserve(policy):
             return self._finish(prepared, reason="semantic.call_budget_exceeded", kwargs=kwargs)
-        descriptor = self.provider.descriptor
+        descriptor = provider.descriptor
         done = threading.Event()
         output: list[Any] = []
 
         def work():
             try:
-                output.append(
-                    self.provider.evaluate(state, questions, deadline_ms=self.policy.deadline_ms)
-                )
+                output.append(provider.evaluate(state, questions, deadline_ms=policy.deadline_ms))
             except Exception:
                 output.append(evidence(descriptor, state, questions, error_class="transport"))
             finally:
                 self._budget.release()
                 done.set()
 
-        threading.Thread(target=work, daemon=True, name="ordin-semantic-evaluation").start()
-        if not done.wait(self.policy.deadline_ms / 1000):
+        try:
+            threading.Thread(target=work, daemon=True, name="ordin-semantic-evaluation").start()
+        except (RuntimeError, OSError):
+            self._budget.release()
+            return self._finish(
+                prepared,
+                evidence(descriptor, state, questions, error_class="unavailable"),
+                reason="semantic.worker_unavailable",
+                kwargs=kwargs,
+            )
+        if not done.wait(policy.deadline_ms / 1000):
             with self._budget.lock:
                 self._budget.timeouts += 1
             model = evidence(descriptor, state, questions, error_class="timeout")
@@ -294,27 +322,34 @@ class SemanticInspectionRouter:
 
     async def evaluate_action_async(self, action, *, state=None, **kwargs) -> SemanticDecision:
         prepared = self._prepare(action, state, kwargs)
-        baseline, state, questions, mandatory, missing, started, configuration = prepared
-        if self.policy.mode == "disabled" or baseline.denied:
+        baseline, state, questions, mandatory, missing, started, configuration, policy, provider = (
+            prepared
+        )
+        if policy.mode == "disabled" or baseline.denied:
             return self._finish(prepared, kwargs=kwargs)
-        reason = self._skip_reason(state, questions, missing)
+        reason = self._skip_reason(state, questions, missing, policy, provider)
         if reason:
             return self._finish(prepared, reason=reason, kwargs=kwargs)
-        if not callable(getattr(self.provider, "evaluate_async", None)):
+        if not callable(getattr(provider, "evaluate_async", None)):
             # The synchronous path already bounds workers and retains leases
             # until actual completion. It is never a hidden synchronous hosted call.
-            if self.provider.descriptor.locality == "hosted":
+            if provider.descriptor.locality == "hosted":
                 return self._finish(
                     prepared, reason="semantic.async_provider_unavailable", kwargs=kwargs
                 )
             return await asyncio.to_thread(self.evaluate_action, action, state=state, **kwargs)
-        if not self._budget.reserve():
+        if not self._budget.reserve(policy):
             return self._finish(prepared, reason="semantic.call_budget_exceeded", kwargs=kwargs)
-        descriptor = self.provider.descriptor
+        descriptor = provider.descriptor
+
+        async def work():
+            return await provider.evaluate_async(state, questions, deadline_ms=policy.deadline_ms)
+
         try:
-            model = await asyncio.wait_for(
-                self.provider.evaluate_async(state, questions, deadline_ms=self.policy.deadline_ms),
-                self.policy.deadline_ms / 1000,
+            model = await bounded_await(
+                work(),
+                policy.deadline_ms / 1000,
+                release=self._budget.release,
             )
         except asyncio.TimeoutError:
             with self._budget.lock:
@@ -326,8 +361,6 @@ class SemanticInspectionRouter:
             raise
         except Exception:
             model = evidence(descriptor, state, questions, error_class="transport")
-        finally:
-            self._budget.release()
         return self._finish(prepared, model, invoked=True, kwargs=kwargs)
 
     def binding_matches(self, result: SemanticDecision, action, *, state=None, **kwargs):
