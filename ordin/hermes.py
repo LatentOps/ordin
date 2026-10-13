@@ -230,7 +230,7 @@ class HermesIntegration:
             arguments = {"input_digest": original_digest}
         mapped = self.mcp_map.get(payload["tool_name"])
         action_id = "hermes:" + digest(
-            [identity.key, call, tool, original_digest, mapped, HERMES_REVISION]
+            [identity.key, call, payload["tool_name"], original_digest, mapped, HERMES_REVISION]
         )
         if mapped:
             server, name = mapped
@@ -248,6 +248,7 @@ class HermesIntegration:
             action,
             parameters={
                 **action.parameters,
+                "source_tool": payload["tool_name"],
                 "input_digest": original_digest,
                 "integration": {
                     "runtime": HERMES_RUNTIME,
