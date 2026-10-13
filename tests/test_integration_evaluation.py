@@ -54,10 +54,12 @@ def test_real_agent_evaluation_reports_required_scope_and_metrics():
         "claude-code",
         "codex",
         "cursor",
+        "hermes",
         "mcp-http",
         "mcp-proxy",
     ]
     assert payload["coverage"]["trajectory_action_kinds"]
+    assert sum(workload["integration"] == "hermes" for workload in payload["workloads"]) == 7
     assert payload["coverage"]["safety_domains"]
     assert payload["latency_ms"]["core_review"]["p95"] >= 0.0
     assert payload["latency_ms"]["integration_boundary"]["p95"] >= 0.0
