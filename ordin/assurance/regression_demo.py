@@ -34,7 +34,7 @@ def run_demo(*, scratch_root=None):
     )
     runtime = RuntimeEvidenceSource("fixture-host", "b" * 64, "fixture-sandbox", policy)
     with tempfile.TemporaryDirectory(prefix="ordin-regression-example-", dir=scratch_root) as name:
-        root = Path(name)
+        root = Path(name).resolve(strict=True)
         protected, corpus = root / "protected", root / "corpus"
         protected.mkdir(mode=0o700)
         corpus.mkdir(mode=0o700)

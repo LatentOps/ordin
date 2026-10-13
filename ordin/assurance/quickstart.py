@@ -80,7 +80,7 @@ def run_quickstart():
         ),
     )
     with tempfile.TemporaryDirectory(prefix="ordin-assurance-quickstart-") as name:
-        root = Path(name)
+        root = Path(name).resolve(strict=True)
         protected = root / "protected"
         protected.mkdir(mode=0o700)
         profile_path = protected / "profile.json"

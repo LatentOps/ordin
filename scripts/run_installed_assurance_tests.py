@@ -68,6 +68,10 @@ def main() -> int:
     parser.add_argument("--basetemp", type=Path, required=True)
     parser.add_argument("--junitxml", type=Path, required=True)
     args = parser.parse_args()
+    # The solver job installs directly and has not created scratch directories.
+    # Pytest creates basetemp itself, but expects its parent to exist.
+    args.basetemp.parent.mkdir(parents=True, exist_ok=True)
+    args.junitxml.parent.mkdir(parents=True, exist_ok=True)
     roots = {"ordin": pin_installed_namespace("ordin")}
     if args.suite in {"decision_models", "codex_security"}:
         namespace = "ordin_" + args.suite

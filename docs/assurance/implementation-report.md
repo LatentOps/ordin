@@ -1592,6 +1592,31 @@ Carry the existing Windows shell/latency/SQLite failures into the compatibility
 audit; they must be resolved or explicitly verified on supported platforms
 before any full completion claim. No background evaluation remains running.
 
+## PR #222 cross-platform CI corrections
+
+GitHub access recovered and the prerequisite Assurance/installed-wheel CI PR is
+[open](https://github.com/LatentOps/ordin/pull/222). The initial remote matrix
+found owned-fixture setup errors: hosted Python launchers were symlinks, macOS
+temporary paths used linked system aliases, and the solver-only job had not
+created its scratch-directory parent. CI's pinned Ruff also formats Python
+examples in Markdown; the adapter example was brought into that format.
+
+The fake-scanner fixture now explicitly selects and fingerprints the resolved
+native interpreter. Newly created owned temporary directories are resolved
+before becoming protected fixture scopes; arbitrary operator/repository inputs
+still undergo the existing strict path checks. The installed runner creates
+output parent directories before pytest. Production symlink, digest, environment,
+deadline and privacy checks are preserved.
+
+Using CI's exact hashed Ruff/mypy/pytest tools, the Windows affected fixture focus
+passes 71 tests. A fresh Linux environment with a controlled linked temp alias
+passes 95 tests with one Windows-only cleanup-control skip in 28.12 seconds.
+Running the same focus from the Windows-mounted Linux source first retained two
+30-second budget failures; native-filesystem verification preserved and passed
+the original budgets. Ruff and 85-file typed-boundary checks pass. These local
+checks do not claim a remote pass: all applicable exact-head CI must complete
+successfully before the requested squash merge.
+
 ## Remaining-work CI verification on 2026-10-12
 
 Work starts from `8edf4aaa3d9e938106e413b84c1ed5e5537af687` in an isolated

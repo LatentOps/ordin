@@ -65,7 +65,7 @@ def setup(tmp_path, monkeypatch):
     )
     monkeypatch.setenv("AMBIENT_PRIVATE_TOKEN", "synthetic-ambient-secret")
     with tempfile.TemporaryDirectory(prefix="ordin-test-broker-") as directory:
-        root = Path(directory)
+        root = Path(directory).resolve(strict=True)
         for name in ("install", "cwd", "home"):
             (root / name).mkdir(mode=0o700)
         worker = root / "install/_sandbox_worker.py"

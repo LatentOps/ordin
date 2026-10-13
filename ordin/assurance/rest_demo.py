@@ -36,7 +36,7 @@ def run_demo():
     )
     policy = "a" * 64
     with tempfile.TemporaryDirectory(prefix="ordin-rest-example-") as name:
-        directory = Path(name)
+        directory = Path(name).resolve(strict=True)
         directory.chmod(0o700)
         path = directory / "profile.json"
         path.write_text(json.dumps(profile.as_dict()), encoding="utf-8")

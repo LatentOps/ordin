@@ -116,7 +116,7 @@ for line in sys.stdin:
 @pytest.fixture
 def setup(tmp_path, monkeypatch):
     with tempfile.TemporaryDirectory(prefix="ordin-laya-fixture-") as name:
-        root = Path(name)
+        root = Path(name).resolve(strict=True)
         for directory in ("install", "cwd", "home", "target"):
             (root / directory).mkdir(mode=0o700)
         checkpoint = checkpoint_at(root / "checkpoint")

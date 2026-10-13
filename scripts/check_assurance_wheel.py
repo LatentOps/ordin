@@ -93,7 +93,7 @@ from ordin.assurance import (SyntheticPathCase, SyntheticPathSuite, VettedSandbo
 import tempfile, threading, hashlib, sys, contextlib, io
 from pathlib import Path
 with tempfile.TemporaryDirectory(prefix="ordin-vetted-noexec-") as directory:
-    root = Path(directory)
+    root = Path(directory).resolve(strict=True)
     repo = RepositoryScope("fixture/vetted-wheel", "snapshot-1")
     selected_scope = assurance.AuthorizedRepository(root, repo, "/fixture")
     (root / "guard.py").write_bytes(b"def within_root(path, root):\n    return path.startswith(root)\n")
@@ -113,7 +113,7 @@ with tempfile.TemporaryDirectory(prefix="ordin-vetted-noexec-") as directory:
     noexec = run_sandbox_test(selected_scope, source, selected_runtime, vetted, test_inputs, None, cancel=precanceled)
     assert noexec.status == "canceled" and noexec.results == ()
 with tempfile.TemporaryDirectory(prefix="ordin-workflow-offline-") as directory:
-    workflow_root = Path(directory)
+    workflow_root = Path(directory).resolve(strict=True)
     workflow_repo = RepositoryScope("fixture/workflow-wheel", "snapshot-1")
     raw = json.dumps({"repository":"fixture-worker","scanId":"scan-wheel",
         "results":[{"id":"occ-wheel","status":"fixed","evidence":"Synthetic claimed verification"}]}).encode()

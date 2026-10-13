@@ -11,7 +11,9 @@ from pathlib import Path
 from ordin.assurance import RepositoryScope
 from ordin_codex_security import ImportScope, import_codex_json
 
-scope = ImportScope(Path("/private/scanner-output"), RepositoryScope("example/repo", "reviewed-sha"))
+scope = ImportScope(
+    Path("/private/scanner-output"), RepositoryScope("example/repo", "reviewed-sha")
+)
 report = import_codex_json(scope)
 print(report.public_dict())
 ```

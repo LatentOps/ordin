@@ -35,14 +35,17 @@ def sha(path):
 def installation(tmp_path):
     # The selected runtime/installation is outside every actual checkout.
     with tempfile.TemporaryDirectory(prefix="ordin-scanner-fixture-") as name:
-        root = Path(name)
+        root = Path(name).resolve(strict=True)
         for part in ("install", "cwd", "private", "target"):
             (root / part).mkdir(mode=0o700)
         entrypoint = root / "install/fake.py"
         entrypoint.write_text("print('0.2.0')\n", encoding="utf-8")
+        # Hosted/venv Python launchers may be symlinks. Select and fingerprint
+        # their actual native binary; production refuses linked selections.
+        interpreter = Path(sys.executable).resolve(strict=True)
         selection = ScannerSelection(
-            Path(sys.executable).absolute(),
-            sha(Path(sys.executable)),
+            interpreter,
+            sha(interpreter),
             "0.2.0",
             root / "cwd",
             root / "private",

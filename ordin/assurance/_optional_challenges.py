@@ -329,7 +329,7 @@ def _core(scenario, value):
     # Actual parser/approval refusal APIs with owned bounded files. No reviewed
     # action, scanner binary, model worker or target program is executed.
     with tempfile.TemporaryDirectory(prefix="ordin-optional-failure-") as directory:
-        root = Path(directory)
+        root = Path(directory).resolve(strict=True)
         if scenario in {"scanner_missing", "scanner_canceled"}:
             from .codex_security.scanner import ScannerSelection, inspect_scanner
 

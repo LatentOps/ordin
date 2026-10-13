@@ -42,7 +42,7 @@ def run_examples(*, scratch_root: Path | None = None) -> dict:
     with tempfile.TemporaryDirectory(
         prefix="ordin-offline-examples-", dir=scratch_root
     ) as directory:
-        root = Path(directory)
+        root = Path(directory).resolve(strict=True)
         source = root / "source"
         source.mkdir(mode=0o700)
         (source / "README.md").write_text("# Owned synthetic application\n", encoding="utf-8")

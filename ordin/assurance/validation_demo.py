@@ -68,7 +68,7 @@ def run_demo():
     with tempfile.TemporaryDirectory(prefix="ordin-finding-demo-") as directory:
         rows = []
         for revision in ("before-v1", "after-v2"):
-            root = Path(directory) / revision
+            root = Path(directory).resolve(strict=True) / revision
             root.mkdir()
             (root / "config.py").write_text(
                 "# Synthetic policy configuration reference only.\n", encoding="utf-8"
