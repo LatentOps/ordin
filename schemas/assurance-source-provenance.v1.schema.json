@@ -1,0 +1,62 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-source-provenance.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 6,
+  "properties": {
+    "action_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "completeness": {
+      "enum": [
+        "complete",
+        "partial",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "origin_digests": {
+      "items": {
+        "maxLength": 64,
+        "minLength": 1,
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "maxItems": 128,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_source_provenance.v1",
+      "type": "string"
+    },
+    "source_key": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "use_digests": {
+      "items": {
+        "maxLength": 64,
+        "minLength": 1,
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "maxItems": 128,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "source_key",
+    "action_digest",
+    "origin_digests",
+    "use_digests",
+    "completeness"
+  ],
+  "title": "Ordin assurance source provenance v1",
+  "type": "object"
+}

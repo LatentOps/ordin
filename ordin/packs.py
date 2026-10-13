@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
 from . import PACK_LIST_SCHEMA_VERSION, PACK_MANIFEST_SCHEMA_VERSION
+from ._catalog_snapshot import catalog_exists, catalog_paths, read_catalog_json
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,9 +44,12 @@ class CommandPack:
         }
 
 
+def _catalog_root():
+    return PACKS_ROOT
+
+
 def _load_json(path: Path) -> Any:
-    with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    return read_catalog_json(path, anchor=_catalog_root)
 
 
 def _string_list(value: Any, field: str, pack_name: str) -> tuple[str, ...]:
@@ -58,13 +61,11 @@ def _string_list(value: Any, field: str, pack_name: str) -> tuple[str, ...]:
 
 
 def discover_packs() -> list[CommandPack]:
-    if not PACKS_ROOT.exists():
-        return []
     packs: list[CommandPack] = []
     seen: set[str] = set()
-    for directory in sorted(path for path in PACKS_ROOT.iterdir() if path.is_dir()):
+    for directory in catalog_paths(PACKS_ROOT, "directories", anchor=_catalog_root):
         manifest_path = directory / "pack.json"
-        if not manifest_path.exists():
+        if not catalog_exists(manifest_path):
             continue
         payload = _load_json(manifest_path)
         if not isinstance(payload, dict):

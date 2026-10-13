@@ -147,6 +147,9 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
         "command_pack": load_json(DATA_DIR / "packs/git/pack.json"),
         "pack_list": pack_list_payload(),
     }
+    from tests.assurance.contract_examples import assurance_contract_examples
+
+    samples.update(assurance_contract_examples(tmp_path))
     assert set(samples) == set(SCHEMA_FILES)
     for name, payload in samples.items():
         assert not validate_named_schema(name, payload), name
@@ -278,6 +281,6 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
         "runtime_request_boundary",
         "runtime_request_contract_v2",
         "runtime_request_boundary_v2",
-    }
+    } | set(__import__("ordin.assurance._schemas", fromlist=["SCHEMAS"]).SCHEMAS)
     for module, names in manifest["module_contracts"].items():
         assert all(hasattr(import_module(module), name) for name in names), module

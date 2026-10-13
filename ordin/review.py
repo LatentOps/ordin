@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from . import REVIEW_SCHEMA_VERSION
+from ._catalog_snapshot import snapshot_review
 from .context import ExecutionContext
 from .policy import Decision, DecisionResultMixin, stronger_decision
 from .risk import RiskReview, check_command, decision_for_risk, max_risk
@@ -80,6 +81,7 @@ def warn_for_intent_mismatch(
     )
 
 
+@snapshot_review
 def review_command(
     command: str,
     intent: str | None = None,

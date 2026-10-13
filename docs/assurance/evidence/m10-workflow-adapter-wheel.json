@@ -1,0 +1,21 @@
+{
+  "adapter_source_files_compared": 10,
+  "adapter_wheel_sha256": "73a9a6e2a1d07ce6def581ad7557cb2202fd5fbc6a31abfc623361ba6d8e11ce",
+  "core_wheel_sha256": "045bcaa6066fc55fb50c269213fa87847da492050befe24ec771aeeddc8894e6",
+  "implemented_revision": "17423386c9662cfc85a0ed1a4dbb66ba85e9572c",
+  "limitations": [
+    "Local Windows/Python 3.13 only; no live scanner or remote runner checked."
+  ],
+  "schema_version": "ordin.codex_security_adapter_wheel_check.v1",
+  "smoke": {
+    "models_or_scanner_loaded": false,
+    "namespace": "ordin_codex_security",
+    "namespace_imported": true,
+    "network_process_calls_rejected": true,
+    "ok": true,
+    "pinned_schema_loaded": true,
+    "provider_imported": true,
+    "real_scanner_invoked": false,
+    "workflow_facade_imported": true
+  }
+}

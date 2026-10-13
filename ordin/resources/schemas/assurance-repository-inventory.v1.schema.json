@@ -1,0 +1,334 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-repository-inventory.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 11,
+  "properties": {
+    "assets": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 4,
+        "properties": {
+          "id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "path",
+              "tool",
+              "credential",
+              "endpoint",
+              "policy"
+            ],
+            "type": "string"
+          },
+          "match": {
+            "enum": [
+              "exact",
+              "prefix"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "value",
+          "match"
+        ],
+        "type": "object"
+      },
+      "maxItems": 256,
+      "type": "array"
+    },
+    "completeness": {
+      "enum": [
+        "complete",
+        "partial",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "facts": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 5,
+        "properties": {
+          "category": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "enclosing_symbol": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fact_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "entrypoint",
+              "sink",
+              "control",
+              "transformation",
+              "instruction_data",
+              "asset"
+            ],
+            "type": "string"
+          },
+          "source": {
+            "additionalProperties": false,
+            "maxProperties": 5,
+            "properties": {
+              "content_digest": {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              "line": {
+                "maximum": 10000000,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "path": {
+                "maxLength": 1024,
+                "minLength": 1,
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+                "type": "string"
+              },
+              "revision": {
+                "maxLength": 128,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                "type": "string"
+              },
+              "symbol": {
+                "anyOf": [
+                  {
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "line",
+              "revision",
+              "content_digest",
+              "symbol"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "fact_id",
+          "kind",
+          "category",
+          "source",
+          "enclosing_symbol"
+        ],
+        "type": "object"
+      },
+      "maxItems": 256,
+      "type": "array"
+    },
+    "files": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 5,
+        "properties": {
+          "bytes": {
+            "maximum": 1048576,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "content_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "language": {
+            "enum": [
+              "python",
+              "javascript",
+              "configuration",
+              "text"
+            ],
+            "type": "string"
+          },
+          "lines": {
+            "maximum": 1000000000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "path": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content_digest",
+          "bytes",
+          "lines",
+          "language"
+        ],
+        "type": "object"
+      },
+      "maxItems": 256,
+      "type": "array"
+    },
+    "generator": {
+      "const": "ordin.static_inventory.v1",
+      "type": "string"
+    },
+    "issues": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 2,
+        "properties": {
+          "code": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "path_digest": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "path_digest"
+        ],
+        "type": "object"
+      },
+      "maxItems": 256,
+      "type": "array"
+    },
+    "limits": {
+      "additionalProperties": false,
+      "maxProperties": 3,
+      "properties": {
+        "max_depth": {
+          "maximum": 16,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "max_files": {
+          "maximum": 256,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "max_total_bytes": {
+          "maximum": 16777216,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_files",
+        "max_total_bytes",
+        "max_depth"
+      ],
+      "type": "object"
+    },
+    "repository": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "root_identity_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_repository_inventory.v1",
+      "type": "string"
+    },
+    "snapshot_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "repository",
+    "snapshot_digest",
+    "root_identity_digest",
+    "files",
+    "facts",
+    "assets",
+    "issues",
+    "limits",
+    "completeness",
+    "generator"
+  ],
+  "title": "Ordin assurance repository inventory v1",
+  "type": "object"
+}

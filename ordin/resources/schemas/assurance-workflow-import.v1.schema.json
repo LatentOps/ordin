@@ -1,0 +1,295 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-workflow-import.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 19,
+  "properties": {
+    "adapter_revision": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "artifact_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "authority_change": {
+      "const": "none",
+      "type": "string"
+    },
+    "capture_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "claims": {
+      "items": {
+        "$id": "https://latentops.space/ordin/schemas/assurance-workflow-claim.v1.schema.json",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "maxProperties": 10,
+        "properties": {
+          "identifier_digest": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "pattern": "^[a-f0-9]{64}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "origin": {
+            "const": "imported_claim",
+            "type": "string"
+          },
+          "payload_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "payload_parts": {
+            "items": {
+              "maxLength": 4000,
+              "minLength": 1,
+              "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+              "type": "string"
+            },
+            "maxItems": 256,
+            "type": "array"
+          },
+          "record_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "reported_verdict": {
+            "enum": [
+              "reportable",
+              "suppressed",
+              "not_applicable",
+              "deferred",
+              "verified",
+              "no_change",
+              "blocked",
+              "failed",
+              "fixed",
+              "still_vulnerable",
+              "inconclusive",
+              "merge",
+              "revise",
+              "no_op",
+              "block",
+              "hold_for_evidence",
+              "changes_reported",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "schema_version": {
+            "const": "ordin.assurance_workflow_claim.v1",
+            "type": "string"
+          },
+          "status": {
+            "const": "imported",
+            "type": "string"
+          },
+          "verification_method": {
+            "const": "none",
+            "type": "string"
+          },
+          "workflow": {
+            "enum": [
+              "validate",
+              "patch",
+              "verify_fix",
+              "patch_risk"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema_version",
+          "record_id",
+          "workflow",
+          "identifier_digest",
+          "reported_verdict",
+          "payload_parts",
+          "payload_digest",
+          "origin",
+          "status",
+          "verification_method"
+        ],
+        "title": "Ordin assurance workflow claim v1",
+        "type": "object"
+      },
+      "maxItems": 128,
+      "type": "array"
+    },
+    "closure": {
+      "const": "not_performed",
+      "type": "string"
+    },
+    "completeness": {
+      "enum": [
+        "complete",
+        "partial",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "integrity": {
+      "enum": [
+        "matched",
+        "mismatched",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "metadata_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "metadata_parts": {
+      "items": {
+        "maxLength": 4000,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 256,
+      "type": "array"
+    },
+    "native_format": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+      "type": "string"
+    },
+    "origin": {
+      "const": "imported_claim",
+      "type": "string"
+    },
+    "proof_gaps": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "reported_tool_version": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "repository": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "scan_id_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schema_version": {
+      "const": "ordin.assurance_workflow_import.v1",
+      "type": "string"
+    },
+    "scope_match": {
+      "enum": [
+        "matched",
+        "mismatched",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "workflow": {
+      "enum": [
+        "validate",
+        "patch",
+        "verify_fix",
+        "patch_risk"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "repository",
+    "workflow",
+    "artifact_digest",
+    "capture_digest",
+    "adapter_revision",
+    "reported_tool_version",
+    "scan_id_digest",
+    "integrity",
+    "scope_match",
+    "completeness",
+    "native_format",
+    "claims",
+    "metadata_parts",
+    "metadata_digest",
+    "proof_gaps",
+    "closure",
+    "authority_change",
+    "origin"
+  ],
+  "title": "Ordin assurance workflow import v1",
+  "type": "object"
+}

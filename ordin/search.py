@@ -7,6 +7,7 @@ from math import log
 from typing import Callable, Literal
 
 from . import SEARCH_SCHEMA_VERSION
+from ._path_lookup import batch_path_lookup
 from .availability import EnvironmentInfo, command_availability, detect_environment
 from .data import load_commands, load_synonyms
 from .semantic import SemanticReranker, validate_semantic_scores
@@ -318,6 +319,7 @@ def _semantic_rerank(
     )[:limit]
 
 
+@batch_path_lookup
 def _search(
     query: str,
     limit: int,

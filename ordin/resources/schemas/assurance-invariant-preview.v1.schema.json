@@ -1,0 +1,114 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-invariant-preview.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 8,
+  "properties": {
+    "action_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "activation_authorized": {
+      "const": false,
+      "type": "boolean"
+    },
+    "baseline_disposition": {
+      "enum": [
+        "execute",
+        "escalate",
+        "deny"
+      ],
+      "type": "string"
+    },
+    "evaluations": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 5,
+        "properties": {
+          "invariant_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "kind": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "proposed_on_violation": {
+            "enum": [
+              "escalate",
+              "block"
+            ],
+            "type": "string"
+          },
+          "reason_code": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "violated",
+              "not_applicable",
+              "inconclusive",
+              "unsupported"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "invariant_digest",
+          "kind",
+          "status",
+          "reason_code",
+          "proposed_on_violation"
+        ],
+        "type": "object"
+      },
+      "maxItems": 256,
+      "type": "array"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 8,
+      "type": "array"
+    },
+    "mode": {
+      "const": "unapproved_content_preview",
+      "type": "string"
+    },
+    "profile_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_invariant_preview.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "profile_digest",
+    "action_digest",
+    "baseline_disposition",
+    "evaluations",
+    "mode",
+    "activation_authorized",
+    "limitations"
+  ],
+  "title": "Ordin assurance invariant preview v1",
+  "type": "object"
+}

@@ -1,0 +1,36 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-rest-semantics.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 2,
+  "properties": {
+    "methods": {
+      "items": {
+        "enum": [
+          "GET",
+          "HEAD",
+          "OPTIONS",
+          "POST",
+          "PUT",
+          "PATCH",
+          "DELETE"
+        ],
+        "type": "string"
+      },
+      "maxItems": 7,
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "schema_version": {
+      "const": "ordin.assurance_rest_semantics.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "methods"
+  ],
+  "title": "Ordin assurance rest semantics v1",
+  "type": "object"
+}

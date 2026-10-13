@@ -1,0 +1,120 @@
+{
+  "actors": [
+    "outside_attacker",
+    "malicious_dependency_or_mcp_server",
+    "compromised_sibling_agent",
+    "unauthorized_insider"
+  ],
+  "assumptions": [
+    "The host supplied the repository revision and action-space mapping; no Git attestation is inferred.",
+    "Static parsing establishes inspected syntax, not execution, authentication effectiveness or data flow.",
+    "Deployment infrastructure, filesystem aliases and actual process privileges are uninspected."
+  ],
+  "counterevidence_refs": [],
+  "draft": {
+    "authoritative": false,
+    "completeness": "unknown",
+    "draft_id": "draft-0bf90389f98591f52841c542",
+    "entry_points": [],
+    "generator": "ordin.static_inventory.v1",
+    "invariant_suggestions": [],
+    "protected_assets": [],
+    "repository": {
+      "id": "fixture/documentation",
+      "revision": "fixture-v1"
+    },
+    "risk_hypotheses": [],
+    "scan_digest": null,
+    "schema_version": "ordin.assurance_security_profile_draft.v1",
+    "source_evidence": [
+      {
+        "content_digest": "c2276c21ec538656a7039c38fa3bde80da2b0cc058e80d8d7eabe5cc77f8afff",
+        "line": 1,
+        "path": "README.md",
+        "revision": "fixture-v1",
+        "symbol": null
+      }
+    ],
+    "trust_boundaries": [
+      {
+        "id": "external-input",
+        "sink": "application_handler",
+        "source": "outside_attacker"
+      },
+      {
+        "id": "tool-to-executor",
+        "sink": "executor",
+        "source": "malicious_dependency_or_mcp_server"
+      },
+      {
+        "id": "child-to-parent",
+        "sink": "parent_agent",
+        "source": "compromised_sibling_agent"
+      },
+      {
+        "id": "repository-to-ci",
+        "sink": "ci_runtime",
+        "source": "repository_data"
+      }
+    ],
+    "unresolved_facts": [
+      "Which inputs are attacker controlled and which handlers are externally reachable?",
+      "Which host enforces filesystem, network, tool and credential constraints?",
+      "Are candidate authorization controls unavoidable on each relevant route?",
+      "Which assets are production and where are credentials mounted?",
+      "How are child identities, grants and approval workflows authenticated?"
+    ]
+  },
+  "inventory": {
+    "assets": [],
+    "completeness": "complete",
+    "facts": [
+      {
+        "category": "repository.instructions_untrusted",
+        "enclosing_symbol": null,
+        "fact_id": "fact-ff2fd0c86fbf1cf0fb15e7a7",
+        "kind": "instruction_data",
+        "source": {
+          "content_digest": "c2276c21ec538656a7039c38fa3bde80da2b0cc058e80d8d7eabe5cc77f8afff",
+          "line": 1,
+          "path": "README.md",
+          "revision": "fixture-v1",
+          "symbol": null
+        }
+      }
+    ],
+    "files": [
+      {
+        "bytes": 111,
+        "content_digest": "c2276c21ec538656a7039c38fa3bde80da2b0cc058e80d8d7eabe5cc77f8afff",
+        "language": "text",
+        "lines": 3,
+        "path": "README.md"
+      }
+    ],
+    "generator": "ordin.static_inventory.v1",
+    "issues": [],
+    "limits": {
+      "max_depth": 8,
+      "max_files": 256,
+      "max_total_bytes": 16777216
+    },
+    "repository": {
+      "id": "fixture/documentation",
+      "revision": "fixture-v1"
+    },
+    "root_identity_digest": "ab00b29bd2deda1445b20eb6a0685715c8ecf13cd999ce6f1fde58c6a5309e5f",
+    "schema_version": "ordin.assurance_repository_inventory.v1",
+    "snapshot_digest": "0bf90389f98591f52841c5422f8aa75e79b673542c431de42fe18d3986b43c9a"
+  },
+  "model_id": "model-0bf90389f98591f52841c542",
+  "open_questions": [
+    "Which inputs are attacker controlled and which handlers are externally reachable?",
+    "Which host enforces filesystem, network, tool and credential constraints?",
+    "Are candidate authorization controls unavoidable on each relevant route?",
+    "Which assets are production and where are credentials mounted?",
+    "How are child identities, grants and approval workflows authenticated?"
+  ],
+  "routes": [],
+  "schema_version": "ordin.assurance_repository_threat_model.v1"
+}

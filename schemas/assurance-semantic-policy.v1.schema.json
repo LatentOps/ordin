@@ -1,0 +1,120 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-semantic-policy.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 12,
+  "properties": {
+    "deadline_ms": {
+      "maximum": 30000,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "enabled_question_ids": {
+      "items": {
+        "enum": [
+          "material_intent_mismatch",
+          "possible_secret_egress",
+          "suspicious_permission_expansion",
+          "untrusted_instruction_following",
+          "suspicious_delegation"
+        ],
+        "type": "string"
+      },
+      "maxItems": 5,
+      "type": "array"
+    },
+    "escalation_threshold": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "mandatory_action_kinds": {
+      "items": {
+        "enum": [
+          "shell",
+          "tool",
+          "mcp",
+          "http",
+          "filesystem",
+          "process",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "maxItems": 7,
+      "type": "array"
+    },
+    "mandatory_effects": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "max_concurrency": {
+      "maximum": 16,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "max_input_bytes": {
+      "maximum": 12288,
+      "minimum": 1024,
+      "type": "integer"
+    },
+    "max_total_calls": {
+      "maximum": 4096,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "mode": {
+      "enum": [
+        "disabled",
+        "shadow",
+        "enforced-escalation"
+      ],
+      "type": "string"
+    },
+    "required_question_ids": {
+      "items": {
+        "enum": [
+          "material_intent_mismatch",
+          "possible_secret_egress",
+          "suspicious_permission_expansion",
+          "untrusted_instruction_following",
+          "suspicious_delegation"
+        ],
+        "type": "string"
+      },
+      "maxItems": 5,
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_semantic_policy.v1",
+      "type": "string"
+    },
+    "uncertainty_margin": {
+      "maximum": 0.49,
+      "minimum": 0,
+      "type": "number"
+    }
+  },
+  "required": [
+    "schema_version",
+    "mode",
+    "enabled_question_ids",
+    "mandatory_action_kinds",
+    "mandatory_effects",
+    "required_question_ids",
+    "escalation_threshold",
+    "uncertainty_margin",
+    "deadline_ms",
+    "max_total_calls",
+    "max_concurrency",
+    "max_input_bytes"
+  ],
+  "title": "Ordin assurance semantic policy v1",
+  "type": "object"
+}

@@ -1,0 +1,103 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-attack-path-inspection.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 13,
+  "properties": {
+    "artifact_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "edges": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "finding_confirmation": {
+      "const": "not_performed",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 8,
+      "type": "array"
+    },
+    "nodes": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "origin": {
+      "const": "imported_claim",
+      "type": "string"
+    },
+    "reported_exposure": {
+      "enum": [
+        "established",
+        "hypothesis",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "reported_permissions": {
+      "enum": [
+        "within_boundary",
+        "exceeds_boundary",
+        "unsupported",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "reported_reachability": {
+      "enum": [
+        "established",
+        "hypothesis",
+        "blocked",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "runtime_evidence_authenticated": {
+      "const": false,
+      "type": "boolean"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_attack_path_inspection.v1",
+      "type": "string"
+    },
+    "source_references": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "verified_source_references": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_digest",
+    "nodes",
+    "edges",
+    "source_references",
+    "verified_source_references",
+    "reported_exposure",
+    "reported_reachability",
+    "reported_permissions",
+    "origin",
+    "runtime_evidence_authenticated",
+    "finding_confirmation",
+    "limitations"
+  ],
+  "title": "Ordin assurance attack path inspection v1",
+  "type": "object"
+}

@@ -1,0 +1,45 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-security-questions.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 4,
+  "properties": {
+    "interpretation": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+      "type": "string"
+    },
+    "question_ids": {
+      "items": {
+        "enum": [
+          "material_intent_mismatch",
+          "possible_secret_egress",
+          "suspicious_permission_expansion",
+          "untrusted_instruction_following",
+          "suspicious_delegation"
+        ],
+        "type": "string"
+      },
+      "maxItems": 5,
+      "minItems": 1,
+      "type": "array"
+    },
+    "question_set_id": {
+      "const": "ordin.security_questions.v1",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_security_questions.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "question_ids",
+    "question_set_id",
+    "interpretation"
+  ],
+  "title": "Ordin assurance security questions v1",
+  "type": "object"
+}

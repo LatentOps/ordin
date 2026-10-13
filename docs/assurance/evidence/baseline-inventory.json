@@ -1,0 +1,4356 @@
+{
+  "captured_at": "2026-10-09T22:10:18.779958+00:00",
+  "entrypoints": "[console_scripts]\nordin = ordin.entrypoint:main\nordin-claude-hook = ordin.claude_code:main\nordin-codex-hook = ordin.codex:main\nordin-cursor-hook = ordin.cursor:main\nordin-mcp-http = ordin.mcp_http:main\nordin-mcp-proxy = ordin.mcp_proxy:main\n",
+  "fixtures": [
+    {
+      "action": {
+        "action_id": "safe-git",
+        "context": null,
+        "intent": null,
+        "kind": "shell",
+        "operation": "execute",
+        "parameters": {
+          "command": "git status --short"
+        },
+        "schema_version": "ordin.action_envelope.v1"
+      },
+      "case_id": "safe-git",
+      "disposition": "execute",
+      "review": {
+        "action": {
+          "action_id": "safe-git",
+          "context": null,
+          "intent": null,
+          "kind": "shell",
+          "operation": "execute",
+          "parameters": {
+            "command": "git status --short"
+          },
+          "schema_version": "ordin.action_envelope.v1"
+        },
+        "adapter": "shell",
+        "capabilities": {
+          "filesystem": "none",
+          "filesystem_scopes": [],
+          "network": "none",
+          "network_scopes": [],
+          "privilege_escalation": false,
+          "process_execution": true,
+          "schema_version": "ordin.execution_capabilities.v1"
+        },
+        "decision": "allow",
+        "effects": [
+          "git.read"
+        ],
+        "intent_alignment": "not_provided",
+        "provenance": {
+          "final_decision": "allow",
+          "final_risk": "low",
+          "records": [
+            {
+              "action_id": "safe-git",
+              "category": null,
+              "code": "adapter.classification",
+              "decision": "allow",
+              "effect": null,
+              "kind": "finding",
+              "matched_indices": [],
+              "metadata": {
+                "adapter": "shell"
+              },
+              "resource": null,
+              "risk": "low",
+              "rule_id": null,
+              "source": "adapter",
+              "summary": "classified by adapter \"shell\""
+            },
+            {
+              "action_id": null,
+              "category": "source_control_read",
+              "code": "semantic.effect",
+              "decision": null,
+              "effect": "git.read",
+              "kind": "effect",
+              "matched_indices": [],
+              "metadata": {
+                "semantic_source": "git status"
+              },
+              "resource": null,
+              "risk": "low",
+              "rule_id": null,
+              "source": "semantic",
+              "summary": "reads source-control state"
+            },
+            {
+              "action_id": null,
+              "category": null,
+              "code": "decision.base",
+              "decision": "allow",
+              "effect": null,
+              "kind": "merge",
+              "matched_indices": [],
+              "metadata": {},
+              "resource": null,
+              "risk": "low",
+              "rule_id": null,
+              "source": "decision",
+              "summary": null
+            }
+          ],
+          "schema_version": "ordin.provenance.v1"
+        },
+        "reasons": [
+          "reads source-control state (git status)"
+        ],
+        "resources": [],
+        "risk": "low",
+        "safer_next_step": null,
+        "schema_version": "ordin.action_review.v1",
+        "trajectory_categories": []
+      }
+    },
+    {
+      "action": {
+        "action_id": "unknown-mcp",
+        "context": null,
+        "intent": null,
+        "kind": "mcp",
+        "operation": "call",
+        "parameters": {
+          "arguments": {},
+          "server": "fixture",
+          "tool": "unknown"
+        },
+        "schema_version": "ordin.action_envelope.v1"
+      },
+      "case_id": "unknown-mcp",
+      "disposition": "escalate",
+      "review": {
+        "action": {
+          "action_id": "unknown-mcp",
+          "context": null,
+          "intent": null,
+          "kind": "mcp",
+          "operation": "call",
+          "parameters": {
+            "arguments": {},
+            "server": "fixture",
+            "tool": "unknown"
+          },
+          "schema_version": "ordin.action_envelope.v1"
+        },
+        "adapter": null,
+        "capabilities": {
+          "filesystem": "unknown",
+          "filesystem_scopes": [],
+          "network": "unknown",
+          "network_scopes": [],
+          "privilege_escalation": null,
+          "process_execution": null,
+          "schema_version": "ordin.execution_capabilities.v1"
+        },
+        "decision": "ask",
+        "effects": [],
+        "intent_alignment": "not_applicable",
+        "provenance": {
+          "final_decision": "ask",
+          "final_risk": "unknown",
+          "records": [
+            {
+              "action_id": "unknown-mcp",
+              "category": null,
+              "code": "adapter.classification",
+              "decision": "ask",
+              "effect": null,
+              "kind": "finding",
+              "matched_indices": [],
+              "metadata": {
+                "adapter": "none"
+              },
+              "resource": null,
+              "risk": "unknown",
+              "rule_id": null,
+              "source": "adapter",
+              "summary": "no deterministic semantic adapter classified the action"
+            },
+            {
+              "action_id": null,
+              "category": null,
+              "code": "decision.base",
+              "decision": "ask",
+              "effect": null,
+              "kind": "merge",
+              "matched_indices": [],
+              "metadata": {},
+              "resource": null,
+              "risk": "unknown",
+              "rule_id": null,
+              "source": "decision",
+              "summary": null
+            }
+          ],
+          "schema_version": "ordin.provenance.v1"
+        },
+        "reasons": [
+          "no semantic adapter is registered for action \"mcp.call\""
+        ],
+        "resources": [],
+        "risk": "unknown",
+        "safer_next_step": "Require explicit review or add a deterministic semantic adapter before execution.",
+        "schema_version": "ordin.action_review.v1",
+        "trajectory_categories": []
+      }
+    },
+    {
+      "action": {
+        "action_id": "root-delete",
+        "context": null,
+        "intent": null,
+        "kind": "shell",
+        "operation": "execute",
+        "parameters": {
+          "command": "rm -rf /"
+        },
+        "schema_version": "ordin.action_envelope.v1"
+      },
+      "case_id": "root-delete",
+      "disposition": "deny",
+      "review": {
+        "action": {
+          "action_id": "root-delete",
+          "context": null,
+          "intent": null,
+          "kind": "shell",
+          "operation": "execute",
+          "parameters": {
+            "command": "rm -rf /"
+          },
+          "schema_version": "ordin.action_envelope.v1"
+        },
+        "adapter": "shell",
+        "capabilities": {
+          "filesystem": "write",
+          "filesystem_scopes": [
+            "/"
+          ],
+          "network": "none",
+          "network_scopes": [],
+          "privilege_escalation": false,
+          "process_execution": true,
+          "schema_version": "ordin.execution_capabilities.v1"
+        },
+        "decision": "block",
+        "effects": [
+          "filesystem.delete",
+          "filesystem.recursive_delete",
+          "confirmation.bypass"
+        ],
+        "intent_alignment": "not_provided",
+        "provenance": {
+          "final_decision": "block",
+          "final_risk": "critical",
+          "records": [
+            {
+              "action_id": "root-delete",
+              "category": null,
+              "code": "adapter.classification",
+              "decision": "block",
+              "effect": null,
+              "kind": "finding",
+              "matched_indices": [],
+              "metadata": {
+                "adapter": "shell"
+              },
+              "resource": null,
+              "risk": "critical",
+              "rule_id": null,
+              "source": "adapter",
+              "summary": "classified by adapter \"shell\""
+            },
+            {
+              "action_id": null,
+              "category": "filesystem_delete",
+              "code": "semantic.effect",
+              "decision": null,
+              "effect": "filesystem.delete",
+              "kind": "effect",
+              "matched_indices": [],
+              "metadata": {
+                "semantic_source": "rm target"
+              },
+              "resource": {
+                "type": "path",
+                "value": "/"
+              },
+              "risk": "high",
+              "rule_id": null,
+              "source": "semantic",
+              "summary": "can delete filesystem content"
+            },
+            {
+              "action_id": null,
+              "category": "recursive_delete",
+              "code": "semantic.effect",
+              "decision": null,
+              "effect": "filesystem.recursive_delete",
+              "kind": "effect",
+              "matched_indices": [],
+              "metadata": {
+                "semantic_source": "rm recursive flag"
+              },
+              "resource": {
+                "type": "path",
+                "value": "/"
+              },
+              "risk": "high",
+              "rule_id": null,
+              "source": "semantic",
+              "summary": "can recursively delete filesystem content"
+            },
+            {
+              "action_id": null,
+              "category": "confirmation_bypass",
+              "code": "semantic.effect",
+              "decision": null,
+              "effect": "confirmation.bypass",
+              "kind": "effect",
+              "matched_indices": [],
+              "metadata": {
+                "semantic_source": "rm force flag"
+              },
+              "resource": null,
+              "risk": "medium",
+              "rule_id": null,
+              "source": "semantic",
+              "summary": "bypasses a confirmation safeguard"
+            },
+            {
+              "action_id": null,
+              "category": null,
+              "code": "risk-rule.match",
+              "decision": null,
+              "effect": null,
+              "kind": "rule",
+              "matched_indices": [],
+              "metadata": {},
+              "resource": null,
+              "risk": null,
+              "rule_id": "recursive_delete",
+              "source": "risk_rule",
+              "summary": null
+            },
+            {
+              "action_id": null,
+              "category": null,
+              "code": "risk-rule.match",
+              "decision": null,
+              "effect": null,
+              "kind": "rule",
+              "matched_indices": [],
+              "metadata": {},
+              "resource": null,
+              "risk": null,
+              "rule_id": "root_delete",
+              "source": "risk_rule",
+              "summary": null
+            },
+            {
+              "action_id": null,
+              "category": "root_filesystem_mutation",
+              "code": "context.root_filesystem_mutation",
+              "decision": null,
+              "effect": null,
+              "kind": "finding",
+              "matched_indices": [],
+              "metadata": {},
+              "resource": null,
+              "risk": null,
+              "rule_id": null,
+              "source": "context",
+              "summary": null
+            },
+            {
+              "action_id": null,
+              "category": null,
+              "code": "decision.base",
+              "decision": "block",
+              "effect": null,
+              "kind": "merge",
+              "matched_indices": [],
+              "metadata": {},
+              "resource": null,
+              "risk": "critical",
+              "rule_id": null,
+              "source": "decision",
+              "summary": null
+            }
+          ],
+          "schema_version": "ordin.provenance.v1"
+        },
+        "reasons": [
+          "recursively deletes files or directories",
+          "targets the filesystem root",
+          "can delete filesystem content (rm target, path:/)",
+          "can recursively delete filesystem content (rm recursive flag, path:/)",
+          "bypasses a confirmation safeguard (rm force flag)"
+        ],
+        "resources": [
+          {
+            "type": "path",
+            "value": "/"
+          }
+        ],
+        "risk": "critical",
+        "safer_next_step": "Inspect the target path first with ls or find before deleting.",
+        "schema_version": "ordin.action_review.v1",
+        "trajectory_categories": []
+      }
+    },
+    {
+      "action": {
+        "action_id": "file-write",
+        "context": null,
+        "intent": null,
+        "kind": "file",
+        "operation": "write",
+        "parameters": {
+          "path": "/fixture/docs/note.md"
+        },
+        "schema_version": "ordin.action_envelope.v1"
+      },
+      "case_id": "file-write",
+      "disposition": "escalate",
+      "review": {
+        "action": {
+          "action_id": "file-write",
+          "context": null,
+          "intent": null,
+          "kind": "file",
+          "operation": "write",
+          "parameters": {
+            "path": "/fixture/docs/note.md"
+          },
+          "schema_version": "ordin.action_envelope.v1"
+        },
+        "adapter": null,
+        "capabilities": {
+          "filesystem": "unknown",
+          "filesystem_scopes": [],
+          "network": "unknown",
+          "network_scopes": [],
+          "privilege_escalation": null,
+          "process_execution": null,
+          "schema_version": "ordin.execution_capabilities.v1"
+        },
+        "decision": "ask",
+        "effects": [],
+        "intent_alignment": "not_applicable",
+        "provenance": {
+          "final_decision": "ask",
+          "final_risk": "unknown",
+          "records": [
+            {
+              "action_id": "file-write",
+              "category": null,
+              "code": "adapter.classification",
+              "decision": "ask",
+              "effect": null,
+              "kind": "finding",
+              "matched_indices": [],
+              "metadata": {
+                "adapter": "none"
+              },
+              "resource": null,
+              "risk": "unknown",
+              "rule_id": null,
+              "source": "adapter",
+              "summary": "no deterministic semantic adapter classified the action"
+            },
+            {
+              "action_id": null,
+              "category": null,
+              "code": "decision.base",
+              "decision": "ask",
+              "effect": null,
+              "kind": "merge",
+              "matched_indices": [],
+              "metadata": {},
+              "resource": null,
+              "risk": "unknown",
+              "rule_id": null,
+              "source": "decision",
+              "summary": null
+            }
+          ],
+          "schema_version": "ordin.provenance.v1"
+        },
+        "reasons": [
+          "no semantic adapter is registered for action \"file.write\""
+        ],
+        "resources": [],
+        "risk": "unknown",
+        "safer_next_step": "Require explicit review or add a deterministic semantic adapter before execution.",
+        "schema_version": "ordin.action_review.v1",
+        "trajectory_categories": []
+      }
+    },
+    {
+      "action": {
+        "action_id": "network-upload",
+        "context": null,
+        "intent": null,
+        "kind": "network",
+        "operation": "upload",
+        "parameters": {
+          "url": "https://fixture.invalid/upload"
+        },
+        "schema_version": "ordin.action_envelope.v1"
+      },
+      "case_id": "network-upload",
+      "disposition": "escalate",
+      "review": {
+        "action": {
+          "action_id": "network-upload",
+          "context": null,
+          "intent": null,
+          "kind": "network",
+          "operation": "upload",
+          "parameters": {
+            "url": "https://fixture.invalid/upload"
+          },
+          "schema_version": "ordin.action_envelope.v1"
+        },
+        "adapter": null,
+        "capabilities": {
+          "filesystem": "unknown",
+          "filesystem_scopes": [],
+          "network": "unknown",
+          "network_scopes": [],
+          "privilege_escalation": null,
+          "process_execution": null,
+          "schema_version": "ordin.execution_capabilities.v1"
+        },
+        "decision": "ask",
+        "effects": [],
+        "intent_alignment": "not_applicable",
+        "provenance": {
+          "final_decision": "ask",
+          "final_risk": "unknown",
+          "records": [
+            {
+              "action_id": "network-upload",
+              "category": null,
+              "code": "adapter.classification",
+              "decision": "ask",
+              "effect": null,
+              "kind": "finding",
+              "matched_indices": [],
+              "metadata": {
+                "adapter": "none"
+              },
+              "resource": null,
+              "risk": "unknown",
+              "rule_id": null,
+              "source": "adapter",
+              "summary": "no deterministic semantic adapter classified the action"
+            },
+            {
+              "action_id": null,
+              "category": null,
+              "code": "decision.base",
+              "decision": "ask",
+              "effect": null,
+              "kind": "merge",
+              "matched_indices": [],
+              "metadata": {},
+              "resource": null,
+              "risk": "unknown",
+              "rule_id": null,
+              "source": "decision",
+              "summary": null
+            }
+          ],
+          "schema_version": "ordin.provenance.v1"
+        },
+        "reasons": [
+          "no semantic adapter is registered for action \"network.upload\""
+        ],
+        "resources": [],
+        "risk": "unknown",
+        "safer_next_step": "Require explicit review or add a deterministic semantic adapter before execution.",
+        "schema_version": "ordin.action_review.v1",
+        "trajectory_categories": []
+      }
+    }
+  ],
+  "limitations": [
+    "Static symbol inventory is not a reachability proof.",
+    "Representative cases are compatibility fixtures, not effectiveness estimates.",
+    "Historical report metrics do not establish candidate performance."
+  ],
+  "ordin_version": "0.4.0.dev0",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "prior_reports": {
+    "docs/reports/agent-safety-corpus-v1/report.json": {
+      "revision": "e16680ad7ad3010f88d916b512ba189ef74358c1",
+      "sha256": "f3272eb4cf0dcc92a3e842b8cf353bc9422b5eada756a270830765c725935c4b",
+      "top_level_fields": [
+        "boundary_applicable",
+        "boundary_detection_rates",
+        "contextual",
+        "corpus_version",
+        "dataset_sha256",
+        "decisions",
+        "environment",
+        "errors",
+        "latency_ms",
+        "limitations",
+        "metrics",
+        "ok",
+        "results",
+        "revision",
+        "schema_version",
+        "scope"
+      ]
+    },
+    "docs/reports/integration-evaluation.json": {
+      "revision": "e121bbce7545e5716263d3b6146506528dd87103",
+      "sha256": "676b9a6bc1885c73e6979b17ec8cbabb7b7d6873889d95b3f288861c9b855096",
+      "top_level_fields": [
+        "configuration",
+        "coverage",
+        "decisions",
+        "environment",
+        "errors",
+        "evidence_linkage",
+        "failure_regression_errors",
+        "friction_categories",
+        "identity_and_conformance",
+        "latency_ms",
+        "limitations",
+        "policy",
+        "revision",
+        "schema_version",
+        "scope",
+        "trajectory",
+        "workloads"
+      ]
+    },
+    "docs/reports/runtime-capability-benchmark.json": {
+      "revision": "8dc27db112af6347a42f8184d2a4468324f8a4c8",
+      "sha256": "05faf4570356ef2b8048491369b734f5177cbab1f20f086efc58e9c097073645",
+      "top_level_fields": [
+        "boundary_outcomes",
+        "environment",
+        "latency",
+        "repetitions",
+        "schema_version",
+        "scope",
+        "source_digest",
+        "source_revision",
+        "warmup_per_workload",
+        "workload"
+      ]
+    }
+  },
+  "public_exports": [
+    "ACTION_ENVELOPE_SCHEMA_VERSION",
+    "ACTION_HISTORY_SCHEMA_VERSION",
+    "ACTION_OBSERVATION_SCHEMA_VERSION",
+    "ACTION_REVIEW_SCHEMA_VERSION",
+    "ACTION_TRACE_SCHEMA_VERSION",
+    "AUDIT_EVENT_SCHEMA_VERSION",
+    "ActionEnvelope",
+    "ActionHistory",
+    "ActionObservation",
+    "ActionPolicyCondition",
+    "ActionPolicyRule",
+    "ActionPolicySet",
+    "ActionResource",
+    "ActionReview",
+    "ActionTrace",
+    "AgentDecision",
+    "AgentDisposition",
+    "AgentGate",
+    "AgentReview",
+    "AuditEvent",
+    "AuditSink",
+    "AuditVerification",
+    "CapabilityDeltaProposal",
+    "CapabilityVerificationResult",
+    "CommandReview",
+    "CompiledActionPolicySet",
+    "CompiledTemporalPolicySet",
+    "CompiledToolSemanticsRegistry",
+    "DIAGNOSTIC_SCHEMA_VERSION",
+    "Decision",
+    "DecisionProvenance",
+    "EFFECT_CATALOG_SCHEMA_VERSION",
+    "EFFECT_GRAPH_SCHEMA_VERSION",
+    "EXECUTION_CAPABILITIES_SCHEMA_VERSION",
+    "ExecutionCapabilityProfile",
+    "ExecutionContext",
+    "FailThreshold",
+    "INTEGRATION_HEALTH_SCHEMA_VERSION",
+    "IntegrationSession",
+    "JsonlAuditSink",
+    "MAN_INDEX_SCHEMA_VERSION",
+    "MCPAdapter",
+    "MCPContractCheck",
+    "MCPContractLock",
+    "OBSERVATION_HISTORY_SCHEMA_VERSION",
+    "ObservationHistory",
+    "ObservedResource",
+    "Ordin",
+    "PACK_LIST_SCHEMA_VERSION",
+    "PACK_MANIFEST_SCHEMA_VERSION",
+    "POLICY_SET_SCHEMA_VERSION",
+    "PROVENANCE_SCHEMA_VERSION",
+    "PolicyEvaluation",
+    "PolicyMatch",
+    "PolicyResourceMatcher",
+    "ProvenanceRecord",
+    "ProvenanceResource",
+    "REVIEW_REQUEST_SCHEMA_VERSION",
+    "REVIEW_SCHEMA_VERSION",
+    "RISK_RULES_SCHEMA_VERSION",
+    "RISK_SCHEMA_VERSION",
+    "ReviewPolicy",
+    "ReviewRequest",
+    "RiskReview",
+    "RuntimeCapabilityBoundary",
+    "RuntimeCapabilityContract",
+    "RuntimeEvidenceSource",
+    "RuntimeObservation",
+    "RuntimeObservationHistory",
+    "SEARCH_SCHEMA_VERSION",
+    "SESSION_SCHEMA_VERSION",
+    "SearchResult",
+    "SessionIdentity",
+    "SqliteSessionStore",
+    "TEMPORAL_POLICY_SET_SCHEMA_VERSION",
+    "TOOL_SEMANTICS_SCHEMA_VERSION",
+    "TemporalActionEvidence",
+    "TemporalPolicySet",
+    "TemporalPredicate",
+    "TemporalRule",
+    "ToolCallAdapter",
+    "ToolResourceBinding",
+    "ToolSemanticRule",
+    "ToolSemanticsRegistry",
+    "TraceAction",
+    "__version__",
+    "action_review_diagnostic",
+    "default_temporal_policy",
+    "derive_capabilities",
+    "derive_runtime_capability_contract",
+    "integration_health",
+    "load_action_policy",
+    "load_temporal_policy",
+    "load_tool_semantics",
+    "propose_capability_delta",
+    "review_action",
+    "tool_contract_digest",
+    "verify_audit_jsonl",
+    "verify_runtime_capability"
+  ],
+  "python": "3.13.12",
+  "revision": "9f2568f70c677f607d631e252f609207f6a2cd60",
+  "schema_version": "ordin.assurance_baseline_inventory.v1",
+  "schemas": {
+    "action_envelope": "action-envelope.v1.schema.json",
+    "action_history": "action-history.v1.schema.json",
+    "action_observation": "action-observation.v1.schema.json",
+    "action_review": "action-review.v1.schema.json",
+    "action_trace": "action-trace.v1.schema.json",
+    "audit_event": "audit-event.v1.schema.json",
+    "capability_delta_proposal": "capability-delta-proposal.v1.schema.json",
+    "codex_mcp_map": "codex-mcp-map.v1.schema.json",
+    "command_card": "command-card.v1.schema.json",
+    "command_pack": "command-pack.v1.schema.json",
+    "cursor_mcp_map": "cursor-mcp-map.v1.schema.json",
+    "effect_catalog": "effect-catalog.v1.schema.json",
+    "effect_graph": "effect-graph.v1.schema.json",
+    "execution_capabilities": "execution-capabilities.v1.schema.json",
+    "integration_session": "integration-session.v1.schema.json",
+    "mcp_contract_lock": "mcp-contract-lock.v1.schema.json",
+    "mcp_inventory": "mcp-inventory.v1.schema.json",
+    "observation_history": "observation-history.v1.schema.json",
+    "pack_list": "pack-list.v1.schema.json",
+    "policy_set": "policy-set.v1.schema.json",
+    "provenance": "provenance.v1.schema.json",
+    "review_request": "review-request.v1.schema.json",
+    "review_result": "review-result.v1.schema.json",
+    "risk_review": "risk-review.v1.schema.json",
+    "risk_rules": "risk-rules.v1.schema.json",
+    "runtime_capability": "runtime-capability.v1.schema.json",
+    "runtime_capability_boundary": "runtime-capability-boundary.v1.schema.json",
+    "runtime_observation": "runtime-observation.v1.schema.json",
+    "runtime_observation_history": "runtime-observation-history.v1.schema.json",
+    "runtime_request_boundary": "runtime-request-boundary.v1.schema.json",
+    "runtime_request_boundary_v2": "runtime-request-boundary.v2.schema.json",
+    "runtime_request_contract": "runtime-request-contract.v1.schema.json",
+    "runtime_request_contract_v2": "runtime-request-contract.v2.schema.json",
+    "runtime_session": "runtime-session.v1.schema.json",
+    "runtime_shadow_report": "runtime-shadow-report.v1.schema.json",
+    "search_result": "search-result.v1.schema.json",
+    "temporal_policy_set": "temporal-policy-set.v1.schema.json",
+    "tool_semantics": "tool-semantics.v1.schema.json",
+    "trace_candidate": "trace-candidate.v1.schema.json",
+    "trace_event": "trace-event.v1.schema.json"
+  },
+  "source_inventory": {
+    ".github/workflows/release.yml": {
+      "bytes": 8521,
+      "sha256": "731068810c71f769baa74c8ab6274079b78f2983794cca156784e8ca3139ef28"
+    },
+    ".github/workflows/runtime-extension.yml": {
+      "bytes": 1444,
+      "sha256": "d5348c60ca838c17a0f70d4edbef259de3c9510b6d9abe3afe4ebda888c8f295"
+    },
+    ".github/workflows/security.yml": {
+      "bytes": 1911,
+      "sha256": "5a8651f6dcd1f90eeed3ed86cdfd59bdb24626972cd07e60b2866f5341a3a5f8"
+    },
+    ".github/workflows/tests.yml": {
+      "bytes": 9964,
+      "sha256": "e02c3acdfcb28e6628770693fc77ccbac03774ea6b021e5cc05b042229733c5f"
+    },
+    "docs/README.md": {
+      "bytes": 7054,
+      "sha256": "714b22ee9b14df5e67ae6aebed2b9c7de938d32ff3e70b093e40ce2486db3421"
+    },
+    "docs/action-review.md": {
+      "bytes": 5510,
+      "sha256": "36eeda0289856500821844f7bc07e21fb06ce5c912fa8d8e0edbe3cb086bf00f"
+    },
+    "docs/agent-integration.md": {
+      "bytes": 4947,
+      "sha256": "85736b33938a39331d18683c5ea8e6fa996e26bf8a39cfbe09219ac7513b5391"
+    },
+    "docs/agent-safety-corpus.md": {
+      "bytes": 6480,
+      "sha256": "6f793e9f579d67770aeba82a0e2b878f076a9d66301edac48eeb142f9c7280af"
+    },
+    "docs/agent-trajectory-corpus.md": {
+      "bytes": 5276,
+      "sha256": "76814062de16f756955864d2999443945d8141bf6ece79b0b04cb87f185f75a1"
+    },
+    "docs/architecture.md": {
+      "bytes": 6607,
+      "sha256": "acfb6fcd82b64f7114bfc5c59f6a8897fe6d1213f5189599a9505a9fcfe9d12c"
+    },
+    "docs/audit-and-provenance.md": {
+      "bytes": 6039,
+      "sha256": "c039247c57ace63aa932ba17634f016e7945c3a7882c05fcad46792ee04164aa"
+    },
+    "docs/availability-and-platforms.md": {
+      "bytes": 2915,
+      "sha256": "b61a4abcc5330623f86f559e5e90cc7a00abac43ef72874d68642954a4a06dc8"
+    },
+    "docs/bare-intent-cli.md": {
+      "bytes": 1083,
+      "sha256": "de6f4d5206bf6f5ed249213dd8320e2d90ada6bda48a7dfcbb453829241aef90"
+    },
+    "docs/capability-proposals.md": {
+      "bytes": 3381,
+      "sha256": "983b2cde64512e63213e570e890cbd32e102a507dce09092501ce9a0474c30e1"
+    },
+    "docs/claude-code-integration.md": {
+      "bytes": 8160,
+      "sha256": "b28d1a679d8852d82296ea2ed5c76536279f9e21caa160ac988b38dc3b799ef6"
+    },
+    "docs/codex-integration.md": {
+      "bytes": 7851,
+      "sha256": "5f746c03764da3f179634df3246644091395b5b1d3547f2425c528e2076d5fb3"
+    },
+    "docs/command-packs.md": {
+      "bytes": 5882,
+      "sha256": "a5f869c4498765e8981f6e36f3e75d5a33ea4603b3561a8520d684c2474ee783"
+    },
+    "docs/compatibility.md": {
+      "bytes": 5906,
+      "sha256": "655ccff414209bf348a66cb36d7afd43938ea940e13fb83c835f2a723590f5c2"
+    },
+    "docs/context-aware-review.md": {
+      "bytes": 2337,
+      "sha256": "6df5f639017915d95886c30cc83a0dc38073b4836ccaae3d26afd8b601d02a9e"
+    },
+    "docs/cursor-integration.md": {
+      "bytes": 7439,
+      "sha256": "ca84dc1edb3d45d6776aa9024f1d80f7a6e92e0130330e5898ef6dec02c17519"
+    },
+    "docs/design/runtime-enforcement-integration.md": {
+      "bytes": 6201,
+      "sha256": "ac7e1006ce1ae22eeff4233f0e100b50d15e2747e028825bba0ec81d0ee618c3"
+    },
+    "docs/deterministic-ranking.md": {
+      "bytes": 2423,
+      "sha256": "6edf599157c6250af90659aee5599d31eae62ce760185c8a6161ed8595be3b38"
+    },
+    "docs/development-workflow.md": {
+      "bytes": 2005,
+      "sha256": "a87b250dfd11f2851b697b790d9e3a52c8490df8017aaaa016f249caa9949eef"
+    },
+    "docs/effect-graph.md": {
+      "bytes": 4889,
+      "sha256": "33007a564afdbe733a78ef82df0a9a3ae12839729ac8a0d3749afcfc2b2566f3"
+    },
+    "docs/enforcement-backends.md": {
+      "bytes": 1739,
+      "sha256": "9587ea49d929592bac5950f5f497ce9bfe9ba82626be74c9b403ad2eda717ccc"
+    },
+    "docs/enforcement.md": {
+      "bytes": 2144,
+      "sha256": "0f72261fa1b442dacb73b6a84b39211f7d6d81e24a2be08036c3909f346a3317"
+    },
+    "docs/execution-evidence.md": {
+      "bytes": 4951,
+      "sha256": "158b3d15d7019aac62328fa93576204a405f1b4f9dcf2617268784388d16ec64"
+    },
+    "docs/failure-regressions.md": {
+      "bytes": 4332,
+      "sha256": "50a8de07d10f20a8199fbf2ace8353e005860c76a8d7fdc5a9f91468bd99014d"
+    },
+    "docs/feedback-intake.md": {
+      "bytes": 7639,
+      "sha256": "0b5824f9f535a47c4dd3d13a8b244f17de545fe34f1f526ee19aa81c93524408"
+    },
+    "docs/installation.md": {
+      "bytes": 2785,
+      "sha256": "aba05f9f5ba76b90c3930d96505ffdbac5546db2b82126f3e68c9a93fb00525e"
+    },
+    "docs/integration-conformance.md": {
+      "bytes": 3319,
+      "sha256": "deaac30702025653b1a6f86cad083078110fb8598cb0862834f94ad7b6acb8af"
+    },
+    "docs/integration-evaluation.md": {
+      "bytes": 6820,
+      "sha256": "eabb9af0a8b011358b38a034b7b5cfdbda06eca1f488cdd54875d3330c96a484"
+    },
+    "docs/integration-sessions.md": {
+      "bytes": 8333,
+      "sha256": "c5b94a8999bee1ec075fd2541029c91358386ec6c5f235b6dfc46a6276478b92"
+    },
+    "docs/integration-troubleshooting.md": {
+      "bytes": 4268,
+      "sha256": "206a2af301c5a180205d89a42ff086d6f037f7bb327423d5d2c7d0957023454d"
+    },
+    "docs/mcp-contract-pinning.md": {
+      "bytes": 7085,
+      "sha256": "c94e0fdafbf2ca85c1b9b4c1ca90cf940ff4691af9b5d15acad9d7500af4a3f5"
+    },
+    "docs/mcp-http-proxy.md": {
+      "bytes": 8457,
+      "sha256": "206e6be37fbd282df570700a044bc9fe14f41c572c80c6b0acd2d4ccd0650a5f"
+    },
+    "docs/mcp-safety-proxy.md": {
+      "bytes": 10801,
+      "sha256": "723056366c27c7f266eb2cb7a48e29fd23206c492c75c477e274013cb04594f8"
+    },
+    "docs/mcp-semantics-setup.md": {
+      "bytes": 6597,
+      "sha256": "0a88c34247500ecf050c6e228f0fd93e419a941367f63c6621ba8dd686e4c94a"
+    },
+    "docs/ocsf-export.md": {
+      "bytes": 2054,
+      "sha256": "0c726885472f12be132a1fc84b2eff492d4d755c7ebf64fea563b3410e66631d"
+    },
+    "docs/openshell-integration.md": {
+      "bytes": 15789,
+      "sha256": "9b50585a66595f61ea700540357566fad6f11db097bdec96f5079f46829f43b9"
+    },
+    "docs/openshell-runtime-demo.md": {
+      "bytes": 5384,
+      "sha256": "b6fcdc5de48f8a3590cb52a7da283aff3d0304f74d35ee8c2d40a495b6871a99"
+    },
+    "docs/policies.md": {
+      "bytes": 6774,
+      "sha256": "c68f44e87a762f4ff9e9e7e78c24d036846a16664b5e25d60a0742ba4b0ea8f0"
+    },
+    "docs/post-release-0.3.md": {
+      "bytes": 2955,
+      "sha256": "ecac91fd8ebed70dd62ff9bcf348d2a073b647e70357acfd1281c17dc3217b03"
+    },
+    "docs/public-compatibility-0.3.md": {
+      "bytes": 5636,
+      "sha256": "73d29abd2bc91939eafa7feac62d8e5f0991c5a872c6b07da7a546b8701003b2"
+    },
+    "docs/python-api.md": {
+      "bytes": 6313,
+      "sha256": "8be16fc496e1eea6a375665dcdbde02456651aa0684ba3f1f7bb25dc628a7564"
+    },
+    "docs/quickstart.md": {
+      "bytes": 7042,
+      "sha256": "6fd4694dbaecb8b15223e163800d4a3423f76eab16bdaf59cf1b81e86c5b9c99"
+    },
+    "docs/regression-promotion.md": {
+      "bytes": 5933,
+      "sha256": "2c8a61dff65fc030bab1adc661f0597d96a5ad973811b46d0529b60b41b6f596"
+    },
+    "docs/release-candidate-gate.md": {
+      "bytes": 2894,
+      "sha256": "d900f85a31c64144308499a0fe96342ea60b68b93876ef466f90481f2ad6dd5c"
+    },
+    "docs/release-preparation-0.3.md": {
+      "bytes": 4216,
+      "sha256": "7e494e09a0a9c52fd52b4d9a22be5541ad2b73a8ca059dd1d17e0a02a0f6ca8a"
+    },
+    "docs/releases/v0.2.0.md": {
+      "bytes": 2193,
+      "sha256": "5fc0e27120c4922d28b714eda6288638505f46eafedf413c0e431ce770f406fd"
+    },
+    "docs/releases/v0.3.0.md": {
+      "bytes": 4681,
+      "sha256": "685885abb63629390e26d52a3e693bf489bc7d983e84543a9fdadbb8b8db304a"
+    },
+    "docs/releasing.md": {
+      "bytes": 6463,
+      "sha256": "a3cfcc4fff6f02faab8522ca972a0bf203cb660572edad130474dc6b1de2a469"
+    },
+    "docs/reports/agent-safety-corpus-v1/report.md": {
+      "bytes": 2237,
+      "sha256": "63febc5049a563d9f73db0b9f6ad04a063e1c63a2b8f712e85387bcc495858ab"
+    },
+    "docs/reports/integration-evaluation.md": {
+      "bytes": 2082,
+      "sha256": "626b30eac304988ffc66550912261b8b6dddf588b40b8668449a2c15aec5396e"
+    },
+    "docs/reports/runtime-integration-evaluation.md": {
+      "bytes": 2428,
+      "sha256": "73fce1ac05e3f53442d2f1e0d87f1a810214e5fc18dcb9916e5396b0da382d14"
+    },
+    "docs/runtime-boundaries.md": {
+      "bytes": 2767,
+      "sha256": "afa4021edde8204eeef840bfce7486b277ee019e0248d37d831304368026b545"
+    },
+    "docs/runtime-capabilities.md": {
+      "bytes": 5647,
+      "sha256": "2ab6d3021d7d3f12f86a3932b1a79f91ca73463981c1b68570de71a273b0ace9"
+    },
+    "docs/runtime-capability-benchmark.md": {
+      "bytes": 1679,
+      "sha256": "652d884cf52e4fd9d9c689b406bf2fc52cfc57c538416ec49d644ba54b147082"
+    },
+    "docs/runtime-enforcement-acceptance.md": {
+      "bytes": 16569,
+      "sha256": "89a87bdb30e17812c0a2fa0ca62aaa79cf73bfb7cdb3c562e302ea9c083b7cea"
+    },
+    "docs/runtime-enforcement-corpus.md": {
+      "bytes": 1436,
+      "sha256": "2acb681e69f57e324f12caf863fe9886e4e6b77ed453e9737b02132c18b16c8e"
+    },
+    "docs/runtime-evidence.md": {
+      "bytes": 5834,
+      "sha256": "5be9d7d8f72a25c1bb33904ca5da2d12235cf0070a38fe2286b91c3a19b534da"
+    },
+    "docs/runtime-reason-codes.md": {
+      "bytes": 3742,
+      "sha256": "1b25e43a96d3b564654e6851cdb9a02f63c170e7dc54027c344247646cd3a960"
+    },
+    "docs/runtime-request-authority-v2.md": {
+      "bytes": 6503,
+      "sha256": "39f6aeacb527a182634ca69a2c52b73d31cc4a0467ce05fc4945fb27b565017a"
+    },
+    "docs/runtime-requests.md": {
+      "bytes": 8398,
+      "sha256": "7c0b22aa6ed637076f5ba6d40b5034aa4299770075f78b79aa2d2aab84866201"
+    },
+    "docs/safety-benchmark.md": {
+      "bytes": 6432,
+      "sha256": "aee15734414dae0e5a6de69a8ad269c4fb3ab7d6a286ddc6b16bb1b93c9a56ee"
+    },
+    "docs/schema-contracts.md": {
+      "bytes": 4660,
+      "sha256": "b89086e0ec57346b932bcff37d5c25952d8edacd8ba7cf628aaf19a618922ac0"
+    },
+    "docs/search-quality-benchmark.md": {
+      "bytes": 2459,
+      "sha256": "e04a4361b5128e9237ca633e54d507a435d88adc692084d33427145e8abd5669"
+    },
+    "docs/semantic-analyzers.md": {
+      "bytes": 2626,
+      "sha256": "0431d7955e6bcfd554acde6570466e1505d80b559c98ad0ffc57e708c0b6796c"
+    },
+    "docs/semantic-reranking.md": {
+      "bytes": 3159,
+      "sha256": "facf6cbb8dab9d5c9641a2a908bef0dc55c174612fb7c2476faad1544add4231"
+    },
+    "docs/setup.md": {
+      "bytes": 8309,
+      "sha256": "12baf306f6802b771ea1c6df0c34bc65f1caf4a8fbe2349a2d0752a3ecffec19"
+    },
+    "docs/shell-integration.md": {
+      "bytes": 3329,
+      "sha256": "d4ea7fde9e49eb63bc1249d5abea4d4b452395b66d6d6bdd162241b8788a8343"
+    },
+    "docs/temporal-policies.md": {
+      "bytes": 5601,
+      "sha256": "f393e807103510dce6bf848f7a236f05324b85409ef21edf8be38a973c4dedee"
+    },
+    "docs/threat-model.md": {
+      "bytes": 14752,
+      "sha256": "203ea837cf2587efa4e50ea4f30e79042e868de94e13a49e943e998069e0a88a"
+    },
+    "docs/tool-and-mcp-adapters.md": {
+      "bytes": 4567,
+      "sha256": "fb51c048a1ef7a43ea2da1d8f3d9c158f123989f6003390d9edd241c87539c37"
+    },
+    "docs/trace-aware-review-merge-gate.md": {
+      "bytes": 335,
+      "sha256": "ff7c58c141b3a0349bc14fc79ac4631692a8255dfec145bf18dd029b1e99c2fd"
+    },
+    "docs/trace-aware-review.md": {
+      "bytes": 2821,
+      "sha256": "21c0ee201482eff57b4a16c55d0de7eb4e4db6da1d55a2fb89cfa2162218091f"
+    },
+    "docs/trace-capture.md": {
+      "bytes": 8956,
+      "sha256": "25f0b29b09b1287cbf499a7230df95637d4823e24c27367be8003ed92427a684"
+    },
+    "integrations/openshell/README.md": {
+      "bytes": 1185,
+      "sha256": "68aa878568c4a5c9fe553041ede0e612b11a14cdc043da92c3895012405a0a83"
+    },
+    "integrations/openshell/ordin_openshell/__init__.py": {
+      "bytes": 328,
+      "public_classes": [],
+      "public_functions": [],
+      "sha256": "34f7b6649a0858028b1c4111f88217d3b5ce1ff6fad79d061ce7806af31cebec"
+    },
+    "integrations/openshell/ordin_openshell/address_scope.py": {
+      "bytes": 4500,
+      "public_classes": [],
+      "public_functions": [
+        "scoped_host",
+        "host_pattern_matches",
+        "validate_network_scopes",
+        "approved_addresses"
+      ],
+      "sha256": "e56e884a258b155934343e20cdf43c6562a0ff3e16916ee4ff6f3527882da2dc"
+    },
+    "integrations/openshell/ordin_openshell/apply.py": {
+      "bytes": 24418,
+      "public_classes": [
+        "RuntimePolicySnapshot",
+        "PolicyApplyPreparation",
+        "PolicyApplyResult"
+      ],
+      "public_functions": [
+        "canonical_runtime_policy",
+        "read_runtime_policy",
+        "policy_bytes",
+        "prepare_openshell_apply",
+        "apply_openshell_policy"
+      ],
+      "sha256": "b7b015ec7f8e8bb0137bab0b59688d8757253eef3f4d140504d25679aa0908ac"
+    },
+    "integrations/openshell/ordin_openshell/apply_audit.py": {
+      "bytes": 5345,
+      "public_classes": [
+        "PolicyApplyAudit"
+      ],
+      "public_functions": [
+        "with_apply_provenance"
+      ],
+      "sha256": "2a3dca0a88e7f8d24f169e9fdebd848aed80818fbe08dd05aa145ad7cf15eca2"
+    },
+    "integrations/openshell/ordin_openshell/authority_prover.py": {
+      "bytes": 7864,
+      "public_classes": [],
+      "public_functions": [
+        "protocol_domains",
+        "project_transport",
+        "check_protocol_containment"
+      ],
+      "sha256": "d9ad8b5a6efff41d36b64d54297d1c8673905d96013de0ad9421ae0b86878fd3"
+    },
+    "integrations/openshell/ordin_openshell/backend_cli.py": {
+      "bytes": 7318,
+      "public_classes": [
+        "OpenShellCommandError",
+        "OpenShellCLI"
+      ],
+      "public_functions": [
+        "identifier",
+        "load_json"
+      ],
+      "sha256": "9135abacc9c47892ea3944f905cbf9e6efa3fdd32302d7bb6969f329b14f2d71"
+    },
+    "integrations/openshell/ordin_openshell/cli.py": {
+      "bytes": 18414,
+      "public_classes": [],
+      "public_functions": [
+        "read_text",
+        "main"
+      ],
+      "sha256": "13ecd5be1b498059c5a38ccd30d96a7e9e4799e09d261d54310b90c03c52a972"
+    },
+    "integrations/openshell/ordin_openshell/compiler.py": {
+      "bytes": 24602,
+      "public_classes": [
+        "OpenShellBackend"
+      ],
+      "public_functions": [
+        "compile_openshell_policy"
+      ],
+      "sha256": "7f8a4733f0011e2f1617530a4cffbbbe9dae2aba7bf35e07e68da432ccab6d53"
+    },
+    "integrations/openshell/ordin_openshell/corpus.py": {
+      "bytes": 11594,
+      "public_classes": [],
+      "public_functions": [
+        "check_scenario",
+        "evaluate_runtime_corpus"
+      ],
+      "sha256": "4f0890d50425f628eea5d181f1a67183ed1617eadb6631d4146587a886c42e60"
+    },
+    "integrations/openshell/ordin_openshell/correlation.py": {
+      "bytes": 8286,
+      "public_classes": [
+        "CorrelationBinding",
+        "CorrelationStore"
+      ],
+      "public_functions": [],
+      "sha256": "f3c304fedd1b7041b0caeb41f2a3dbcb5fe4cf0aea7584e92769b5f254de3982"
+    },
+    "integrations/openshell/ordin_openshell/deltas.py": {
+      "bytes": 6147,
+      "public_classes": [
+        "OpenShellDeltaResult"
+      ],
+      "public_functions": [
+        "propose_openshell_delta"
+      ],
+      "sha256": "cf840609d513b65abe37ea3599fd997ec3d66625ea567abc127fe1be87ded960"
+    },
+    "integrations/openshell/ordin_openshell/doctor.py": {
+      "bytes": 6425,
+      "public_classes": [],
+      "public_functions": [
+        "openshell_doctor"
+      ],
+      "sha256": "d17547841c4aed0a318bee3af9a6fd084c17c7a43e7890d8b7a447162d884454"
+    },
+    "integrations/openshell/ordin_openshell/extension.py": {
+      "bytes": 2050,
+      "public_classes": [],
+      "public_functions": [
+        "expected_runtime_identity",
+        "require_runtime_identity",
+        "has_tcp_literals"
+      ],
+      "sha256": "aa692fdf56fa33ff4bdcabb155ffd7d0f7d0785f352ca585acbf1a50fb56c765"
+    },
+    "integrations/openshell/ordin_openshell/model.py": {
+      "bytes": 19786,
+      "public_classes": [],
+      "public_functions": [
+        "public_ipv4_ranges",
+        "exact_host",
+        "exact_request_path",
+        "policy_errors",
+        "serialize_policy",
+        "parse_policy"
+      ],
+      "sha256": "791876b46b12d51b59acc58614095f973fa7243d5208212d60c9337f61d5a0c7"
+    },
+    "integrations/openshell/ordin_openshell/observations.py": {
+      "bytes": 17018,
+      "public_classes": [
+        "OpenShellEventError",
+        "ParsedOpenShellEvent",
+        "EventIngestionResult"
+      ],
+      "public_functions": [
+        "parse_openshell_event",
+        "ingest_openshell_event"
+      ],
+      "sha256": "96a36451b5cde85bdd38c76564323778c59b5d9a682e9dfac8ae460426b6e07c"
+    },
+    "integrations/openshell/ordin_openshell/ocsf_export.py": {
+      "bytes": 6780,
+      "public_classes": [],
+      "public_functions": [
+        "export_review_findings",
+        "export_boundary_findings",
+        "export_compiler_findings",
+        "export_correlation_findings"
+      ],
+      "sha256": "e496b1fe52a2c07bfab4331a75215dbc0e4878973a4da1c5fa50c18be6cee32d"
+    },
+    "integrations/openshell/ordin_openshell/prover.py": {
+      "bytes": 12405,
+      "public_classes": [
+        "OpenShellProverResult"
+      ],
+      "public_functions": [
+        "parse_prover_json",
+        "verify_with_openshell_prover"
+      ],
+      "sha256": "9cc969279df4678781764321d87bf1d42f3b7f7d45bbc3135fc0e55938249c19"
+    },
+    "integrations/openshell/ordin_openshell/shadow.py": {
+      "bytes": 18440,
+      "public_classes": [
+        "ShadowCase",
+        "ShadowReport"
+      ],
+      "public_functions": [
+        "prediction_match",
+        "policy_request_match",
+        "build_shadow_report"
+      ],
+      "sha256": "f59157d128fb3e925e0307eb502b31e75a9c9d2d72ccf4f3f1a3f50a338ba31e"
+    },
+    "integrations/openshell/tests/conftest.py": {
+      "bytes": 102,
+      "public_classes": [],
+      "public_functions": [],
+      "sha256": "d8b2869aa8eac2206b490e4b76f49d6511a6da1c99506a96dc15caada93562a8"
+    },
+    "integrations/openshell/tests/test_apply.py": {
+      "bytes": 18005,
+      "public_classes": [
+        "FakeCLI"
+      ],
+      "public_functions": [
+        "setup_plan",
+        "boundary_for",
+        "prepare",
+        "approve_and_apply",
+        "test_named_sandbox_approval_is_bound_to_action_contract_policy_and_runtime_state",
+        "test_invalid_sandbox_rejects_before_any_backend_operation",
+        "test_block_shadow_and_changed_policy_cannot_enter_apply",
+        "test_exact_approval_cannot_be_reused_for_changed_review_decision_or_boundary",
+        "test_capability_boundary_exceedance_refuses_even_an_approval_token",
+        "test_non_success_prover_coverage_or_result_prevents_apply",
+        "test_prover_success_must_bind_to_the_actual_policy_snapshot_bytes",
+        "test_verified_boundary_runs_on_snapshots_and_preserves_audit_linkage",
+        "test_audit_failure_before_mutation_is_fail_closed",
+        "test_policy_change_after_approval_and_during_final_read_is_detected",
+        "test_startup_changes_and_unloaded_or_unadmitted_configuration_refuse_apply",
+        "test_effective_provider_authority_added_after_set_is_not_treated_as_verified",
+        "test_timeout_is_uncertain_and_never_retries_even_if_the_policy_changed",
+        "test_readback_accepts_only_known_authority_neutral_defaults",
+        "test_malformed_backend_json_and_prover_state_fail_closed",
+        "test_cli_calls_use_literal_argv_and_do_not_leak_backend_diagnostics",
+        "test_gateway_endpoint_cannot_carry_credentials_or_unmodeled_connection_data",
+        "test_management_adapter_cannot_execute_actions_or_mutate_global_policy"
+      ],
+      "sha256": "17325a83e5bdd44a1c8212c5904e4d2ad30dc21fa0ec9f0e78bb7d80a164447b"
+    },
+    "integrations/openshell/tests/test_authority_apply.py": {
+      "bytes": 7756,
+      "public_classes": [],
+      "public_functions": [
+        "test_post_mutation_runtime_identity_failure_records_an_inconclusive_receipt",
+        "test_extended_apply_requires_actual_cli_gateway_and_supervisor_build_identity",
+        "test_literal_tcp_needs_authenticated_confirmation_beyond_source_build",
+        "test_pure_tcp_request_boundary_is_verified_and_bound_before_approval"
+      ],
+      "sha256": "5acc3c511820e968e71469f55bc419ee2e97871a59f0972225d5ebc36e3df1c2"
+    },
+    "integrations/openshell/tests/test_authority_compiler.py": {
+      "bytes": 8966,
+      "public_classes": [],
+      "public_functions": [
+        "supported_request",
+        "test_compiler_intersects_protocol_scope_with_full_request_commitment",
+        "test_host_approved_private_ranges_and_wildcards_expand_to_exact_action_endpoint",
+        "test_literal_destination_must_be_inside_the_operator_address_scope",
+        "test_private_approval_cannot_include_protected_destinations",
+        "test_tcp_compilation_only_grants_connection_authority",
+        "test_literal_tcp_is_exact_and_requires_confirmed_runtime_support",
+        "test_generic_rpc_read_downgrade_is_not_enforceable",
+        "test_driver_aliases_cannot_bypass_operator_address_ranges",
+        "test_scoped_or_noncanonical_literal_addresses_fail_before_compilation"
+      ],
+      "sha256": "6959ea5e90c98c95f2e9119d7ca9b4365d9c7ed133b386fc936f8e47616fa07c"
+    },
+    "integrations/openshell/tests/test_authority_events.py": {
+      "bytes": 3909,
+      "public_classes": [],
+      "public_functions": [
+        "authority_event",
+        "test_request_events_need_exact_commitment_and_private_source_binding",
+        "test_coarse_allow_and_wrong_payload_never_become_exact_request_evidence",
+        "test_conflicting_actor_cannot_replace_bound_workload_binary"
+      ],
+      "sha256": "419c34858b8748ef00ad711593d31f7e322a85433d4a769c8f256b9f55a4c029"
+    },
+    "integrations/openshell/tests/test_authority_prover.py": {
+      "bytes": 8284,
+      "public_classes": [],
+      "public_functions": [
+        "compiled",
+        "test_composition_covers_argument_protocol_method_binary_and_ip_constraints",
+        "test_raw_rest_cannot_borrow_jsonrpc_authority_after_transport_projection",
+        "test_ambiguous_duplicate_integrity_endpoints_are_not_projected_into_success",
+        "test_zoned_ipv6_cannot_be_projected_into_a_literal_proof",
+        "test_real_prover_literal_tcp_and_mixed_request_authority",
+        "test_real_prover_literal_request_self_and_broader_tcp_maximum"
+      ],
+      "sha256": "e9052c0fe9666f1ca07973fd2058d16796f06c04b43b2123d0966aa127cb9325"
+    },
+    "integrations/openshell/tests/test_compiler.py": {
+      "bytes": 11018,
+      "public_classes": [],
+      "public_functions": [
+        "supported_contract",
+        "compile",
+        "test_golden_structured_policy_preserves_exact_request_and_binary",
+        "test_high_level_or_unknown_protocol_never_falls_back_to_tcp",
+        "test_missing_binary_process_identity_and_child_restriction_fail_closed",
+        "test_unrepresentable_or_widening_filesystem_scopes_return_no_plan",
+        "test_explicit_exact_file_kind_and_full_write_primitive_are_supported",
+        "test_private_destination_and_wildcard_or_encoded_path_expansion_are_unsupported",
+        "test_credential_reference_needs_independent_explicit_endpoint_mapping",
+        "test_tools_and_broader_base_policy_cannot_introduce_extra_authority",
+        "test_block_and_ask_requirements_cannot_disappear",
+        "test_policy_validation_rejects_drift_and_unsupported_fields",
+        "test_json_and_optional_yaml_round_trip_use_structured_serializer",
+        "test_compiler_has_no_io_or_subprocess_effects",
+        "test_operator_metadata_cannot_smuggle_secret_values_into_a_successful_plan",
+        "test_process_identity_must_be_representable_by_the_actual_runtime",
+        "test_malformed_process_identity_returns_diagnostic_without_indexing"
+      ],
+      "sha256": "a204dc46c3620bbfeb1d1f348e13948c56cfdf3178375904e0e8c86761fb52a4"
+    },
+    "integrations/openshell/tests/test_correlation.py": {
+      "bytes": 3311,
+      "public_classes": [],
+      "public_functions": [
+        "test_atomic_private_bounded_binding_storage_and_round_trip",
+        "test_local_checksum_detects_corruption",
+        "test_store_capacity_rejects_without_evicting_replay_protection",
+        "test_invalid_bindings_fail_before_storage",
+        "test_symlink_database_and_other_database_type_are_rejected"
+      ],
+      "sha256": "ff7c31f9f01dab64a0385a488c360cf314c09679c50cada9c77bc07229c757b3"
+    },
+    "integrations/openshell/tests/test_deltas.py": {
+      "bytes": 5684,
+      "public_classes": [],
+      "public_functions": [
+        "fixture",
+        "test_delta_is_narrow_but_backend_candidate_keeps_reviewed_startup_requirements",
+        "test_prover_non_success_rejects_candidate_and_preserves_coverage",
+        "test_real_snapshot_binding_and_proof_step_are_retained_but_never_auto_approve",
+        "test_unmodeled_delete_or_foreign_action_never_expands_backend_authority"
+      ],
+      "sha256": "7e9c5e36779a4d799591dc26b9f46b1e2ff76f4d22fceaa31347078c8e50556a"
+    },
+    "integrations/openshell/tests/test_observations.py": {
+      "bytes": 11093,
+      "public_classes": [],
+      "public_functions": [
+        "event_fixture",
+        "source_context",
+        "register_event",
+        "test_real_structured_denial_fields_map_without_invented_http_or_binary_identity",
+        "test_audit_allow_is_observed_and_prose_cannot_claim_enforcement_or_denial",
+        "test_queries_headers_bodies_commands_and_unmapped_secrets_are_never_retained",
+        "test_full_url_in_structured_path_never_becomes_trusted_endpoint_authority",
+        "test_explicit_private_event_binding_and_session_source_are_required",
+        "test_conflicting_or_stale_correlation_is_rejected_without_consuming_binding",
+        "test_malformed_or_conflicting_structured_fields_fail_closed",
+        "test_unknown_class_and_unavailable_filesystem_class_are_explicitly_unsupported",
+        "test_process_launch_uses_subject_process_and_omits_command_line",
+        "test_duplicate_json_fields_nonfinite_and_nested_or_oversized_data_fail_closed",
+        "test_ingested_denial_attaches_to_original_session_and_is_retained_for_later_review"
+      ],
+      "sha256": "3e9589e7f13acd94734a33bd329ca98e43971a7efff232ef00301f594da0dac7"
+    },
+    "integrations/openshell/tests/test_ocsf_export.py": {
+      "bytes": 4846,
+      "public_classes": [],
+      "public_functions": [
+        "test_detection_finding_constants_and_digest_only_privacy_are_deterministic",
+        "test_ordinary_unknown_ask_is_not_exported_as_a_security_policy_finding",
+        "test_boundary_compiler_and_correlation_exports_hash_sensitive_counterexamples",
+        "test_export_timestamp_is_explicit_bounded_and_never_read_from_a_clock",
+        "test_malformed_correlation_artifacts_raise_a_typed_validation_error"
+      ],
+      "sha256": "a1ee03480da07f01ba0b323fa7026c890b16c07a774697223da93d3d61e6943e"
+    },
+    "integrations/openshell/tests/test_openshell_cli.py": {
+      "bytes": 9941,
+      "public_classes": [],
+      "public_functions": [
+        "write",
+        "test_compile_contract_output_validate_and_missing_prover_are_data_only",
+        "test_compile_review_retains_unknowns_and_existing_block_decision",
+        "test_approved_apply_cli_shows_policy_digest_and_requires_exact_operator_approval",
+        "test_apply_cli_refuses_policy_not_bound_to_supplied_contract_before_backend_calls",
+        "test_ingest_cli_uses_private_correlation_and_never_guesses_action_identity",
+        "test_shadow_cli_preserves_report_privacy_without_loading_or_applying_runtime_state",
+        "test_doctor_reports_missing_installation_without_touching_a_sandbox",
+        "test_doctor_only_probes_versions_and_schema_not_runtime_mutation",
+        "test_invalid_operator_metadata_is_rejected_without_echoing_secret"
+      ],
+      "sha256": "d8eb511a388715260e57ab1e6785eb57b984a13b27045b859418d2e9246e9d0a"
+    },
+    "integrations/openshell/tests/test_prover.py": {
+      "bytes": 4283,
+      "public_classes": [],
+      "public_functions": [
+        "response",
+        "test_all_prover_states_and_exit_codes_are_preserved",
+        "test_unsupported_coverage_and_counterexample_never_disappear",
+        "test_incompatible_or_malformed_prover_results_fail_closed",
+        "test_invalid_json_duplicate_fields_and_missing_binary_are_typed_errors",
+        "test_real_prover_policy_fixture"
+      ],
+      "sha256": "f01199502834542c93a4026d7342200ff935acc914b86ab25a2c041a3d7559d1"
+    },
+    "integrations/openshell/tests/test_request_cli.py": {
+      "bytes": 5813,
+      "public_classes": [],
+      "public_functions": [
+        "test_v2_cli_roundtrips_reviews_with_more_than_128_graphql_field_resources",
+        "test_extra_graphql_resources_do_not_expand_other_review_resource_limits",
+        "test_graphql_review_resource_allowance_is_bounded",
+        "test_request_artifact_cli_derives_compiles_validates_and_verifies",
+        "test_optional_ocsf_cli_exports_private_free_review_and_correlation_findings",
+        "test_empty_successful_compilation_export_still_validates_timestamp"
+      ],
+      "sha256": "022473de58aa0470627a37216f5918f2bc49472ffa59e9f8b4d5290d78e3e8f4"
+    },
+    "integrations/openshell/tests/test_requests.py": {
+      "bytes": 26932,
+      "public_classes": [],
+      "public_functions": [
+        "profile",
+        "graphql_contract",
+        "mcp_contract",
+        "request_boundary",
+        "test_derived_protocol_contract_preserves_action_decision_and_exact_source",
+        "test_unmodeled_graphql_input_remains_diagnostic_without_erasing_semantics",
+        "test_graphql_golden_and_independent_field_operation_boundary",
+        "test_mcp_golden_exact_tool_version_and_method_default",
+        "test_mcp_without_trusted_transport_or_semantic_binding_cannot_gain_authority",
+        "test_protocol_apply_requires_request_boundary_and_exact_request_approval",
+        "test_real_prover_explicitly_refuses_unmodeled_protocol_coverage",
+        "test_immutable_request_fields_and_digest_replay_fail_closed",
+        "test_protocol_shadow_uses_request_boundary_without_claiming_missing_event_fields",
+        "test_mismatched_boundary_protocol_and_opaque_identity_fail_closed",
+        "test_raw_http_cannot_borrow_protocol_request_authority",
+        "test_opaque_boundary_tool_identity_is_never_discarded",
+        "test_request_endpoints_reject_even_empty_userinfo",
+        "test_malformed_policy_protocol_is_a_validation_error",
+        "test_malformed_mcp_readback_returns_unsupported_before_apply",
+        "test_equivalent_graphql_syntax_preserves_exact_backend_field_authority",
+        "test_aliases_and_fragments_cannot_disguise_field_expansion",
+        "test_ambiguous_or_unenforceable_graphql_documents_stay_diagnostic",
+        "protocol_contract",
+        "test_known_mcp_control_methods_require_exact_transport_method_and_version",
+        "test_older_mcp_versions_need_explicit_host_approval",
+        "test_unknown_or_parameterized_mcp_control_actions_cannot_gain_authority",
+        "test_control_method_names_do_not_establish_transport_authority",
+        "test_unknown_control_protocol_versions_remain_unknown_actions",
+        "test_exact_mcp_tools_can_use_only_host_approved_older_versions",
+        "test_host_version_profile_is_bounded_and_exact",
+        "test_conflicting_host_version_declarations_do_not_union_authority",
+        "test_graphql_parser_work_is_bounded_and_performs_no_io"
+      ],
+      "sha256": "5a81af8a7e04113fff54d9bd6fba61e3601f96529528594aa63f671be7394398"
+    },
+    "integrations/openshell/tests/test_runtime_corpus.py": {
+      "bytes": 9930,
+      "public_classes": [],
+      "public_functions": [
+        "test_demo_refuses_broader_fixtures_before_running_negative_probes",
+        "test_filesystem_demo_attaches_probe_evidence_to_the_exact_executed_invocation",
+        "test_demo_network_attribution_uses_exact_target_before_http_method",
+        "test_required_versioned_runtime_corpus_passes_all_named_adversaries",
+        "test_actual_http_metadata_can_match_reviewed_url_without_host_only_inference",
+        "test_host_profile_is_in_session_identity_and_retained_original_contract"
+      ],
+      "sha256": "ab05fddd9fe01b12de34981026eab1b7e0d7ebf17309ca0c066ea82d26f2e72c"
+    },
+    "integrations/openshell/tests/test_shadow.py": {
+      "bytes": 8727,
+      "public_classes": [],
+      "public_functions": [
+        "boundary_for",
+        "event_for",
+        "evaluate",
+        "test_shadow_compares_prediction_policy_and_observed_get_without_execution",
+        "test_audited_delete_and_denied_post_expose_unpredicted_and_expected_denial",
+        "test_allowed_projection_never_asserts_successful_runtime_execution",
+        "test_unrepresentable_contract_and_boundary_exceedance_remain_visible",
+        "test_widening_rejection_is_counted_without_providing_a_policy",
+        "test_changed_policy_is_detected_before_using_it_for_shadow_comparison",
+        "test_cross_session_and_duplicate_events_do_not_enter_prediction_metrics",
+        "test_report_omits_action_arguments_event_payload_and_resources_by_default",
+        "test_empty_report_is_valid_and_collection_bounds_reject_excess_input"
+      ],
+      "sha256": "a4636bd530d651f2e09dadd27b4abb4dbdbee075c9c780e4373d29fef5aaf545"
+    },
+    "integrations/openshell/tests/test_url_authority.py": {
+      "bytes": 8745,
+      "public_classes": [],
+      "public_functions": [
+        "review",
+        "test_url_authority_is_consistent_in_derivation_requests_and_retry_keys",
+        "test_malformed_resources_are_rejected_with_the_same_error_for_every_trust_label",
+        "test_configuration_does_not_normalize_url_or_origin_authority",
+        "test_unsafe_native_paths_never_enter_protected_correlation",
+        "test_request_path_authority_is_rejected_without_restricting_filesystem_names"
+      ],
+      "sha256": "c5ccf4641ceaeb0e56b2da39c68b0d56fd23c181ffc6960ccbcbede22122968b"
+    },
+    "ordin/__init__.py": {
+      "bytes": 6442,
+      "public_classes": [],
+      "public_functions": [],
+      "sha256": "d2c348cb1abb2c27718540b7e6d5f29a0d2ee9045697b3520a05d941bd99246d"
+    },
+    "ordin/__main__.py": {
+      "bytes": 90,
+      "public_classes": [],
+      "public_functions": [],
+      "sha256": "4e7b8e286b716865e8de77711260d5c6edc52da9f3fccac39c766f659ca56746"
+    },
+    "ordin/_audit_storage.py": {
+      "bytes": 3405,
+      "public_classes": [],
+      "public_functions": [
+        "load_audit_line",
+        "signature",
+        "locked_audit"
+      ],
+      "sha256": "60bf4d0b7843662d3ba90b6b5b49df770fbf35306ad895b6850b086424ccdc91"
+    },
+    "ordin/_graphql_authority.py": {
+      "bytes": 12723,
+      "public_classes": [],
+      "public_functions": [
+        "graphql_authorities"
+      ],
+      "sha256": "cf986007b77c862aa062625fa971a5be5c5919ee974c573dfa2290840700810f"
+    },
+    "ordin/_json_contracts.py": {
+      "bytes": 2093,
+      "public_classes": [],
+      "public_functions": [
+        "reject_unknown",
+        "load_configuration"
+      ],
+      "sha256": "6a079d851a782c2e03a9a5750dd25afb11df8641aca22a40f39f1b040e46dab6"
+    },
+    "ordin/_private_storage.py": {
+      "bytes": 3741,
+      "public_classes": [],
+      "public_functions": [
+        "private_database"
+      ],
+      "sha256": "6e7d0f5931f95693ccbc7969b5bfaaf7ae5693dff7e0c757bcb7401601f2f445"
+    },
+    "ordin/_request_commitment.py": {
+      "bytes": 7329,
+      "public_classes": [],
+      "public_functions": [
+        "commitment_json",
+        "request_commitment",
+        "rpc_authority_commitment",
+        "rpc_body_commitment"
+      ],
+      "sha256": "447b1f7dc4739970aaf54dcb7b11a6d997d4a1f8afcdafa557f693547d13ab9c"
+    },
+    "ordin/_runtime_host.py": {
+      "bytes": 1152,
+      "public_classes": [],
+      "public_functions": [
+        "host_matches",
+        "identity_matches"
+      ],
+      "sha256": "5ed9766d498718ebcde4e40b82f9b6f7da5eed3136de9baceac3c1cb3a9a2bed"
+    },
+    "ordin/_runtime_json.py": {
+      "bytes": 3936,
+      "public_classes": [],
+      "public_functions": [
+        "thaw",
+        "freeze",
+        "canonical_json",
+        "digest",
+        "validate",
+        "model_tuple",
+        "text_tuple"
+      ],
+      "sha256": "60678d5604f9d271f3505f53f4fd828e3df0b016e91477dd29d7e819b46d678c"
+    },
+    "ordin/_runtime_schemas.py": {
+      "bytes": 18187,
+      "public_classes": [],
+      "public_functions": [
+        "text",
+        "array",
+        "obj",
+        "enum"
+      ],
+      "sha256": "8f411f0fd1b0df53b230e3eb8e5524bc7dc37c8ee11c11b253d06400231b8792"
+    },
+    "ordin/_runtime_url.py": {
+      "bytes": 300,
+      "public_classes": [],
+      "public_functions": [
+        "has_unsafe_authority_characters"
+      ],
+      "sha256": "4df0b11affd7989a4d6e5e1322ea0d7158fee999ff4f789ad7efa1fb2ad4a407"
+    },
+    "ordin/action.py": {
+      "bytes": 42402,
+      "public_classes": [
+        "ActionResource",
+        "ActionEnvelope",
+        "ActionHistory",
+        "ActionReview"
+      ],
+      "public_functions": [
+        "review_action"
+      ],
+      "sha256": "3b1f5082b397e4eed44a9c49fa146aa37765b40ac6ad7295d4879c177aa1cf1d"
+    },
+    "ordin/action_policy.py": {
+      "bytes": 26287,
+      "public_classes": [
+        "PolicyResourceMatcher",
+        "ActionPolicyCondition",
+        "ActionPolicyRule",
+        "ActionPolicySet",
+        "PolicyMatch",
+        "PolicyEvaluation",
+        "CompiledActionPolicySet"
+      ],
+      "public_functions": [
+        "compile_action_policy",
+        "load_action_policy"
+      ],
+      "sha256": "bc8bc3fb286ec7648b9d49360fc091ebcc0182cb71173695fc096065f6e17150"
+    },
+    "ordin/adapters.py": {
+      "bytes": 5861,
+      "public_classes": [
+        "ToolCallAdapter",
+        "MCPAdapter"
+      ],
+      "public_functions": [],
+      "sha256": "52bc5a76ca37117009020e05d2a8d81bb10ed45f60ee57063552709a33a1faaf"
+    },
+    "ordin/agent.py": {
+      "bytes": 4985,
+      "public_classes": [
+        "AgentDecision",
+        "AgentGate"
+      ],
+      "public_functions": [],
+      "sha256": "fdfe9968975585ab7a688135116a69b9e041dce48b7954bdb67c6e38bc6696ba"
+    },
+    "ordin/agent_safety_corpus.py": {
+      "bytes": 11213,
+      "public_classes": [],
+      "public_functions": [
+        "load_corpus",
+        "evaluate",
+        "render_markdown"
+      ],
+      "sha256": "92d09a8ab5c4d13988ce5abefa58368091a355650245c9841d833aa605089946"
+    },
+    "ordin/analyzers/__init__.py": {
+      "bytes": 2680,
+      "public_classes": [
+        "AnalyzerRegistration"
+      ],
+      "public_functions": [
+        "register",
+        "analyze_tokens",
+        "supported_analyzers",
+        "analyzer_pack_bindings"
+      ],
+      "sha256": "c3ee858ffe9a06f39b72e2812ff793c8d841c6cdd109bcef4eb73fdec30ab7b6"
+    },
+    "ordin/analyzers/_domain.py": {
+      "bytes": 2722,
+      "public_classes": [],
+      "public_functions": [
+        "option_key",
+        "positionals",
+        "flags",
+        "resource",
+        "cloud_direction",
+        "verb_effect"
+      ],
+      "sha256": "de9f49cab8db99289bc41f960ce14e91c0b1b01201059b4475c060d1b629f4b9"
+    },
+    "ordin/analyzers/aws.py": {
+      "bytes": 3692,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_aws"
+      ],
+      "sha256": "e801f5373d7c7b56ba9b18bbb5e2c6ab0a2f35861ae1697c37a1a74467bf5149"
+    },
+    "ordin/analyzers/azure.py": {
+      "bytes": 2499,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_azure"
+      ],
+      "sha256": "181fc51958eee2d93c9ebb10c7e413fe099c5560c967d98e938cd773e46fb8e7"
+    },
+    "ordin/analyzers/base.py": {
+      "bytes": 4716,
+      "public_classes": [
+        "Invocation",
+        "SemanticAnalysis"
+      ],
+      "public_functions": [
+        "normalize_invocation",
+        "flag_present",
+        "option_value",
+        "evidence",
+        "path_resource",
+        "unique_evidence"
+      ],
+      "sha256": "d968483cb68f2a23285101958d127451cdb4db32719ee77a94804ec19c79ce14"
+    },
+    "ordin/analyzers/database.py": {
+      "bytes": 4563,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_database"
+      ],
+      "sha256": "1e35e489d6b328311933dba646e9c90280b96f8f16fc7eb380c990bcfe35d945"
+    },
+    "ordin/analyzers/docker.py": {
+      "bytes": 4146,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_docker"
+      ],
+      "sha256": "93288876db75679932f96448da8a6f7ae5f060aa666edcd993151ae85d664b28"
+    },
+    "ordin/analyzers/filesystem.py": {
+      "bytes": 5468,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_cat",
+        "analyze_rm",
+        "analyze_chmod",
+        "analyze_chown"
+      ],
+      "sha256": "c01fece3450d929f60fcd484f4fc06efe05b14de294a1dad6a7608140ac79f97"
+    },
+    "ordin/analyzers/gcloud.py": {
+      "bytes": 2938,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_gcloud"
+      ],
+      "sha256": "e8fe2bd9d577dd846dab6cb93b2ebf317c9d440ae8c8f2fee419b4c9f83c4f2f"
+    },
+    "ordin/analyzers/git.py": {
+      "bytes": 5973,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_git"
+      ],
+      "sha256": "6b27d4cd8f32ea3531d23c01dcd7dea9eb8743d441f67534998e7794a1dbfb82"
+    },
+    "ordin/analyzers/github.py": {
+      "bytes": 3592,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_gh"
+      ],
+      "sha256": "ada66bd0a62551af150fdeafbd7fa8ad65f476cdb0e289eac3522fc329794e4e"
+    },
+    "ordin/analyzers/kubernetes.py": {
+      "bytes": 3800,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_kubectl"
+      ],
+      "sha256": "02e72d7d3c1ae9327823defd4da59fd78c55396d049bd34c11f7aadcfa904912"
+    },
+    "ordin/analyzers/network.py": {
+      "bytes": 4738,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_curl",
+        "analyze_wget"
+      ],
+      "sha256": "8ed12356d43c69e7e97439aa8a7443b367677cf982a31c0d5af10372c85a6485"
+    },
+    "ordin/analyzers/packages.py": {
+      "bytes": 7133,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_pip",
+        "analyze_npm",
+        "analyze_apt"
+      ],
+      "sha256": "777760044edf1b09b6ea35d3baba6dde981a98011f8f0fd2bc78e27e5008db98"
+    },
+    "ordin/analyzers/remote.py": {
+      "bytes": 3046,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_ssh"
+      ],
+      "sha256": "274a1e15664344b80df11525c90f2b73e18cbbd9085e06772ae851b1cd05184d"
+    },
+    "ordin/analyzers/systemd.py": {
+      "bytes": 2698,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_systemctl",
+        "analyze_journalctl"
+      ],
+      "sha256": "abda349f46e1fa675719c099227de9e6d9914cc52d712bce00ccf061af90529f"
+    },
+    "ordin/analyzers/terraform.py": {
+      "bytes": 2982,
+      "public_classes": [],
+      "public_functions": [
+        "analyze_terraform"
+      ],
+      "sha256": "24e028d152676d16e66b915aa9d54170b84d808216eb3981d45316fb36ab5b3a"
+    },
+    "ordin/api.py": {
+      "bytes": 11160,
+      "public_classes": [
+        "Ordin"
+      ],
+      "public_functions": [],
+      "sha256": "ef65ef1e931cd154113d1b8d83c584c1537ab353230a68a2406374778d33e30d"
+    },
+    "ordin/audit.py": {
+      "bytes": 11938,
+      "public_classes": [
+        "AuditEvent",
+        "AuditVerification",
+        "AuditSink",
+        "JsonlAuditSink"
+      ],
+      "public_functions": [
+        "action_digest",
+        "build_audit_event",
+        "verify_audit_jsonl"
+      ],
+      "sha256": "a49688e62924ac05e43b1bd6043c856b2fb088683cd1bc6517409cc65ad8fd97"
+    },
+    "ordin/availability.py": {
+      "bytes": 6264,
+      "public_classes": [
+        "EnvironmentInfo",
+        "CommandAvailability"
+      ],
+      "public_functions": [
+        "normalize_os_name",
+        "parse_os_release",
+        "environment_from_os_release",
+        "detect_environment",
+        "platform_compatibility",
+        "command_availability"
+      ],
+      "sha256": "3aff847b46270fbcf881a926069788438674ff214ed565dc0a168d7dc9d7b779"
+    },
+    "ordin/benchmark.py": {
+      "bytes": 9391,
+      "public_classes": [
+        "SearchFixture",
+        "SearchCaseResult",
+        "SearchBenchmarkReport",
+        "RankerComparisonReport"
+      ],
+      "public_functions": [
+        "load_search_fixtures",
+        "evaluate_search_quality",
+        "compare_search_quality"
+      ],
+      "sha256": "c2df4c1925f562c1abdf3d5bbc1aeec2e8286025ca333f7554a09cdd81d9c077"
+    },
+    "ordin/capability_delta.py": {
+      "bytes": 12119,
+      "public_classes": [
+        "CapabilityDeltaProposal"
+      ],
+      "public_functions": [
+        "propose_capability_delta"
+      ],
+      "sha256": "6dafb2590034b2f09007bb86a8cb7a9b467b12b3b9a5775a0e38d190f4fdf8ac"
+    },
+    "ordin/claude_code.py": {
+      "bytes": 21029,
+      "public_classes": [
+        "ClaudeCodeIntegration"
+      ],
+      "public_functions": [
+        "claude_code_tool_semantics",
+        "build_claude_code_integration",
+        "main"
+      ],
+      "sha256": "a69bc3750fbc3470d608e12a41715189b3ea67773877bb4856e79124bdb34596"
+    },
+    "ordin/cli.py": {
+      "bytes": 27305,
+      "public_classes": [],
+      "public_functions": [
+        "print_search",
+        "print_explain",
+        "print_graph",
+        "print_packs",
+        "main"
+      ],
+      "sha256": "be4c1a3fc76b4a90f753d3929a4f59380a6c980ba3e1f322f23661fa89007326"
+    },
+    "ordin/codex.py": {
+      "bytes": 21236,
+      "public_classes": [
+        "CodexIntegration"
+      ],
+      "public_functions": [
+        "parse_patch_targets",
+        "load_codex_mcp_map",
+        "build_codex_integration",
+        "main",
+        "install_hooks"
+      ],
+      "sha256": "7805272e4019d2c71dbc12382b4a12a56d02faa41f3b8558a8747c49c981686e"
+    },
+    "ordin/context.py": {
+      "bytes": 6312,
+      "public_classes": [
+        "ExecutionContext",
+        "ReviewRequest"
+      ],
+      "public_functions": [],
+      "sha256": "54cad438f8999ce2a0d77e06cc926f9009a4c4b6d41cf1488a2ef8669323bd2a"
+    },
+    "ordin/contracts_cli.py": {
+      "bytes": 4071,
+      "public_classes": [],
+      "public_functions": [
+        "main"
+      ],
+      "sha256": "13658fc26d0ad894b36c4b224633725e84a23376cac4a4a24501f8b69e93cb90"
+    },
+    "ordin/corpus_controls.py": {
+      "bytes": 9321,
+      "public_classes": [],
+      "public_functions": [
+        "read_semantics",
+        "call",
+        "proxy",
+        "rejected_response",
+        "history_pressure",
+        "relative_context",
+        "buffered_deadline",
+        "failed_http_session",
+        "contract_identity",
+        "benign_parity",
+        "child_isolation"
+      ],
+      "sha256": "67ddba9a7823cda8a9782b4526f73c06ec036ec8a6c416e716f451735257498f"
+    },
+    "ordin/cursor.py": {
+      "bytes": 21579,
+      "public_classes": [
+        "CursorIntegration"
+      ],
+      "public_functions": [
+        "load_cursor_mcp_map",
+        "build_cursor_integration",
+        "install_hooks",
+        "main"
+      ],
+      "sha256": "3bd9d85898f7a77639a06d30b967751c0db6226bb26aa3f970f77013c3b46eb4"
+    },
+    "ordin/data.py": {
+      "bytes": 10331,
+      "public_classes": [],
+      "public_functions": [
+        "load_json",
+        "load_synonyms",
+        "load_risk_rules",
+        "load_effect_catalog",
+        "load_man_index",
+        "load_commands",
+        "find_command",
+        "data_health"
+      ],
+      "sha256": "0c4f94a228b4f9e372ae17d5d88afea86cf671378f9f5c4061c4740708afe6d9"
+    },
+    "ordin/diagnostics.py": {
+      "bytes": 7463,
+      "public_classes": [
+        "DiagnosticRemediation"
+      ],
+      "public_functions": [
+        "action_review_diagnostic",
+        "integration_health"
+      ],
+      "sha256": "a40066932e7401d26335c6911b46ee771d7bb1e92abdc3b1b8eaf849ff3cf52b"
+    },
+    "ordin/enforcement.py": {
+      "bytes": 653,
+      "public_classes": [],
+      "public_functions": [
+        "enforcement_exit_code"
+      ],
+      "sha256": "f7382049d5f73e6cdfcb15a951f3195787a4299c345f9b3ec01bd4e8711b4bc8"
+    },
+    "ordin/enforcement_backend.py": {
+      "bytes": 6708,
+      "public_classes": [
+        "EnforcementPlan",
+        "CompilationResult",
+        "BackendValidationResult",
+        "EnforcementBackend"
+      ],
+      "public_functions": [],
+      "sha256": "1b3c2018123d9441a7d9eae3358249317d28bac3d5087ae28629ee5e61f0d4d1"
+    },
+    "ordin/entrypoint.py": {
+      "bytes": 2299,
+      "public_classes": [],
+      "public_functions": [
+        "normalize_argv",
+        "main"
+      ],
+      "sha256": "28261e80ab02572c632df1182583c38b3f4c72a77ad0141c8d0c6795bf7fc0f8"
+    },
+    "ordin/execution.py": {
+      "bytes": 17142,
+      "public_classes": [
+        "ResourceLike",
+        "ExecutionCapabilityProfile",
+        "ObservedResource",
+        "ActionObservation",
+        "ObservationHistory"
+      ],
+      "public_functions": [
+        "derive_capabilities"
+      ],
+      "sha256": "114c3c0689c43c3283c68ebcfe9e1802b5a613357c2ac4d00c31025ca4633128"
+    },
+    "ordin/graph.py": {
+      "bytes": 20639,
+      "public_classes": [
+        "EffectSpec",
+        "EffectEvidence",
+        "GraphNode",
+        "GraphEdge",
+        "CommandEffectGraph"
+      ],
+      "public_functions": [
+        "build_effect_graph",
+        "effects_for_tokens",
+        "validate_effect_graph_data"
+      ],
+      "sha256": "9775f7533f5f67c506b7c7632d890e0e10f1f613de4a3a98fa9716c7d9afbc64"
+    },
+    "ordin/http_evaluation.py": {
+      "bytes": 11117,
+      "public_classes": [
+        "HTTPTransportEvaluation"
+      ],
+      "public_functions": [
+        "create_http_fixture",
+        "run_http_transport_evaluation",
+        "main"
+      ],
+      "sha256": "13e67352c6ff84971a4539ce8a4a477bb8c92122489afe36176219313d195cf0"
+    },
+    "ordin/indexer.py": {
+      "bytes": 4889,
+      "public_classes": [
+        "IndexResult"
+      ],
+      "public_functions": [
+        "parse_command_names",
+        "section_is_allowed",
+        "parse_apropos_line",
+        "parse_apropos_lines",
+        "read_apropos_output",
+        "write_index",
+        "build_index_from_lines",
+        "build_index"
+      ],
+      "sha256": "8234d275e46bc2644025866de3f9dae2e8abd2b60bac0c754021a7f0cf99d718"
+    },
+    "ordin/integration_conformance.py": {
+      "bytes": 22402,
+      "public_classes": [
+        "ConformanceCheck",
+        "IntegrationConformanceReport"
+      ],
+      "public_functions": [
+        "run_integration_conformance"
+      ],
+      "sha256": "9efff5d7baafaf842edec178633d5253332785f84b50145fd078c10b191873f0"
+    },
+    "ordin/integration_evaluation.py": {
+      "bytes": 35237,
+      "public_classes": [
+        "IntegrationWorkloadResult",
+        "IntegrationEvaluationReport"
+      ],
+      "public_functions": [
+        "run_integration_evaluation",
+        "render_markdown_report"
+      ],
+      "sha256": "469e323054cdccbfa87fc78642081c62ed336fbe0488259247c77a668b6b2aab"
+    },
+    "ordin/mcp_contracts.py": {
+      "bytes": 20499,
+      "public_classes": [
+        "MCPContractCheck",
+        "MCPContractLock",
+        "MCPContractObserver"
+      ],
+      "public_functions": [
+        "canonical_json",
+        "canonical_tool_contract",
+        "tool_contract_digest",
+        "semantics_binding_digest",
+        "load_contract_json"
+      ],
+      "sha256": "8c95e973d6944d1b2250c8dcc9e70409764c2265fb8dd05b766e4ddc35469162"
+    },
+    "ordin/mcp_http.py": {
+      "bytes": 47379,
+      "public_classes": [
+        "HTTPBoundaryError",
+        "MCPHTTPConfig",
+        "MCPHTTPServer"
+      ],
+      "public_functions": [
+        "build_http_server",
+        "main"
+      ],
+      "sha256": "7e2797964aafe9b116d3cd7527d3a2333d535f8c9a72327581b72deb309acb7a"
+    },
+    "ordin/mcp_inspection.py": {
+      "bytes": 17024,
+      "public_classes": [],
+      "public_functions": [
+        "inspect_mcp",
+        "load_inventory",
+        "argument_paths",
+        "write_new_json",
+        "scaffold",
+        "validate_semantics"
+      ],
+      "sha256": "61d33fe92f08d23797f96fdd47bebee0d17d58ff1b75744a51d8aed1a1a26355"
+    },
+    "ordin/mcp_proxy.py": {
+      "bytes": 34306,
+      "public_classes": [
+        "MCPClientMessageDecision",
+        "MCPStdioSafetyProxy"
+      ],
+      "public_functions": [
+        "build_mcp_proxy",
+        "run_stdio_proxy",
+        "main"
+      ],
+      "sha256": "4dc829645c63d0941246d2a3cd715e639b42b47cc27e3dac5ad7d9bffc9c022d"
+    },
+    "ordin/mcp_setup_cli.py": {
+      "bytes": 6487,
+      "public_classes": [],
+      "public_functions": [
+        "mcp_main",
+        "semantics_main"
+      ],
+      "sha256": "78bbfe300d1462ad280c4f063c14d1213022e910380057944f1c15c05b2ac8a7"
+    },
+    "ordin/packs.py": {
+      "bytes": 8466,
+      "public_classes": [
+        "CommandPack"
+      ],
+      "public_functions": [
+        "discover_packs",
+        "configured_pack_names",
+        "unknown_configured_pack_names",
+        "enabled_packs",
+        "is_pack_enabled",
+        "load_pack_commands",
+        "load_pack_risk_rules",
+        "load_pack_effect_catalog",
+        "pack_file_errors",
+        "pack_list_payload",
+        "pack_manifest_schema_version"
+      ],
+      "sha256": "506e25c7cbf26f54074ea55b91ab38d649838560bfb60eb2109af510a9e2e631"
+    },
+    "ordin/plugin_assets/ordin/scripts/hook.py": {
+      "bytes": 2512,
+      "public_classes": [],
+      "public_functions": [
+        "deny",
+        "main"
+      ],
+      "sha256": "75d854e7e2eb64b95e40663378b98e1c39d8c8f257bf5482e1562a76660e5d89"
+    },
+    "ordin/policy.py": {
+      "bytes": 3908,
+      "public_classes": [
+        "SupportsDecision",
+        "DecisionResultMixin",
+        "ReviewPolicy"
+      ],
+      "public_functions": [
+        "validate_decision",
+        "validate_fail_threshold",
+        "decision_value",
+        "stronger_decision"
+      ],
+      "sha256": "c3905363c62f7412ef97f4206cf905d738a8d0bb099c769b5e53a70b2e8b279a"
+    },
+    "ordin/provenance.py": {
+      "bytes": 9045,
+      "public_classes": [
+        "ProvenanceResource",
+        "ProvenanceRecord",
+        "DecisionProvenance"
+      ],
+      "public_functions": [],
+      "sha256": "18a75ff6effcaabb55819a1272a11f81856b9fc3806bb9a7c4e7b3be3fe679b5"
+    },
+    "ordin/regression_promotion.py": {
+      "bytes": 18184,
+      "public_classes": [
+        "RegressionReplay",
+        "RegressionReplayResult",
+        "RegressionReplayReport"
+      ],
+      "public_functions": [
+        "load_regression_replays",
+        "run_regression_replays"
+      ],
+      "sha256": "42bb0441b4336c4a78a0880d9e8832882a3a0125dbea5ebd8f00ccbe30a48f8b"
+    },
+    "ordin/regression_replay.py": {
+      "bytes": 10344,
+      "public_classes": [
+        "FailureRegressionCase",
+        "FailureRegressionResult",
+        "FailureRegressionReport"
+      ],
+      "public_functions": [
+        "load_failure_regressions",
+        "run_failure_regressions"
+      ],
+      "sha256": "4960a9ee0e14c9c9780945195e3cee0d0c1e728c01a7bbe6ff8ac0aa7694b460"
+    },
+    "ordin/review.py": {
+      "bytes": 4849,
+      "public_classes": [
+        "CommandReview"
+      ],
+      "public_functions": [
+        "warn_for_intent_mismatch",
+        "review_command"
+      ],
+      "sha256": "ca0cfe577036bf80b9845354395fe9ad5a58bc09d3b931021fa0271bf706c2c0"
+    },
+    "ordin/risk.py": {
+      "bytes": 17352,
+      "public_classes": [
+        "RiskReview"
+      ],
+      "public_functions": [
+        "max_risk",
+        "decision_for_risk",
+        "check_command"
+      ],
+      "sha256": "273ddd6b2eb7f4e13b87bc5ee1f293c1400fba64523e9eddb1fed601e76c3d7b"
+    },
+    "ordin/runtime_boundary.py": {
+      "bytes": 17720,
+      "public_classes": [
+        "RuntimeCapabilityBoundary",
+        "CapabilityVerificationResult"
+      ],
+      "public_functions": [
+        "verify_runtime_capability"
+      ],
+      "sha256": "7f119d11dc3df9ccbcade743123509b0a7ab949769cd1c43dfe906868a107c17"
+    },
+    "ordin/runtime_cli.py": {
+      "bytes": 4400,
+      "public_classes": [],
+      "public_functions": [
+        "main"
+      ],
+      "sha256": "034344bb39ce407b6a4c6ed8b15342f8b54d728bc453a9f8e0e7c9ed865072ff"
+    },
+    "ordin/runtime_codec.py": {
+      "bytes": 6618,
+      "public_classes": [],
+      "public_functions": [
+        "read_runtime_json",
+        "read_private_runtime_json",
+        "action_review_from_dict"
+      ],
+      "sha256": "c1b316c1d3d2dc016efbd4e4fedcce4e22ad7969fa0205258dffa664311475f8"
+    },
+    "ordin/runtime_contract.py": {
+      "bytes": 25569,
+      "public_classes": [
+        "FilesystemCapability",
+        "NetworkCapability",
+        "ToolCapability",
+        "ProcessCapability",
+        "PrivilegeCapability",
+        "CredentialBinding",
+        "CapabilityUnknown",
+        "RuntimeCapabilityContract"
+      ],
+      "public_functions": [
+        "derive_runtime_capability_contract"
+      ],
+      "sha256": "a6b08f63b992f8da8a206d534f5b20d963e9b3ec90eef32f55a7b999833ec676"
+    },
+    "ordin/runtime_evaluation.py": {
+      "bytes": 32150,
+      "public_classes": [
+        "RuntimeCaseResult",
+        "RuntimeIntegrationEvaluationReport"
+      ],
+      "public_functions": [
+        "run_runtime_integration_evaluation",
+        "render_runtime_integration_markdown"
+      ],
+      "sha256": "7942b627e98bd1dff3fcbe2dc784ecc56a58533133d38e321c121b2b5adca0be"
+    },
+    "ordin/runtime_observation.py": {
+      "bytes": 17760,
+      "public_classes": [
+        "RuntimeCorrelationError",
+        "RuntimeReviewBinding",
+        "RuntimeObservation",
+        "RuntimeEvidenceSource",
+        "RuntimeObservationHistory"
+      ],
+      "public_functions": [
+        "runtime_observation_signals"
+      ],
+      "sha256": "14a6e4305a3224aad5e043917e9e4053cfc8dba9055af4da88577146b331b86c"
+    },
+    "ordin/runtime_reasoning.py": {
+      "bytes": 6967,
+      "public_classes": [],
+      "public_functions": [
+        "with_runtime_provenance",
+        "current_runtime_signals"
+      ],
+      "sha256": "59d8de6b7dadd6888f0b10100abbac9033f2fc5eef0a7b805deb4fbb8831bbaf"
+    },
+    "ordin/runtime_requests.py": {
+      "bytes": 24903,
+      "public_classes": [
+        "ProtocolRequestCapability",
+        "RuntimeRequestContract",
+        "RuntimeRequestBoundary",
+        "RequestVerificationResult"
+      ],
+      "public_functions": [
+        "graphql_operation",
+        "request_endpoint",
+        "derive_runtime_request_contract",
+        "request_contract_errors",
+        "verify_runtime_request_capability"
+      ],
+      "sha256": "5976a1ed761ba0cd57e2169a90133ada9dc158a0e7aa29df75febcf5020bc5ac"
+    },
+    "ordin/runtime_requests_v2.py": {
+      "bytes": 18042,
+      "public_classes": [
+        "NetworkAuthorityGrant",
+        "RequestAuthority",
+        "RuntimeRequestContractV2",
+        "RuntimeRequestBoundaryV2"
+      ],
+      "public_functions": [
+        "request_authority_errors",
+        "verify_runtime_request_authority",
+        "derive_runtime_request_contract_v2",
+        "request_contract_from_dict",
+        "request_boundary_from_dict",
+        "verify_request_contract"
+      ],
+      "sha256": "49fb3570afc68ec4df14c0e1ff7826c166d34f11078030dffbe2dc136de40bca"
+    },
+    "ordin/runtime_requirements.py": {
+      "bytes": 8602,
+      "public_classes": [
+        "RuntimeRequirementProfile"
+      ],
+      "public_functions": [],
+      "sha256": "d9d11a0d1f3b705c6aa8cfe224d95fcfc9eb2447ff92bf9b6227e027b8704661"
+    },
+    "ordin/safety_benchmark.py": {
+      "bytes": 22363,
+      "public_classes": [
+        "SafetyFixture",
+        "SafetyCaseResult",
+        "SafetyThresholds",
+        "SafetyBenchmarkReport",
+        "AdversarialEquivalenceCase"
+      ],
+      "public_functions": [
+        "load_safety_fixtures",
+        "evaluate_safety",
+        "generate_adversarial_equivalence_cases",
+        "adversarial_equivalence_errors",
+        "policy_accuracy_errors",
+        "generic_action_fuzz_errors"
+      ],
+      "sha256": "c4e84b92f1339dab136ee6c50a1e062148d18945a9158482cfedf6a931de63c3"
+    },
+    "ordin/schema.py": {
+      "bytes": 17860,
+      "public_classes": [],
+      "public_functions": [
+        "load_schema",
+        "validate_instance",
+        "validate_named_schema",
+        "validate_schema_files",
+        "validate_command_card_schemas",
+        "validate_risk_rule_semantics",
+        "validate_template_semantics",
+        "resource_parity_errors"
+      ],
+      "sha256": "bb79ccb9ff8f6651bfac2d43436e00c2d8c9f6e82cadd484996f9b790e791582"
+    },
+    "ordin/search.py": {
+      "bytes": 15284,
+      "public_classes": [
+        "SearchResult"
+      ],
+      "public_functions": [
+        "tokenize",
+        "expand_query",
+        "command_text",
+        "command_tokens",
+        "phrase_match_score",
+        "document_frequency",
+        "legacy_idf_by_term",
+        "bm25_idf_by_term",
+        "search",
+        "search_legacy"
+      ],
+      "sha256": "45c9748fdb37469d72bcd67458978330ef13a000244a825628fc69eaaafb38d5"
+    },
+    "ordin/semantic.py": {
+      "bytes": 2700,
+      "public_classes": [
+        "SemanticReranker",
+        "SentenceTransformerReranker"
+      ],
+      "public_functions": [
+        "validate_semantic_scores"
+      ],
+      "sha256": "cb82815d4a19d1ee10177884eb3cd75e8270398f511e7c4860d89b5f816460be"
+    },
+    "ordin/semantics.py": {
+      "bytes": 2661,
+      "public_classes": [
+        "SemanticEvidenceSet"
+      ],
+      "public_functions": [
+        "semantic_evidence_for_tokens",
+        "semantic_evidence_for_command"
+      ],
+      "sha256": "8b9a9490e939976036199f82876268bddf1496e65515a43b8de084123692135d"
+    },
+    "ordin/session.py": {
+      "bytes": 29503,
+      "public_classes": [
+        "SessionIdentity",
+        "IntegrationSession",
+        "SqliteSessionStore"
+      ],
+      "public_functions": [
+        "configuration_digest"
+      ],
+      "sha256": "71ff4e0d78b96a68dd4d619391879cde146ae1b5bc49865734fb0b8ccd1f8934"
+    },
+    "ordin/session_evaluation.py": {
+      "bytes": 9185,
+      "public_classes": [
+        "LiveSessionEvaluation"
+      ],
+      "public_functions": [
+        "run_live_session_evaluation"
+      ],
+      "sha256": "66d9bbc7229fd074ece8d2e28823c7b27857cff56fa6f26f0a68a4bdcd4ec735"
+    },
+    "ordin/setup.py": {
+      "bytes": 19972,
+      "public_classes": [
+        "SetupError"
+      ],
+      "public_functions": [
+        "encoded",
+        "digest",
+        "validate_settings",
+        "hook_environment",
+        "config_content",
+        "receipt_path",
+        "planned_files",
+        "plan",
+        "apply",
+        "load_owned",
+        "remove",
+        "status"
+      ],
+      "sha256": "37a739fd8f89e7ac036d7fdc323799d406248e205af1f8ef524b54193ced0134"
+    },
+    "ordin/setup_cli.py": {
+      "bytes": 13504,
+      "public_classes": [],
+      "public_functions": [
+        "default_root",
+        "smoke",
+        "main"
+      ],
+      "sha256": "e38ca79236929b354cdd9ab23abbd208dbf53dab0d8ac12ecf4a668863774c02"
+    },
+    "ordin/shell.py": {
+      "bytes": 8684,
+      "public_classes": [],
+      "public_functions": [
+        "shell_tokens",
+        "split_shell_segments",
+        "segment_text",
+        "executable_name_from_tokens",
+        "executable_name",
+        "command_name_candidates",
+        "shell_script_from_tokens",
+        "grouped_subshells_from_tokens",
+        "command_substitutions"
+      ],
+      "sha256": "663b7c0f648e847b87b9f7fab0988787fd806dc8c29012ff3066318ee5c461d1"
+    },
+    "ordin/shell_integration.py": {
+      "bytes": 5552,
+      "public_classes": [],
+      "public_functions": [
+        "render_shell_init"
+      ],
+      "sha256": "f9a7bdb1df8b4c913e205826b27b3b9b55a5b493c9c0ac8f32850af3e8b7e460"
+    },
+    "ordin/slots.py": {
+      "bytes": 2530,
+      "public_classes": [],
+      "public_functions": [
+        "extract_slots"
+      ],
+      "sha256": "00d6a9e951f8c3444ebe6751b1649477b0be155b7206a386d3c5f319af7c06f9"
+    },
+    "ordin/templates.py": {
+      "bytes": 1423,
+      "public_classes": [],
+      "public_functions": [
+        "template_fields",
+        "render_template",
+        "suggest_commands"
+      ],
+      "sha256": "87d2337fa02d38330d2e04c13ab6f4a4d7a98e47e96252232b689fd64fe3f892"
+    },
+    "ordin/temporal.py": {
+      "bytes": 19123,
+      "public_classes": [
+        "TemporalActionEvidence",
+        "TemporalPredicate",
+        "TemporalRule",
+        "TemporalPolicySet",
+        "TemporalMatch",
+        "TemporalEvaluation",
+        "CompiledTemporalRule",
+        "CompiledTemporalPolicySet"
+      ],
+      "public_functions": [
+        "compile_temporal_policy",
+        "default_temporal_policy",
+        "load_temporal_policy",
+        "temporal_evidence_for_command"
+      ],
+      "sha256": "01d1f27980fd081b01e570a0e5348c68b277f722b4b467f4baf92d754fa08570"
+    },
+    "ordin/tool_calls.py": {
+      "bytes": 15985,
+      "public_classes": [
+        "ToolResourceBinding",
+        "ToolSemanticRule",
+        "ToolSemanticsRegistry",
+        "CompiledToolSemanticRule",
+        "CompiledToolSemanticsRegistry"
+      ],
+      "public_functions": [
+        "compile_tool_semantics",
+        "load_tool_semantics",
+        "review_tool_action"
+      ],
+      "sha256": "e5f757d8efe0058c2c15e4d08015cd1458eb5f280bdcff4fed6966eba6d9dc14"
+    },
+    "ordin/trace.py": {
+      "bytes": 2690,
+      "public_classes": [
+        "TraceAction",
+        "ActionTrace"
+      ],
+      "public_functions": [],
+      "sha256": "a4adf555c6ee6d3efd3660f15c50ddfd5f03c1c709c20a9da7fadd1cd2f94ecb"
+    },
+    "ordin/trace_capture.py": {
+      "bytes": 16232,
+      "public_classes": [
+        "TraceRecorder",
+        "TraceAuditSink"
+      ],
+      "public_functions": [
+        "raw_capture_flag",
+        "digest",
+        "source_revision",
+        "attach_trace",
+        "read_capture"
+      ],
+      "sha256": "eb26bc76a3f0dd6a02e38aaf5573cb8592d731ee5f44fdfdd7dc1f4825c3ad7d"
+    },
+    "ordin/trace_cli.py": {
+      "bytes": 7474,
+      "public_classes": [],
+      "public_functions": [
+        "main"
+      ],
+      "sha256": "cd67e0a720c19b35aff5fb2975d766eb480c22f76c4ef5e28476ead0b600bd9d"
+    },
+    "ordin/trace_replay.py": {
+      "bytes": 25904,
+      "public_classes": [],
+      "public_functions": [
+        "sanitize_capture",
+        "validate_candidate",
+        "replay_candidate",
+        "promote_candidate",
+        "replay_integration_candidate",
+        "load_capture_conformance"
+      ],
+      "sha256": "d5eedce3bd758b3ea4e0c3a911f4f80329a2f8537f4555b520aa097aa04ec02f"
+    },
+    "ordin/trajectory.py": {
+      "bytes": 2841,
+      "public_classes": [
+        "ObservedAction",
+        "TrajectoryFinding",
+        "TrajectoryEvaluation"
+      ],
+      "public_functions": [
+        "observe_action",
+        "evaluate_trajectory"
+      ],
+      "sha256": "5f30ba00a0919410bf421ef2b7aacbf0f118fb57afc597fc6854cac18a8024ee"
+    },
+    "ordin/trajectory_corpus.py": {
+      "bytes": 17269,
+      "public_classes": [
+        "TrajectoryStep",
+        "AgentTrajectory",
+        "TrajectoryStepResult",
+        "TrajectoryResult",
+        "TrajectoryCorpusReport"
+      ],
+      "public_functions": [
+        "load_agent_trajectories",
+        "run_agent_trajectory_corpus"
+      ],
+      "sha256": "5ddc2b06ad9c94d461616ee388379fa52a84df02e5b2216446f54be28ec545d8"
+    },
+    "tests/conftest.py": {
+      "bytes": 176,
+      "public_classes": [],
+      "public_functions": [],
+      "sha256": "737fd4bb3a0709dc03035081396f2474419b78ee34482ebb69cec076c8116ffd"
+    },
+    "tests/test_action.py": {
+      "bytes": 4648,
+      "public_classes": [],
+      "public_functions": [
+        "test_shell_action_review_preserves_command_review_decision_and_risk",
+        "test_action_envelope_and_review_round_trip_against_public_schemas",
+        "test_known_action_kind_without_adapter_fails_closed",
+        "test_future_unknown_action_kind_fails_closed_instead_of_becoming_invalid",
+        "test_shell_action_requires_exact_command_text",
+        "test_action_envelope_rejects_non_json_and_unbounded_parameters",
+        "test_ordin_review_action_accepts_mapping_and_applies_default_context",
+        "test_schema_validator_enforces_action_bounds_and_extra_properties"
+      ],
+      "sha256": "72bc9740bcd29a815427b6571a1af93fa8677ff4a6d4005f7211c12388d1d919"
+    },
+    "tests/test_action_cli.py": {
+      "bytes": 3726,
+      "public_classes": [],
+      "public_functions": [
+        "test_action_cli_reviews_versioned_shell_envelope",
+        "test_action_cli_enforcement_uses_existing_decision_exit_contract",
+        "test_action_cli_unknown_semantics_requires_approval",
+        "test_action_cli_applies_bounded_history_file",
+        "test_action_cli_rejects_invalid_history_file",
+        "test_action_cli_requires_versioned_schema",
+        "test_action_cli_rejects_invalid_json"
+      ],
+      "sha256": "d44d37fb55dc4791c8c088609e35eb33335ea84a171c0fb11f9f72a7551c0706"
+    },
+    "tests/test_action_policy.py": {
+      "bytes": 10512,
+      "public_classes": [],
+      "public_functions": [
+        "test_policy_blocks_matching_effect_and_records_provenance",
+        "test_policy_ask_can_elevate_warn_using_enforcement_order",
+        "test_policy_warn_cannot_downgrade_existing_ask",
+        "test_policy_allow_never_downgrades_explicit_core_block",
+        "test_conflicting_rules_are_deterministic_and_choose_strongest_enforcement",
+        "test_resource_matching_supports_exact_and_prefix_only",
+        "test_context_agent_repo_privilege_intent_and_trajectory_conditions",
+        "test_unknown_privilege_does_not_match_root_or_non_root_selector",
+        "test_relative_or_empty_repository_context_matches_only_unknown_scope",
+        "test_relative_context_never_uses_the_reviewer_working_directory",
+        "test_cwd_prefix_configuration_requires_absolute_posix_paths",
+        "test_intent_present_matches_even_when_alignment_is_available",
+        "test_policy_parser_rejects_unknown_fields_and_duplicate_rule_ids",
+        "test_policy_compile_is_cached_and_digest_is_stable",
+        "test_ordin_compiles_and_reuses_action_policy",
+        "test_load_policy_validates_schema_and_compiles",
+        "test_load_policy_rejects_schema_invalid_file"
+      ],
+      "sha256": "fc4ea4daa1f098eccec6f4dc343782ca217ee2dc701bc3fc6ecc820331a66fea"
+    },
+    "tests/test_action_policy_cli.py": {
+      "bytes": 3271,
+      "public_classes": [],
+      "public_functions": [
+        "test_policy_validate_reports_identity_digest_and_rule_count",
+        "test_action_cli_applies_explicit_policy_file",
+        "test_action_cli_policy_respects_enforcement_exit_code",
+        "test_policy_validate_rejects_unknown_fields",
+        "test_action_policy_is_never_loaded_implicitly"
+      ],
+      "sha256": "d274dc22161974cdb18d84cc689ef3b31e5665f0ce4985a4f200c262f3b6d039"
+    },
+    "tests/test_adapters.py": {
+      "bytes": 5396,
+      "public_classes": [],
+      "public_functions": [
+        "test_generic_tool_call_stays_conservative",
+        "test_explicit_shell_tool_mapping_reuses_shell_safety_engine",
+        "test_mcp_unknown_tool_preserves_server_and_requires_approval",
+        "test_explicit_mcp_shell_tool_mapping_is_exact_name_only",
+        "test_shell_tool_requires_configured_command_argument",
+        "test_adapter_payload_limits_are_enforced_by_action_envelope",
+        "test_context_flows_through_adapter_and_agent_gate",
+        "test_adapter_names_are_bounded",
+        "test_tool_identity_whitespace_does_not_inherit_shell_mapping",
+        "test_runtime_and_server_identity_whitespace_is_preserved"
+      ],
+      "sha256": "a22888f93b51a123ae7bb797904fc08449071d5a6d705fa935b6fa71c87c7bb9"
+    },
+    "tests/test_agent.py": {
+      "bytes": 2603,
+      "public_classes": [],
+      "public_functions": [
+        "test_default_agent_gate_maps_allow_warn_ask_block",
+        "test_agent_gate_respects_caller_policy_without_overriding_blocks",
+        "test_agent_gate_passes_context_and_trace_to_ordin",
+        "test_agent_decision_keeps_underlying_review_visible"
+      ],
+      "sha256": "984275c598d27e3654a5de474d491691014e51ea42d42584fb95727489e544eb"
+    },
+    "tests/test_agent_safety_corpus.py": {
+      "bytes": 2992,
+      "public_classes": [],
+      "public_functions": [
+        "test_complete_versioned_corpus_and_boundaries_pass",
+        "test_every_case_passes_privacy_and_existing_conformance_promotion",
+        "test_control_failure_is_a_gate_and_has_a_metric",
+        "test_expectation_mismatch_is_not_relabelled_to_match_implementation",
+        "test_corpus_refuses_missing_controls_private_fields_and_stronger_provenance"
+      ],
+      "sha256": "5f07be9a2d7b774333db335a97a67fa78eb170a0ab1b518252fa79f5b99caecd"
+    },
+    "tests/test_analyzer_risk.py": {
+      "bytes": 1954,
+      "public_classes": [],
+      "public_functions": [
+        "test_git_global_option_read_is_allowed",
+        "test_git_global_option_hard_reset_warns_high",
+        "test_wget_is_classified_instead_of_unknown",
+        "test_apt_simulation_is_allowed",
+        "test_docker_global_context_prune_is_high_risk",
+        "test_curl_upload_is_high_risk",
+        "test_existing_root_delete_block_still_wins",
+        "test_recognized_but_unknown_analyzer_invocation_asks"
+      ],
+      "sha256": "f85d5a1cde9f9fd00fd2bf9c82af81f7f8b07681d66b15a7f3a5a4ecb949329e"
+    },
+    "tests/test_analyzers.py": {
+      "bytes": 5126,
+      "public_classes": [],
+      "public_functions": [
+        "analyze",
+        "effects",
+        "test_registry_covers_initial_high_value_families",
+        "test_rm_analyzer_handles_wrappers_bundled_flags_and_targets",
+        "test_chmod_analyzer_tracks_mode_and_recursive_target",
+        "test_chown_analyzer_tracks_owner_and_target",
+        "test_git_analyzer_handles_global_options_before_subcommand",
+        "test_git_read_path_stays_read_only",
+        "test_git_force_push_emits_remote_write_and_history_rewrite",
+        "test_curl_upload_and_file_output_are_distinguished",
+        "test_wget_stdout_does_not_claim_filesystem_write",
+        "test_wget_default_download_writes_a_file",
+        "test_docker_analyzer_handles_global_context_and_multiword_prune",
+        "test_docker_read_and_privileged_run_are_distinct",
+        "test_pip_analyzer_normalizes_python_module_invocation",
+        "test_pip_dry_run_does_not_emit_install_effect",
+        "test_npm_ignore_scripts_suppresses_code_execution_effect",
+        "test_npm_run_is_code_execution",
+        "test_apt_simulation_is_read_only",
+        "test_apt_remove_yes_records_confirmation_bypass"
+      ],
+      "sha256": "0e14f2657e43abda3dc5c61ed8d942dc52e818e0aab43bf690fd599bd840f262"
+    },
+    "tests/test_audit.py": {
+      "bytes": 8054,
+      "public_classes": [],
+      "public_functions": [
+        "test_audit_is_disabled_by_default_and_review_remains_write_free",
+        "test_audit_event_is_versioned_digest_only_and_redacted_by_default",
+        "test_audit_does_not_copy_caller_observation_metadata",
+        "test_audit_resource_values_can_be_explicitly_included",
+        "test_audit_can_explicitly_include_action_ids",
+        "test_jsonl_audit_sink_appends_and_verifies_hash_chain",
+        "test_hash_chain_verification_detects_tampering",
+        "test_hash_chain_verification_detects_removed_middle_event",
+        "test_hash_chained_sink_rejects_preexisting_tampered_file",
+        "test_audit_sink_failure_is_not_silently_ignored",
+        "test_verify_missing_audit_file_is_explicit",
+        "test_audit_verifier_rejects_decision_provenance_disagreement",
+        "test_ordin_rejects_invalid_audit_sink"
+      ],
+      "sha256": "9ede57199599c0a0a1d3c96fd599f0c8ba559e3869306b05fee5687b0ba0960d"
+    },
+    "tests/test_availability.py": {
+      "bytes": 2825,
+      "public_classes": [],
+      "public_functions": [
+        "test_parse_os_release_handles_quotes_and_comments",
+        "test_environment_from_os_release_normalizes_linux_distribution",
+        "test_apt_matches_debian_family_distribution",
+        "test_apt_is_incompatible_with_fedora_family",
+        "test_unknown_linux_distribution_keeps_platform_status_unknown",
+        "test_command_availability_uses_injected_path_resolver",
+        "test_incompatible_missing_command_penalty_is_bounded"
+      ],
+      "sha256": "a429f6ec22ede24665e76884a2a6571723a5338266b1e56248ad48601798802a"
+    },
+    "tests/test_bm25_ranking.py": {
+      "bytes": 2244,
+      "public_classes": [],
+      "public_functions": [
+        "test_bm25_meets_all_search_fixture_requirements",
+        "test_bm25_improves_or_preserves_legacy_benchmark_metrics",
+        "test_bm25_explanation_surfaces_principal_ranking_signals",
+        "test_legacy_ranker_remains_available_for_comparison"
+      ],
+      "sha256": "a0dc6db5b44b8bedffa115f7dd469dfde570067e9bf0d424288d9bd323127cb6"
+    },
+    "tests/test_candidate_gate.py": {
+      "bytes": 3027,
+      "public_classes": [],
+      "public_functions": [
+        "test_candidate_refuses_missing_exact_revision_and_dirty_source",
+        "test_candidate_reports_cannot_pollute_source_or_be_silently_reused",
+        "test_candidate_contains_every_required_workload_and_stamps_revision",
+        "test_report_index_records_exact_bytes",
+        "test_resource_hashes_include_hidden_plugin_assets_and_ignore_json_formatting"
+      ],
+      "sha256": "a1c9660bb00cd0272ddb4cb7d0408e3e18e6bea8b15822e089b770f3332c38df"
+    },
+    "tests/test_capability_delta.py": {
+      "bytes": 8913,
+      "public_classes": [],
+      "public_functions": [
+        "read_review",
+        "source",
+        "deny",
+        "test_predicted_exact_filesystem_requirement_proposes_one_narrow_permission",
+        "test_trusted_network_denial_can_narrow_known_host_prediction_to_method_and_path",
+        "test_unmodeled_runtime_requirement_never_proposes_new_authority",
+        "test_wrong_action_digest_contract_and_blocked_decision_are_rejected",
+        "test_caller_asserted_denial_cannot_expand_runtime_authority",
+        "test_boundary_exceedance_and_backend_unsupported_are_preserved",
+        "test_proposal_schema_round_trip_and_identity_tampering",
+        "test_core_proposal_never_approves_applies_retries_or_runs_action"
+      ],
+      "sha256": "c89a8a0c781f093adae8b973920325dbed3ea4fc2b1341062f61fa7114b3f708"
+    },
+    "tests/test_claude_code.py": {
+      "bytes": 7052,
+      "public_classes": [],
+      "public_functions": [
+        "test_claude_code_allows_known_read_only_tool_with_exact_identity",
+        "test_claude_code_tool_identity_whitespace_loses_trusted_semantics",
+        "test_claude_code_session_identity_whitespace_does_not_alias_observations",
+        "test_claude_code_escalates_mutation_and_unknown_tools",
+        "test_claude_code_denies_blocked_shell_action",
+        "test_claude_code_malformed_input_fails_closed",
+        "test_claude_code_runtime_identity_mutation_loses_trusted_semantics",
+        "test_claude_code_post_observation_links_to_review_and_redacts_output",
+        "test_claude_code_failure_observation_parses_exit_code_without_error_text",
+        "test_claude_code_cli_persists_only_explicit_local_evidence"
+      ],
+      "sha256": "e72aedceb00d4a77613dda2c09903e698103659846941f15124afe1fca895d83"
+    },
+    "tests/test_cli.py": {
+      "bytes": 1426,
+      "public_classes": [],
+      "public_functions": [
+        "test_explain_known_command_json",
+        "test_graph_exports_versioned_json",
+        "test_graph_human_output_reports_shape",
+        "test_doctor_passes",
+        "test_doctor_has_seed_command_coverage"
+      ],
+      "sha256": "e61c0fa0988daec8af7a659c0af6a9a07f91f8bdbb9bb7ccb14aeef81dfb534d"
+    },
+    "tests/test_codex.py": {
+      "bytes": 10478,
+      "public_classes": [],
+      "public_functions": [
+        "test_codex_pre_tool_uses_supported_decisions",
+        "test_unknown_tool_and_mutated_shell_identity_fail_closed",
+        "test_patch_targets_are_bounded_and_source_is_not_retained",
+        "test_malformed_patch_is_denied",
+        "test_explicit_mcp_alias_mapping_preserves_original_server_and_tool",
+        "test_reviewed_mcp_mapping_uses_existing_semantics_to_allow_a_read",
+        "test_post_observation_redacts_results_and_correlates_session_turn_and_call",
+        "test_permission_review_preserves_host_prompt_and_never_approves_sandbox",
+        "test_codex_session_supports_temporal_detection_and_observation_linkage",
+        "test_cli_missing_state_and_duplicate_json_fail_closed",
+        "test_cli_lifecycle_carries_history_between_hook_invocations",
+        "test_plugin_launcher_denies_when_ordin_package_cannot_start",
+        "test_packaged_plugin_matches_reviewed_source",
+        "test_installation_writes_native_hooks_without_overwriting_existing_config"
+      ],
+      "sha256": "5e1de9ffd248114067a919b1601070bca5355dd87350b3e3db2afad39eb2509f"
+    },
+    "tests/test_context.py": {
+      "bytes": 2597,
+      "public_classes": [],
+      "public_functions": [
+        "test_review_request_has_versioned_machine_contract",
+        "test_review_request_round_trips_and_keeps_missing_context_explicit",
+        "test_review_request_rejects_unknown_schema",
+        "test_execution_context_resolves_paths_without_ambient_state",
+        "test_relative_path_has_unknown_repository_membership",
+        "test_filesystem_analyzer_receives_context_and_resolves_target"
+      ],
+      "sha256": "f82a1b58c1a31fc33dbcf2866da0ca8199d60ba9406dbb5c7d4223fd7a8bf6d8"
+    },
+    "tests/test_context_cli.py": {
+      "bytes": 1772,
+      "public_classes": [],
+      "public_functions": [
+        "test_check_cli_uses_context_flags_for_root_resolution",
+        "test_review_cli_accepts_context_json_and_serializes_it",
+        "test_explicit_context_flags_override_context_json",
+        "test_invalid_context_json_fails_cleanly"
+      ],
+      "sha256": "8b045d3d3b3b1244b7821f8c3ca9790adcc2ff70dea64ef36b013dcec91df9a8"
+    },
+    "tests/test_context_risk.py": {
+      "bytes": 2060,
+      "public_classes": [],
+      "public_functions": [
+        "test_relative_recursive_delete_at_root_blocks_with_context",
+        "test_filesystem_mutation_outside_repo_is_elevated",
+        "test_filesystem_mutation_inside_repo_keeps_base_risk",
+        "test_root_context_elevates_mutating_effects",
+        "test_root_context_does_not_elevate_read_only_effects",
+        "test_command_review_serializes_supplied_context"
+      ],
+      "sha256": "b755ef4d0db14e0ea6f2a9e11dd74f132c84270c0d9556986f8fbeb2ab45fb3c"
+    },
+    "tests/test_contract_audit.py": {
+      "bytes": 12644,
+      "public_classes": [],
+      "public_functions": [
+        "test_every_registered_schema_has_a_canonical_runtime_or_data_example",
+        "test_validator_enforces_all_declared_numeric_and_uniqueness_bounds",
+        "test_typed_json_contracts_reject_nonfinite_payloads",
+        "test_typed_context_trace_and_policy_constructors_match_wire_bounds",
+        "test_configuration_parsers_reject_duplicate_members_before_schema_validation",
+        "test_configuration_reader_bounds_and_finite_numbers",
+        "test_input_builders_preserve_v02_defaults_but_reject_unknown_members",
+        "test_claude_help_does_not_read_hook_input",
+        "test_public_export_and_console_inventory_matches_frozen_manifest"
+      ],
+      "sha256": "5dd350803fca5bdcd57af83faafeb4bd0b6c8ed8f1a4d077d292380d34319de0"
+    },
+    "tests/test_cursor.py": {
+      "bytes": 11674,
+      "public_classes": [],
+      "public_functions": [
+        "payload",
+        "test_native_tool_boundaries_are_conservative",
+        "test_exact_mcp_mapping_and_specialized_profile_use_shared_semantics",
+        "test_malformed_or_ambiguous_input_denies",
+        "test_live_temporal_state_and_explicit_child_identities_are_isolated",
+        "test_permission_denial_is_not_execution_evidence",
+        "test_json_result_values_link_without_inventing_exit_status",
+        "test_invalid_result_json_cannot_supply_execution_status",
+        "test_repeated_destructive_proposals_use_shared_temporal_history",
+        "test_parent_mutation_cannot_reuse_child_history",
+        "test_mcp_aliases_cannot_be_blank_or_override_native_tools",
+        "test_cursor_capture_uses_shared_private_pipeline",
+        "test_cli_lifecycle_and_malformed_pre_fail_closed",
+        "test_subagent_creation_is_reviewed_and_ambiguous_cleanup_cannot_clear_parent",
+        "test_installer_uses_absolute_interpreter_and_never_overwrites"
+      ],
+      "sha256": "d0ba69d7e841666ed070cb90a6fd7dcdf3f8b0337b05ffe3b051942a6cabdfbb"
+    },
+    "tests/test_diagnostics.py": {
+      "bytes": 2785,
+      "public_classes": [],
+      "public_functions": [
+        "test_action_diagnostic_explains_decision_without_parameter_values",
+        "test_unknown_tool_identity_gets_safe_remediation_and_redacts_resource_values",
+        "test_blocked_action_remediation_never_suggests_execution",
+        "test_integration_health_is_machine_readable_and_green"
+      ],
+      "sha256": "994961320d915c7a295d8b5c60c270178e60eba9f9130320f12db188793cc65c"
+    },
+    "tests/test_docs_links.py": {
+      "bytes": 1190,
+      "public_classes": [],
+      "public_functions": [
+        "test_local_markdown_links_resolve"
+      ],
+      "sha256": "2a378f2d281f9fb1e5e3b30b4ebe1f0330c1cf84e0add9448e63cc37b22f3438"
+    },
+    "tests/test_effect_risk.py": {
+      "bytes": 2298,
+      "public_classes": [],
+      "public_functions": [
+        "test_read_only_git_subcommand_uses_semantic_low_risk",
+        "test_git_hard_reset_is_elevated_by_semantic_effect",
+        "test_find_delete_is_elevated_without_a_regex_rule",
+        "test_curl_upload_is_elevated_by_flag_effect",
+        "test_docker_read_and_delete_subcommands_differ",
+        "test_pip_read_and_install_subcommands_differ",
+        "test_existing_regex_rules_still_override_semantic_baseline"
+      ],
+      "sha256": "1c08f5f4ffc70ac46e723f89c451c9dbf95bc20f129110b5d2414060feaa91b8"
+    },
+    "tests/test_enforcement.py": {
+      "bytes": 4242,
+      "public_classes": [],
+      "public_functions": [
+        "test_enforcement_exit_code_contract",
+        "test_default_cli_exit_behavior_remains_backward_compatible",
+        "test_enforce_maps_warn_ask_and_block_to_distinct_codes",
+        "test_fail_on_threshold_can_allow_lower_decisions",
+        "test_stdin_review_request_is_validated_and_enforced",
+        "test_stdin_requires_versioned_schema",
+        "test_documented_review_example_is_accepted_through_stdin",
+        "test_invalid_stdin_json_is_structured_error",
+        "test_stdin_rejects_mixed_request_context"
+      ],
+      "sha256": "9dca290250dbe594a01b63205794e0fba2d566ccaaffb5b199e92a062e293d63"
+    },
+    "tests/test_enforcement_backend.py": {
+      "bytes": 4042,
+      "public_classes": [],
+      "public_functions": [
+        "contract",
+        "test_protocol_only_compiles_and_validates_never_executes_or_applies",
+        "test_plan_is_immutable_action_bound_and_policy_digest_is_deterministic",
+        "test_non_success_never_has_an_enforceable_partial_plan",
+        "test_block_is_diagnostic_and_ask_never_loses_approval_requirement",
+        "test_validation_preserves_unknown_fields_and_policy_identity"
+      ],
+      "sha256": "eb3c43196348c23700223301cd3c16dc7535d0787d2f30bfd2c840e9667ba92e"
+    },
+    "tests/test_entrypoint.py": {
+      "bytes": 2170,
+      "public_classes": [],
+      "public_functions": [
+        "test_normalize_bare_intent_to_search",
+        "test_normalize_bare_search_flags",
+        "test_explicit_subcommands_are_not_rewritten",
+        "test_double_dash_keeps_following_tokens_literal",
+        "test_bare_query_executes_search",
+        "test_bare_query_supports_multiword_unquoted_intent",
+        "test_explicit_check_keeps_safety_behavior",
+        "test_top_level_help_mentions_default_mode"
+      ],
+      "sha256": "31ad379ee1d6652567fd6bf16239e53c9b0788563a1dd84d986092038fd759f3"
+    },
+    "tests/test_execution_observations.py": {
+      "bytes": 10229,
+      "public_classes": [],
+      "public_functions": [
+        "test_capability_derivation_is_conservative_and_scoped",
+        "test_capability_profile_round_trip_and_validation",
+        "test_action_review_includes_deterministic_capabilities",
+        "test_observation_round_trip_is_bounded_and_schema_valid",
+        "test_observed_effect_can_strengthen_later_temporal_review",
+        "test_observation_cannot_erase_predicted_danger",
+        "test_observations_require_exact_unique_history_action_ids",
+        "test_public_api_accepts_schema_valid_observation_mapping"
+      ],
+      "sha256": "2d94d20882c9fe85ee52be86f295c8e7ed09cc7f261652430a542ce8f2d463c2"
+    },
+    "tests/test_feedback_intake.py": {
+      "bytes": 2757,
+      "public_classes": [],
+      "public_functions": [
+        "test_synthetic_report_becomes_private_reconstruction_and_regression",
+        "test_summary_counts_reports_without_identity_or_unknown_durations",
+        "test_summary_refuses_existing_output_and_does_not_echo_bad_input"
+      ],
+      "sha256": "a8ab6532104877f0112b792dcf6d74a7905d72e217a571ffcb70140733f5cd6d"
+    },
+    "tests/test_graph.py": {
+      "bytes": 5084,
+      "public_classes": [],
+      "public_functions": [
+        "test_builds_typed_nodes_and_edges_from_command_cards",
+        "test_effect_resources_keep_producer_provenance",
+        "test_graph_export_has_stable_schema_version",
+        "test_static_effect_resolution_handles_command_flags",
+        "test_static_effect_resolution_handles_subcommands_and_flags",
+        "test_static_effect_resolution_handles_multi_token_subcommands",
+        "test_static_effect_resolution_normalizes_python_module_execution",
+        "test_unmigrated_command_cards_remain_valid_and_loadable",
+        "test_effect_graph_data_validates_cleanly",
+        "test_data_health_includes_effect_graph_validation",
+        "test_validation_rejects_unknown_effect_and_missing_alternative"
+      ],
+      "sha256": "85d22c12ec700cca4b0bd82caa3abe9869cda0903da35513c8a9254a2057dc0c"
+    },
+    "tests/test_indexer.py": {
+      "bytes": 2862,
+      "public_classes": [],
+      "public_functions": [
+        "test_parse_apropos_line_creates_command_cards",
+        "test_parse_apropos_lines_skips_non_command_sections",
+        "test_build_index_and_search_merge",
+        "test_cli_index_from_input",
+        "test_corrupt_man_index_is_ignored"
+      ],
+      "sha256": "e99ca705660ca9885905f328664af641c643a861b459808afc6c15287b62d68a"
+    },
+    "tests/test_infrastructure_packs.py": {
+      "bytes": 7572,
+      "public_classes": [],
+      "public_functions": [
+        "test_priority_domain_packs_are_versioned_enabled_and_healthy",
+        "test_priority_domains_are_searchable",
+        "test_domain_analyzers_emit_structured_effects_and_resources",
+        "test_sensitive_remote_operations_are_classified",
+        "test_destructive_or_remote_write_operations_never_silently_allow",
+        "test_read_only_domain_operations_are_low_risk",
+        "test_exact_pack_selection_removes_other_domain_semantics",
+        "test_disabling_all_packs_removes_new_domain_analyzers"
+      ],
+      "sha256": "f64e119db7e5072f6a432a1760a78ebd8ed3bc0252095445a8bfdfd9ebf6e68f"
+    },
+    "tests/test_integration_conformance.py": {
+      "bytes": 2458,
+      "public_classes": [],
+      "public_functions": [
+        "test_first_party_integrations_pass_shared_conformance",
+        "test_conformance_includes_fail_closed_mutation_controls",
+        "test_conformance_covers_context_provenance_and_observations",
+        "test_failed_check_is_machine_and_human_readable"
+      ],
+      "sha256": "47fb99e65df24b47b12d33c081ecc172addb99853cfb80c07c0c7cd872484962"
+    },
+    "tests/test_integration_evaluation.py": {
+      "bytes": 3947,
+      "public_classes": [],
+      "public_functions": [
+        "test_real_agent_evaluation_passes_all_owned_gates",
+        "test_real_agent_evaluation_reports_required_scope_and_metrics",
+        "test_markdown_report_states_scope_metrics_and_limitations",
+        "test_provenance_linkage_requires_the_matching_action_id",
+        "test_invalid_repetitions_fail_before_loading_corpora"
+      ],
+      "sha256": "d2a323b2053da3e72d99f10c1a1fe00b7cf71dd325ac81fd48d1cf8bd8c566cc"
+    },
+    "tests/test_integration_examples.py": {
+      "bytes": 2665,
+      "public_classes": [],
+      "public_functions": [
+        "test_python_quickstart_reviews_executes_and_records_observation",
+        "test_json_subprocess_example_uses_versioned_cli_boundary",
+        "test_ci_gate_allows_safe_command_and_rejects_blocked_command",
+        "test_mcp_starter_fixture_runs_through_installed_proxy"
+      ],
+      "sha256": "040d76e8b4f3c89dfe8ea3a85420d2600d20658c5dd4ae9244b4a76b334bab1c"
+    },
+    "tests/test_macos_platform.py": {
+      "bytes": 4317,
+      "public_classes": [],
+      "public_functions": [
+        "test_darwin_does_not_inherit_linux_distribution_metadata",
+        "test_linux_command_cards_remain_incompatible_even_if_installed_on_macos",
+        "test_optional_tool_availability_is_independent_of_runtime_support",
+        "test_macos_context_keeps_alias_case_and_sibling_boundaries_distinct",
+        "test_native_private_store_and_uid_in_temporary_directory"
+      ],
+      "sha256": "11b97599a1a30cd1329e9e8bfa76d630a86b6408669b44e5d009c72ad814e72b"
+    },
+    "tests/test_mcp_contracts.py": {
+      "bytes": 14015,
+      "public_classes": [],
+      "public_functions": [
+        "test_unchanged_contract_allows_and_changed_contract_requires_approval",
+        "test_execution_contract_changes_invalidate_pins",
+        "test_order_and_prose_do_not_create_false_drift_but_property_names_do",
+        "test_integral_numbers_have_one_canonical_representation",
+        "test_malformed_or_unverifiable_schema_fails_closed",
+        "test_deep_and_duplicate_tool_contracts_fail_closed",
+        "test_renamed_tool_or_server_cannot_inherit_a_pin",
+        "test_permissive_policy_cannot_bypass_missing_pin_and_core_block_stays_blocked",
+        "test_partial_inventory_and_list_changed_require_new_complete_discovery",
+        "test_unrequested_discovery_cannot_establish_trust_and_ids_cannot_cross_correlate",
+        "test_stale_semantics_binding_cannot_allow_call",
+        "test_strict_parser_rejects_duplicate_and_rounded_contract_numbers",
+        "test_final_audit_records_ask_for_missing_contract",
+        "test_contract_cli_validates_and_diffs_without_network",
+        "test_verified_check_cannot_claim_mismatched_digests",
+        "test_installed_module_proxy_enforces_pins_across_stdio_boundary"
+      ],
+      "sha256": "b8545cea85fcaff53c3bfddc8427f479071bfac63e8ac358eeb14687291a193f"
+    },
+    "tests/test_mcp_http.py": {
+      "bytes": 27711,
+      "public_classes": [],
+      "public_functions": [
+        "test_json_sse_and_stateless_upstreams_preserve_gate_decisions",
+        "test_upstream_fixture_never_reflects_unissued_or_folded_session_ids",
+        "test_contract_pinning_applies_to_http_discovery_and_drift",
+        "test_authorization_is_explicit_bound_to_session_and_absent_from_evidence",
+        "test_http_sessions_and_concurrent_request_ids_do_not_cross_correlate",
+        "test_resumption_cancellation_and_session_deletion_are_forwarded_without_reexecution",
+        "test_malformed_json_framing_origin_and_protocol_fail_before_upstream",
+        "test_task_augmentation_is_explicitly_rejected",
+        "test_redirect_and_upstream_error_bodies_never_leak_authorization",
+        "test_redirect_destination_receives_no_request_or_credentials",
+        "test_timeout_marks_the_session_unavailable_without_automatic_retry",
+        "test_slow_drip_upstream_cannot_extend_absolute_timeout",
+        "test_stream_deadline_is_checked_after_buffered_read_even_before_timer_fires",
+        "test_initialization_can_resume_before_tool_calls_are_allowed",
+        "test_header_bounds_duplicate_lengths_and_cors_preflight",
+        "test_public_listener_and_credential_url_require_explicit_safe_configuration",
+        "test_folded_origin_is_rejected_without_reflection_or_upstream_contact",
+        "test_expired_and_full_session_state_fails_conservatively",
+        "test_http_evaluation_separates_core_transport_and_upstream_delay",
+        "test_incomplete_sse_response_fails_without_forwarding_or_claiming_success"
+      ],
+      "sha256": "78773a8afda472e49a8f728586212f19b99c463e1c430004abc93c7bc98e1203"
+    },
+    "tests/test_mcp_inspection.py": {
+      "bytes": 11254,
+      "public_classes": [],
+      "public_functions": [
+        "test_inspection_collects_exact_contracts_without_tool_calls_or_stderr",
+        "test_unsafe_or_ambiguous_discovery_is_rejected",
+        "test_inspection_handles_pagination_and_declines_server_actions",
+        "test_inspection_timeout_cleans_up_the_server",
+        "test_scaffold_cannot_grant_trust_from_a_tool_name_or_description",
+        "test_reviewed_semantics_and_contract_lock_workflow",
+        "test_validation_reports_unresolved_bindings_removed_tools_and_identity",
+        "test_shell_mapping_requires_explicit_tool_and_string_command_contract",
+        "test_resource_candidates_do_not_guess_types_or_ambiguous_dot_paths",
+        "test_setup_never_overwrites_reviewed_files",
+        "test_inventory_reader_rejects_duplicate_member_ambiguity",
+        "test_private_metadata_values_are_withheld_but_credential_argument_shapes_are_allowed",
+        "test_integration_diagnostics_identify_contract_mismatch_without_arguments"
+      ],
+      "sha256": "0c1ced8f5899f540857aa04b0bd853ee4350c4f750368654c5341f4cf225c846"
+    },
+    "tests/test_mcp_proxy.py": {
+      "bytes": 25921,
+      "public_classes": [],
+      "public_functions": [
+        "test_unrecognized_upstream_result_tag_is_not_persisted_as_evidence",
+        "test_malformed_tool_result_cannot_be_recorded_as_success",
+        "test_invalid_observation_evidence_keeps_request_reserved",
+        "test_malformed_error_keeps_request_and_evidence_unchanged",
+        "test_failed_trace_write_does_not_consume_response",
+        "test_jsonrpc_parser_rejects_duplicate_members",
+        "test_jsonrpc_parser_rejects_nonfinite_numbers",
+        "test_jsonrpc_parser_rejects_excessive_nesting_as_a_protocol_error",
+        "test_jsonrpc_parser_allows_reused_members_in_distinct_objects",
+        "test_jsonrpc_parser_enforces_the_documented_nesting_boundary",
+        "test_nonfinite_request_ids_are_rejected_by_the_direct_proxy_api",
+        "test_stdio_proxy_rejects_ambiguous_client_json_and_continues",
+        "test_stdio_proxy_does_not_forward_ambiguous_upstream_json",
+        "test_non_tool_protocol_messages_forward_unchanged",
+        "test_unknown_tool_requires_approval_without_reaching_upstream",
+        "test_exact_server_tool_semantics_allow_and_bind_resource",
+        "test_equivalent_numeric_response_ids_settle_the_original_call",
+        "test_equivalent_numeric_request_ids_are_duplicate_inflight_calls",
+        "test_distinct_request_ids_do_not_alias",
+        "test_server_identity_mismatch_loses_trusted_semantics",
+        "test_tool_identity_whitespace_is_not_forwarded_with_trusted_semantics",
+        "test_explicit_shell_block_never_reaches_upstream",
+        "test_duplicate_inflight_and_malformed_calls_fail_closed",
+        "test_pending_action_survives_history_pressure_and_records_its_result",
+        "test_out_of_order_settlement_keeps_oldest_pending_action_reserved",
+        "test_full_history_can_evict_settled_proposals_while_newer_calls_are_pending",
+        "test_tool_result_creates_linked_redacted_observation",
+        "test_tool_and_protocol_errors_are_observed_without_error_payload",
+        "test_multi_round_results_are_not_misreported_as_completed_success",
+        "test_stdio_proxy_end_to_end_forwards_discovery_and_allowed_call",
+        "test_stdio_proxy_exits_when_upstream_stops_with_client_input_open"
+      ],
+      "sha256": "70f8c856b21955c3c0085c228324d7bd0033b922a4d528090fa50bf32cc7dcda"
+    },
+    "tests/test_namespace_guard.py": {
+      "bytes": 1142,
+      "public_classes": [],
+      "public_functions": [
+        "test_namespace_guard_accepts_clean_tree",
+        "test_namespace_guard_detects_legacy_identity"
+      ],
+      "sha256": "f97a74ad05268e8e854af870efd1e9fd1884f40185447dfe39f92eabcb777eda"
+    },
+    "tests/test_onboarding_examples.py": {
+      "bytes": 1544,
+      "public_classes": [],
+      "public_functions": [
+        "test_versioned_onboarding_json_examples_use_registered_contracts",
+        "test_documented_hook_requests_are_benign_and_need_no_host_binary",
+        "test_quickstart_checks_are_part_of_the_isolated_wheel_ci_gate"
+      ],
+      "sha256": "8e93de067e89f104debe7a414e48d434cb67e49e0471e05fb0e69b4f1a53ea5e"
+    },
+    "tests/test_package_entrypoints.py": {
+      "bytes": 9249,
+      "public_classes": [],
+      "public_functions": [
+        "test_package_install_exposes_ordin_cli_graph_data_and_public_api"
+      ],
+      "sha256": "2927e2ac187f4a242e0a536430a4418cf7bf9d53b6c19a925addd44455b58c86"
+    },
+    "tests/test_package_metadata.py": {
+      "bytes": 169,
+      "public_classes": [],
+      "public_functions": [
+        "test_runtime_version_matches_distribution_metadata"
+      ],
+      "sha256": "d05485c94bd1c155483d7f357893842dbafd1532aa68ba74a646c9e75f6e862b"
+    },
+    "tests/test_packs.py": {
+      "bytes": 4327,
+      "public_classes": [],
+      "public_functions": [
+        "test_default_packs_are_discovered_loaded_and_schema_valid",
+        "test_default_packs_supply_command_cards_rules_and_analyzers",
+        "test_disabling_all_packs_removes_domain_behavior",
+        "test_selective_pack_loading_is_exact",
+        "test_wildcard_loads_all_discovered_packs",
+        "test_unknown_configured_pack_is_reported_by_doctor",
+        "test_pack_files_match_packaged_resources",
+        "test_packs_cli_reports_loaded_state",
+        "test_doctor_reports_pack_health"
+      ],
+      "sha256": "26902506b7fe68398e9f35dbc910c0aa056b4f5d230c290c575b5ed8de75684a"
+    },
+    "tests/test_policy.py": {
+      "bytes": 2581,
+      "public_classes": [],
+      "public_functions": [
+        "test_review_precedence_preserves_existing_safety_labels",
+        "test_enforcement_order_requires_approval_for_ask",
+        "test_review_policy_thresholds",
+        "test_policy_accepts_review_objects_and_exposes_result_properties",
+        "test_known_warning_remains_dominant_in_compound_review",
+        "test_invalid_decisions_and_thresholds_fail_explicitly",
+        "test_decision_value_reads_review_objects"
+      ],
+      "sha256": "9a0ba85b178f559837281605f1c085b8195c0d1e5fb1165655f55e6fbeffefb6"
+    },
+    "tests/test_provenance.py": {
+      "bytes": 6344,
+      "public_classes": [],
+      "public_functions": [
+        "test_generic_action_review_always_exposes_versioned_provenance",
+        "test_unknown_generic_action_still_has_fail_closed_provenance",
+        "test_shell_provenance_captures_context_and_risk_rule_evidence_without_reparsing_reason_text",
+        "test_temporal_provenance_records_rule_identity_policy_digest_and_final_merge",
+        "test_action_policy_provenance_records_matches_and_monotonic_merge",
+        "test_trusted_tool_semantics_rule_is_structured_provenance",
+        "test_provenance_digest_is_deterministic_for_same_review",
+        "test_observation_provenance_is_explicit_and_separate_from_predicted_semantics"
+      ],
+      "sha256": "d21094403c92fbc54c159aa3aeb96a5074f0166fca0d0cc7aec53ffd78c0d9ec"
+    },
+    "tests/test_public_api.py": {
+      "bytes": 2671,
+      "public_classes": [],
+      "public_functions": [
+        "test_public_api_search_check_and_review",
+        "test_intent_mismatch_preserves_warning_precedence",
+        "test_public_api_uses_default_context_and_trace",
+        "test_public_api_accepts_typed_review_request",
+        "test_public_api_validates_mapping_requests_against_schema",
+        "test_public_api_rejects_invalid_search_input"
+      ],
+      "sha256": "2432455893cb960c5c607fc2eca601c7622649749508168a71478e54d8b0b2c3"
+    },
+    "tests/test_regression_promotion.py": {
+      "bytes": 6827,
+      "public_classes": [],
+      "public_functions": [
+        "test_committed_promoted_regressions_replay_cleanly",
+        "test_one_promoted_regression_can_replay_independently",
+        "test_replay_gate_detects_critical_false_allow_before_promotion",
+        "test_loader_rejects_credential_like_values",
+        "test_redacted_sensitive_fields_are_allowed",
+        "test_unknown_replay_id_fails_explicitly",
+        "test_critical_false_allow_in_intermediate_trajectory_step_is_counted",
+        "test_trajectory_replays_reject_overrides_that_cannot_be_applied",
+        "test_latency_budget_must_be_finite_and_positive"
+      ],
+      "sha256": "b32c45519f10e0035559ff81c7faa5595f267165c2e180495687773340a11e8a"
+    },
+    "tests/test_regression_replay.py": {
+      "bytes": 5321,
+      "public_classes": [],
+      "public_functions": [
+        "test_committed_failure_regressions_replay_cleanly",
+        "test_loader_can_select_one_case",
+        "test_critical_false_allow_is_counted_as_critical_miss",
+        "test_fixture_rejects_sensitive_field_names",
+        "test_fixture_rejects_sensitive_looking_values",
+        "test_loader_rejects_unknown_case"
+      ],
+      "sha256": "56a0191722a4397233389f54223936639ccb49e83aedacf64e4c56050a421a15"
+    },
+    "tests/test_release_distribution.py": {
+      "bytes": 1402,
+      "public_classes": [],
+      "public_functions": [
+        "test_release_workflow_publishes_only_to_github",
+        "test_installation_paths_are_github_native"
+      ],
+      "sha256": "23c3c34e39467f936cbf3cdf5fb7b6938f97fd21ca81711aa9fae57b2d06a3ca"
+    },
+    "tests/test_request_authority.py": {
+      "bytes": 9872,
+      "public_classes": [],
+      "public_functions": [
+        "test_full_graphql_operation_selection",
+        "test_ambiguous_or_unmodeled_graphql_fails_closed",
+        "test_whole_batch_order_multiplicity_variables_and_directives_are_bound",
+        "test_derived_request_v2_is_action_bound_and_protocol_isolated",
+        "test_generic_rpc_derives_exact_argument_and_batch_authority",
+        "test_generic_rpc_cannot_downgrade_unknown_effects_to_read",
+        "test_opaque_sibling_cannot_borrow_another_requests_restrictions",
+        "test_wildcard_network_grants_keep_protocol_and_port_boundaries",
+        "test_more_than_128_nested_fields_follow_the_declared_v2_budget",
+        "test_ambiguous_lexemes_and_unmodeled_pinned_escapes_fail_closed",
+        "test_pinned_scalar_escapes_and_literal_unicode_remain_supported",
+        "test_wire_query_or_fragment_delimiters_are_not_authorized"
+      ],
+      "sha256": "fa78b637bf55fd4755f10f18f3c9d9f2f9c6e25b60bd59b5eeaa579bb107e817"
+    },
+    "tests/test_request_commitment.py": {
+      "bytes": 4826,
+      "public_classes": [],
+      "public_functions": [
+        "test_commitment_is_order_independent_but_preserves_argument_and_type_authority",
+        "test_unicode_and_control_values_are_committed_without_normalizing_them",
+        "test_raw_decimals_keep_precision_and_duplicates_fail_closed",
+        "test_rpc_correlation_id_cannot_change_authority_but_params_and_methods_do",
+        "test_malformed_unbounded_or_unportable_values_have_generic_errors",
+        "test_cycles_and_excessive_depth_are_rejected",
+        "test_portable_vectors_match_the_audited_runtime_encoding",
+        "test_commitment_performs_no_io_and_does_not_echo_sensitive_values"
+      ],
+      "sha256": "271d0888cd370e6ea6909ebaa78919b52799be32606f9ac1b69437d5d22997c2"
+    },
+    "tests/test_review.py": {
+      "bytes": 895,
+      "public_classes": [],
+      "public_functions": [
+        "test_review_reports_intent_alignment",
+        "test_review_warns_when_command_mismatches_intent",
+        "test_review_asks_for_unclassified_command_without_intent"
+      ],
+      "sha256": "31b9a1b12eba441eb33f6e0c93bf660746ed390a7a4fee584c1ceef11cb69d57"
+    },
+    "tests/test_risk.py": {
+      "bytes": 5551,
+      "public_classes": [],
+      "public_functions": [
+        "test_chmod_777_warns_high",
+        "test_root_delete_blocks",
+        "test_root_glob_delete_blocks",
+        "test_readonly_command_allows",
+        "test_secret_file_warns",
+        "test_empty_command_blocks",
+        "test_package_install_warns",
+        "test_docker_prune_warns_high",
+        "test_unknown_command_asks_instead_of_allowing",
+        "test_risky_segment_raises_compound_command_decision",
+        "test_newline_separates_commands_for_review",
+        "test_download_piped_to_shell_warns_high",
+        "test_download_stderr_piped_to_shell_warns_high",
+        "test_shell_c_payload_is_reviewed_recursively",
+        "test_grouped_subshell_is_reviewed_recursively",
+        "test_command_substitution_is_reviewed_recursively",
+        "test_command_substitution_inside_double_quotes_is_reviewed",
+        "test_legacy_backtick_substitution_is_reviewed",
+        "test_single_quoted_command_substitution_is_not_executed",
+        "test_single_quoted_backtick_substitution_is_not_executed",
+        "test_command_text_inside_quotes_does_not_trigger_rm_rules",
+        "test_sensitive_redirection_warns_high",
+        "test_combined_stream_redirection_to_sensitive_path_warns_high",
+        "test_malformed_shell_input_asks_for_clarification"
+      ],
+      "sha256": "57a640c40444adc647e0c5c4122fcd8b011fba4f144999c8ef0234814ffdc1af"
+    },
+    "tests/test_runtime_boundary.py": {
+      "bytes": 10750,
+      "public_classes": [],
+      "public_functions": [
+        "candidate",
+        "test_empty_contract_within_empty_boundary_has_complete_coverage",
+        "test_exact_filesystem_access_and_resource_match",
+        "test_access_lattice_does_not_equate_write_delete_or_execute",
+        "test_nested_filesystem_prefix_needs_explicit_semantics_and_runtime_guarantee",
+        "test_unknown_scope_never_counts_as_proven_permission",
+        "network",
+        "test_network_exact_endpoint_method_path_and_prefix_boundary",
+        "test_request_permissions_are_compared_as_method_path_pairs_across_rules",
+        "test_encoded_ambiguous_and_wildcard_candidate_paths_fail_closed",
+        "test_rest_cannot_be_satisfied_by_protocol_downgrade_in_candidate",
+        "test_unmodeled_protocols_preserve_unsupported_coverage",
+        "test_unknown_contract_fields_are_explicit_non_success_even_with_other_covered_domains",
+        "test_credentials_require_independent_exact_binding_host_and_port",
+        "test_exact_tool_identity_is_separate_from_network_access",
+        "test_process_identity_child_scope_and_privilege_are_independent",
+        "test_blocked_decision_never_verifies_as_grantable",
+        "test_boundaries_are_immutable_round_trip_and_schema_parity_checked",
+        "test_boundary_verification_performs_no_host_io_or_dns"
+      ],
+      "sha256": "8b2608821b40db9c8017c8656401037f1e91625b3332769555d597ce3bedb4bb"
+    },
+    "tests/test_runtime_cli.py": {
+      "bytes": 6309,
+      "public_classes": [],
+      "public_functions": [
+        "write_json",
+        "test_review_codec_round_trip_preserves_original_review_and_does_not_reclassify",
+        "test_capability_derive_and_validate_do_not_execute_or_access_network",
+        "test_capability_verify_only_within_boundary_succeeds",
+        "test_ordinary_observation_json_cannot_bless_strong_runtime_labels",
+        "test_world_readable_or_symlink_trusted_source_is_rejected_on_posix",
+        "test_invalid_duplicate_oversized_inputs_do_not_echo_private_values",
+        "test_additive_root_exports_and_help_are_discoverable"
+      ],
+      "sha256": "ca45b8fc0619a4186def1c08e70eb73723e7557032d660fbc90e98a3c0b7c646"
+    },
+    "tests/test_runtime_contract.py": {
+      "bytes": 15965,
+      "public_classes": [],
+      "public_functions": [
+        "reviewed",
+        "test_action_digest_and_contract_identity_are_canonical_and_deterministic",
+        "test_filesystem_access_preserves_semantics",
+        "test_recursive_delete_uses_corresponding_subtree_scope",
+        "test_network_access_does_not_invent_protocol_or_method",
+        "test_url_authority_consistency_preserves_diagnostic_derivation",
+        "test_process_execution_without_arbitrary_child_permission",
+        "test_explicit_privilege_wrapper_is_preserved_even_without_effect",
+        "test_privilege_effect_is_not_an_invented_uid",
+        "test_mcp_exact_identity_requires_actual_registered_semantics",
+        "test_unknown_generic_tool_never_becomes_an_allowlist",
+        "test_missing_resource_is_explicit",
+        "test_ambiguous_paths_do_not_turn_into_wildcards",
+        "test_sensitive_and_malformed_urls_never_leak",
+        "test_raw_action_arguments_and_caller_credential_claims_are_not_copied",
+        "test_schemas_round_trip_and_identity_tampering",
+        "test_nested_immutability_and_detached_serialization",
+        "test_size_collection_and_strict_type_bounds",
+        "test_grant_state_preserves_review_requirement",
+        "test_derivation_performs_no_io_or_execution",
+        "test_existing_capability_profile_and_review_v1_remain_unchanged",
+        "test_canonical_digest_handles_unicode_and_parameter_order",
+        "test_ambiguous_effect_resource_association_is_explicit",
+        "test_compound_execution_never_becomes_a_single_program_permission",
+        "test_schema_and_model_reject_unrecognized_authority_fields",
+        "test_invalid_endpoints_keep_an_explicit_unknown"
+      ],
+      "sha256": "06b7ed37d2ef4b1309bd61fca82fe09cf65ab0abbc0e1f58ef6bef41159b3ceb"
+    },
+    "tests/test_runtime_evaluation.py": {
+      "bytes": 3248,
+      "public_classes": [],
+      "public_functions": [
+        "test_runtime_integration_evaluation_exercises_process_boundaries",
+        "test_runtime_report_is_sanitized_and_documents_representative_cases",
+        "test_runtime_evaluation_rejects_invalid_repetition_count",
+        "test_runtime_evaluation_requires_versioned_process_fixtures"
+      ],
+      "sha256": "fb442433c83f27de441ebe4dc2ed5adb052a45bf32970916082cfacecc52136b"
+    },
+    "tests/test_runtime_extension_build.py": {
+      "bytes": 2389,
+      "public_classes": [],
+      "public_functions": [
+        "test_runtime_build_source_rejects_unaudited_inputs"
+      ],
+      "sha256": "b44def5cc29d3ce3f6affb3e8a5ae2b6c895bf4d02a0cddec897e1568d24e66d"
+    },
+    "tests/test_runtime_observation.py": {
+      "bytes": 27572,
+      "public_classes": [],
+      "public_functions": [
+        "fixture",
+        "event",
+        "registry",
+        "test_plain_json_and_constructor_cannot_self_declare_strong_trust",
+        "test_host_source_is_exact_and_record_mutation_invalidates_authority",
+        "test_weak_round_trip_and_strong_explicit_trusted_restore",
+        "test_correlation_rejects_unknown_changed_conflicting_and_duplicate_evidence",
+        "test_ambiguous_actions_and_wrong_source_session_are_rejected",
+        "test_backend_permission_is_not_completed_execution",
+        "test_completed_backend_evidence_strengthens_existing_temporal_rule",
+        "test_denied_secret_attempt_strengthens_without_claiming_secret_was_read",
+        "test_predicted_danger_and_legacy_observations_are_preserved",
+        "test_repeated_enforced_denials_require_same_exact_resource",
+        "test_runtime_evidence_never_weakens_existing_ask_requirement",
+        "test_runtime_privilege_alternative_requires_exact_target_and_mutation",
+        "test_credentials_and_raw_payload_metadata_are_rejected_without_echo",
+        "test_resource_urls_cannot_carry_credentials",
+        "test_schema_parity_immutability_and_collection_limits",
+        "test_audit_keeps_digests_and_redacts_resource_and_action_id_by_default",
+        "bound_session",
+        "test_session_retains_reviewed_context_correlates_and_restores_sidecar",
+        "test_reset_and_reused_action_id_cannot_attach_stale_runtime_evidence",
+        "test_retention_prunes_action_contract_and_runtime_events_together",
+        "test_policy_reporting_scope_change_is_explicit_and_bound_to_action",
+        "test_sqlite_persists_both_parts_atomically_and_requires_trusted_sources",
+        "test_persistent_reset_changes_runtime_epoch_and_preserves_monotonic_sequence",
+        "test_cross_session_and_rejected_events_do_not_mutate_retained_state",
+        "test_normal_review_json_cannot_import_backend_labels",
+        "test_backend_observed_never_becomes_backend_enforced",
+        "test_url_authority_consistency_applies_to_asserted_and_trusted_observations",
+        "test_malformed_url_cannot_borrow_a_denied_endpoint_for_retry_reasoning",
+        "test_two_distinct_denied_targets_are_not_repeated_access_to_one_resource",
+        "test_blocked_proposal_cannot_claim_completed_runtime_execution",
+        "test_runtime_normalization_performs_no_execution_or_network"
+      ],
+      "sha256": "6c644d9d0b186bbb1ec9b3e07fa1b4fc3f57a0bf30e865d1859d57d34c932be6"
+    },
+    "tests/test_runtime_requirements.py": {
+      "bytes": 5906,
+      "public_classes": [],
+      "public_functions": [
+        "get_review",
+        "test_reviewed_literal_get_derives_exact_rest_request_without_any_runtime_io",
+        "test_config_redirect_dynamic_sensitive_or_ambiguous_requests_remain_unknown",
+        "test_host_runtime_requirements_survive_review_codec_without_rewriting_semantics",
+        "test_context_facts_cannot_erase_block_or_unknown_tool_semantics",
+        "test_profile_collections_are_immutable_and_malformed_requirements_fail",
+        "test_conflicting_or_absolute_binary_rewrites_remain_diagnostic"
+      ],
+      "sha256": "3aed600411518910327dbb33149baf788f6ee19778c5ce3de478b0348d34f5b3"
+    },
+    "tests/test_runtime_url.py": {
+      "bytes": 935,
+      "public_classes": [],
+      "public_functions": [
+        "test_raw_authority_check_covers_every_ascii_control_space_and_del",
+        "test_raw_authority_check_performs_no_io_or_normalization"
+      ],
+      "sha256": "94b1540620a7c54d8ac91f81968a05ff5b9b63057a6010f791cc89e26ed67c41"
+    },
+    "tests/test_safety_benchmark.py": {
+      "bytes": 5730,
+      "public_classes": [],
+      "public_functions": [
+        "test_repository_safety_fixtures_have_zero_false_allows_and_critical_misses",
+        "test_trajectory_cases_are_explicitly_measured",
+        "test_priority_domain_semantics_are_measured_in_benchmark",
+        "test_fuzz_generation_is_deterministic_for_recorded_seed",
+        "test_adversarial_dangerous_forms_do_not_weaken_decisions",
+        "test_generic_tool_and_mcp_fuzz_is_deterministic_and_fail_closed",
+        "test_declarative_policy_accuracy_has_no_misses",
+        "test_fixture_loader_rejects_duplicate_ids",
+        "test_fixture_validation_is_fail_closed",
+        "test_performance_budgets_are_hard_regression_gates",
+        "test_report_exposes_machine_readable_metrics"
+      ],
+      "sha256": "361d9f1f7d8cec43c98f04e88ec871296ef371dbd987d88c30e48f572434320a"
+    },
+    "tests/test_schemas.py": {
+      "bytes": 3968,
+      "public_classes": [],
+      "public_functions": [
+        "test_checked_in_schema_files_are_well_formed",
+        "test_public_runtime_payloads_satisfy_published_schemas",
+        "test_bundled_risk_rules_and_effect_catalog_satisfy_schemas",
+        "test_validator_reports_missing_required_property",
+        "test_risk_semantics_detect_invalid_regex_and_duplicate_ids",
+        "test_template_semantics_detect_unknown_slots_and_broken_defaults",
+        "test_source_and_packaged_resources_are_identical",
+        "test_doctor_health_includes_all_validation_layers"
+      ],
+      "sha256": "f24c95aad1f493cd5f76c04e1e093775f7bd977977825080b80744806c1f0df1"
+    },
+    "tests/test_search.py": {
+      "bytes": 2176,
+      "public_classes": [],
+      "public_functions": [
+        "test_runnable_query_finds_chmod_first",
+        "test_port_query_finds_inspection_tools",
+        "test_single_digit_port_query_preserves_the_requested_port",
+        "test_disk_usage_query_finds_du",
+        "test_find_named_query_suggests_find_template",
+        "test_find_query_preserves_unquoted_leading_wildcard",
+        "test_find_named_query_preserves_unquoted_trailing_wildcard",
+        "test_package_query_finds_package_managers",
+        "test_dns_query_finds_dig"
+      ],
+      "sha256": "a943d1882bd72023ff8437aabe3a2207fe4d4449760542b453e1a42574eba204"
+    },
+    "tests/test_search_availability.py": {
+      "bytes": 4708,
+      "public_classes": [],
+      "public_functions": [
+        "test_installed_command_wins_an_otherwise_equal_rank",
+        "test_search_result_with_availability_validates_schema",
+        "test_distro_specific_command_stays_visible_when_incompatible",
+        "test_search_refreshes_changed_metadata_and_executable_availability",
+        "test_debian_family_metadata_is_exposed_for_apt"
+      ],
+      "sha256": "25014896e8e5927fa9c30d2c444320daa946d7c82ef425a2d375537701625676"
+    },
+    "tests/test_search_benchmark.py": {
+      "bytes": 2654,
+      "public_classes": [],
+      "public_functions": [
+        "test_search_quality_fixture_corpus_is_well_formed",
+        "test_search_quality_fixture_requirements_hold",
+        "test_search_quality_baseline_metrics_do_not_regress",
+        "test_benchmark_reports_rank_and_tag_metrics"
+      ],
+      "sha256": "2127ef9027aff3534859f1c5b30f54c42ff405a3311da1a7c87750d20827c6e7"
+    },
+    "tests/test_security_integrity.py": {
+      "bytes": 6476,
+      "public_classes": [],
+      "public_functions": [
+        "distributions",
+        "test_release_integrity_binds_both_formats_and_build_inventory",
+        "test_release_rejects_runtime_version_mismatch",
+        "test_release_checks_reject_stale_failed_or_missing_check_heads",
+        "test_workflow_guard_rejects_floating_actions_and_persisted_credentials",
+        "test_audit_independent_concurrent_writers_serialize_one_chain",
+        "test_audit_rejects_ambiguous_nonfinite_and_deep_json",
+        "test_audit_refuses_append_after_external_tampering_and_bounds_reads",
+        "test_audit_rejects_public_modes_and_symlinks",
+        "test_security_findings_are_permanent_failure_regression_controls"
+      ],
+      "sha256": "99a137d8f73476d496322859186255ba1763dbb75b00567da5ee4e542550476d"
+    },
+    "tests/test_semantic_benchmark.py": {
+      "bytes": 1554,
+      "public_classes": [],
+      "public_functions": [
+        "test_ranker_comparison_quantifies_quality_and_latency_tradeoff"
+      ],
+      "sha256": "339e689b1070685c545e8f60f58e4e29d03fb0a86880abeb465b6911dca421a1"
+    },
+    "tests/test_semantic_reranking.py": {
+      "bytes": 5689,
+      "public_classes": [
+        "KeywordReranker",
+        "BrokenReranker"
+      ],
+      "public_functions": [
+        "test_default_search_does_not_invoke_semantic_backend",
+        "test_semantic_backend_can_rerank_close_bm25_candidates",
+        "test_semantic_search_result_remains_schema_valid",
+        "test_semantic_scores_are_clamped_and_length_checked",
+        "test_nonfinite_semantic_scores_cannot_become_confident_ranking_signals",
+        "test_optional_backend_loads_an_explicit_local_model_only",
+        "test_invalid_semantic_weight_is_rejected",
+        "test_local_sentence_transformer_backend_refuses_missing_path",
+        "test_broken_backend_cannot_return_partial_scores"
+      ],
+      "sha256": "98548c28333961d0f476fdd554f15b3fe96e42a6f1a3634f77e581fe511cfe49"
+    },
+    "tests/test_session.py": {
+      "bytes": 15768,
+      "public_classes": [],
+      "public_functions": [
+        "test_live_claude_repeated_destructive_and_privileged_actions",
+        "test_live_claude_post_observation_changes_later_upload_and_reset_clears_it",
+        "test_live_mcp_observation_is_linked_and_sessions_are_isolated",
+        "test_unknown_or_cross_session_observations_do_not_modify_history",
+        "test_history_is_bounded_and_snapshots_cannot_mutate_live_state",
+        "test_session_rejects_duplicates_denied_observations_and_ended_reuse",
+        "test_native_hook_denials_survive_storage_and_reject_post_evidence",
+        "test_claude_approval_flow_can_still_record_an_escalated_action",
+        "test_host_without_approval_can_observe_a_policy_permitted_warning",
+        "test_store_missing_config_mismatch_and_corruption_fail_closed",
+        "test_concurrent_store_updates_are_serialized_without_cross_session_state",
+        "test_store_rolls_back_failed_reviews",
+        "test_store_requires_private_file_and_rejects_symlinks",
+        "test_hook_process_lifecycle_persists_history_and_rejects_missing_state",
+        "test_snapshot_cannot_transfer_to_another_runtime_server_or_session",
+        "test_mcp_concurrent_duplicate_request_cannot_execute_twice",
+        "test_store_oversized_database_is_rejected_without_reading_contents"
+      ],
+      "sha256": "4d299618f6bb94d25f86e498ba9b230293d9185cf07e0bebfbb34a1b352171cf"
+    },
+    "tests/test_setup.py": {
+      "bytes": 10808,
+      "public_classes": [],
+      "public_functions": [
+        "settings",
+        "test_preview_apply_idempotence_smoke_and_removal_preserve_unrelated_files",
+        "test_existing_configuration_and_modified_owned_files_are_never_overwritten",
+        "test_partial_write_rolls_back_only_created_files",
+        "test_interrupted_setup_can_complete_without_overwriting_an_owned_file",
+        "test_setup_rejects_a_file_created_after_the_plan",
+        "test_idempotent_setup_detects_an_edit_after_the_plan",
+        "test_lock_and_escaping_paths_refuse_mutation",
+        "test_symlink_and_insecure_private_state_refusal",
+        "test_opt_in_evidence_and_launcher_configuration_are_explicit",
+        "test_mcp_setup_requires_reviewed_pins_and_keeps_unknowns_untrusted",
+        "test_credentials_are_not_copied_into_mcp_configuration",
+        "test_mcp_http_setup_rejects_present_userinfo_with_generic_diagnostics",
+        "test_main_cli_discovers_setup_and_machine_readable_preview"
+      ],
+      "sha256": "7bf518af895b146bf69a2bc7635523c29730dbeafdb79cc73d198eff4af53c3c"
+    },
+    "tests/test_shell.py": {
+      "bytes": 1694,
+      "public_classes": [],
+      "public_functions": [
+        "test_compound_shell_is_segmented",
+        "test_newline_is_a_command_boundary",
+        "test_quoted_pipe_does_not_split_segment",
+        "test_stderr_pipe_is_a_command_boundary",
+        "test_executable_name_unwraps_sudo",
+        "test_executable_name_normalizes_python_module_execution",
+        "test_command_substitution_is_extracted_inside_double_quotes",
+        "test_single_quote_inside_double_quotes_does_not_disable_substitution",
+        "test_command_substitution_is_ignored_inside_single_quotes"
+      ],
+      "sha256": "54058230159f1bb2b7eaa12be1fc604ab6be1cf633e5c4591ccbf6204c093d12"
+    },
+    "tests/test_shell_integration.py": {
+      "bytes": 5812,
+      "public_classes": [],
+      "public_functions": [
+        "test_bash_init_is_explicit_reversible_and_has_no_eval",
+        "test_zsh_init_includes_review_accept_widget_without_rebinding_enter",
+        "test_shell_init_cli_prints_script",
+        "test_unsupported_shell_is_rejected",
+        "shell",
+        "test_wrapper_executes_allowed_exact_text",
+        "test_wrapper_does_not_execute_rejected_text",
+        "test_generated_script_has_valid_syntax",
+        "test_wrapper_rejects_bad_threshold_and_can_be_disabled",
+        "test_zsh_widget_obeys_review_result"
+      ],
+      "sha256": "f9528f35dfcbf12fefd321c7fb2689f81a7d59a4be414a0ebefba3dede697e77"
+    },
+    "tests/test_templates.py": {
+      "bytes": 2797,
+      "public_classes": [],
+      "public_functions": [
+        "test_extracts_common_slots",
+        "test_extracts_url_slot",
+        "test_extracts_all_valid_port_widths",
+        "test_out_of_range_ports_do_not_produce_a_port_slot",
+        "test_preserves_complete_filename_globs",
+        "test_quoted_pattern_is_not_replaced_by_a_partial_glob",
+        "test_does_not_treat_a_url_query_as_a_filename_glob",
+        "test_renders_template_when_slots_exist",
+        "test_does_not_render_when_slot_missing",
+        "test_slot_extraction_does_not_invent_path_or_depth",
+        "test_mutating_template_requires_explicit_target",
+        "test_safe_template_defaults_are_opt_in"
+      ],
+      "sha256": "1648721fe55bfe29a63b1438ba5f4a90aadccb39ce8ff5fc0e2ce5906e86dbe2"
+    },
+    "tests/test_temporal_cli.py": {
+      "bytes": 1607,
+      "public_classes": [],
+      "public_functions": [
+        "test_temporal_validate_reports_policy_metadata",
+        "test_temporal_validate_rejects_unbounded_window"
+      ],
+      "sha256": "6dd921d6f825ad76f0a6c955571f761ea85eeea98e7cc9f2236733fa9ea19ad9"
+    },
+    "tests/test_temporal_policy.py": {
+      "bytes": 6455,
+      "public_classes": [],
+      "public_functions": [
+        "test_default_temporal_policy_is_data_defined_and_preserves_rule_ids",
+        "test_state_machine_requires_sequence_to_complete_on_current_action",
+        "test_state_machine_respects_bounded_action_window",
+        "test_temporal_rule_rejects_unbounded_or_impossible_patterns",
+        "test_action_history_round_trip_and_bound",
+        "test_generic_action_review_uses_history_and_default_temporal_policy",
+        "test_generic_download_permission_execute_chain_matches_default_policy",
+        "test_temporal_policy_direct_inputs_are_bounded",
+        "test_temporal_policy_loader_validates_schema"
+      ],
+      "sha256": "08e79e3d9c847e22b0441df1a2a0d4c28f8a3b0cd2e56ca70c8e34b03bc3514a"
+    },
+    "tests/test_tool_semantics.py": {
+      "bytes": 6694,
+      "public_classes": [],
+      "public_functions": [
+        "test_exact_mcp_identity_produces_trusted_effects_and_resources",
+        "test_wrong_server_does_not_reuse_semantics_for_same_tool_name",
+        "test_generic_runtime_identity_is_exact",
+        "test_registry_rejects_unknown_effects_and_duplicate_identities",
+        "test_compiled_registry_uses_read_only_exact_lookup",
+        "test_tool_semantics_feed_temporal_review",
+        "test_agent_gate_uses_same_registry_and_never_needs_parallel_safety_logic",
+        "test_loader_validates_schema_and_compiles_exact_identities"
+      ],
+      "sha256": "361af3909cafb138470eed5587e18638aac8f5aa32836bae86e9a09c53e24804"
+    },
+    "tests/test_trace_capture.py": {
+      "bytes": 16288,
+      "public_classes": [],
+      "public_functions": [
+        "hook",
+        "call",
+        "semantics",
+        "captured_failure",
+        "test_temporal_capture_sanitize_replay_and_all_promotion_targets",
+        "test_raw_requires_explicit_opt_in_and_sanitizer_always_discards_it",
+        "test_hook_capture_default_off_and_private_metadata",
+        "test_claude_separate_hook_processes_capture_correlated_observations",
+        "test_http_capture_shares_sink_but_isolates_real_session_identities",
+        "test_unsafe_or_nonreproducing_candidates_cannot_write_corpus",
+        "test_capture_capacity_type_mode_schema_and_observation_guards",
+        "test_concurrent_capture_and_promotion_lock_do_not_lose_events",
+        "test_capture_private_permissions_and_symlink_refusal",
+        "test_cli_inspect_sanitize_replay_and_promote_require_explicit_output",
+        "test_identity_mutation_keeps_untrusted_tool_distinct",
+        "test_reset_and_interleaved_observations_require_explicit_reduction",
+        "test_custom_metadata_labels_cannot_smuggle_private_values",
+        "test_promoted_example_remains_permanent_offline_conformance"
+      ],
+      "sha256": "db418b7875ed1b0af9feff48c053adf81baaeb51007987180eda328dee6ec79f"
+    },
+    "tests/test_trace_cli.py": {
+      "bytes": 991,
+      "public_classes": [],
+      "public_functions": [
+        "test_stdin_trace_reaches_review_and_blocks_exfiltration"
+      ],
+      "sha256": "ae8db50b20a4dc263c70ba89119db06d66a75b85e22ef37fc0b84e4fadb8f61f"
+    },
+    "tests/test_trace_request_schema.py": {
+      "bytes": 1115,
+      "public_classes": [],
+      "public_functions": [
+        "test_trace_request_and_review_result_match_public_schemas",
+        "test_trace_rejects_more_than_32_actions"
+      ],
+      "sha256": "7f06013d387a9c170d919e08c8aae06d776d3136c9b33d8f75e90faca582d2f7"
+    },
+    "tests/test_trajectory.py": {
+      "bytes": 4047,
+      "public_classes": [],
+      "public_functions": [
+        "test_secret_read_then_upload_is_critical_trajectory",
+        "test_download_chmod_execute_chain_is_elevated",
+        "test_repeated_destructive_actions_emit_trajectory_category",
+        "test_repeated_privilege_escalation_is_elevated",
+        "test_benign_trace_does_not_create_trajectory_findings",
+        "test_review_request_round_trips_versioned_trace_and_validates_schema",
+        "test_review_result_with_trace_validates_schema",
+        "test_trace_length_is_bounded",
+        "test_trace_rejects_unknown_schema_version"
+      ],
+      "sha256": "407858f899ccb4351471d8acdec4a27f9790caae3fd4155860ad7a68d21b4cc2"
+    },
+    "tests/test_trajectory_corpus.py": {
+      "bytes": 3619,
+      "public_classes": [],
+      "public_functions": [
+        "test_committed_real_agent_corpus_replays_without_regressions",
+        "test_observed_secret_effect_changes_later_review",
+        "test_loader_rejects_duplicate_ids",
+        "test_trajectory_requires_observation_to_reference_same_action",
+        "test_report_json_contains_required_coverage_dimensions"
+      ],
+      "sha256": "b888773db0a7cc9fef5308355a210929c1f25ae99aa13e0cc4964d8a060f6e47"
+    },
+    "tests/test_versioning.py": {
+      "bytes": 639,
+      "public_classes": [],
+      "public_functions": [
+        "test_runtime_version_matches_installed_distribution",
+        "test_post_release_source_does_not_reuse_published_version"
+      ],
+      "sha256": "0a01cc4658d02d7cda830e36ca790430973ef14f89fdf03b40281ec895586aec"
+    }
+  },
+  "wheel_files": {
+    "ordin-0.4.0.dev0.dist-info/METADATA": "89550be1f3162709c202e1a9ecc1d577b5cc83623f5501b988b725fbe59dfbc6",
+    "ordin-0.4.0.dev0.dist-info/RECORD": "6d5c630eede35b54a3cc8ee20a7a3348d38a66dab182824bf2c636b6457cebbe",
+    "ordin-0.4.0.dev0.dist-info/WHEEL": "60b2577585d0d8543452a9f627eea21080bede239ecbc947df10adbc52e477c4",
+    "ordin-0.4.0.dev0.dist-info/entry_points.txt": "e67057649051e3aa12413531ef44b5cdb8eff5102abd848ce0d14e11bed2ac9d",
+    "ordin-0.4.0.dev0.dist-info/licenses/LICENSE": "6b74eda189b52e18c7edcff4955248989a33068a238a164fa8c12300708cee53",
+    "ordin-0.4.0.dev0.dist-info/licenses/NOTICE": "6a79ef6dcc4041f767cb9a798ecafc2bbc7eadf6c90959755a3e5aff077dd6be",
+    "ordin-0.4.0.dev0.dist-info/top_level.txt": "daa9c756cfa0033afcfd7e6035017017683943dc143a969d028b10c6bedd5b4b",
+    "ordin/__init__.py": "d2c348cb1abb2c27718540b7e6d5f29a0d2ee9045697b3520a05d941bd99246d",
+    "ordin/__main__.py": "4e7b8e286b716865e8de77711260d5c6edc52da9f3fccac39c766f659ca56746",
+    "ordin/_audit_storage.py": "60bf4d0b7843662d3ba90b6b5b49df770fbf35306ad895b6850b086424ccdc91",
+    "ordin/_graphql_authority.py": "cf986007b77c862aa062625fa971a5be5c5919ee974c573dfa2290840700810f",
+    "ordin/_json_contracts.py": "6a079d851a782c2e03a9a5750dd25afb11df8641aca22a40f39f1b040e46dab6",
+    "ordin/_private_storage.py": "6e7d0f5931f95693ccbc7969b5bfaaf7ae5693dff7e0c757bcb7401601f2f445",
+    "ordin/_request_commitment.py": "447b1f7dc4739970aaf54dcb7b11a6d997d4a1f8afcdafa557f693547d13ab9c",
+    "ordin/_runtime_host.py": "5ed9766d498718ebcde4e40b82f9b6f7da5eed3136de9baceac3c1cb3a9a2bed",
+    "ordin/_runtime_json.py": "60678d5604f9d271f3505f53f4fd828e3df0b016e91477dd29d7e819b46d678c",
+    "ordin/_runtime_schemas.py": "8f411f0fd1b0df53b230e3eb8e5524bc7dc37c8ee11c11b253d06400231b8792",
+    "ordin/_runtime_url.py": "4df0b11affd7989a4d6e5e1322ea0d7158fee999ff4f789ad7efa1fb2ad4a407",
+    "ordin/action.py": "3b1f5082b397e4eed44a9c49fa146aa37765b40ac6ad7295d4879c177aa1cf1d",
+    "ordin/action_policy.py": "bc8bc3fb286ec7648b9d49360fc091ebcc0182cb71173695fc096065f6e17150",
+    "ordin/adapters.py": "52bc5a76ca37117009020e05d2a8d81bb10ed45f60ee57063552709a33a1faaf",
+    "ordin/agent.py": "fdfe9968975585ab7a688135116a69b9e041dce48b7954bdb67c6e38bc6696ba",
+    "ordin/agent_safety_corpus.py": "92d09a8ab5c4d13988ce5abefa58368091a355650245c9841d833aa605089946",
+    "ordin/analyzers/__init__.py": "c3ee858ffe9a06f39b72e2812ff793c8d841c6cdd109bcef4eb73fdec30ab7b6",
+    "ordin/analyzers/_domain.py": "de9f49cab8db99289bc41f960ce14e91c0b1b01201059b4475c060d1b629f4b9",
+    "ordin/analyzers/aws.py": "e801f5373d7c7b56ba9b18bbb5e2c6ab0a2f35861ae1697c37a1a74467bf5149",
+    "ordin/analyzers/azure.py": "181fc51958eee2d93c9ebb10c7e413fe099c5560c967d98e938cd773e46fb8e7",
+    "ordin/analyzers/base.py": "d968483cb68f2a23285101958d127451cdb4db32719ee77a94804ec19c79ce14",
+    "ordin/analyzers/database.py": "1e35e489d6b328311933dba646e9c90280b96f8f16fc7eb380c990bcfe35d945",
+    "ordin/analyzers/docker.py": "93288876db75679932f96448da8a6f7ae5f060aa666edcd993151ae85d664b28",
+    "ordin/analyzers/filesystem.py": "c01fece3450d929f60fcd484f4fc06efe05b14de294a1dad6a7608140ac79f97",
+    "ordin/analyzers/gcloud.py": "e8fe2bd9d577dd846dab6cb93b2ebf317c9d440ae8c8f2fee419b4c9f83c4f2f",
+    "ordin/analyzers/git.py": "6b27d4cd8f32ea3531d23c01dcd7dea9eb8743d441f67534998e7794a1dbfb82",
+    "ordin/analyzers/github.py": "ada66bd0a62551af150fdeafbd7fa8ad65f476cdb0e289eac3522fc329794e4e",
+    "ordin/analyzers/kubernetes.py": "02e72d7d3c1ae9327823defd4da59fd78c55396d049bd34c11f7aadcfa904912",
+    "ordin/analyzers/network.py": "8ed12356d43c69e7e97439aa8a7443b367677cf982a31c0d5af10372c85a6485",
+    "ordin/analyzers/packages.py": "777760044edf1b09b6ea35d3baba6dde981a98011f8f0fd2bc78e27e5008db98",
+    "ordin/analyzers/remote.py": "274a1e15664344b80df11525c90f2b73e18cbbd9085e06772ae851b1cd05184d",
+    "ordin/analyzers/systemd.py": "abda349f46e1fa675719c099227de9e6d9914cc52d712bce00ccf061af90529f",
+    "ordin/analyzers/terraform.py": "24e028d152676d16e66b915aa9d54170b84d808216eb3981d45316fb36ab5b3a",
+    "ordin/api.py": "ef65ef1e931cd154113d1b8d83c584c1537ab353230a68a2406374778d33e30d",
+    "ordin/audit.py": "a49688e62924ac05e43b1bd6043c856b2fb088683cd1bc6517409cc65ad8fd97",
+    "ordin/availability.py": "3aff847b46270fbcf881a926069788438674ff214ed565dc0a168d7dc9d7b779",
+    "ordin/benchmark.py": "c2df4c1925f562c1abdf3d5bbc1aeec2e8286025ca333f7554a09cdd81d9c077",
+    "ordin/capability_delta.py": "6dafb2590034b2f09007bb86a8cb7a9b467b12b3b9a5775a0e38d190f4fdf8ac",
+    "ordin/claude_code.py": "a69bc3750fbc3470d608e12a41715189b3ea67773877bb4856e79124bdb34596",
+    "ordin/cli.py": "be4c1a3fc76b4a90f753d3929a4f59380a6c980ba3e1f322f23661fa89007326",
+    "ordin/codex.py": "7805272e4019d2c71dbc12382b4a12a56d02faa41f3b8558a8747c49c981686e",
+    "ordin/context.py": "54cad438f8999ce2a0d77e06cc926f9009a4c4b6d41cf1488a2ef8669323bd2a",
+    "ordin/contracts_cli.py": "13658fc26d0ad894b36c4b224633725e84a23376cac4a4a24501f8b69e93cb90",
+    "ordin/corpus_controls.py": "67ddba9a7823cda8a9782b4526f73c06ec036ec8a6c416e716f451735257498f",
+    "ordin/cursor.py": "3bd9d85898f7a77639a06d30b967751c0db6226bb26aa3f970f77013c3b46eb4",
+    "ordin/data.py": "0c4f94a228b4f9e372ae17d5d88afea86cf671378f9f5c4061c4740708afe6d9",
+    "ordin/diagnostics.py": "a40066932e7401d26335c6911b46ee771d7bb1e92abdc3b1b8eaf849ff3cf52b",
+    "ordin/enforcement.py": "f7382049d5f73e6cdfcb15a951f3195787a4299c345f9b3ec01bd4e8711b4bc8",
+    "ordin/enforcement_backend.py": "1b3c2018123d9441a7d9eae3358249317d28bac3d5087ae28629ee5e61f0d4d1",
+    "ordin/entrypoint.py": "28261e80ab02572c632df1182583c38b3f4c72a77ad0141c8d0c6795bf7fc0f8",
+    "ordin/execution.py": "114c3c0689c43c3283c68ebcfe9e1802b5a613357c2ac4d00c31025ca4633128",
+    "ordin/graph.py": "9775f7533f5f67c506b7c7632d890e0e10f1f613de4a3a98fa9716c7d9afbc64",
+    "ordin/http_evaluation.py": "13e67352c6ff84971a4539ce8a4a477bb8c92122489afe36176219313d195cf0",
+    "ordin/indexer.py": "8234d275e46bc2644025866de3f9dae2e8abd2b60bac0c754021a7f0cf99d718",
+    "ordin/integration_conformance.py": "9efff5d7baafaf842edec178633d5253332785f84b50145fd078c10b191873f0",
+    "ordin/integration_evaluation.py": "469e323054cdccbfa87fc78642081c62ed336fbe0488259247c77a668b6b2aab",
+    "ordin/mcp_contracts.py": "8c95e973d6944d1b2250c8dcc9e70409764c2265fb8dd05b766e4ddc35469162",
+    "ordin/mcp_http.py": "7e2797964aafe9b116d3cd7527d3a2333d535f8c9a72327581b72deb309acb7a",
+    "ordin/mcp_inspection.py": "61d33fe92f08d23797f96fdd47bebee0d17d58ff1b75744a51d8aed1a1a26355",
+    "ordin/mcp_proxy.py": "4dc829645c63d0941246d2a3cd715e639b42b47cc27e3dac5ad7d9bffc9c022d",
+    "ordin/mcp_setup_cli.py": "78bbfe300d1462ad280c4f063c14d1213022e910380057944f1c15c05b2ac8a7",
+    "ordin/packs.py": "506e25c7cbf26f54074ea55b91ab38d649838560bfb60eb2109af510a9e2e631",
+    "ordin/plugin_assets/ordin/.codex-plugin/plugin.json": "5bbd4c4643a357dd03e05545d3493183f3bcd82b069154d8ae75e7d5fa14ad8e",
+    "ordin/plugin_assets/ordin/hooks/hooks.json": "c715ea100bceab519e081aae20242a4839f55edfde736dfe5a3f51204c5c4650",
+    "ordin/plugin_assets/ordin/scripts/hook.py": "75d854e7e2eb64b95e40663378b98e1c39d8c8f257bf5482e1562a76660e5d89",
+    "ordin/policy.py": "c3905363c62f7412ef97f4206cf905d738a8d0bb099c769b5e53a70b2e8b279a",
+    "ordin/provenance.py": "18a75ff6effcaabb55819a1272a11f81856b9fc3806bb9a7c4e7b3be3fe679b5",
+    "ordin/regression_promotion.py": "42bb0441b4336c4a78a0880d9e8832882a3a0125dbea5ebd8f00ccbe30a48f8b",
+    "ordin/regression_replay.py": "4960a9ee0e14c9c9780945195e3cee0d0c1e728c01a7bbe6ff8ac0aa7694b460",
+    "ordin/resources/commands/apt-get.json": "42473e63b80766a8205b534ae2152f07d54c5b99b1ee9228c1e59ab9a4fa05b4",
+    "ordin/resources/commands/apt.json": "947520fb0451557ebf1b7c38f40d7e199df1b678a57cbd2d13b42271b22b7450",
+    "ordin/resources/commands/cat.json": "c1e85cc619c09583e0256e19750d0556fcd2865eef47372263aecd784b7932b2",
+    "ordin/resources/commands/chmod.json": "45e85821fe3acc9fa98e89d973a980299f7da9631a9aa292b979acf544fdf27a",
+    "ordin/resources/commands/chown.json": "6b61de6b0ad2b1466ea63d45f00226757bd1a0488d1e6c17218fbb4b1c250253",
+    "ordin/resources/commands/cp.json": "efc9d56c6630805b714f39086fa91f29b4f43b5564ac2f9ae77952705bf2d245",
+    "ordin/resources/commands/curl.json": "261e7f12c8af2a19df4e2866b053c7e7864ff95e5ba281ca733515f3f47f6c7c",
+    "ordin/resources/commands/df.json": "2692f041f6d257bd1c5674f01561e26314be45bf434d7577767bb2679995c6e7",
+    "ordin/resources/commands/dig.json": "bb1a79ffd618f574991ae405de8f735c77d24d9d3d33b6642ae49689b811a2ec",
+    "ordin/resources/commands/du.json": "0836e028309f101cde6ec415418ffb16d688f47c62f659f017aa9acf7aa2d2eb",
+    "ordin/resources/commands/find.json": "00faa0e597654133a08196cc6afe5766627ada768906265099fa40b68200866f",
+    "ordin/resources/commands/fuser.json": "7948cc0b0b418fcc27773b263c3d8912219ce0655f1d3d9595a625057c9a534f",
+    "ordin/resources/commands/grep.json": "b48dc7ea8cb7e903b99cd213400c18be8672eaaeb61f1f2b51d4e0be916db851",
+    "ordin/resources/commands/head.json": "19e47a3225fe6ea16777682927c561070688600477e6fb0e36568bc6cb9a6706",
+    "ordin/resources/commands/kill.json": "289a4379fd6d54966cbe68f2f13375e2e357bc648fff45b3afa3842a794647f0",
+    "ordin/resources/commands/ls.json": "4fa0a42e75303da2ec8ed148724b0016fa9f0602dd07a154d764e1b34cf1be68",
+    "ordin/resources/commands/lsof.json": "199aa8aa3f7916674c22003eb153ec5ed266ee9660cfa5078e3c59fd4509a2b5",
+    "ordin/resources/commands/mkdir.json": "1c9593d08ba1a76e459615ae722c3c6d18f058cf45553e37663b9a2798b2db22",
+    "ordin/resources/commands/mv.json": "343f4939c0eadbb63632f78993642873177712643cf505b118e7c8e08bb904e9",
+    "ordin/resources/commands/npm.json": "9cbb437b09229809392567ea93b6f2f8b1847de66f877688c4a601ec9e911cf9",
+    "ordin/resources/commands/ping.json": "74bab290d861d590d00b2f9196d39252a0dd1d0139230015b8770c56bdf38646",
+    "ordin/resources/commands/pip.json": "2dc4e22788c81ac1ac6366a8c3ab8443bdd3a19b1b22cb737f4654c9c488b77e",
+    "ordin/resources/commands/ps.json": "279092095c2fbb6f249c99f33ab6d835087a990b0907c82c12c15d536a23741c",
+    "ordin/resources/commands/rm.json": "c58b35b2950890f1833ce0adf40431195eaf5e6dcd7258fe8a0ff84fb225cbc2",
+    "ordin/resources/commands/ss.json": "5e2324a7f2c17c27e406aecac91e9213f3f3c102be667900f077e37ea5a27026",
+    "ordin/resources/commands/tail.json": "27a99d01a72d584877dd23e6e23a8b55e30474954d9addb59336467a117584e1",
+    "ordin/resources/commands/tar.json": "cf574f46208ec2734cd3743fee3dd921a02d3853d9d1904c94f147bc28221b64",
+    "ordin/resources/commands/touch.json": "a5de118f7b008e4ede24f7f56fd24f8896af13a7bf9f1ac374811108d1bdec0c",
+    "ordin/resources/commands/unzip.json": "bc6f77ab1c382f8c0d64cec6eec51d15258ac9199acbc3d8dd807f87b3397da0",
+    "ordin/resources/commands/wget.json": "2516416eb6c1dec172acb8d6ff49194c1c38388040bcd110c82c34db863ecde1",
+    "ordin/resources/commands/zip.json": "3d0804dd687a04a229a8d12c50c1e65ae8f170fb8bcffaef94566648e8d050b5",
+    "ordin/resources/effects.json": "5ba29b35ba984ba70a5ed8e860efeb1218797025607fcd808dc5f5e870634f3a",
+    "ordin/resources/packs/aws/commands/aws.json": "f83067bb548ba17df48ef5d0ff26b44cb272cfac07208ff964581b6f9b2d74b3",
+    "ordin/resources/packs/aws/effects.json": "5a368dd8e824cf6d32c7a2850e7e930eb4e42a00a57241881fceefe784079f48",
+    "ordin/resources/packs/aws/pack.json": "ff8425952ea49419467f417c4d4f33b0a2662fb5d1734ddaf8b3ed2168ca354a",
+    "ordin/resources/packs/azure/commands/az.json": "55a07d7f372c40ee07edd6e1f519ca3003cf3e0501605f346e60651af48a21cb",
+    "ordin/resources/packs/azure/effects.json": "5a368dd8e824cf6d32c7a2850e7e930eb4e42a00a57241881fceefe784079f48",
+    "ordin/resources/packs/azure/pack.json": "d279a6846d22f331bfb85f7080a73a35297911c44513f6df1bd53611a78f7ff0",
+    "ordin/resources/packs/database/commands/mysql.json": "bd8e5f26401c0d927c790b9f5c1665f7bd5090c641e1c553c4e11773c925f077",
+    "ordin/resources/packs/database/commands/psql.json": "03d6be6797d3164bd3f25977c93de41dce0bc4eb63edb7346a9cde30729857aa",
+    "ordin/resources/packs/database/commands/sqlite3.json": "721fdd0a3eb2ec4b9470c284f2ed3f957fb258fc0908ecafb86432f179afef64",
+    "ordin/resources/packs/database/effects.json": "5a368dd8e824cf6d32c7a2850e7e930eb4e42a00a57241881fceefe784079f48",
+    "ordin/resources/packs/database/pack.json": "026fbdbb48fa802c5b715546a2989bb2bbb1471faec43cd04375d583e98361d1",
+    "ordin/resources/packs/docker/commands/docker.json": "68e34c3d46e24c88f3e61f78dd6fdb42c8f18df6a471d56a4fb97d2c8d6146ca",
+    "ordin/resources/packs/docker/pack.json": "5c94731dafcd7089648704431c10e8e2f0637e8b0b833ed4794b797d4fb9dcee",
+    "ordin/resources/packs/docker/risk_rules.json": "a838ec10be9e864af3a1e214f58a1e0b4c8764a92af815c240b5ff9cab234564",
+    "ordin/resources/packs/gcloud/commands/gcloud.json": "acb02d7c96fa8b36e65dabe2e1a540a461e863da0b477c0540ebf62787ed837f",
+    "ordin/resources/packs/gcloud/effects.json": "5a368dd8e824cf6d32c7a2850e7e930eb4e42a00a57241881fceefe784079f48",
+    "ordin/resources/packs/gcloud/pack.json": "249e81db9fd976249459ec8001fc0abd7ac6074c10baa804565f43981c47489b",
+    "ordin/resources/packs/git/commands/git.json": "0f481c976a5c89b07d5e4164160c811bddd2dbbe659e551a7421c2b6d09c78f8",
+    "ordin/resources/packs/git/pack.json": "cc76eb2fb11bdeb5fcdb384b7adf6bbc7b655e4dfabb5866deb0cb0ec7844161",
+    "ordin/resources/packs/git/risk_rules.json": "72fe64dd9c946bc00b4eac5e7664b9ea9d629a68525496a3c328e91868b403c4",
+    "ordin/resources/packs/github/commands/gh.json": "465a34003546e1ddf6188af36bf799bae124c27d6bfd00ba1e7d03b915a93c77",
+    "ordin/resources/packs/github/effects.json": "5a368dd8e824cf6d32c7a2850e7e930eb4e42a00a57241881fceefe784079f48",
+    "ordin/resources/packs/github/pack.json": "fea5ce4969a6c1201af7f1ba0ff31d80f331d7b153b5d38e1ff5eda1333b094b",
+    "ordin/resources/packs/kubernetes/commands/kubectl.json": "8f38dbacf9d22927ec794e85d921d2c8d8fb1263c7cb91f0e8cb94b2478d3d26",
+    "ordin/resources/packs/kubernetes/effects.json": "5a368dd8e824cf6d32c7a2850e7e930eb4e42a00a57241881fceefe784079f48",
+    "ordin/resources/packs/kubernetes/pack.json": "6a25f52cf8cd3994b21ed41b87785ffb859e412afc841882db47b21f31413f90",
+    "ordin/resources/packs/remote/commands/rsync.json": "98ff8108c4be1352d9e97b11a0de7842f83c41b1525c8ee51b2309fb66113bd9",
+    "ordin/resources/packs/remote/commands/scp.json": "7a59fa47c38dba19bebb8fca3c81e2e9fa8891c96b63f070511d447b1d76dd85",
+    "ordin/resources/packs/remote/commands/ssh.json": "f5a1d643eb161a53969fdd8f4b38d056e992428cf34222f2a62f2d1d08a87a5c",
+    "ordin/resources/packs/remote/effects.json": "5a368dd8e824cf6d32c7a2850e7e930eb4e42a00a57241881fceefe784079f48",
+    "ordin/resources/packs/remote/pack.json": "e607ce32be864d57b1d71981bb7335666c731503f4650095732d58e647b5c47e",
+    "ordin/resources/packs/systemd/commands/journalctl.json": "7843c17fbf56d4640c0ec71b546d211f0623a69b5633e5b6861c42d650812781",
+    "ordin/resources/packs/systemd/commands/systemctl.json": "1b731578bf062f4a7901a5d6c8e37619ad0ae655b0bccc281664367136531164",
+    "ordin/resources/packs/systemd/effects.json": "5a368dd8e824cf6d32c7a2850e7e930eb4e42a00a57241881fceefe784079f48",
+    "ordin/resources/packs/systemd/pack.json": "ecf2f71f040d54e67749f63ef1249219d32a66297c66ab579d0b9f9b23c9eaed",
+    "ordin/resources/packs/terraform/commands/terraform.json": "09b0b38cfe5a07bb1bf7968d6e42b557b76cce38021efda209bd2e4423ea2e0f",
+    "ordin/resources/packs/terraform/commands/tofu.json": "9e03c2f6072906223a8d3a4c3b4883ca924fe63bac21c43c13770a9969b5f5c2",
+    "ordin/resources/packs/terraform/effects.json": "5a368dd8e824cf6d32c7a2850e7e930eb4e42a00a57241881fceefe784079f48",
+    "ordin/resources/packs/terraform/pack.json": "75a01e6c1e13886d6090cd5601c22567b6e4d69a5f1778a6fad80aa3ab1b9d70",
+    "ordin/resources/public-surface-0.3.json": "719b34c217237c0ba6d53ec17b4aff3aa0cb055ad53dcfd10ac0ce57f91734af",
+    "ordin/resources/risk_rules.json": "ec175d3fbe289bc2ecf3aad0cb268f7c61a530d6ca1c7a4ed544ca7fca240769",
+    "ordin/resources/schemas/action-envelope.v1.schema.json": "4a72f1bf92ae7b5c6b62f644f57a886812466c21f647130fd6646504f898bbc7",
+    "ordin/resources/schemas/action-history.v1.schema.json": "703491b44a45c722f0e7fe176c9fe506f3ba51aecd47f89387200a871700ef4a",
+    "ordin/resources/schemas/action-observation.v1.schema.json": "1ce73637525c44d9d4bb37d1a8c78bfcdce54dc3cde681af84e233bd358adadb",
+    "ordin/resources/schemas/action-review.v1.schema.json": "4f2ca1993e843890410dd0842938406b1696c080272eba6230a712de4a1b52c5",
+    "ordin/resources/schemas/action-trace.v1.schema.json": "bbf168272f6506a17f0e41e1479c77e13ad7b9b8083f8d1452f685df383e7e61",
+    "ordin/resources/schemas/audit-event.v1.schema.json": "37f84bc16a37be93d6905b5c56846e2090427c2418889e4ad3c90a0f954f78ab",
+    "ordin/resources/schemas/capability-delta-proposal.v1.schema.json": "758994d52b74dbf2110415a0bd3415ae8c280b188b9e79c6a3da6c2903580eef",
+    "ordin/resources/schemas/codex-mcp-map.v1.schema.json": "ec888d35911a19f3a1da9d7ac545b672c8c5adbf2e0baf3887fa442c376f2c54",
+    "ordin/resources/schemas/command-card.v1.schema.json": "309fc25edf02075fad62a383ec90359ace72d1c63571797ab7e36542fad40269",
+    "ordin/resources/schemas/command-pack.v1.schema.json": "3078bef9ed5155d44411da612a95c72080059eaa2d50f7d4d1b7956f08c9da7f",
+    "ordin/resources/schemas/cursor-mcp-map.v1.schema.json": "f5c32ede738e882de35923b473d4484fa14e89ea744765add0da2c12eb631d99",
+    "ordin/resources/schemas/effect-catalog.v1.schema.json": "d52d8934fba24cc0d1d10a1bece499201b4cf11097bdeba59fb7d61c97c0e8a0",
+    "ordin/resources/schemas/effect-graph.v1.schema.json": "e44b768ee7c69aebafe477993bfce43b7f78116b74edec4357abc8b5b0fd283e",
+    "ordin/resources/schemas/execution-capabilities.v1.schema.json": "ce5d490dead18ceb8e8cec217c6dee768bd602b304754de90b8e57ef93e35b05",
+    "ordin/resources/schemas/integration-session.v1.schema.json": "b3f1ca6219631197cb2a464670f81bd710b2916a6e28a28547c3b639a66d7e48",
+    "ordin/resources/schemas/mcp-contract-lock.v1.schema.json": "5e4108f55f3df2ce67a708946cab47ae547517a2666ff9c4384b65faf572a7b4",
+    "ordin/resources/schemas/mcp-inventory.v1.schema.json": "de66aab4ccf3c5ceb0dec2a1bfe7e24b2935d4186ce58f6bbc547aca6916a305",
+    "ordin/resources/schemas/observation-history.v1.schema.json": "2585b7f5718949570d0a1a5536181c0d8f63407a7a418de1cad8624b2f501ac0",
+    "ordin/resources/schemas/pack-list.v1.schema.json": "42447879d472706a1315f351d9d02f3c9872a2279f13fa80d3062a018a01012e",
+    "ordin/resources/schemas/policy-set.v1.schema.json": "68f97425b605f7c1ec023548e2b5766383403c9d228d612f974822232d51526f",
+    "ordin/resources/schemas/provenance.v1.schema.json": "0855b6ca67df001bf47160757d39230d175e4b74cbc8546ede36cf8c9fa349a9",
+    "ordin/resources/schemas/review-request.v1.schema.json": "86e99d8ef42e10517abf6eb1178aef8378bcb82ef5bb85c737a69c0eeacb5a23",
+    "ordin/resources/schemas/review-result.v1.schema.json": "dca607b53520508346d00fdc8058d0d763d2162e370b93911293641284bee89d",
+    "ordin/resources/schemas/risk-review.v1.schema.json": "2f990cf8838c8842c3021314021f3ca5bfa50516936e4df15b586bc4edbca306",
+    "ordin/resources/schemas/risk-rules.v1.schema.json": "e64f60739c9e8324861858d229c4227f9c6b3adec6ae4d526ae2067e178d9529",
+    "ordin/resources/schemas/runtime-capability-boundary.v1.schema.json": "25906cdea74b52766710a8dc75a0a27dd1a0f8aa55bdaf716378d7b9b58b8c2a",
+    "ordin/resources/schemas/runtime-capability.v1.schema.json": "7e637672de6650bc74b013421dfc490e5fccad49eacfa44cdf3e19849e30eeeb",
+    "ordin/resources/schemas/runtime-observation-history.v1.schema.json": "70114283cf95c270add7bed7712cd9a247c74fcd3e7332f499674766783d8dd6",
+    "ordin/resources/schemas/runtime-observation.v1.schema.json": "62ed2995af92dce0686a2c54c04f1a7f9b561043699d7d3f9daf01e5d62885a8",
+    "ordin/resources/schemas/runtime-request-boundary.v1.schema.json": "645683b381d77419af83cf541830f7a6e3c78fb7f881de18506acbe8d2221d99",
+    "ordin/resources/schemas/runtime-request-boundary.v2.schema.json": "3565c520b1164150405322c1c7571e79bed501bccd1d08a52b56b45c44444c5b",
+    "ordin/resources/schemas/runtime-request-contract.v1.schema.json": "00ced984edf249e78116e0421f50d15774ada355360931c8ae59d3d1c9a7f5c0",
+    "ordin/resources/schemas/runtime-request-contract.v2.schema.json": "6693049a9a38f4c8f1c54c55ed6d7c4cfed562af0e186598cd811930b5a9bd7f",
+    "ordin/resources/schemas/runtime-session.v1.schema.json": "eb72e6e997120cacaf5f58c980f2db1be7487d8914abba08ce65fe7f1694db22",
+    "ordin/resources/schemas/runtime-shadow-report.v1.schema.json": "0c16488e4cf06702c7074072ef2c3ff00381c26701b2c7b3e589560f3bf18849",
+    "ordin/resources/schemas/search-result.v1.schema.json": "a9550d7daf333555707f431574c21bb239ef1708737942c6127e1a11edbc6bbe",
+    "ordin/resources/schemas/temporal-policy-set.v1.schema.json": "c98eaea1e6b4c6f868c848dfe78a588d767a8ac7f116711327c4315474d27999",
+    "ordin/resources/schemas/tool-semantics.v1.schema.json": "a710b5ba715504f6b6e2e5f790065819f02f55aaee9817720c1aec5f24f328ae",
+    "ordin/resources/schemas/trace-candidate.v1.schema.json": "1abe7630a361d7e7558aa78558a7a66523fbf67bdb4b659e9dbf7bac07c04175",
+    "ordin/resources/schemas/trace-event.v1.schema.json": "81361d09efb06c893b52b904b631b2cb21d5f7f4a92bdadefc7a160ed6f95274",
+    "ordin/resources/synonyms.json": "790ff0b46833ef1a535774e24fa2f7f3d4925964317c740e728d08edde4eb825",
+    "ordin/resources/temporal_policies.json": "eff9813c99724e03b666e58cdffde1eb7c9c50e3df8917afe04937521a479031",
+    "ordin/review.py": "ca0cfe577036bf80b9845354395fe9ad5a58bc09d3b931021fa0271bf706c2c0",
+    "ordin/risk.py": "273ddd6b2eb7f4e13b87bc5ee1f293c1400fba64523e9eddb1fed601e76c3d7b",
+    "ordin/runtime_boundary.py": "7f119d11dc3df9ccbcade743123509b0a7ab949769cd1c43dfe906868a107c17",
+    "ordin/runtime_cli.py": "034344bb39ce407b6a4c6ed8b15342f8b54d728bc453a9f8e0e7c9ed865072ff",
+    "ordin/runtime_codec.py": "c1b316c1d3d2dc016efbd4e4fedcce4e22ad7969fa0205258dffa664311475f8",
+    "ordin/runtime_contract.py": "a6b08f63b992f8da8a206d534f5b20d963e9b3ec90eef32f55a7b999833ec676",
+    "ordin/runtime_evaluation.py": "7942b627e98bd1dff3fcbe2dc784ecc56a58533133d38e321c121b2b5adca0be",
+    "ordin/runtime_observation.py": "14a6e4305a3224aad5e043917e9e4053cfc8dba9055af4da88577146b331b86c",
+    "ordin/runtime_reasoning.py": "59d8de6b7dadd6888f0b10100abbac9033f2fc5eef0a7b805deb4fbb8831bbaf",
+    "ordin/runtime_requests.py": "5976a1ed761ba0cd57e2169a90133ada9dc158a0e7aa29df75febcf5020bc5ac",
+    "ordin/runtime_requests_v2.py": "49fb3570afc68ec4df14c0e1ff7826c166d34f11078030dffbe2dc136de40bca",
+    "ordin/runtime_requirements.py": "d9d11a0d1f3b705c6aa8cfe224d95fcfc9eb2447ff92bf9b6227e027b8704661",
+    "ordin/safety_benchmark.py": "c4e84b92f1339dab136ee6c50a1e062148d18945a9158482cfedf6a931de63c3",
+    "ordin/schema.py": "bb79ccb9ff8f6651bfac2d43436e00c2d8c9f6e82cadd484996f9b790e791582",
+    "ordin/search.py": "45c9748fdb37469d72bcd67458978330ef13a000244a825628fc69eaaafb38d5",
+    "ordin/semantic.py": "cb82815d4a19d1ee10177884eb3cd75e8270398f511e7c4860d89b5f816460be",
+    "ordin/semantics.py": "8b9a9490e939976036199f82876268bddf1496e65515a43b8de084123692135d",
+    "ordin/session.py": "71ff4e0d78b96a68dd4d619391879cde146ae1b5bc49865734fb0b8ccd1f8934",
+    "ordin/session_evaluation.py": "66d9bbc7229fd074ece8d2e28823c7b27857cff56fa6f26f0a68a4bdcd4ec735",
+    "ordin/setup.py": "37a739fd8f89e7ac036d7fdc323799d406248e205af1f8ef524b54193ced0134",
+    "ordin/setup_cli.py": "e38ca79236929b354cdd9ab23abbd208dbf53dab0d8ac12ecf4a668863774c02",
+    "ordin/shell.py": "663b7c0f648e847b87b9f7fab0988787fd806dc8c29012ff3066318ee5c461d1",
+    "ordin/shell_integration.py": "f9a7bdb1df8b4c913e205826b27b3b9b55a5b493c9c0ac8f32850af3e8b7e460",
+    "ordin/slots.py": "00d6a9e951f8c3444ebe6751b1649477b0be155b7206a386d3c5f319af7c06f9",
+    "ordin/templates.py": "87d2337fa02d38330d2e04c13ab6f4a4d7a98e47e96252232b689fd64fe3f892",
+    "ordin/temporal.py": "01d1f27980fd081b01e570a0e5348c68b277f722b4b467f4baf92d754fa08570",
+    "ordin/tool_calls.py": "e5f757d8efe0058c2c15e4d08015cd1458eb5f280bdcff4fed6966eba6d9dc14",
+    "ordin/trace.py": "a4adf555c6ee6d3efd3660f15c50ddfd5f03c1c709c20a9da7fadd1cd2f94ecb",
+    "ordin/trace_capture.py": "eb26bc76a3f0dd6a02e38aaf5573cb8592d731ee5f44fdfdd7dc1f4825c3ad7d",
+    "ordin/trace_cli.py": "cd67e0a720c19b35aff5fb2975d766eb480c22f76c4ef5e28476ead0b600bd9d",
+    "ordin/trace_replay.py": "d5eedce3bd758b3ea4e0c3a911f4f80329a2f8537f4555b520aa097aa04ec02f",
+    "ordin/trajectory.py": "5f30ba00a0919410bf421ef2b7aacbf0f118fb57afc597fc6854cac18a8024ee",
+    "ordin/trajectory_corpus.py": "5ddc2b06ad9c94d461616ee388379fa52a84df02e5b2216446f54be28ec545d8"
+  },
+  "wheel_sha256": "70ed29f93887e26fe3ba4342bd12f8af2b81010cea75a1fe8f125d23ed4cad5a"
+}

@@ -1,0 +1,212 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-semantic-state.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 16,
+  "properties": {
+    "action_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "action_kind": {
+      "enum": [
+        "shell",
+        "tool",
+        "mcp",
+        "http",
+        "filesystem",
+        "process",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "authorized_task": {
+      "anyOf": [
+        {
+          "maxLength": 2048,
+          "minLength": 1,
+          "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "baseline_evidence_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "effects": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "gate_configuration_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "host_context_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "host_source_key": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "omitted_fields": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "redaction_policy_id": {
+      "const": "ordin.semantic_privacy.v1",
+      "type": "string"
+    },
+    "remote_eligible": {
+      "type": "boolean"
+    },
+    "risk": {
+      "enum": [
+        "unknown",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_semantic_state.v1",
+      "type": "string"
+    },
+    "signals": {
+      "items": {
+        "enum": [
+          "sensitive_content_redacted",
+          "untrusted_content_present",
+          "untrusted_instruction_context",
+          "sensitive_source_present",
+          "network_effect",
+          "authority_change_candidate",
+          "delegation_candidate",
+          "task_alignment_question",
+          "ambiguous_task_alignment",
+          "unclear_effect",
+          "near_trust_boundary",
+          "cross_agent_flow"
+        ],
+        "type": "string"
+      },
+      "maxItems": 12,
+      "type": "array"
+    },
+    "snippets": {
+      "items": {
+        "additionalProperties": false,
+        "maxProperties": 4,
+        "properties": {
+          "classification": {
+            "enum": [
+              "public",
+              "internal",
+              "sensitive",
+              "secret",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "content_digest": {
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[a-f0-9]{64}$",
+            "type": "string"
+          },
+          "origin_kind": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "origin_kind",
+          "classification",
+          "content_digest"
+        ],
+        "type": "object"
+      },
+      "maxItems": 4,
+      "type": "array"
+    },
+    "task_context_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "action_digest",
+    "baseline_evidence_digest",
+    "gate_configuration_digest",
+    "host_context_digest",
+    "task_context_digest",
+    "host_source_key",
+    "action_kind",
+    "risk",
+    "effects",
+    "authorized_task",
+    "snippets",
+    "signals",
+    "remote_eligible",
+    "omitted_fields",
+    "redaction_policy_id"
+  ],
+  "title": "Ordin assurance semantic state v1",
+  "type": "object"
+}

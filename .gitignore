@@ -9,3 +9,5 @@ build/
 PLAN.md
 .ordin-traces/
 *.ordin-trace.db*
+.assurance-work/
+.assurance-baseline-tests/

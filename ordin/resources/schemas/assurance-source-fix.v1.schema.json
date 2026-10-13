@@ -1,0 +1,191 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-source-fix.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 18,
+  "properties": {
+    "authority_delta": {
+      "enum": [
+        "unchanged",
+        "narrowed",
+        "widened",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "benign_regressions": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "candidate_run_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "candidate_source_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "false_allows": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "integrated": {
+      "const": false,
+      "type": "boolean"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 16,
+      "type": "array"
+    },
+    "original_run_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "original_source_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "original_validation_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "proof_gaps": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 32,
+      "type": "array"
+    },
+    "proposal_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "repository_after": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "repository_before": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "result": {
+      "enum": [
+        "fixed-verified",
+        "still-vulnerable",
+        "inconclusive"
+      ],
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_source_fix.v1",
+      "type": "string"
+    },
+    "suite_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "tested_scope": {
+      "const": "synthetic_path_boundary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "proposal_digest",
+    "original_validation_digest",
+    "original_run_digest",
+    "candidate_run_digest",
+    "repository_before",
+    "repository_after",
+    "original_source_digest",
+    "candidate_source_digest",
+    "suite_digest",
+    "result",
+    "authority_delta",
+    "benign_regressions",
+    "false_allows",
+    "proof_gaps",
+    "tested_scope",
+    "integrated",
+    "limitations"
+  ],
+  "title": "Ordin assurance source fix v1",
+  "type": "object"
+}

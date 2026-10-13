@@ -1,0 +1,229 @@
+{
+  "$id": "https://latentops.space/ordin/schemas/assurance-fix-verification.v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "maxProperties": 21,
+  "properties": {
+    "advisory_only": {
+      "const": true,
+      "type": "boolean"
+    },
+    "alternative_route_misses": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "authority_delta": {
+      "enum": [
+        "unchanged",
+        "narrowed",
+        "widened",
+        "unsupported",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "baseline_p95_ms": {
+      "anyOf": [
+        {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "benign_fixture_digests": {
+      "items": {
+        "maxLength": 64,
+        "minLength": 1,
+        "pattern": "^[a-f0-9]{64}$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "benign_regressions": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "candidate_fixture_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "candidate_p95_ms": {
+      "anyOf": [
+        {
+          "maximum": 86400000,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "candidate_validation_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "integrated": {
+      "const": false,
+      "type": "boolean"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 16,
+      "type": "array"
+    },
+    "original_fixture_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "original_validation_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "proof_gaps": {
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$",
+        "type": "string"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "proposal_digest": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-f0-9]{64}$",
+      "type": "string"
+    },
+    "repository_after": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "repository_before": {
+      "additionalProperties": false,
+      "maxProperties": 2,
+      "properties": {
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "result": {
+      "enum": [
+        "fixed-verified",
+        "still-vulnerable",
+        "inconclusive"
+      ],
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "ordin.assurance_fix_verification.v1",
+      "type": "string"
+    },
+    "simulation_digest": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "tested_scope": {
+      "enum": [
+        "policy_replay"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "proposal_digest",
+    "original_validation_digest",
+    "candidate_validation_digest",
+    "repository_before",
+    "repository_after",
+    "result",
+    "tested_scope",
+    "original_fixture_digest",
+    "candidate_fixture_digest",
+    "benign_fixture_digests",
+    "benign_regressions",
+    "alternative_route_misses",
+    "authority_delta",
+    "simulation_digest",
+    "baseline_p95_ms",
+    "candidate_p95_ms",
+    "proof_gaps",
+    "limitations",
+    "integrated",
+    "advisory_only"
+  ],
+  "title": "Ordin assurance fix verification v1",
+  "type": "object"
+}

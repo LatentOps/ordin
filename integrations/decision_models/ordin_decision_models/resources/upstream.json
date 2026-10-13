@@ -1,0 +1,32 @@
+{
+  "inspected_at": "2026-10-10",
+  "typesafe": {
+    "schema_url": "https://api.typesafe.ai/openapi.json",
+    "schema_version": "0.2.0",
+    "authentication": "HTTP bearer",
+    "discovery": "GET /v1/models",
+    "inference": "POST /v1/systemone",
+    "selected_question_type": "noul",
+    "model_aliases": "Discover from the authenticated catalog; response version requires operator pin."
+  },
+  "laya": {
+    "repository": "https://github.com/NandhaKishorM/laya",
+    "release": "0.4.1",
+    "commit": "1adc59f7e371deb601fcfa18a14e25db238addcc",
+    "source_git_blobs": {
+      "pyproject.toml": "0dc284b97c24743a868e952bdb572ad8a2e189cb",
+      "laya/agent.py": "ba39a978b48d5f2cda5f196da444eb0552e223ff",
+      "laya/router.py": "00bf193aaadafdfb0ce11d0b14f99f7f92cabdf1",
+      "laya/revisions.py": "85a31f3d4bf902b9c9cde4d22787eb3618510f29"
+    },
+    "license": "Apache-2.0",
+    "model_hub": "https://huggingface.co/convaiinnovations/laya",
+    "model_card_license": "Apache-2.0",
+    "observed_model_hub_revision": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+    "policy": "No weights or upstream executable code downloaded, imported or invoked. Operator must choose and hash a reviewed local checkpoint."
+  },
+  "limitations": [
+    "Upstream generic calibration and performance claims are not Ordin security results.",
+    "This metadata is a read-only contract inspection, not a hosted-account or local inference test."
+  ]
+}
