@@ -92,3 +92,13 @@ scope, selected inputs and provider configuration; disabled examples do nothing.
 The full held-out security evaluation, calibration/friction/latency acceptance
 and live TypeSafe/Laya checks remain open. Fake transports/mocks prove contract
 and restriction behavior only. See [decision models](../../docs/assurance/decision-models.md).
+# Offline policy comparison
+
+`python -I -m ordin_decision_models.simulation_demo` runs actual shadow and
+enforced-escalation routing over an owned synthetic fixture using only the
+project mock. The SDK exports `SemanticReplayPolicy`,
+`simulate_semantic_policy_change` and `SemanticPolicySimulationReport`. Reports
+retain conservative change guards, independent session histories, refusal of
+uncertain cases, separate inference timing and call budgets. They execute no
+proposed action and issue no real host approval. See the
+[simulation reference](../../docs/assurance/simulation.md).

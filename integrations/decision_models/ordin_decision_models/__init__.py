@@ -17,6 +17,11 @@ from .mock import MockDecisionModel
 from .routing import RoutingPolicy, SemanticInspectionRouter
 from .fusion import SemanticDecision
 from .sessions import AsyncProviderSessions
+from .simulation import (
+    SemanticReplayPolicy,
+    SemanticPolicySimulationReport,
+    simulate_semantic_policy_change,
+)
 from .checkpoints import LocalCheckpoint
 from .laya import (
     LayaDecisionModel,
@@ -41,6 +46,9 @@ __all__ = [
     "SemanticInspectionRouter",
     "SemanticDecision",
     "AsyncProviderSessions",
+    "SemanticReplayPolicy",
+    "SemanticPolicySimulationReport",
+    "simulate_semantic_policy_change",
     "LocalCheckpoint",
     "LayaDecisionModel",
     "LocalModelRuntime",

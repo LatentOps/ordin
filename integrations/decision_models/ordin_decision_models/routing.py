@@ -107,6 +107,10 @@ class SemanticInspectionRouter:
         self.provider = provider
         self._budget = _Budget(self.policy)
 
+    def budget_snapshot(self):
+        """Return detached call/lifetime counters without changing the budget."""
+        return self._budget.snapshot()
+
     @property
     def configuration_digest(self):
         return digest(
