@@ -1,6 +1,7 @@
 """Only reproduced, reviewed cases enter a protected new-file-only corpus."""
 
 from dataclasses import replace
+from importlib import import_module
 import json
 import os
 from pathlib import Path
@@ -245,6 +246,9 @@ def test_optional_model_fixture_is_a_dedicated_regression_not_core_trace(monkeyp
     monkeypatch.syspath_prepend(
         str(Path(__file__).resolve().parents[2] / "integrations/decision_models")
     )
+    # Load the required SDK during setup, as the optional-property tests do.
+    # Cold imports on Windows must not consume this regression's discovery budget.
+    import_module("ordin_decision_models")
     run = challenge_property(
         property_id="optional_failure_mode",
         seed=14,
@@ -252,6 +256,7 @@ def test_optional_model_fixture_is_a_dedicated_regression_not_core_trace(monkeyp
         trials=32,
         variant="seeded_unsafe_checker",
     )
+    assert run.counterexamples, (run.status, run.unresolved, run.missing_scenarios)
     case = prepare_boundary_regression(
         run.counterexamples[0], case_id="optional-outage", expected_revision="fixture-v1"
     )
