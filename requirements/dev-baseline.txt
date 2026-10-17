@@ -629,9 +629,9 @@ mdurl==0.1.2 \
     --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8 \
     --hash=sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba
     # via markdown-it-py
-more-itertools==11.1.0 ; platform_machine != 'ppc64le' and platform_machine != 's390x' \
-    --hash=sha256:48e8f4d9e7e5878571ecf6f2b4e57634f93cd474cc8cfbd2376f2d11b396e30d \
-    --hash=sha256:4b65538ae22f6fed0ce4874efd317463a7489796a0939fa66824dd542125a192
+more-itertools==11.2.0 ; platform_machine != 'ppc64le' and platform_machine != 's390x' \
+    --hash=sha256:59960f488835254863a857eb501f69e4ec92fdc8822f098c0f48dba530afd487 \
+    --hash=sha256:e4c522352a24664c974d0be8382944107ae638281a06391a5a538366b5707fe5
     # via
     #   jaraco-classes
     #   jaraco-functools
