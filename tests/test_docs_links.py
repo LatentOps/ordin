@@ -13,6 +13,7 @@ def _markdown_files() -> list[Path]:
         PROJECT_ROOT / "README.md",
         PROJECT_ROOT / "CONTRIBUTING.md",
         *sorted((PROJECT_ROOT / "docs").glob("*.md")),
+        *sorted((PROJECT_ROOT / "docs" / "swarm").glob("*.md")),
     ]
 
 
