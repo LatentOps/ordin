@@ -130,6 +130,88 @@ def test_authenticated_a_b_c_sensitive_upload_matches_and_blocks_gate():
     assert decision.denied
 
 
+def test_actual_artifact_gateway_preserves_exact_data_ancestry_for_temporal_matching():
+    from tests.test_swarm_memory import fixture as artifact_fixture
+
+    store, operator, address, collected, flow, _, data = artifact_fixture()
+    contexts, sources = data[2], data[3]
+    original = collected("a", SECRET, labels=("secret",))
+    original_event = flow._record(original).event_id
+    metadata = store.write(sources["a"], address, SECRET, expected_version=0, inputs=(original,))
+    grant = store.grant(
+        address,
+        sources["b"],
+        permissions=frozenset({"read"}),
+        expected_version=1,
+        operator=operator,
+        allowed_labels=frozenset({"secret"}),
+    )
+    received = store.read(sources["b"], address, grant=grant)
+    assert flow._record(flow._record(received.lineage).parents[0]).parents == (original,)
+    policy = SwarmTemporalPolicySet(
+        "artifact-flow",
+        1,
+        (
+            R(
+                "artifact-relay",
+                "critical",
+                (
+                    P(labels_any=("secret",), event_kinds=("artifact_read",)),
+                    P(
+                        event_kinds=("artifact_read",),
+                        agent_relation="different",
+                        transfer_edges=("artifact_written/read",),
+                    ),
+                    P(
+                        effects_any=("network.upload",),
+                        labels_any=("secret",),
+                        requires_lineage=True,
+                        evidence_classes=("current_proposal",),
+                    ),
+                ),
+                scope="swarm",
+            ),
+        ),
+    )
+    engine = SwarmTemporalEngine(data[6], policy, flow=flow, clock=lambda: data[7][0])
+    by_event = {}
+    for handle, row in flow._records.items():
+        by_event.setdefault(row.event_id, []).append(handle)
+    for row in data[1].snapshot():
+        engine.record_event(
+            sources[row.event.identity.agent_id],
+            row.event.event_id,
+            lineage=tuple(by_event.get(row.event.event_id, ())),
+            observed_at=100,
+        )
+    result = engine.evaluate(
+        contexts["b"],
+        sources["b"],
+        upload(SECRET),
+        parent_event_ids=(received.read_event.event_id,),
+        uses=(LineageUse(received.lineage, PATH),),
+    )
+    assert result.status == "violated"
+    assert original_event in result.findings[0].path_event_ids
+    assert metadata.write_event.event_id in result.findings[0].path_event_ids
+
+
+def test_retained_artifact_classification_does_not_invent_overwritten_data_ancestry():
+    from tests.test_swarm_memory import fixture as artifact_fixture
+
+    store, _, address, collected, flow, _, data = artifact_fixture()
+    source = data[3]["a"]
+    secret = collected("a", SECRET, labels=("secret",))
+    store.write(source, address, SECRET, expected_version=0, inputs=(secret,))
+    public = collected("a", "Independent public replacement")
+    metadata = store.write(
+        source, address, "Independent public replacement", expected_version=1, inputs=(public,)
+    )
+    write_handle = store._resources[address].versions[2].lineage
+    assert metadata.labels == ("secret",)  # The resource remains restricted.
+    assert flow._record(write_handle).parents == ()  # Old bytes are not a fabricated origin.
+
+
 def test_public_output_does_not_become_exfiltration_merely_from_secret_ancestor():
     engine, flow, handle, _, _, hosts, event, data = captured()
     # Explicit operator-controlled release produces a fresh public handle. Its
