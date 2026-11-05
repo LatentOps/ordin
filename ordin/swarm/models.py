@@ -189,8 +189,14 @@ class SwarmContext:
         if any(type(entry) is not dict or len(entry) != 5 for entry in entries):
             raise ValueError("invalid bounded coverage entry")
         for container in (value, identity, manifest, *entries):
+            if any(type(key) is not str or len(key) > 128 for key in container):
+                raise ValueError("invalid bounded swarm context keys")
             if any(type(item) is str and len(item) > 512 for item in container.values()):
                 raise ValueError("oversized swarm context field")
+        if type(manifest.get("mode")) is not str or any(
+            type(entry.get("state")) is not str for entry in entries
+        ):
+            raise ValueError("coverage mode and state must be bounded text")
         errors = validate_named_schema("swarm_context", value)
         if errors:
             raise ValueError("invalid swarm context")

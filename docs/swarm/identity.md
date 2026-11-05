@@ -47,6 +47,9 @@ even an exact round trip cannot authenticate. Only the original current context,
 issuing registry, channel and exact protected adapter reference authenticate.
 Mutating an issued context also invalidates it.
 
+Restoration bounds keys, collections and enum types before schema validation.
+Validation errors omit rejected payload values and property names.
+
 The host advances lifecycle explicitly: `pause()`, `end()`, `restart()` and
 `close_channel()`. Restart requires the previous protected binding and a new
 session ID, issues a higher generation and defaults coverage back to `uncovered`.

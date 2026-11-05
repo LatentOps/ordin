@@ -276,6 +276,35 @@ def test_encoded_context_limit_counts_multibyte_resources():
     assert enroll(registry, adapter, channel).identity.generation == 1
 
 
+def test_deserializer_bounds_keys_and_rejects_container_enums_before_formatting_errors():
+    class Unprintable(dict):
+        def __repr__(self):
+            raise AssertionError("untrusted container was formatted")
+
+    registry, adapter, channel, _ = host()
+    context = enroll(registry, adapter, channel)
+    raw = context.as_dict()
+    raw["x" * 129] = raw.pop("registry_id")
+    with pytest.raises(ValueError, match="bounded.*keys"):
+        SwarmContext.from_dict(raw)
+    for field in ("mode", "state"):
+        raw = context.as_dict()
+        if field == "mode":
+            raw["coverage"][field] = Unprintable()
+        else:
+            raw["coverage"]["entries"] = [
+                {
+                    "capability": "tool",
+                    "route": "route",
+                    "resource": "*",
+                    "boundary_id": "host",
+                    "state": Unprintable(),
+                }
+            ]
+        with pytest.raises(ValueError, match="bounded text"):
+            SwarmContext.from_dict(raw)
+
+
 def test_late_enrollment_and_restart_keep_partial_coverage_explicit():
     registry, adapter, channel, now = host()
     manifest = CoverageManifest(
