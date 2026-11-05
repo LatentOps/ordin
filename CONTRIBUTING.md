@@ -17,6 +17,12 @@ python -m pip install -e ".[dev]"
 pre-commit install
 ```
 
+Use Python 3.11 or newer for the pre-commit environment. Its virtualenv/filelock
+toolchain no longer has a supported, security-patched Python 3.10 combination.
+Python 3.10 remains supported for Ordin itself and for running the test suite;
+the development extra and hashed baseline omit that hook toolchain on 3.10.
+Contributors testing on 3.10 should run hooks from a separate 3.11+ environment.
+
 Run the same local quality and integrity gate used by CI:
 
 ```bash
