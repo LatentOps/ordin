@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-message-peer-status.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "peer_digest",
+    "state",
+    "reason_code",
+    "journal_continuity",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_message_peer_status.v1"
+    },
+    "peer_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+      "maxLength": 64
+    },
+    "state": {
+      "enum": [
+        "active",
+        "stale",
+        "quarantined"
+      ]
+    },
+    "reason_code": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+    },
+    "journal_continuity": {
+      "type": "boolean"
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}
