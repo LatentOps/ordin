@@ -6,8 +6,17 @@ from .registry import AgentRegistry, InMemoryAgentRegistry
 from .events import EventRef, SwarmEvent
 from .ingest import ActionEventState, HostEventSource, IngestReceipt, SwarmEventIngestor
 from .journal import EventJournal, JournalRecord
+from .gate import SwarmDecision, SwarmGate
+from .policy import SwarmPolicy, SwarmRule
+from .facts import SwarmAssessment, SwarmAssessmentSource
 
 __all__ = [
+    "SwarmAssessment",
+    "SwarmAssessmentSource",
+    "SwarmDecision",
+    "SwarmGate",
+    "SwarmPolicy",
+    "SwarmRule",
     "ActionEventState",
     "EventJournal",
     "EventRef",

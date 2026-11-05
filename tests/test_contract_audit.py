@@ -38,6 +38,7 @@ from ordin.schema import SCHEMA_FILES, validate_instance, validate_named_schema
 from ordin.session import IntegrationSession, SessionIdentity
 from ordin.swarm import CoverageManifest, SwarmContext, SwarmIdentity
 from ordin.swarm import SwarmEvent
+from ordin.swarm import InMemoryAgentRegistry, SwarmGate
 from ordin.temporal import default_temporal_policy, load_temporal_policy
 from ordin.tool_calls import ToolSemanticsRegistry, load_tool_semantics
 from ordin.trace_capture import TraceRecorder, read_capture
@@ -166,6 +167,17 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
         "command_pack": load_json(DATA_DIR / "packs/git/pack.json"),
         "pack_list": pack_list_payload(),
     }
+    swarm_registry = InMemoryAgentRegistry("tenant", "swarm")
+    swarm_adapter = object()
+    swarm_channel = swarm_registry.bind_channel(swarm_adapter, runtime_id="fixture")
+    swarm_context = swarm_registry.enroll(
+        swarm_channel, swarm_adapter, agent_id="agent", session_id="session"
+    )
+    samples["swarm_decision"] = (
+        SwarmGate(swarm_registry)
+        .evaluate_action(swarm_context, action, channel=swarm_channel, adapter=swarm_adapter)
+        .as_dict()
+    )
     from tests.assurance.contract_examples import assurance_contract_examples
 
     samples.update(assurance_contract_examples(tmp_path))
@@ -290,6 +302,7 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
+        "swarm_decision",
         "swarm_event",
         "swarm_context",
         "cursor_mcp_map",

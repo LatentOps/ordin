@@ -443,6 +443,32 @@ class SwarmEventIngestor:
             sequence_gap,
         )
 
+    def snapshot_binding(self, source: HostEventSource, context: SwarmContext) -> str:
+        """Fingerprint protected scope and stream state without emitting an event."""
+        with self._lock:
+            binding = self._source(source)
+            if binding.context is not context:
+                raise ValueError("snapshot sender belongs to a different current principal")
+            return runtime_digest(
+                {
+                    "scope": self._scope,
+                    "events": [
+                        (record.event.event_id, record.digest, record.source_role)
+                        for record in self._records.values()
+                    ],
+                    "streams": [
+                        (
+                            key,
+                            value.role,
+                            value.context.registry_id,
+                            runtime_digest(value.context.identity.as_dict()),
+                            value.contiguous,
+                        )
+                        for key, value in sorted(self._source_ids.items())
+                    ],
+                }
+            )
+
     def snapshot(self) -> tuple[JournalRecord, ...]:
         """Host-only immutable fixture view; never restore authority from its JSON."""
         with self._lock:

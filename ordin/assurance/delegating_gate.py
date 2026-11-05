@@ -72,6 +72,13 @@ class DelegatedDecision:
         }
 
     @property
+    def review(self) -> ActionReview:
+        review = self.assurance.review
+        if not isinstance(review, ActionReview):
+            raise ValueError("delegated decision requires a generic action review")
+        return review
+
+    @property
     def digest(self) -> str:
         return digest("delegated_decision", self.as_dict())
 
@@ -285,6 +292,23 @@ class DelegatingAssuranceGate:
         return DelegatedDecision(
             **values, _seal=_DelegatedSeal(self.issuer._issuer_key, preview.digest)
         )
+
+    @property
+    def preview_binding_digest(self) -> str:
+        """Read-only fingerprint of the exact child history and quota state."""
+        with self._lock, self._session._lock, self.issuer._lock:
+            return core_digest(
+                {
+                    "assurance": self.assurance.configuration_digest,
+                    "grant": self.grant.digest,
+                    "source": self.source.key,
+                    "issuer_generation": self.issuer._generation,
+                    "history": self._session.snapshot(),
+                    "runtime": self._session.runtime_snapshot(),
+                    "used": dict(self.issuer._used),
+                    "pending": sorted(self.issuer._pending.values()),
+                }
+            )
 
     def preview_action(
         self,

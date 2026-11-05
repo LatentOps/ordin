@@ -61,6 +61,7 @@ The Python API reviews actions but never executes them.
 
 - [Protected host enrollment and agent lifecycle](swarm/identity.md)
 - [Authenticated swarm events, journal and causal gaps](swarm/events.md)
+- [Pure swarm decision composition and mandatory checks](swarm/gate.md)
 - [Planned opt-in swarm architecture and coverage contract](swarm/architecture.md)
 - [Integration starter kit](../examples/integrations/README.md)
 - [Claude Code hooks](claude-code-integration.md)
