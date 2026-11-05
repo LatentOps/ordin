@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "$id": "https://ordin.dev/schemas/swarm-attach-plan.v1.schema.json",
+  "required": [
+    "schema_version",
+    "supported",
+    "dry_run",
+    "mode",
+    "pre_attach_history",
+    "execution_authority",
+    "pathways",
+    "required"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_attach_plan.v1"
+    },
+    "supported": {
+      "type": "boolean"
+    },
+    "dry_run": {
+      "const": true
+    },
+    "mode": {
+      "enum": [
+        "observe",
+        "intercept",
+        "enforce"
+      ]
+    },
+    "pre_attach_history": {
+      "const": "unknown"
+    },
+    "execution_authority": {
+      "const": false
+    },
+    "pathways": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pathway",
+          "state",
+          "coverage",
+          "plan"
+        ],
+        "properties": {
+          "pathway": {
+            "enum": [
+              "hook",
+              "mcp",
+              "sdk",
+              "gateway",
+              "outbound_network",
+              "credential",
+              "executor"
+            ]
+          },
+          "state": {
+            "enum": [
+              "covered",
+              "uncovered",
+              "unknown",
+              "restart_required"
+            ]
+          },
+          "coverage": {
+            "enum": [
+              "mediated",
+              "observe_only",
+              "coverage_gap"
+            ]
+          },
+          "plan": {
+            "enum": [
+              "route_egress_or_restart_in_constrained_runtime",
+              "revoke_or_rotate_existing_credentials",
+              "stop_and_restart_with_constrained_executor",
+              "verify_future_call_routing"
+            ]
+          }
+        }
+      }
+    },
+    "required": {
+      "type": "array",
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "authenticated_host_endpoint",
+          "constrained_restart",
+          "verified_live_route_or_constrained_restart"
+        ]
+      }
+    }
+  }
+}

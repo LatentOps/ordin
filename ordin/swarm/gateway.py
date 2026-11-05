@@ -79,6 +79,7 @@ class _Actor:
     journal_gap: bool = False
     active_route: str | None = None
     assessment_provider: Any = None
+    closed: bool = False
     lock: Any = field(default_factory=RLock)
 
 
@@ -96,6 +97,8 @@ class _GatewayReviewGate(AgentGate):
         }
 
     def evaluate_action(self, action, **kwargs) -> AgentDecision:
+        if self.actor.closed:
+            raise ValueError("gateway actor was revoked")
         assessments = self.actor.assessments
         if self.actor.assessment_provider is not None:
             provider_options = dict(kwargs)
@@ -239,6 +242,17 @@ class SwarmToolGateway:
         if actor.session is None:
             raise ValueError("uninitialized gateway session")
         return actor.session.gate
+
+    def revoke_agent(self, handle: GatewayAgent) -> None:
+        """Host-only: fence pending tickets and retained facade references."""
+        with self._operation_lock, self._lock:
+            actor = self._actor(handle, authenticate=False)
+            actor.closed = True
+            self._pending = {
+                ticket: row for ticket, row in self._pending.items() if row.actor is not handle
+            }
+            actor.active = None
+            del self._actors[handle]
 
     def prepare(
         self,
