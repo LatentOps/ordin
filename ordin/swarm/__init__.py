@@ -9,8 +9,26 @@ from .journal import EventJournal, JournalRecord
 from .gate import SwarmDecision, SwarmGate
 from .policy import SwarmPolicy, SwarmRule
 from .facts import SwarmAssessment, SwarmAssessmentSource
+from .gateway import (
+    ForwardTicket,
+    GatewayAgent,
+    GatewayAuthorization,
+    GatewayOutcome,
+    GatewayResult,
+    SwarmToolGateway,
+)
+from .mcp_gateway import SwarmMCPAdapter
+from .hooks_gateway import SwarmHookAdapter
 
 __all__ = [
+    "ForwardTicket",
+    "GatewayAgent",
+    "GatewayAuthorization",
+    "GatewayOutcome",
+    "GatewayResult",
+    "SwarmToolGateway",
+    "SwarmMCPAdapter",
+    "SwarmHookAdapter",
     "SwarmAssessment",
     "SwarmAssessmentSource",
     "SwarmDecision",

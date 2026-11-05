@@ -39,6 +39,7 @@ from ordin.session import IntegrationSession, SessionIdentity
 from ordin.swarm import CoverageManifest, SwarmContext, SwarmIdentity
 from ordin.swarm import SwarmEvent
 from ordin.swarm import InMemoryAgentRegistry, SwarmGate
+from ordin.swarm import SwarmToolGateway
 from ordin.temporal import default_temporal_policy, load_temporal_policy
 from ordin.tool_calls import ToolSemanticsRegistry, load_tool_semantics
 from ordin.trace_capture import TraceRecorder, read_capture
@@ -178,6 +179,11 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
         .evaluate_action(swarm_context, action, channel=swarm_channel, adapter=swarm_adapter)
         .as_dict()
     )
+    swarm_gateway = SwarmToolGateway()
+    swarm_gateway_agent = swarm_gateway.bind_agent(
+        swarm_context, SwarmGate(swarm_registry), swarm_channel, swarm_adapter, routes=frozenset()
+    )
+    samples["swarm_gateway_status"] = swarm_gateway.status(swarm_gateway_agent)
     from tests.assurance.contract_examples import assurance_contract_examples
 
     samples.update(assurance_contract_examples(tmp_path))
@@ -302,6 +308,7 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
+        "swarm_gateway_status",
         "swarm_decision",
         "swarm_event",
         "swarm_context",
