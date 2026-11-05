@@ -4,6 +4,13 @@ from .mcp_adapter import SwarmMCPAdapter
 from .hooks import SwarmHookAdapter
 from .attach import HostSessionEndpoint, RunningSessionIdentity, SwarmAttachManager
 from .coverage import AttachCoverage
+from .message_gateway import (
+    SwarmMessageGateway,
+    SwarmMessageAdapter,
+    CallbackMessageInbox,
+    QueueMessageInbox,
+    RPCMessageInbox,
+)
 
 __all__ = [
     "SwarmMCPAdapter",
@@ -12,4 +19,9 @@ __all__ = [
     "RunningSessionIdentity",
     "SwarmAttachManager",
     "AttachCoverage",
+    "SwarmMessageGateway",
+    "SwarmMessageAdapter",
+    "CallbackMessageInbox",
+    "QueueMessageInbox",
+    "RPCMessageInbox",
 ]

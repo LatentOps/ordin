@@ -31,8 +31,32 @@ from .attach import (
     SwarmAttachManager,
 )
 from .coverage import AttachCoverage
+from .messages import (
+    MessageChannel,
+    MessageOutcome,
+    MessagePeer,
+    PrivateMessage,
+    SwarmMessageEnvelope,
+    SwarmMessageGateway,
+)
+from .message_adapters import (
+    CallbackMessageInbox,
+    QueueMessageInbox,
+    RPCMessageInbox,
+    SwarmMessageAdapter,
+)
 
 __all__ = [
+    "MessageChannel",
+    "MessageOutcome",
+    "MessagePeer",
+    "PrivateMessage",
+    "SwarmMessageEnvelope",
+    "SwarmMessageGateway",
+    "CallbackMessageInbox",
+    "QueueMessageInbox",
+    "RPCMessageInbox",
+    "SwarmMessageAdapter",
     "Sensitivity",
     "EgressSink",
     "LineageHandle",

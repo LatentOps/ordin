@@ -27,6 +27,9 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "swarm_message_peer_status": "swarm-message-peer-status.v1.schema.json",
+    "swarm_message": "swarm-message.v1.schema.json",
+    "swarm_message_outcome": "swarm-message-outcome.v1.schema.json",
     "swarm_source_flow": "swarm-source-flow.v1.schema.json",
     "swarm_attach_status": "swarm-attach-status.v1.schema.json",
     "swarm_attach_plan": "swarm-attach-plan.v1.schema.json",

@@ -227,6 +227,35 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     attached = attach_manager.register(endpoint)
     samples["swarm_attach_status"] = attach_manager.status(attached)
     samples["swarm_attach_plan"] = attach_manager.plan(attached)
+    from dataclasses import replace
+    from ordin.swarm import SwarmMessageEnvelope, MessageOutcome, EventRef
+
+    samples["swarm_message"] = SwarmMessageEnvelope(
+        "fixture-message",
+        swarm_context.identity,
+        replace(swarm_context.identity, agent_id="recipient"),
+        None,
+        1,
+        100,
+        101,
+        "data",
+        "a" * 64,
+        0,
+        (EventRef("tenant", "swarm", "fixture-event"),),
+        ("b" * 64,),
+        ("public",),
+    ).as_dict()
+    samples["swarm_message_outcome"] = MessageOutcome(
+        "unknown", "message.delivery_pending", "c" * 64
+    ).as_dict()
+    samples["swarm_message_peer_status"] = {
+        "schema_version": "ordin.swarm_message_peer_status.v1",
+        "peer_digest": "a" * 64,
+        "state": "stale",
+        "reason_code": "message.peer_stale",
+        "journal_continuity": True,
+        "execution_authority": False,
+    }
 
     samples.update(assurance_contract_examples(tmp_path))
     assert set(samples) == set(SCHEMA_FILES)
@@ -350,6 +379,9 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
+        "swarm_message",
+        "swarm_message_outcome",
+        "swarm_message_peer_status",
         "swarm_source_flow",
         "swarm_attach_status",
         "swarm_attach_plan",
