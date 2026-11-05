@@ -31,6 +31,7 @@ it must never silently become observe-only while retaining an enforcement label.
 | Runtime/integration | Current supported boundary | Planned opt-in swarm work and limitations |
 | --- | --- | --- |
 | [Local identity registry](identity.md) | Host-bound identity, heartbeat/lifecycle, bounded manifests and local generation/epoch fencing | No action execution, distributed state or physical-enforcement receipt; unlisted routes remain unknown |
+| [Local event substrate](events.md) | Protected sender/receipt checks, bounded append-only fixture journal, exact review correlation and explicit sequence/causal gaps | No execution authorization, automatic historical trust restoration or concrete multihost durable backend |
 | Python `AgentGate` / `IntegrationSession` | Local review and bounded session history; caller owns execution | Host enrollment and composition; no prevention if caller ignores the decision |
 | Native Claude/Codex/Cursor/Hermes hooks | Host-specific pre-tool interception where installed and invoked | Bind enrolled identities; uncovered tools/processes remain gaps |
 | MCP stdio / Streamable HTTP proxy | Gate traffic actually routed through the configured proxy | Authenticated swarm context and per-route inventory; direct server access is not covered |

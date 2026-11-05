@@ -27,6 +27,7 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "swarm_event": "swarm-event.v1.schema.json",
     "swarm_context": "swarm-context.v1.schema.json",
     "assurance_semantic_simulation": "assurance-semantic-simulation.v1.schema.json",
     "assurance_linux_sandbox_test": "assurance-linux-sandbox-test.v1.schema.json",
