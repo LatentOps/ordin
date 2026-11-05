@@ -43,6 +43,9 @@ ownership before every call, and reuses the ordinary gateway prepare/forward
 sequence. Warnings, unknown actions and stronger core findings retain their
 existing restrictions. Unsupported restart-required routes receive no ticket.
 No approval UI is inferred from attachment.
+An optional protected `assessment_provider` supplies fresh action/snapshot-bound
+receipts through the existing gateway API. Mandatory checks remain unknown and
+restricted when that provider does not establish them.
 
 The synthetic two-agent regression host starts its worker threads before
 attachment. Observation and mediation attach without restarting either worker.

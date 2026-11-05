@@ -135,6 +135,7 @@ class SwarmAttachManager:
         gateway: SwarmToolGateway,
         gate: SwarmGate,
         max_sessions: int = 256,
+        assessment_provider: Callable[..., tuple] | None = None,
     ) -> None:
         if (
             type(registry) is not InMemoryAgentRegistry
@@ -147,10 +148,12 @@ class SwarmAttachManager:
             or gate._events is not events
             or type(max_sessions) is not int
             or not 1 <= max_sessions <= 4096
+            or (assessment_provider is not None and not callable(assessment_provider))
         ):
             raise ValueError("attach requires shared protected enrollment/gateway evidence")
         self._registry, self._events, self._gateway, self._gate = registry, events, gateway, gate
         self._limit = max_sessions
+        self._assessment_provider = assessment_provider
         self._sessions: dict[AttachedSession, _Attachment] = {}
         self._lock = RLock()
 
@@ -242,7 +245,7 @@ class SwarmAttachManager:
     def attach(self, handle: AttachedSession, *, dry_run: bool = False) -> dict[str, Any]:
         if type(dry_run) is not bool:
             raise ValueError("invalid attach dry-run flag")
-        with self._lock, self._gateway._operation_lock:
+        with self._gateway._operation_lock, self._lock:
             row = self._row(handle)
             plan = self.plan(handle)
             if dry_run:
@@ -288,6 +291,7 @@ class SwarmAttachManager:
                         endpoint.channel,
                         endpoint.adapter,
                         routes=endpoint.coverage.enabled_routes,
+                        assessment_provider=self._assessment_provider,
                     )
 
                     def guard() -> None:
@@ -349,7 +353,7 @@ class SwarmAttachManager:
         row.router = None
 
     def detach(self, handle: AttachedSession) -> dict[str, Any]:
-        with self._lock, self._gateway._operation_lock:
+        with self._gateway._operation_lock, self._lock:
             row = self._row(handle)
             self._detach(row, "detached")
             return self.status(handle)
@@ -361,7 +365,7 @@ class SwarmAttachManager:
         *,
         observation: RuntimeObservation | None = None,
     ):
-        with self._lock, self._gateway._operation_lock:
+        with self._gateway._operation_lock, self._lock:
             row = self._row(handle)
             self._check_live(row)
             if row.source is None:
@@ -391,7 +395,7 @@ class SwarmAttachManager:
             return row.context, row.source
 
     def status(self, handle: AttachedSession) -> dict[str, Any]:
-        with self._lock, self._gateway._operation_lock:
+        with self._gateway._operation_lock, self._lock:
             row = self._row(handle)
             if row.active:
                 try:
