@@ -59,6 +59,7 @@ The Python API reviews actions but never executes them.
 
 ## I want to gate an AI agent
 
+- [Planned opt-in swarm architecture and coverage contract](swarm/architecture.md)
 - [Integration starter kit](../examples/integrations/README.md)
 - [Claude Code hooks](claude-code-integration.md)
 - [Codex hooks and plugin](codex-integration.md)
