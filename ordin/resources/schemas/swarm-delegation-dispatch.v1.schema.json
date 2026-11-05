@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-delegation-dispatch.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "admission_digest",
+    "action_digest",
+    "reason_code",
+    "physical_enforcement",
+    "receiver_execution",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_delegation_dispatch.v1"
+    },
+    "status": {
+      "enum": [
+        "host_completed",
+        "unknown"
+      ]
+    },
+    "admission_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "action_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "reason_code": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+    },
+    "physical_enforcement": {
+      "const": false
+    },
+    "receiver_execution": {
+      "const": "unknown"
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

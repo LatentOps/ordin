@@ -23,6 +23,7 @@ from ._json import digest, validate
 from .delegation import DelegationIssuer, DelegationVerification, IssuedDelegation, DOMAINS
 from .gate import AssuranceDecision, AssuranceGate, DISPOSITION_ORDER
 from .host import AssuranceHostContext, HostEvidenceSource
+from .rest import RestRequestContract, derive_rest_request_contract
 
 
 @dataclass(frozen=True)
@@ -169,7 +170,9 @@ class DelegatingAssuranceGate:
         final = underlying.disposition
         reasons = []
         verified = None
-        contract: RuntimeCapabilityContract | RuntimeRequestContractV2 | None = None
+        contract: (
+            RuntimeCapabilityContract | RuntimeRequestContractV2 | RestRequestContract | None
+        ) = None
         ticket = None
         if underlying.baseline.denied:
             reasons.append("delegation.core_denied")
@@ -191,10 +194,16 @@ class DelegatingAssuranceGate:
                     )
                 request = derive_runtime_request_contract_v2(underlying.review)
                 contract = (
-                    replace(request, capability=capability, request_contract_id="")
-                    if request.requests
-                    or any(n.protocol in {"graphql", "mcp", "json-rpc"} for n in capability.network)
-                    else capability
+                    derive_rest_request_contract(underlying.review, capability=capability)
+                    if underlying.review.adapter == "network.rest"
+                    else (
+                        replace(request, capability=capability, request_contract_id="")
+                        if request.requests
+                        or any(
+                            n.protocol in {"graphql", "mcp", "json-rpc"} for n in capability.network
+                        )
+                        else capability
+                    )
                 )
                 checked = self.issuer._check_operation(contract, self.grant)
                 coverage = {**dict.fromkeys(DOMAINS, True), **dict(checked.coverage)}

@@ -18,6 +18,7 @@ from ordin.runtime_requests import RequestVerificationResult
 
 from ._json import digest, validate
 from .models import JsonRecord
+from .requests import verify_assurance_capability
 
 EXACT_REQUIREMENT = "runtime_rest_request_commitment_required"
 
@@ -188,7 +189,7 @@ def verify_rest_request_authority(contract, boundary):
         ),
         contract_id="",
     )
-    core = verify_runtime_capability(question, boundary.capability)
+    core = verify_assurance_capability(question, boundary.capability)
     if not core.ok:
         return RequestVerificationResult(
             core.result,

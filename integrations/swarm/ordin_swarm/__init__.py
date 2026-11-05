@@ -2,6 +2,8 @@
 
 from .mcp_adapter import SwarmMCPAdapter
 from .hooks import SwarmHookAdapter
+from .delegation_service import SwarmDelegationService, WorkloadAuthenticator, AuthorityChannel
+from .credential_broker import SwarmCredentialBroker
 from .attach import HostSessionEndpoint, RunningSessionIdentity, SwarmAttachManager
 from .coverage import AttachCoverage
 from .budget_store import (
@@ -37,6 +39,10 @@ __all__ = [
     "BudgetCost",
     "InMemoryBudgetStore",
     "SQLiteBudgetStore",
+    "SwarmDelegationService",
+    "WorkloadAuthenticator",
+    "AuthorityChannel",
+    "SwarmCredentialBroker",
     "SwarmMCPAdapter",
     "SwarmHookAdapter",
     "HostSessionEndpoint",

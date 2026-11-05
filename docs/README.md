@@ -70,6 +70,7 @@ The Python API reviews actions but never executes them.
 - [Guarded artifacts, shared memory and workspaces](swarm/artifacts.md)
 - [Cross-agent causal temporal policies](swarm/temporal.md)
 - [Transactional shared budgets and reservations](swarm/budgets.md)
+- [Online delegation, workload authentication and private credentials](swarm/distributed-delegation.md)
 - [Planned opt-in swarm architecture and coverage contract](swarm/architecture.md)
 - [Integration starter kit](../examples/integrations/README.md)
 - [Claude Code hooks](claude-code-integration.md)

@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-remote-delegation.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "grant_digest",
+    "subject_digest",
+    "host_digest",
+    "authority_digest",
+    "parent_digest",
+    "policy_epoch",
+    "issuer_generation",
+    "expires_at",
+    "depth",
+    "maximum_depth",
+    "limits",
+    "task_digest",
+    "issuer_digest",
+    "requires_online_authority",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_remote_delegation.v1"
+    },
+    "grant_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "subject_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "host_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "authority_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "parent_digest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "policy_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "issuer_generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "expires_at": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "depth": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 16
+    },
+    "maximum_depth": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 16
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "active_children",
+        "in_flight_operations",
+        "actions_per_grant"
+      ],
+      "properties": {
+        "active_children": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "in_flight_operations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "actions_per_grant": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        }
+      }
+    },
+    "task_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "issuer_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "requires_online_authority": {
+      "const": true
+    },
+    "execution_authority": {
+      "const": false
+    },
+    "grant_id": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    }
+  }
+}

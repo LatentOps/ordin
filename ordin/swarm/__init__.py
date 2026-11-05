@@ -32,6 +32,15 @@ from .mcp_gateway import SwarmMCPAdapter
 from .hooks_gateway import SwarmHookAdapter
 from .causal_graph import SwarmCausalGraph, SwarmGraphView
 from .lineage import SwarmDelegationLink
+from .delegation import (
+    BrokerAdmissionScope,
+    DelegationDispatch,
+    RemoteDelegation,
+    RemoteReview,
+    SwarmDelegationService,
+)
+from .workload_auth import AuthorityChannel, WorkloadAuthenticator
+from .credential_broker import CredentialRoute, PrivateCredentialRequest, SwarmCredentialBroker
 from .labels import Sensitivity
 from .source_flow import EgressSink, LineageHandle, LineageUse, SourceFlowResult, SwarmSourceFlow
 from .attach import (
@@ -118,6 +127,16 @@ __all__ = [
     "BudgetStore",
     "InMemoryBudgetStore",
     "SQLiteBudgetStore",
+    "AuthorityChannel",
+    "WorkloadAuthenticator",
+    "BrokerAdmissionScope",
+    "DelegationDispatch",
+    "RemoteDelegation",
+    "RemoteReview",
+    "SwarmDelegationService",
+    "CredentialRoute",
+    "PrivateCredentialRequest",
+    "SwarmCredentialBroker",
     "MessageChannel",
     "MessageOutcome",
     "MessagePeer",

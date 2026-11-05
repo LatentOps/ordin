@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-broker-admission-scope.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "admission_digest",
+    "action_digest",
+    "grant_digest",
+    "subject_digest",
+    "host_digest",
+    "issuer_generation",
+    "expires_at",
+    "ancestry_digest",
+    "authority_digest",
+    "requires_online_authority",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_broker_admission_scope.v1"
+    },
+    "admission_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "action_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "grant_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "subject_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "host_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "issuer_generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "expires_at": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "ancestry_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "authority_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "requires_online_authority": {
+      "const": true
+    },
+    "execution_authority": {
+      "const": false
+    },
+    "authority_data": {
+      "type": "object",
+      "maxProperties": 5,
+      "additionalProperties": false,
+      "required": [
+        "capability",
+        "requests",
+        "network_grants",
+        "requires_approval"
+      ],
+      "properties": {
+        "capability": {
+          "type": "object",
+          "maxProperties": 32
+        },
+        "requests": {
+          "type": "array",
+          "maxItems": 128
+        },
+        "network_grants": {
+          "type": "array",
+          "maxItems": 128
+        },
+        "rest_requests": {
+          "type": "array",
+          "maxItems": 128
+        },
+        "requires_approval": {
+          "type": "boolean"
+        }
+      }
+    },
+    "action_data": {
+      "type": "object",
+      "maxProperties": 8
+    },
+    "context_data": {
+      "type": "object",
+      "maxProperties": 8
+    }
+  }
+}
