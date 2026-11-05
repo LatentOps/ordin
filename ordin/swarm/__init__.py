@@ -45,8 +45,36 @@ from .message_adapters import (
     RPCMessageInbox,
     SwarmMessageAdapter,
 )
+from .artifact_store import ArtifactBlobStore, FilesystemArtifactStore, MemoryArtifactStore
+from .memory import (
+    ArtifactAddress,
+    ArtifactGrant,
+    PrivateArtifactRead,
+    SwarmArtifact,
+    SwarmArtifactGateway,
+)
+from .artifact_adapters import (
+    ArtifactAdapter,
+    GuardedVectorPointAPI,
+    SharedMemoryAdapter,
+    VectorPointArtifactAdapter,
+    WorkspaceArtifactAdapter,
+)
 
 __all__ = [
+    "ArtifactBlobStore",
+    "FilesystemArtifactStore",
+    "MemoryArtifactStore",
+    "ArtifactAddress",
+    "ArtifactGrant",
+    "PrivateArtifactRead",
+    "SwarmArtifact",
+    "SwarmArtifactGateway",
+    "ArtifactAdapter",
+    "GuardedVectorPointAPI",
+    "SharedMemoryAdapter",
+    "VectorPointArtifactAdapter",
+    "WorkspaceArtifactAdapter",
     "MessageChannel",
     "MessageOutcome",
     "MessagePeer",

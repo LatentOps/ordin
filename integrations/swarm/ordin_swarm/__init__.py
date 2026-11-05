@@ -11,8 +11,18 @@ from .message_gateway import (
     QueueMessageInbox,
     RPCMessageInbox,
 )
+from .artifact_gateway import (
+    SwarmArtifactGateway,
+    WorkspaceArtifactAdapter,
+    SharedMemoryAdapter,
+    VectorPointArtifactAdapter,
+)
 
 __all__ = [
+    "SwarmArtifactGateway",
+    "WorkspaceArtifactAdapter",
+    "SharedMemoryAdapter",
+    "VectorPointArtifactAdapter",
     "SwarmMCPAdapter",
     "SwarmHookAdapter",
     "HostSessionEndpoint",

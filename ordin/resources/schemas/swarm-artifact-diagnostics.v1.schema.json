@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-artifact-diagnostics.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "managed_api",
+    "raw_backing_access",
+    "opaque_vector_queries",
+    "healthy",
+    "physical_enforcement",
+    "resource_count",
+    "grant_count"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_artifact_diagnostics.v1"
+    },
+    "managed_api": {
+      "const": "mediated"
+    },
+    "raw_backing_access": {
+      "const": "uncovered"
+    },
+    "opaque_vector_queries": {
+      "const": "unsupported"
+    },
+    "healthy": {
+      "type": "boolean"
+    },
+    "physical_enforcement": {
+      "const": false
+    },
+    "resource_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4096
+    },
+    "grant_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 16384
+    }
+  }
+}
