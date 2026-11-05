@@ -137,4 +137,10 @@ See [runtime capabilities](runtime-capabilities.md), [runtime evidence](runtime-
 
 ## Project boundaries
 
+The [opt-in swarm architecture contract](swarm/architecture.md) specifies planned
+host enrollment, decision composition and optional cross-host coordination.
+It preserves the existing local-first core and review APIs. These design
+documents do not add runtime enforcement or a required network service; see the
+[swarm support matrix](swarm/support-matrix.md) for current limits.
+
 Ordin deliberately does not provide remote command execution, automatic history upload, required cloud inference, arbitrary shell generation, hidden policy synchronization, or a centralized enterprise control plane. External runtimes can use Ordin as a local decision primitive while retaining ownership of execution, sandboxing, approval, and persistence.
