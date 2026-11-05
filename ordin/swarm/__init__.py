@@ -61,6 +61,18 @@ from .artifact_adapters import (
     WorkspaceArtifactAdapter,
 )
 
+from .temporal import (
+    CompiledSwarmTemporalPolicy,
+    SwarmTemporalEngine,
+    SwarmTemporalEvaluation,
+    SwarmTemporalFinding,
+    SwarmTemporalPolicySet,
+    SwarmTemporalPredicate,
+    SwarmTemporalRule,
+    default_swarm_temporal_policy,
+    load_swarm_temporal_policy,
+)
+
 __all__ = [
     "ArtifactBlobStore",
     "FilesystemArtifactStore",
@@ -75,6 +87,15 @@ __all__ = [
     "SharedMemoryAdapter",
     "VectorPointArtifactAdapter",
     "WorkspaceArtifactAdapter",
+    "CompiledSwarmTemporalPolicy",
+    "SwarmTemporalEngine",
+    "SwarmTemporalEvaluation",
+    "SwarmTemporalFinding",
+    "SwarmTemporalPolicySet",
+    "SwarmTemporalPredicate",
+    "SwarmTemporalRule",
+    "default_swarm_temporal_policy",
+    "load_swarm_temporal_policy",
     "MessageChannel",
     "MessageOutcome",
     "MessagePeer",

@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-temporal-evaluation.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_digest",
+    "snapshot_digest",
+    "action_digest",
+    "status",
+    "findings",
+    "proof_gaps",
+    "states_examined",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_temporal_evaluation.v1"
+    },
+    "policy_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "snapshot_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "action_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "status": {
+      "enum": [
+        "satisfied",
+        "violated",
+        "unknown"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rule_id",
+          "severity",
+          "prevention",
+          "status",
+          "evidence",
+          "path_event_ids",
+          "current_action_digest",
+          "successful_exploitation",
+          "aggregation"
+        ],
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+          },
+          "severity": {
+            "enum": [
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "prevention": {
+            "enum": [
+              "deny",
+              "escalate"
+            ]
+          },
+          "status": {
+            "const": "matched"
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "event_id",
+                "evidence_class",
+                "actor_digest",
+                "event_kind",
+                "effect_evidence"
+              ],
+              "properties": {
+                "event_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                },
+                "evidence_class": {
+                  "enum": [
+                    "host_authenticated",
+                    "backend_observed",
+                    "backend_enforced"
+                  ]
+                },
+                "actor_digest": {
+                  "type": "string",
+                  "maxLength": 64,
+                  "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                },
+                "event_kind": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])",
+                  "enum": [
+                    "proposed",
+                    "reviewed",
+                    "reserved",
+                    "committed",
+                    "forwarded",
+                    "completed",
+                    "observed",
+                    "failed",
+                    "denied",
+                    "canceled",
+                    "delegated",
+                    "message_sent",
+                    "message_received",
+                    "artifact_read",
+                    "artifact_write",
+                    "revoked"
+                  ]
+                },
+                "effect_evidence": {
+                  "enum": [
+                    "intended",
+                    "observed"
+                  ]
+                }
+              }
+            }
+          },
+          "path_event_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 128,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+            }
+          },
+          "current_action_digest": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+          },
+          "successful_exploitation": {
+            "const": "unknown"
+          },
+          "aggregation": {
+            "enum": [
+              "path",
+              "causal_ancestors"
+            ]
+          }
+        }
+      }
+    },
+    "proof_gaps": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+      }
+    },
+    "states_examined": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 262145
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

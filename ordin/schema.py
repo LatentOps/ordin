@@ -29,6 +29,9 @@ KNOWN_TEMPLATE_FIELDS = {
 SCHEMA_FILES = {
     "swarm_artifact": "swarm-artifact.v1.schema.json",
     "swarm_artifact_diagnostics": "swarm-artifact-diagnostics.v1.schema.json",
+    "swarm_temporal_validation": "swarm-temporal-validation.v1.schema.json",
+    "swarm_temporal_policy_set": "swarm-temporal-policy-set.v1.schema.json",
+    "swarm_temporal_evaluation": "swarm-temporal-evaluation.v1.schema.json",
     "swarm_message_peer_status": "swarm-message-peer-status.v1.schema.json",
     "swarm_message": "swarm-message.v1.schema.json",
     "swarm_message_outcome": "swarm-message-outcome.v1.schema.json",

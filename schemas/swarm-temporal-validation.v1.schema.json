@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-temporal-validation.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "valid",
+    "policy_digest",
+    "rule_count",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_temporal_validation.v1"
+    },
+    "valid": {
+      "const": true
+    },
+    "policy_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "rule_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

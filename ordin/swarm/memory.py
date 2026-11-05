@@ -454,17 +454,32 @@ class SwarmArtifactGateway:
                 if self._backend.put(raw) != content_digest:
                     raise ValueError("backing content digest mismatch")
                 event = self._event(source, "artifact_write", content_digest, parents)
-                origin = register_instruction_origin(
-                    actor.host,
-                    origin_id="artifact-" + uuid4().hex,
-                    kind="repository_file",
-                    classification="sensitive" if labels.sensitive else "public",
-                    content=raw,
-                    parent_action_digest=digest([address.as_dict(), next_version]),
-                )
-                handle = self._flow.register(
-                    source, event_id=event.event_id, origin=origin, sensitivity=labels
-                )
+                input_labels = rows[0].sensitivity.join(*(row.sensitivity for row in rows[1:]))
+                if labels == input_labels:
+                    # This is an actual exact-byte data transfer. Preserve the
+                    # original handles so temporal attribution can follow it.
+                    handle = self._flow.derive(
+                        source,
+                        event_id=event.event_id,
+                        content=raw,
+                        parents=inputs,
+                        complete=True,
+                    )
+                else:
+                    # Retained resource classification can be stricter than new
+                    # replacement bytes. It is a protected classification root,
+                    # not proof that overwritten old bytes caused the output.
+                    origin = register_instruction_origin(
+                        actor.host,
+                        origin_id="artifact-" + uuid4().hex,
+                        kind="repository_file",
+                        classification="sensitive" if labels.sensitive else "public",
+                        content=raw,
+                        parent_action_digest=digest([address.as_dict(), next_version]),
+                    )
+                    handle = self._flow.register(
+                        source, event_id=event.event_id, origin=origin, sensitivity=labels
+                    )
                 gaps = self._flow._record(handle).gaps
                 metadata = SwarmArtifact(
                     address,
