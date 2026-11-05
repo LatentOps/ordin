@@ -69,6 +69,10 @@ returns the original local reserved handle only while that identical attempt
 is still reserved. Conflicting, canceled, expired or previously forwarded keys
 cannot issue another execution. Terminal keys are retained at the explicit
 history capacity rather than evicted to make replay possible.
+Live ticket bindings are published only after confirmed durable commit. A rolled
+back reservation publishes no handle. If the commit succeeded but its ACK was
+lost, its hold remains in history without an executable ticket; retry does not
+mint a replacement authorization for that uncertain admission.
 
 `begin_forward` rechecks the original ticket, exact action, current enrollment,
 policy and TTL, then commits `forwarding` before any executor is called.
@@ -128,6 +132,9 @@ Missing, replaced, corrupt or uninitialized existing files fail closed. An
 ordinary reopen never silently starts a zero-spend store. Do not restore an old
 backup as current accounting authority; external storage rollback and distributed
 partition fencing require an independently trusted coordinator/checkpoint.
+Schema creation occurs once for an explicitly new store. Active transactions and
+reopens validate the required table/index definitions and coordinator history;
+missing or changed schema is rejected without recreating empty counter tables.
 
 A new `BudgetLedger` over the existing store fences every older coordinator
 generation. Old reserved work is safely canceled because its fenced ticket

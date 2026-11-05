@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from copy import copy
 from dataclasses import replace
 import json
+import sqlite3
 from threading import Barrier
 
 import pytest
@@ -448,6 +449,67 @@ def test_lost_begin_acknowledgement_keeps_durable_hold_and_cannot_cancel_as_unfo
         reserve(restored, actors["b"], key="would-overspend")
 
 
+@pytest.mark.parametrize("persistent", [False, True])
+def test_repeated_reserve_transaction_rollback_never_publishes_or_accumulates_tickets(
+    tmp_path, monkeypatch, persistent
+):
+    path = tmp_path / "budget.sqlite"
+    store = SQLiteBudgetStore(path, create=True) if persistent else InMemoryBudgetStore()
+    ledger, _, actors, _, _, _ = configured(store=store, max_reservations=1)
+    original = store.transaction
+
+    @contextmanager
+    def interrupted():
+        with original() as connection:
+            yield connection
+            raise RuntimeError("interrupted before durable commit")
+
+    monkeypatch.setattr(store, "transaction", interrupted)
+    for index in range(3):
+        with pytest.raises(RuntimeError):
+            reserve(ledger, actors["a"], key="rollback-" + str(index))
+        assert not ledger._issued
+        with original() as connection:
+            assert connection.execute("SELECT count(*) FROM budget_reservations").fetchone()[0] == 0
+            assert connection.execute("SELECT count(*) FROM budget_items").fetchone()[0] == 0
+    monkeypatch.setattr(store, "transaction", original)
+    ticket = reserve(ledger, actors["a"], key="confirmed")
+    assert len(ledger._issued) == 1 and ledger.reservation_status(ticket)["status"] == "reserved"
+    with pytest.raises(BudgetError, match="capacity"):
+        reserve(ledger, actors["b"], key="over-capacity", amount=1)
+    assert len(ledger._issued) == 1
+
+
+@pytest.mark.parametrize("persistent", [False, True])
+def test_committed_reserve_with_lost_ack_holds_budget_without_issuing_retry_ticket(
+    tmp_path, monkeypatch, persistent
+):
+    path = tmp_path / "budget.sqlite"
+    store = SQLiteBudgetStore(path, create=True) if persistent else InMemoryBudgetStore()
+    ledger, _, actors, _, operator, _ = configured(store=store, max_reservations=1)
+    original = store.transaction
+
+    @contextmanager
+    def lost_ack():
+        with original() as connection:
+            yield connection
+        raise ValueError("durable commit acknowledgement lost")
+
+    monkeypatch.setattr(store, "transaction", lost_ack)
+    with pytest.raises(ValueError, match="acknowledgement"):
+        reserve(ledger, actors["a"])
+    assert not ledger._issued
+    monkeypatch.setattr(store, "transaction", original)
+    page = ledger.audit(operator=operator)
+    assert len(page["reservations"]) == 1 and page["reservations"][0]["status"] == "reserved"
+    assert report(ledger, actors["a"])["limits"][0]["reserved"] == 70
+    with pytest.raises(BudgetError, match="idempotency"):
+        reserve(ledger, actors["a"])
+    with pytest.raises(BudgetError, match="original_ticket"):
+        begin(ledger, BudgetTicket(page["reservations"][0]["reservation_id"]), actors["a"])
+    assert not ledger._issued
+
+
 def test_interrupted_sql_transaction_rolls_back_all_bucket_updates(tmp_path):
     store = SQLiteBudgetStore(tmp_path / "budget.sqlite", create=True)
     ledger, _, actors, _, _, _ = configured(store=store)
@@ -480,6 +542,92 @@ def test_missing_or_replaced_persistent_history_never_silently_resets_quota(tmp_
         SQLiteBudgetStore(path)
     with pytest.raises(ValueError):
         reserve(ledger, actors["b"], key="replacement")
+
+
+@pytest.mark.parametrize("persistent", [False, True])
+@pytest.mark.parametrize(
+    "fault", ["counter_tables", "one_table", "index", "columns", "shadow_view", "extra_trigger"]
+)
+def test_existing_schema_loss_or_drift_never_recreates_zero_spend_history(
+    tmp_path, persistent, fault
+):
+    path = tmp_path / "budget.sqlite"
+    store = SQLiteBudgetStore(path, create=True) if persistent else InMemoryBudgetStore()
+    ledger, registry, actors, now, operator, _ = configured(store=store)
+    ticket = reserve(ledger, actors["a"])
+    begin(ledger, ticket, actors["a"])
+    ledger.commit(ticket)
+    assert report(ledger, actors["a"])["limits"][0]["consumed"] == 70
+    raw = sqlite3.connect(path, isolation_level=None) if persistent else store._connection
+    try:
+        mutations = {
+            "counter_tables": "DROP TABLE budget_items; DROP TABLE budget_reservations; DROP TABLE budget_buckets;",
+            "one_table": "DROP TABLE budget_items;",
+            "index": "DROP INDEX budget_expiry;",
+            "columns": "ALTER TABLE budget_buckets ADD COLUMN unrecognized INTEGER;",
+            "shadow_view": "DROP TABLE budget_items; DROP TABLE budget_buckets; CREATE VIEW budget_buckets AS SELECT 0 AS held, 0 AS consumed;",
+            "extra_trigger": "CREATE TRIGGER unrecognized AFTER UPDATE ON budget_buckets BEGIN SELECT 1; END;",
+        }
+        raw.executescript(mutations[fault])
+
+        def snapshot():
+            return (
+                [tuple(row) for row in raw.execute("SELECT * FROM budget_meta")],
+                [
+                    tuple(row)
+                    for row in raw.execute("SELECT type,name,sql FROM sqlite_master ORDER BY name")
+                ],
+            )
+
+        after_fault = snapshot()
+        now[0] += 1
+        for operation in (
+            lambda: report(ledger, actors["a"]),
+            lambda: reserve(ledger, actors["b"], key="must-not-reset"),
+            lambda: BudgetLedger(
+                registry, ledger.policy, store=store, clock=lambda: now[0], operator=operator
+            ),
+        ):
+            with pytest.raises(ValueError):
+                operation()
+            assert snapshot() == after_fault
+        if persistent:
+            with pytest.raises(ValueError):
+                SQLiteBudgetStore(path)
+            assert snapshot() == after_fault
+    finally:
+        if persistent:
+            raw.close()
+
+
+@pytest.mark.parametrize("persistent", [False, True])
+def test_lost_coordinator_metadata_cannot_reinitialize_an_active_store(tmp_path, persistent):
+    path = tmp_path / "budget.sqlite"
+    store = SQLiteBudgetStore(path, create=True) if persistent else InMemoryBudgetStore()
+    ledger, registry, actors, now, operator, _ = configured(store=store)
+    ticket = reserve(ledger, actors["a"])
+    begin(ledger, ticket, actors["a"])
+    ledger.commit(ticket)
+    raw = sqlite3.connect(path, isolation_level=None) if persistent else store._connection
+    try:
+        raw.execute("DELETE FROM budget_meta")
+        for operation in (
+            lambda: report(ledger, actors["a"]),
+            lambda: reserve(ledger, actors["b"], key="missing-meta"),
+            lambda: BudgetLedger(
+                registry, ledger.policy, store=store, clock=lambda: now[0], operator=operator
+            ),
+        ):
+            with pytest.raises(ValueError):
+                operation()
+        assert raw.execute("SELECT count(*) FROM budget_meta").fetchone()[0] == 0
+        assert raw.execute("SELECT consumed FROM budget_buckets").fetchone()[0] == 70
+        if persistent:
+            with pytest.raises(ValueError):
+                SQLiteBudgetStore(path)
+    finally:
+        if persistent:
+            raw.close()
 
 
 def test_policy_epoch_recovery_preserves_consumed_spend():

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from contextlib import contextmanager
 import sqlite3
 from threading import RLock
 import time
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 from uuid import uuid4
 
 from ordin.action import ActionEnvelope
@@ -429,6 +430,17 @@ class BudgetLedger:
     def default_costs() -> tuple[BudgetCost, ...]:
         return (BudgetCost("requests", 1), BudgetCost("concurrency", 1))
 
+    @contextmanager
+    def _admission_transaction(self) -> Iterator[tuple[sqlite3.Connection, list[_Binding]]]:
+        with self._lock:
+            staged: list[_Binding] = []
+            with self._store.transaction() as connection:
+                yield connection, staged
+            # The store context must confirm durable commit before any original
+            # live ticket is published. Rollback or lost ACK publishes nothing.
+            for binding in staged:
+                self._issued[binding.ticket.reservation_id] = binding
+
     def reserve(
         self,
         context: SwarmContext,
@@ -474,7 +486,7 @@ class BudgetLedger:
         action_digest, context_digest = digest(action.as_dict()), digest(context.as_dict())
         key = digest([context.identity.tenant_id, idempotency_key])
         cost_digest = digest({"costs": values, "effects": effects})
-        with self._lock, self._store.transaction() as connection:
+        with self._admission_transaction() as (connection, staged):
             now = self._meta(connection)
             self._expire(connection, now)
             previous = connection.execute(
@@ -538,8 +550,8 @@ class BudgetLedger:
                     (reservation_id, bucket, metric, amount),
                 )
             ticket = BudgetTicket(reservation_id)
-            self._issued[reservation_id] = _Binding(
-                ticket, self._registry, context_digest, action_digest, self._generation
+            staged.append(
+                _Binding(ticket, self._registry, context_digest, action_digest, self._generation)
             )
             return ticket
 
