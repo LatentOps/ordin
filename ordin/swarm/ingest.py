@@ -43,6 +43,7 @@ class ActionEventState:
     stages: tuple[str, ...]
     missing_stages: tuple[str, ...]
     unresolved_parents: tuple[EventRef, ...]
+    untrusted_parents: tuple[EventRef, ...]
     sequence_incomplete: bool
     causally_complete: bool
     authenticated_completion: bool
@@ -321,10 +322,13 @@ class SwarmEventIngestor:
     ) -> IngestReceipt:
         event = record.event
         gaps = set()
-        if binding.contiguous < event.source_sequence:
+        unresolved, untrusted, sequence_gap = self._dependencies([record])
+        if sequence_gap:
             gaps.add("source_sequence_gap")
-        if any(parent.event_id not in self._records for parent in event.parent_event_ids):
+        if unresolved:
             gaps.add("causal_parent_gap")
+        if untrusted:
+            gaps.add("untrusted_causal_parent")
         if event.evidence_class == "caller_asserted":
             gaps.add("caller_asserted_event")
         if event.action_id is not None:
@@ -360,16 +364,7 @@ class SwarmEventIngestor:
         ]
         trusted = [record for record in records if record.event.evidence_class != "caller_asserted"]
         stages = frozenset(record.event.event_kind for record in trusted)
-        unresolved = {
-            parent
-            for record in trusted
-            for parent in record.event.parent_event_ids
-            if parent.event_id not in self._records
-        }
-        sequence_gap = any(
-            self._source_ids[record.event.source_id].contiguous < record.event.source_sequence
-            for record in trusted
-        )
+        unresolved, untrusted, sequence_gap = self._dependencies(trusted)
         chains: dict[str, str | None] = {
             record.event.event_id: None
             for record in trusted
@@ -397,9 +392,10 @@ class SwarmEventIngestor:
             tuple(sorted(record.event.event_id for record in records)),
             tuple(sorted(stages)),
             tuple(stage for stage in _LIFECYCLE if stage not in stages),
-            tuple(sorted(unresolved, key=lambda ref: (ref.tenant_id, ref.swarm_id, ref.event_id))),
+            unresolved,
+            untrusted,
             sequence_gap,
-            bool(chains) and not unresolved and not sequence_gap,
+            bool(chains) and not unresolved and not untrusted and not sequence_gap,
             "completed" in stages,
             "observed" in stages,
             tuple(
@@ -411,6 +407,40 @@ class SwarmEventIngestor:
                     }
                 )
             ),
+        )
+
+    def _dependencies(
+        self,
+        records: list[JournalRecord],
+    ) -> tuple[tuple[EventRef, ...], tuple[EventRef, ...], bool]:
+        unresolved: set[EventRef] = set()
+        untrusted: set[EventRef] = set()
+        seen: set[str] = set()
+        pending = list(records)
+        sequence_gap = False
+        while pending:
+            record = pending.pop()
+            if record.event.event_id in seen:
+                continue
+            seen.add(record.event.event_id)
+            if self._source_ids[record.event.source_id].contiguous < record.event.source_sequence:
+                sequence_gap = True
+            for parent in record.event.parent_event_ids:
+                ancestor = self._records.get(parent.event_id)
+                if ancestor is None:
+                    unresolved.add(parent)
+                elif ancestor.event.evidence_class == "caller_asserted":
+                    untrusted.add(parent)
+                else:
+                    pending.append(ancestor)
+
+        def order(ref: EventRef) -> tuple[str, str, str]:
+            return ref.tenant_id, ref.swarm_id, ref.event_id
+
+        return (
+            tuple(sorted(unresolved, key=order)),
+            tuple(sorted(untrusted, key=order)),
+            sequence_gap,
         )
 
     def snapshot(self) -> tuple[JournalRecord, ...]:

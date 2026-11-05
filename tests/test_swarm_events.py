@@ -480,3 +480,71 @@ def test_stage_presence_without_causal_links_cannot_complete_a_lifecycle():
     state = ingest.action_state(source, action_id="action", action_digest=DIGEST)
     assert state.authenticated_completion and not state.missing_stages
     assert not state.causally_complete
+
+
+def complete_trace(context, ingest, source, *, start=1, proposal_parents=()):
+    previous = None
+    for sequence, kind in enumerate(
+        ("proposed", "reviewed", "reserved", "committed", "forwarded", "completed"), start
+    ):
+        parents = proposal_parents if previous is None else (previous,)
+        review = None if kind in {"proposed", "reviewed"} else "reviewed"
+        if review is not None:
+            parents = tuple(dict.fromkeys((review, *parents)))
+        ingest.ingest(
+            source,
+            event(
+                context,
+                kind,
+                kind,
+                sequence,
+                source=source.source_id,
+                parents=parents,
+                review=review,
+            ),
+        )
+        previous = kind
+
+
+def test_transitive_parent_gaps_resolve_only_with_authenticated_backfill():
+    for asserted_parent in (False, True):
+        _, adapter, channel, context, ingest, source, _ = fixture()
+        ingest.ingest(source, event(context, "external", "message_sent", 1, parents=("missing",)))
+        complete_trace(context, ingest, source, start=2, proposal_parents=("external",))
+        state = ingest.action_state(source, action_id="action", action_digest=DIGEST)
+        assert state.unresolved_parents == (EventRef("tenant", "swarm", "missing"),)
+        assert not state.causally_complete
+        if asserted_parent:
+            claims = ingest.bind_source(
+                context, channel, adapter, source_id="claims", role="asserted"
+            )
+            ingest.ingest(
+                claims,
+                event(
+                    context,
+                    "missing",
+                    "message_received",
+                    1,
+                    source="claims",
+                    evidence_class="caller_asserted",
+                ),
+            )
+        else:
+            ingest.ingest(source, event(context, "missing", "message_received", 8))
+        state = ingest.action_state(source, action_id="action", action_digest=DIGEST)
+        assert not state.unresolved_parents
+        assert state.causally_complete is (not asserted_parent)
+        assert bool(state.untrusted_parents) is asserted_parent
+
+
+def test_ancestor_stream_sequence_gaps_remain_visible_to_dependent_actions():
+    _, adapter, channel, context, ingest, source, _ = fixture()
+    ingest.ingest(source, event(context, "external", "message_sent", 3))
+    second = ingest.bind_source(context, channel, adapter, source_id="second")
+    complete_trace(context, ingest, second, proposal_parents=("external",))
+    state = ingest.action_state(second, action_id="action", action_digest=DIGEST)
+    assert state.sequence_incomplete and not state.causally_complete
+    ingest.ingest(source, event(context, "earlier-one", "message_sent", 1))
+    ingest.ingest(source, event(context, "earlier-two", "message_sent", 2))
+    state = ingest.action_state(second, action_id="action", action_digest=DIGEST)
+    assert not state.sequence_incomplete and state.causally_complete

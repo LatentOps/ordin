@@ -105,6 +105,9 @@ descendants too, so it cannot introduce a cycle or a graph deeper than the limit
 
 `action_state()` reports authenticated stages, missing stages, unresolved
 parents, sequence gaps and whether a complete causal lifecycle chain exists.
+Gap reporting follows trusted parent ancestry across actions and agents;
+referenced caller assertions remain explicitly untrusted. A direct parent
+arriving cannot erase a missing ancestor or that ancestor's stream gap.
 A complete chain requires actual parent links through proposed, reviewed,
 reserved, committed, forwarded and completed; mere stage presence is
 insufficient. Caller assertions cannot complete or contaminate that trusted
