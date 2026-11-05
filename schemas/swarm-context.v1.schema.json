@@ -1,0 +1,304 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/ordin/swarm-context.v1.schema.json",
+  "title": "Ordin Swarm Context v1",
+  "description": "Host enrollment data. JSON does not authenticate a principal or attest enforcement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "registry_id",
+    "identity",
+    "coverage",
+    "enrolled_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_context.v1"
+    },
+    "registry_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "swarm_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "runtime_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "policy_epoch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "parent_agent_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "task_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "delegation_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "parent_generation": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "parent_agent_id": {
+              "type": "null"
+            },
+            "parent_generation": {
+              "type": "null"
+            },
+            "delegation_id": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "parent_agent_id": {
+              "type": "string"
+            },
+            "parent_generation": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ],
+      "required": [
+        "tenant_id",
+        "swarm_id",
+        "agent_id",
+        "runtime_id",
+        "session_id",
+        "generation",
+        "policy_epoch",
+        "parent_agent_id",
+        "task_id",
+        "delegation_id",
+        "parent_generation"
+      ]
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "entries"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "observe",
+            "intercept",
+            "enforce",
+            "uncovered"
+          ]
+        },
+        "entries": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "capability": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+              },
+              "route": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+              },
+              "boundary_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+              },
+              "resource": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512,
+                "pattern": "^[^\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+              },
+              "state": {
+                "enum": [
+                  "observe_only",
+                  "mediated",
+                  "physically_enforced",
+                  "unsupported",
+                  "coverage_gap"
+                ]
+              }
+            },
+            "required": [
+              "capability",
+              "route",
+              "boundary_id",
+              "resource",
+              "state"
+            ]
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "mode": {
+              "const": "uncovered"
+            },
+            "entries": {
+              "items": {
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "unsupported",
+                      "coverage_gap"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "mode": {
+              "const": "observe"
+            },
+            "entries": {
+              "items": {
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "observe_only",
+                      "unsupported",
+                      "coverage_gap"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "mode": {
+              "const": "intercept"
+            },
+            "entries": {
+              "items": {
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "observe_only",
+                      "mediated",
+                      "unsupported",
+                      "coverage_gap"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "mode": {
+              "const": "enforce"
+            },
+            "entries": {
+              "items": {
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "observe_only",
+                      "mediated",
+                      "physically_enforced",
+                      "unsupported",
+                      "coverage_gap"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "enrolled_at": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1e+18
+    }
+  }
+}

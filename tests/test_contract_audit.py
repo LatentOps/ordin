@@ -36,6 +36,7 @@ from ordin.runtime_observation import (
 )
 from ordin.schema import SCHEMA_FILES, validate_instance, validate_named_schema
 from ordin.session import IntegrationSession, SessionIdentity
+from ordin.swarm import CoverageManifest, SwarmContext, SwarmIdentity
 from ordin.temporal import default_temporal_policy, load_temporal_policy
 from ordin.tool_calls import ToolSemanticsRegistry, load_tool_semantics
 from ordin.trace_capture import TraceRecorder, read_capture
@@ -72,6 +73,12 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     from ordin.runtime_requests_v2 import RuntimeRequestContractV2, RuntimeRequestBoundaryV2
 
     samples = {
+        "swarm_context": SwarmContext(
+            "contract-registry",
+            SwarmIdentity("tenant", "swarm", "agent", "runtime", "session", 1, 0),
+            CoverageManifest(),
+            0.0,
+        ).as_dict(),
         "runtime_request_contract_v2": RuntimeRequestContractV2(
             derive_runtime_capability_contract(review), ()
         ).as_dict(),
@@ -155,6 +162,7 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
         assert not validate_named_schema(name, payload), name
         json.dumps(payload, allow_nan=False)
     readers = {
+        "swarm_context": SwarmContext,
         "action_trace": ActionTrace,
         "action_envelope": ActionEnvelope,
         "action_history": ActionHistory,
@@ -269,6 +277,7 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
+        "swarm_context",
         "cursor_mcp_map",
         "runtime_capability",
         "runtime_observation",

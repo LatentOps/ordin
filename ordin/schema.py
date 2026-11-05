@@ -27,6 +27,7 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "swarm_context": "swarm-context.v1.schema.json",
     "assurance_semantic_simulation": "assurance-semantic-simulation.v1.schema.json",
     "assurance_linux_sandbox_test": "assurance-linux-sandbox-test.v1.schema.json",
     "assurance_boundary_regression": "assurance-boundary-regression.v1.schema.json",
