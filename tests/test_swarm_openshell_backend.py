@@ -22,7 +22,7 @@ def fixture():
     original = derive_runtime_capability_contract(
         Ordin().review_action(
             ActionEnvelope.shell(
-                "/usr/bin/curl --disable --request GET https://api.github.com/fixture",
+                "/usr/bin/cat /usr/share/fixture",
                 action_id="read",
             )
         )
@@ -37,10 +37,8 @@ def fixture():
             FilesystemCapability("read", "/usr", "prefix"),
             FilesystemCapability("execute", "/usr", "prefix"),
         ),
-        network=(
-            NetworkCapability("api.github.com", 443, "rest", "read", ("GET",), ("/fixture",)),
-        ),
-        process=ProcessCapability(True, ("/usr/bin/curl",), True),
+        network=(),
+        process=ProcessCapability(True, ("/usr/bin/cat",), True),
     )
     backend = compiler.OpenShellBackend((1000, 1000))
     compiled = backend.compile(contract)
@@ -85,8 +83,18 @@ def test_request_authority_cannot_be_omitted_swapped_or_projected_into_tcp():
     refused = bridge.compile(object())
     assert not refused.enforceable
     unknown = replace(
-        contract, contract_id="", network=(replace(contract.network[0], protocol="graphql"),)
+        contract,
+        contract_id="",
+        network=(NetworkCapability("api.github.com", 443, "graphql", "read"),),
     )
     assert not bridge.compile(unknown).enforceable
+    rest = replace(
+        contract,
+        contract_id="",
+        network=(
+            NetworkCapability("api.github.com", 443, "rest", "read", ("GET",), ("/fixture",)),
+        ),
+    )
+    assert not bridge.compile(rest).enforceable
     with pytest.raises(ValueError):
         bridge.prepare(bridge.backend.compile(contract).plan)

@@ -82,6 +82,13 @@ class SwarmOpenShellBackend:
                 "swarm.openshell_requirement_unrepresentable",
                 unsupported_fields=("requirements.complete_authority",),
             )
+        if any(v.protocol == "rest" for v in capability.network):
+            return CompilationResult(
+                "unsupported",
+                "openshell",
+                "swarm.openshell_exact_rest_authority_required",
+                unsupported_fields=("requests.rest_complete_authority",),
+            )
         result = self.backend.compile(capability)
         if result.plan is not None and result.enforceable:
             if len(self._plans) >= 4096:
