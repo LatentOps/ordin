@@ -16,12 +16,16 @@ def assess_source_flow(
     provenance: SourceProvenance,
     origins: tuple[InstructionOrigin, ...] = (),
     uses: tuple[SourceUse, ...] = (),
+    lineage_assessment: HostConstraintAssessment | None = None,
 ) -> HostConstraintAssessment:
     """Issue a scope-bound guard result; never authorize execution or claim causality.
 
     Sensitive bytes in proposed egress arguments and untrusted bytes supplied as
     instruction context violate the guard. A satisfied result requires explicit
     complete host collection and known classifications, or a non-applicable rule.
+    An optional protected lineage assessment supplies conservatively propagated
+    cross-agent provenance. It can strengthen a result or fill unknown lineage;
+    it cannot erase an independently established unsafe exact-byte use.
     Use the resulting receipt in a fresh exact-action gate review. The original
     escalation remains an escalation until the host performs that review.
     """
@@ -95,10 +99,39 @@ def assess_source_flow(
             o.classification != "unknown" and o.kind != "unknown_origin" for o in origins
         ):
             status, gaps = "satisfied", ()
+    if lineage_assessment is not None:
+        if not isinstance(lineage_assessment, HostConstraintAssessment):
+            raise ValueError("lineage assessment requires a protected host receipt")
+        lineage_assessment.__post_init__()
+        if (
+            lineage_assessment.source_key != source.key
+            or lineage_assessment.action_digest != core_digest(action.as_dict())
+            or lineage_assessment.profile_digest != profile.digest
+            or lineage_assessment.invariant_id != invariant_id
+            or lineage_assessment.kind != "source_flow_guard"
+        ):
+            raise ValueError("lineage assessment belongs to another action or protected scope")
+        if prior is None or not prior.reason_code.endswith("_not_applicable"):
+            if status == "violated" or lineage_assessment.status == "violated":
+                status, gaps = "violated", ()
+            elif status == "unsupported" or lineage_assessment.status == "unsupported":
+                status, gaps = "unsupported", ("Source-flow scope is unsupported.",)
+            elif lineage_assessment.status != "satisfied":
+                status = "inconclusive"
+                gaps = lineage_assessment.proof_gaps or ("Authenticated lineage is incomplete.",)
+            elif not origins and not uses:
+                # The protected lineage collector established actual transformed
+                # input coverage; empty caller-supplied collections cannot do so.
+                status, gaps = "satisfied", ()
+    assessment_digest = (
+        provenance.digest
+        if lineage_assessment is None
+        else core_digest([provenance.digest, lineage_assessment.digest])
+    )
     return source.record_assessment(
         action,
         profile,
-        assessment_id="source-flow:" + provenance.digest[:24] + ":" + rule.digest[:12],
+        assessment_id="source-flow:" + assessment_digest[:24] + ":" + rule.digest[:12],
         invariant_id=invariant_id,
         kind="source_flow_guard",
         status=status,

@@ -192,6 +192,15 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     samples["swarm_causal_graph"] = (
         SwarmCausalGraph(swarm_events, swarm_sender, swarm_context).build().as_dict()
     )
+    from ordin.swarm import SourceFlowResult
+
+    samples["swarm_source_flow"] = SourceFlowResult(
+        "unknown",
+        "source_flow.incomplete_provenance",
+        ("unclassified",),
+        (),
+        ("partial_egress_inputs",),
+    ).as_dict()
     from tests.assurance.contract_examples import assurance_contract_examples
 
     samples.update(assurance_contract_examples(tmp_path))
@@ -316,6 +325,7 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
+        "swarm_source_flow",
         "swarm_causal_graph",
         "swarm_gateway_status",
         "swarm_decision",
