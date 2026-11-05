@@ -79,6 +79,14 @@ components ship. No recipe requires real secrets, payments or destructive tools.
 
 ## Current reusable regression evidence
 
+The [identity registry tests](../../tests/test_swarm_identity.py) cover the local
+identity parts of S01, S07, S13, S17 and S18: forged JSON and channels,
+cross-scope access, policy/parent generation fencing, bounded retention and
+rejection of old contexts across registry instances. They also verify partial
+coverage and explicit rejection of physical-enforcement claims during enrollment.
+Run them with `python -m pytest -q tests/test_swarm_identity.py`. They do not prove
+distributed fencing or broker prevention.
+
 These existing tests establish narrow local behavior, not the unimplemented
 multihost recipes. Run from the repository root:
 

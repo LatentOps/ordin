@@ -1,7 +1,8 @@
 # Swarm coverage and adoption contract
 
-Status: planned swarm contract. No universal swarm enforcement is shipped by
-these documents. Current single-session features remain available under their
+Status: swarm adoption contract with local host enrollment available. No
+universal swarm enforcement is shipped by these documents. Current single-session
+features remain available under their
 existing [integration](../integration-sessions.md),
 [Assurance](../assurance/README.md) and
 [OpenShell](../openshell-integration.md) contracts.
@@ -29,13 +30,14 @@ it must never silently become observe-only while retaining an enforcement label.
 
 | Runtime/integration | Current supported boundary | Planned opt-in swarm work and limitations |
 | --- | --- | --- |
+| [Local identity registry](identity.md) | Host-bound identity, heartbeat/lifecycle, bounded manifests and local generation/epoch fencing | No action execution, distributed state or physical-enforcement receipt; unlisted routes remain unknown |
 | Python `AgentGate` / `IntegrationSession` | Local review and bounded session history; caller owns execution | Host enrollment and composition; no prevention if caller ignores the decision |
 | Native Claude/Codex/Cursor/Hermes hooks | Host-specific pre-tool interception where installed and invoked | Bind enrolled identities; uncovered tools/processes remain gaps |
 | MCP stdio / Streamable HTTP proxy | Gate traffic actually routed through the configured proxy | Authenticated swarm context and per-route inventory; direct server access is not covered |
 | Assurance delegation | Protected local issuance, subset checking and exact-action commit tickets | Distributed fencing and causal transfer; current local locks do not coordinate hosts |
 | OpenShell optional integration | Compile/prove supported capabilities; applied runtime evidence is a separate boundary | Broker admission and generation checks for enrolled agents; unsupported protocols cannot become broad TCP permissions |
 | Vetted Linux sandbox fixtures | Isolation and evidence for the documented fixture and supported host | Not a general attach-to-any-process containment service |
-| Existing uninstrumented swarm | No authoritative enrollment or prevention claim | Start observation explicitly; mediate future routes only after verified installation |
+| Existing uninstrumented swarm | Host can explicitly bind a verified adapter to the local registry; no automatic process discovery or prevention claim | Start observation explicitly; mediate future routes only after verified installation |
 | LangGraph / CrewAI / AutoGen / custom orchestrators | No swarm-wide framework conformance claim | Dedicated adapters and pinned conformance tests required |
 | Shared files, memory, messages and delegated credentials | Existing action review does not prove all accesses are mediated | Enroll the actual storage/transport/credential broker; unwrapped access remains uncovered |
 
