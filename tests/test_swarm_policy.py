@@ -10,6 +10,7 @@ from itertools import permutations
 import pytest
 
 from ordin import ActionEnvelope, AgentGate, Ordin
+from ordin._runtime_json import digest
 from ordin.swarm import CoverageManifest, InMemoryAgentRegistry, SwarmGate, SwarmToolGateway
 from ordin.swarm.budgets import BudgetCost, BudgetLedger, BudgetLimit, BudgetPolicy
 from ordin.swarm.policy_set import (
@@ -493,6 +494,85 @@ def test_budget_facts_are_reissued_after_own_reservation_before_forwarding():
         ]
         == 70
     )
+
+
+def test_post_reservation_policy_denial_releases_unforwarded_budget():
+    runtime, registry, actors, _, operator = fixture(budget=True)
+    selected = policy(
+        rules=(
+            SwarmPolicyRule(
+                "protect-margin",
+                "deny",
+                SwarmPolicySelector(budgets=(SwarmBudgetCondition("swarm", "requests", 90),)),
+            ),
+        )
+    )
+    activation = deploy(runtime, registry, actors, operator, selected)
+    ledger = activation.budget_ledger
+    gate = SwarmGate(registry, policy_runtime=runtime)
+
+    def facts(context, action, gate, options):
+        row = registry._agents[context.identity.agent_id]
+        adapter = registry._channels[row.channel][0]
+        values = ledger.report(context, channel=row.channel, adapter=adapter)["limits"]
+        return runtime.facts_source.issue(
+            context,
+            action,
+            policy_digest=gate.policy_digest,
+            snapshot_digest=gate.evidence_snapshot_digest(context, **options),
+            budgets=tuple(SwarmBudgetFact(v["scope"], v["metric"], v["remaining"]) for v in values),
+        )
+
+    gateway = SwarmToolGateway(
+        clock=lambda: 100,
+        budget_ledger=ledger,
+        budget_cost_provider=lambda *args: (BudgetCost("requests", 70),),
+    )
+    handle = gateway.bind_agent(
+        actors["a"][0],
+        gate,
+        actors["a"][1],
+        actors["a"][2],
+        routes=frozenset({"sdk"}),
+        policy_facts_provider=facts,
+    )
+    denied = gateway.prepare(
+        handle, ActionEnvelope.shell("git status"), budget_idempotency_key="protected-margin"
+    )
+    assert denied.disposition == "deny" and denied.ticket is None
+    values = ledger.report(actors["a"][0], channel=actors["a"][1], adapter=actors["a"][2])[
+        "limits"
+    ][0]
+    assert values["reserved"] == values["consumed"] == 0
+
+
+def test_positive_policy_fact_cannot_erase_legacy_mandatory_unknown_assessment():
+    from ordin.swarm import SwarmAssessmentSource, SwarmPolicy
+
+    runtime, registry, actors, _, operator = fixture()
+    deploy(runtime, registry, actors, operator, policy(required_checks=("hard-check",)))
+    source = SwarmAssessmentSource("existing-source", clock=lambda: 100)
+    legacy = SwarmPolicy(
+        "legacy", "1", required_checks=("hard-check",), unknown_disposition="escalate"
+    )
+    gate = SwarmGate(registry, policy=legacy, policy_runtime=runtime, assessment_source=source)
+    context, _, _ = actors["a"]
+    action = ActionEnvelope.shell("git status", action_id="action")
+    bindings = dict(
+        policy_digest=gate.policy_digest, snapshot_digest=gate.evidence_snapshot_digest(context)
+    )
+    receipt = source.issue(
+        check_id="hard-check",
+        status="unknown",
+        action_digest=digest(action.as_dict()),
+        context_digest=digest(context.as_dict()),
+        **bindings,
+    )
+    facts = runtime.facts_source.issue(
+        context, action, checks=(("hard-check", "satisfied"),), **bindings
+    )
+    decision = evaluate(gate, actors["a"], action, assessments=(receipt,), policy_facts=facts)
+    assert not decision.may_execute and dict(decision.check_results)["hard-check"] == "unknown"
 
 
 def test_required_unavailable_broker_and_all_paths_never_become_applied_from_flags():
