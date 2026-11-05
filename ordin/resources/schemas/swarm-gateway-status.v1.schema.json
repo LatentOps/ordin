@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/ordin/swarm-gateway-status.v1.schema.json",
+  "title": "Ordin Swarm Gateway Status v1",
+  "description": "Explicit per-route mediation; no host-wide or physical-enforcement claim.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "identity",
+    "mode",
+    "routes",
+    "active_attempt",
+    "journal_gap"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_gateway_status.v1"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "swarm_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "runtime_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "policy_epoch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "parent_agent_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "task_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "delegation_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "parent_generation": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "parent_agent_id": {
+              "type": "null"
+            },
+            "parent_generation": {
+              "type": "null"
+            },
+            "delegation_id": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "parent_agent_id": {
+              "type": "string"
+            },
+            "parent_generation": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ],
+      "required": [
+        "tenant_id",
+        "swarm_id",
+        "agent_id",
+        "runtime_id",
+        "session_id",
+        "generation",
+        "policy_epoch",
+        "parent_agent_id",
+        "task_id",
+        "delegation_id",
+        "parent_generation"
+      ]
+    },
+    "mode": {
+      "enum": [
+        "observe",
+        "intercept",
+        "enforce",
+        "uncovered"
+      ]
+    },
+    "routes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "database",
+        "file",
+        "http",
+        "mcp",
+        "sdk",
+        "shell"
+      ],
+      "properties": {
+        "database": {
+          "enum": [
+            "mediated",
+            "coverage_gap"
+          ]
+        },
+        "file": {
+          "enum": [
+            "mediated",
+            "coverage_gap"
+          ]
+        },
+        "http": {
+          "enum": [
+            "mediated",
+            "coverage_gap"
+          ]
+        },
+        "mcp": {
+          "enum": [
+            "mediated",
+            "coverage_gap"
+          ]
+        },
+        "sdk": {
+          "enum": [
+            "mediated",
+            "coverage_gap"
+          ]
+        },
+        "shell": {
+          "enum": [
+            "mediated",
+            "coverage_gap"
+          ]
+        }
+      }
+    },
+    "active_attempt": {
+      "type": "boolean"
+    },
+    "journal_gap": {
+      "type": "boolean"
+    }
+  }
+}

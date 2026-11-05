@@ -134,7 +134,11 @@ def configuration_digest(gate: AgentGate) -> str:
         if (
             not isinstance(extension, Mapping)
             or set(extension) != {"namespace", "configuration_digest", "source_digest"}
-            or extension["namespace"] != "ordin.assurance.adapter.v1"
+            or extension["namespace"]
+            not in {
+                "ordin.assurance.adapter.v1",
+                "ordin.swarm.gateway.v1",
+            }
             or any(
                 not isinstance(extension[key], str)
                 or re.fullmatch(r"[a-f0-9]{64}", extension[key]) is None
