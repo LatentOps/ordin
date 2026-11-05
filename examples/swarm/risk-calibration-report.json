@@ -1,0 +1,88 @@
+{
+  "report": {
+    "schema_version": "ordin.swarm_risk_calibration.v1",
+    "report_id": "e7886e62e9c24bd1bf076f676c1701ea",
+    "provider_binding": "1b2ddb66580bf13d0f10920bbcddd906114a9dd94988f0bcee39b3f171c71504",
+    "dataset_digest": "fc0a156eb906353b8c4182956b2211421cc24cda10dd892ae7ea919e12657e02",
+    "cases": 16,
+    "true_positive": 6,
+    "false_positive": 2,
+    "true_negative": 6,
+    "false_negative": 2,
+    "exact_class_matches": 12,
+    "failures": 0,
+    "false_positive_rate": 0.25,
+    "false_negative_rate": 0.25,
+    "mean_elapsed_ms": 0.5091124985483475,
+    "maximum_elapsed_ms": 1.2543999910121784,
+    "confidence_brier_score": 0.23,
+    "mean_uncertainty": 0.45,
+    "class_confusion": [
+      {
+        "expected": "collusive_coordination",
+        "predicted": "collusive_coordination",
+        "count": 1
+      },
+      {
+        "expected": "collusive_coordination",
+        "predicted": "none",
+        "count": 1
+      },
+      {
+        "expected": "coordinated_plan_change",
+        "predicted": "coordinated_plan_change",
+        "count": 1
+      },
+      {
+        "expected": "evasive_retry",
+        "predicted": "evasive_retry",
+        "count": 1
+      },
+      {
+        "expected": "none",
+        "predicted": "coordinated_plan_change",
+        "count": 1
+      },
+      {
+        "expected": "none",
+        "predicted": "none",
+        "count": 6
+      },
+      {
+        "expected": "none",
+        "predicted": "prompt_injection",
+        "count": 1
+      },
+      {
+        "expected": "policy_persuasion",
+        "predicted": "policy_persuasion",
+        "count": 1
+      },
+      {
+        "expected": "prompt_injection",
+        "predicted": "none",
+        "count": 1
+      },
+      {
+        "expected": "prompt_injection",
+        "predicted": "prompt_injection",
+        "count": 1
+      },
+      {
+        "expected": "task_redirection",
+        "predicted": "task_redirection",
+        "count": 1
+      }
+    ],
+    "confidence_calibration": "measured_on_declared_synthetic_corpus_only",
+    "data_scope": "caller_declared_synthetic_calibration",
+    "authorization_tests_included": false,
+    "general_prompt_injection_prevention": "not_established",
+    "execution_authority": false
+  },
+  "provider_id": "local-fixed-rules-v1",
+  "python": "3.13.12",
+  "platform": "Windows",
+  "authorization_suite_included": false,
+  "promotion_configured": false
+}

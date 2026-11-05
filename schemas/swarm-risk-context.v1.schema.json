@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-risk-context.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "context_digest",
+    "evidence",
+    "privacy_mode",
+    "evidence_class",
+    "host_facts_included",
+    "raw_payload_included",
+    "residual_privacy_risk"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_risk_context.v1"
+    },
+    "context_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pointer",
+          "input_kind",
+          "features"
+        ],
+        "properties": {
+          "pointer": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "input_kind": {
+            "enum": [
+              "private_instruction",
+              "untrusted_message",
+              "tool_output",
+              "shared_plan",
+              "retry"
+            ]
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "prompt_injection",
+                "policy_persuasion",
+                "task_redirection",
+                "collusive_coordination",
+                "evasive_retry",
+                "coordinated_plan_change"
+              ]
+            },
+            "maxItems": 6,
+            "uniqueItems": true
+          },
+          "excerpt": {
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      },
+      "maxItems": 16
+    },
+    "privacy_mode": {
+      "enum": [
+        "features_only",
+        "redacted_excerpt_opt_in"
+      ]
+    },
+    "evidence_class": {
+      "const": "untrusted_behavioral_input"
+    },
+    "host_facts_included": {
+      "const": false
+    },
+    "raw_payload_included": {
+      "type": "boolean"
+    },
+    "residual_privacy_risk": {
+      "enum": [
+        "bounded_excerpt_may_contain_private_text",
+        "feature_and_digest_metadata"
+      ]
+    }
+  }
+}

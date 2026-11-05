@@ -24,6 +24,7 @@ from .ingest import HostEventSource, SwarmEventIngestor
 from .models import SwarmContext, SwarmIdentity, identifier
 from .policy import DISPOSITIONS, SwarmPolicy
 from .registry import AgentRegistry
+from .risk_signals import SwarmRiskReceipt, SwarmRiskScorer
 
 if TYPE_CHECKING:
     from .policy_runtime import SwarmPolicyRuntime
@@ -102,6 +103,9 @@ class SwarmDecision:
         default=None, repr=False, compare=False, kw_only=True
     )
     _approval_satisfaction: Any = field(default=None, repr=False, compare=False, kw_only=True)
+    _risk_receipt: SwarmRiskReceipt | None = field(
+        default=None, repr=False, compare=False, kw_only=True
+    )
 
     def __post_init__(self) -> None:
         if type(self.disposition) is not str or self.disposition not in DISPOSITIONS:
@@ -149,6 +153,8 @@ class SwarmDecision:
             if type(receipt) is not SwarmAssessment:
                 raise ValueError("decision assessments require protected host receipts")
             receipt.__post_init__()
+        if self._risk_receipt is not None and type(self._risk_receipt) is not SwarmRiskReceipt:
+            raise ValueError("decision risk input requires its original typed inference receipt")
         for code in self.reason_codes:
             identifier(code, "reason_code")
         for rule in self.matched_rules:
@@ -236,6 +242,8 @@ class SwarmDecision:
             result["policy_facts_digest"] = self._policy_facts.digest
         if self._approval_satisfaction is not None:
             result["approval_satisfaction_digest"] = self._approval_satisfaction.digest
+        if self._risk_receipt is not None:
+            result["risk_receipt_digest"] = digest(self._risk_receipt.as_dict())
         return result
 
     @classmethod
@@ -254,6 +262,7 @@ class SwarmGate:
         events: SwarmEventIngestor | None = None,
         delegation_context: SwarmContext | None = None,
         policy_runtime: SwarmPolicyRuntime | None = None,
+        risk_scorer: SwarmRiskScorer | None = None,
     ) -> None:
         selected = baseline if baseline is not None else AgentGate()
         if type(selected) not in {AgentGate, AssuranceGate, DelegatingAssuranceGate}:
@@ -266,6 +275,8 @@ class SwarmGate:
             raise ValueError("swarm assessments require an operator-owned source")
         if events is not None and type(events) is not SwarmEventIngestor:
             raise ValueError("swarm evidence requires an authenticated event ingestor")
+        if risk_scorer is not None and type(risk_scorer) is not SwarmRiskScorer:
+            raise ValueError("risk advisory requires its original protected scorer")
         if policy_runtime is not None:
             from .policy_runtime import SwarmPolicyRuntime
 
@@ -292,6 +303,7 @@ class SwarmGate:
         self._registry, self._baseline, self._policy = registry, selected, policy
         self._assessment_source, self._events = assessment_source, events
         self._policy_runtime = policy_runtime
+        self._risk_scorer = risk_scorer
         self._key = object()
         self._lock = RLock()
         self._audit_sources: dict[str | None, Any] = {}
@@ -344,6 +356,8 @@ class SwarmGate:
             "events_configured": self._events is not None,
             "delegation_context": self._delegation_context_digest,
         }
+        if self._risk_scorer is not None:
+            payload["risk_scorer"] = self._risk_scorer.binding_digest
         return digest(payload)
 
     def evidence_snapshot_digest(
@@ -406,6 +420,7 @@ class SwarmGate:
         assessments: tuple[SwarmAssessment, ...] = (),
         policy_facts: SwarmPolicyFacts | None = None,
         delegated_baseline: DelegatedDecision | None = None,
+        risk_receipt: SwarmRiskReceipt | None = None,
         **baseline_options: Any,
     ) -> SwarmDecision:
         """Evaluate only: caller separately owns approval, reservation and execution."""
@@ -490,6 +505,7 @@ class SwarmGate:
             checks = {}
             valid_assessments = []
             valid_policy_facts = None
+            valid_risk_receipt = None
             for assessment in assessments:
                 if self._assessment_source is None or not self._assessment_source.verify(
                     assessment,
@@ -561,6 +577,18 @@ class SwarmGate:
             elif policy_facts is not None:
                 final = "deny"
                 reasons.append("policy.unexpected_facts")
+            if self._risk_scorer is not None:
+                risk_disposition, risk_reasons = self._risk_scorer.project(
+                    risk_receipt, context, normalized
+                )
+                final = max((final, risk_disposition), key=DISPOSITIONS.__getitem__)
+                reasons.extend(risk_reasons)
+                if self._risk_scorer.promoting and self._risk_scorer.verify(
+                    risk_receipt, context, normalized
+                ):
+                    valid_risk_receipt = risk_receipt
+            elif risk_receipt is not None:
+                reasons.append("risk.unconfigured_inference_ignored")
             try:
                 current_action = action.as_dict() if isinstance(action, ActionEnvelope) else action
                 if digest(ActionEnvelope.from_dict(current_action).as_dict()) != action_hash:
@@ -620,6 +648,7 @@ class SwarmGate:
                 _approval_satisfaction=proof
                 if underlying.approval_fulfilled and not approval_blocked and final != "deny"
                 else None,
+                _risk_receipt=valid_risk_receipt,
             )
             preview = object.__new__(SwarmDecision)
             for key, value in values.items():
@@ -689,6 +718,11 @@ class SwarmGate:
                     normalized,
                     policy_digest=decision.policy_digest,
                     snapshot_digest=decision.evidence_snapshot_digest,
+                ):
+                    return False
+            if decision._risk_receipt is not None:
+                if self._risk_scorer is None or not self._risk_scorer.verify(
+                    decision._risk_receipt, context, normalized
                 ):
                     return False
             return (

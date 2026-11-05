@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-risk-calibration.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "report_id",
+    "provider_binding",
+    "dataset_digest",
+    "cases",
+    "true_positive",
+    "false_positive",
+    "true_negative",
+    "false_negative",
+    "exact_class_matches",
+    "failures",
+    "false_positive_rate",
+    "false_negative_rate",
+    "mean_elapsed_ms",
+    "maximum_elapsed_ms",
+    "confidence_brier_score",
+    "mean_uncertainty",
+    "class_confusion",
+    "confidence_calibration",
+    "data_scope",
+    "authorization_tests_included",
+    "general_prompt_injection_prevention",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_risk_calibration.v1"
+    },
+    "report_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "provider_binding": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "dataset_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "cases": {
+      "type": "integer",
+      "minimum": 12,
+      "maximum": 256
+    },
+    "true_positive": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "false_positive": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "true_negative": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "false_negative": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "exact_class_matches": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "failures": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "false_positive_rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "false_negative_rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "mean_elapsed_ms": {
+      "type": "number",
+      "minimum": 0
+    },
+    "maximum_elapsed_ms": {
+      "type": "number",
+      "minimum": 0
+    },
+    "confidence_brier_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "mean_uncertainty": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "class_confusion": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expected",
+          "predicted",
+          "count"
+        ],
+        "properties": {
+          "expected": {
+            "enum": [
+              "none",
+              "unknown",
+              "prompt_injection",
+              "policy_persuasion",
+              "task_redirection",
+              "collusive_coordination",
+              "evasive_retry",
+              "coordinated_plan_change"
+            ]
+          },
+          "predicted": {
+            "enum": [
+              "none",
+              "unknown",
+              "prompt_injection",
+              "policy_persuasion",
+              "task_redirection",
+              "collusive_coordination",
+              "evasive_retry",
+              "coordinated_plan_change"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 256
+          }
+        }
+      },
+      "maxItems": 64
+    },
+    "confidence_calibration": {
+      "const": "measured_on_declared_synthetic_corpus_only"
+    },
+    "data_scope": {
+      "const": "caller_declared_synthetic_calibration"
+    },
+    "authorization_tests_included": {
+      "const": false
+    },
+    "general_prompt_injection_prevention": {
+      "const": "not_established"
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}
