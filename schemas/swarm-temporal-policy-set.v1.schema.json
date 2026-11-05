@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-temporal-policy-set.v1.schema.json",
+  "title": "Bounded data-only swarm causal temporal policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_id",
+    "revision",
+    "rules"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_temporal_policy_set.v1"
+    },
+    "policy_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rule_id",
+          "severity",
+          "pattern"
+        ],
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+          },
+          "severity": {
+            "enum": [
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "pattern": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 8,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "effects_any": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                  }
+                },
+                "action_kinds": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])",
+                    "enum": [
+                      "shell",
+                      "file",
+                      "network",
+                      "mcp",
+                      "database",
+                      "tool"
+                    ]
+                  }
+                },
+                "operations": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                  }
+                },
+                "event_kinds": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])",
+                    "enum": [
+                      "proposed",
+                      "reviewed",
+                      "reserved",
+                      "committed",
+                      "forwarded",
+                      "completed",
+                      "observed",
+                      "failed",
+                      "denied",
+                      "canceled",
+                      "delegated",
+                      "message_sent",
+                      "message_received",
+                      "artifact_read",
+                      "artifact_write",
+                      "revoked"
+                    ]
+                  }
+                },
+                "evidence_classes": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])",
+                    "enum": [
+                      "host_authenticated",
+                      "backend_observed",
+                      "backend_enforced",
+                      "current_proposal"
+                    ]
+                  },
+                  "minItems": 1
+                },
+                "labels_any": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])",
+                    "enum": [
+                      "secret",
+                      "pii",
+                      "private_code",
+                      "public",
+                      "unclassified"
+                    ]
+                  }
+                },
+                "origins_any": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])",
+                    "enum": [
+                      "authorized_user",
+                      "repository_file",
+                      "mcp_result",
+                      "web_content",
+                      "model_reasoning",
+                      "unknown_origin"
+                    ]
+                  }
+                },
+                "transfer_edges": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[a-z_/]+$",
+                    "enum": [
+                      "delegated_to",
+                      "message_sent/received",
+                      "artifact_written/read",
+                      "observed_data_flow",
+                      "depends_on"
+                    ]
+                  }
+                },
+                "sink_kinds": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])",
+                    "enum": [
+                      "network",
+                      "mcp",
+                      "tool",
+                      "message",
+                      "file",
+                      "database"
+                    ]
+                  }
+                },
+                "sink_ids": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                  }
+                },
+                "agent_relation": {
+                  "enum": [
+                    "any",
+                    "same",
+                    "different",
+                    "sibling",
+                    "child"
+                  ]
+                },
+                "effect_evidence": {
+                  "enum": [
+                    "intended",
+                    "observed"
+                  ]
+                },
+                "requires_lineage": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "within_events": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 128
+          },
+          "within_seconds": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "scope": {
+            "enum": [
+              "task",
+              "swarm"
+            ]
+          },
+          "aggregation": {
+            "enum": [
+              "path",
+              "causal_ancestors"
+            ]
+          },
+          "quota": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64
+          },
+          "count_by": {
+            "enum": [
+              "events",
+              "actions",
+              "agents"
+            ]
+          },
+          "same_sink": {
+            "type": "boolean"
+          },
+          "prevention": {
+            "enum": [
+              "escalate",
+              "deny"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Sequence
 
@@ -20,11 +21,17 @@ def _unique(pairs):
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    raw = list(sys.argv[1:] if argv is None else argv)
+    if raw and raw[0] == "temporal":
+        from .temporal_cli import main as temporal_main
+
+        return temporal_main(raw[1:])
     parser = argparse.ArgumentParser(
         prog="ordin swarm",
         description="Plan host attach and inspect explicit offline coverage reports.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("temporal", help="Validate an explicit bounded swarm temporal policy")
     attach = commands.add_parser(
         "attach", help="Preview required host routing; live attach uses the protected SDK"
     )
@@ -43,7 +50,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         child.add_argument("--report", required=True)
         child.add_argument("--json", action="store_true")
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw)
     try:
         if args.command == "attach":
             if not args.dry_run:

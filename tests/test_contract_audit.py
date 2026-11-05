@@ -227,6 +227,27 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
         "grant_count": 0,
     }
 
+    from ordin.swarm import default_swarm_temporal_policy, SwarmTemporalEvaluation
+
+    temporal_policy = default_swarm_temporal_policy().policy
+    samples["swarm_temporal_policy_set"] = temporal_policy.as_dict()
+    samples["swarm_temporal_evaluation"] = SwarmTemporalEvaluation(
+        temporal_policy.digest,
+        "a" * 64,
+        "b" * 64,
+        "unknown",
+        (),
+        ("complete_temporal_window_unavailable",),
+        0,
+    ).as_dict()
+    samples["swarm_temporal_validation"] = {
+        "schema_version": "ordin.swarm_temporal_validation.v1",
+        "valid": True,
+        "policy_digest": temporal_policy.digest,
+        "rule_count": len(temporal_policy.rules),
+        "execution_authority": False,
+    }
+
     from ordin.swarm import (
         AttachCoverage,
         HostSessionEndpoint,
@@ -405,6 +426,9 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
         "swarm_artifact",
         "swarm_artifact_diagnostics",
+        "swarm_temporal_policy_set",
+        "swarm_temporal_evaluation",
+        "swarm_temporal_validation",
         "swarm_message",
         "swarm_message_outcome",
         "swarm_message_peer_status",

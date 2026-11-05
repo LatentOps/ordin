@@ -68,6 +68,7 @@ The Python API reviews actions but never executes them.
 - [Late attach, event continuity and coverage diagnostics](swarm/late-attach.md)
 - [Authenticated inter-agent data messages and transports](swarm/messages.md)
 - [Guarded artifacts, shared memory and workspaces](swarm/artifacts.md)
+- [Cross-agent causal temporal policies](swarm/temporal.md)
 - [Planned opt-in swarm architecture and coverage contract](swarm/architecture.md)
 - [Integration starter kit](../examples/integrations/README.md)
 - [Claude Code hooks](claude-code-integration.md)

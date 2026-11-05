@@ -1,0 +1,324 @@
+{
+  "schema_version": "ordin.swarm_temporal_policy_set.v1",
+  "policy_id": "default_swarm_temporal",
+  "revision": 1,
+  "rules": [
+    {
+      "within_events": 64,
+      "within_seconds": 300,
+      "scope": "swarm",
+      "aggregation": "path",
+      "quota": 1,
+      "count_by": "events",
+      "same_sink": false,
+      "prevention": "deny",
+      "rule_id": "sensitive_relay_upload",
+      "severity": "critical",
+      "pattern": [
+        {
+          "evidence_classes": [
+            "host_authenticated",
+            "backend_observed",
+            "backend_enforced"
+          ],
+          "event_kinds": [
+            "artifact_read",
+            "artifact_write"
+          ],
+          "labels_any": [
+            "secret",
+            "pii",
+            "private_code"
+          ]
+        },
+        {
+          "evidence_classes": [
+            "host_authenticated",
+            "backend_observed",
+            "backend_enforced"
+          ],
+          "event_kinds": [
+            "message_received",
+            "artifact_read"
+          ],
+          "transfer_edges": [
+            "message_sent/received",
+            "artifact_written/read",
+            "observed_data_flow"
+          ],
+          "agent_relation": "different"
+        },
+        {
+          "evidence_classes": [
+            "current_proposal"
+          ],
+          "event_kinds": [
+            "proposed"
+          ],
+          "effects_any": [
+            "network.upload"
+          ],
+          "labels_any": [
+            "secret",
+            "pii",
+            "private_code"
+          ],
+          "requires_lineage": true
+        }
+      ]
+    },
+    {
+      "within_events": 64,
+      "within_seconds": 300,
+      "scope": "swarm",
+      "aggregation": "path",
+      "quota": 1,
+      "count_by": "events",
+      "same_sink": false,
+      "prevention": "deny",
+      "rule_id": "untrusted_artifact_execution",
+      "severity": "high",
+      "pattern": [
+        {
+          "evidence_classes": [
+            "host_authenticated",
+            "backend_observed",
+            "backend_enforced"
+          ],
+          "event_kinds": [
+            "artifact_read",
+            "artifact_write",
+            "message_received"
+          ],
+          "origins_any": [
+            "repository_file",
+            "mcp_result",
+            "web_content",
+            "model_reasoning"
+          ]
+        },
+        {
+          "evidence_classes": [
+            "current_proposal"
+          ],
+          "event_kinds": [
+            "proposed"
+          ],
+          "effects_any": [
+            "code.execute",
+            "code.remote_execute"
+          ],
+          "requires_lineage": true
+        }
+      ]
+    },
+    {
+      "within_events": 64,
+      "within_seconds": 300,
+      "scope": "swarm",
+      "aggregation": "causal_ancestors",
+      "quota": 2,
+      "count_by": "actions",
+      "same_sink": false,
+      "prevention": "deny",
+      "rule_id": "destructive_sibling_retries",
+      "severity": "critical",
+      "pattern": [
+        {
+          "evidence_classes": [
+            "host_authenticated",
+            "backend_observed",
+            "backend_enforced"
+          ],
+          "effects_any": [
+            "filesystem.delete",
+            "filesystem.recursive_delete"
+          ],
+          "event_kinds": [
+            "failed",
+            "denied"
+          ],
+          "agent_relation": "sibling"
+        },
+        {
+          "evidence_classes": [
+            "current_proposal"
+          ],
+          "event_kinds": [
+            "proposed"
+          ],
+          "effects_any": [
+            "filesystem.delete",
+            "filesystem.recursive_delete"
+          ]
+        }
+      ]
+    },
+    {
+      "within_events": 64,
+      "within_seconds": 300,
+      "scope": "swarm",
+      "aggregation": "causal_ancestors",
+      "quota": 3,
+      "count_by": "agents",
+      "same_sink": false,
+      "prevention": "deny",
+      "rule_id": "delegation_fanout",
+      "severity": "high",
+      "pattern": [
+        {
+          "evidence_classes": [
+            "host_authenticated",
+            "backend_observed",
+            "backend_enforced"
+          ],
+          "event_kinds": [
+            "message_received"
+          ],
+          "transfer_edges": [
+            "delegated_to"
+          ],
+          "agent_relation": "child"
+        },
+        {
+          "evidence_classes": [
+            "current_proposal"
+          ],
+          "event_kinds": [
+            "proposed"
+          ],
+          "action_kinds": [
+            "tool"
+          ],
+          "operations": [
+            "call"
+          ]
+        }
+      ]
+    },
+    {
+      "within_events": 64,
+      "within_seconds": 300,
+      "scope": "task",
+      "aggregation": "path",
+      "quota": 1,
+      "count_by": "events",
+      "same_sink": false,
+      "prevention": "deny",
+      "rule_id": "permission_then_privilege",
+      "severity": "high",
+      "pattern": [
+        {
+          "evidence_classes": [
+            "host_authenticated",
+            "backend_observed",
+            "backend_enforced"
+          ],
+          "effects_any": [
+            "filesystem.permission_change",
+            "filesystem.recursive_permission_change"
+          ]
+        },
+        {
+          "evidence_classes": [
+            "current_proposal"
+          ],
+          "event_kinds": [
+            "proposed"
+          ],
+          "effects_any": [
+            "privilege.escalate"
+          ]
+        }
+      ]
+    },
+    {
+      "within_events": 64,
+      "within_seconds": 300,
+      "scope": "task",
+      "aggregation": "causal_ancestors",
+      "quota": 3,
+      "count_by": "actions",
+      "same_sink": false,
+      "prevention": "deny",
+      "rule_id": "recovery_retry_loop",
+      "severity": "high",
+      "pattern": [
+        {
+          "evidence_classes": [
+            "host_authenticated",
+            "backend_observed",
+            "backend_enforced"
+          ],
+          "event_kinds": [
+            "failed",
+            "canceled"
+          ]
+        },
+        {
+          "evidence_classes": [
+            "current_proposal"
+          ],
+          "event_kinds": [
+            "proposed"
+          ],
+          "effects_any": [
+            "code.execute",
+            "privilege.escalate"
+          ]
+        }
+      ]
+    },
+    {
+      "within_events": 64,
+      "within_seconds": 300,
+      "scope": "swarm",
+      "aggregation": "causal_ancestors",
+      "quota": 2,
+      "count_by": "agents",
+      "same_sink": true,
+      "prevention": "deny",
+      "rule_id": "coordinated_api_misuse",
+      "severity": "high",
+      "pattern": [
+        {
+          "evidence_classes": [
+            "host_authenticated",
+            "backend_observed",
+            "backend_enforced"
+          ],
+          "effects_any": [
+            "network.upload",
+            "network.connect"
+          ],
+          "event_kinds": [
+            "reviewed",
+            "failed"
+          ],
+          "agent_relation": "different",
+          "sink_kinds": [
+            "network",
+            "mcp",
+            "tool"
+          ]
+        },
+        {
+          "evidence_classes": [
+            "current_proposal"
+          ],
+          "event_kinds": [
+            "proposed"
+          ],
+          "effects_any": [
+            "network.upload"
+          ],
+          "sink_kinds": [
+            "network",
+            "mcp",
+            "tool"
+          ]
+        }
+      ]
+    }
+  ]
+}
