@@ -11,6 +11,7 @@ from uuid import uuid4
 
 from ordin._runtime_json import digest
 from ordin.assurance.host import HostEvidenceSource
+from ordin.session import SessionIdentity
 
 from .events import _hex
 from .identity import HostChannel
@@ -34,6 +35,7 @@ class WorkloadEnrollment:
     registry_channel: HostChannel | None = field(repr=False)
     adapter: object = field(repr=False)
     source_key: str | None = field(repr=False)
+    runtime_identity: SessionIdentity | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -135,6 +137,7 @@ class WorkloadAuthenticator:
         channel: HostChannel,
         adapter: object,
         operator: object,
+        runtime_identity: SessionIdentity | None = None,
     ) -> str:
         self._operator_check(operator)
         identifier(host_id, "host_id")
@@ -147,6 +150,13 @@ class WorkloadAuthenticator:
                 or source.epoch != context.identity.policy_epoch
             ):
                 raise ValueError("workload identity must match its original protected host scope")
+            if runtime_identity is not None and (
+                type(runtime_identity) is not SessionIdentity
+                or runtime_identity.session_id != context.identity.session_id
+            ):
+                raise ValueError(
+                    "planned runtime identity must match the authenticated physical session"
+                )
             scope = (
                 context.identity.tenant_id,
                 context.identity.swarm_id,
@@ -155,7 +165,14 @@ class WorkloadAuthenticator:
             if self._scope is not None and self._scope != scope:
                 raise ValueError("workload belongs to another tenant, swarm or protected task")
             result = self._enroll(
-                host_id, certificate_digest, "workload", context, source, channel, adapter
+                host_id,
+                certificate_digest,
+                "workload",
+                context,
+                source,
+                channel,
+                adapter,
+                runtime_identity,
             )
             self._scope = scope
             return result
@@ -167,7 +184,9 @@ class WorkloadAuthenticator:
         with self._lock:
             return self._enroll(host_id, certificate_digest, "broker", None, None, None, object())
 
-    def _enroll(self, host, certificate, role, context, source, channel, adapter) -> str:
+    def _enroll(
+        self, host, certificate, role, context, source, channel, adapter, runtime_identity=None
+    ) -> str:
         if certificate in self._certificates or len(self._enrollments) >= self._enrollment_limit:
             raise ValueError("duplicate certificate or workload enrollment capacity reached")
         enrollment_id = uuid4().hex
@@ -181,6 +200,7 @@ class WorkloadAuthenticator:
             channel,
             adapter,
             source.key if source else None,
+            runtime_identity,
         )
         self._certificates[certificate] = enrollment_id
         return enrollment_id
@@ -337,6 +357,7 @@ class WorkloadAuthenticator:
                 old.registry_channel,
                 old.adapter,
                 old.source_key,
+                old.runtime_identity,
             )
             self._channels = {
                 key: row
