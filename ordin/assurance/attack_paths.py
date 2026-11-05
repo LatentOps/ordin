@@ -23,6 +23,7 @@ from .models import (
     SecurityInvariant,
     SecurityProfileDraft,
     _EvidenceAuthority,
+    evidence_kind_for_origin,
 )
 from .origins import InstructionOrigin, SourceUse, verify_source_use
 
@@ -115,16 +116,6 @@ class _Graph:
         if identity not in self.edges and len(self.edges) >= self.max_edges:
             self.gaps.add("Graph edge budget reached; omitted relations remain unknown.")
             return
-        kinds = {
-            "runtime_backend_observed": "host_observed",
-            "host_authenticated_source": "host_observed",
-            "deterministically_derived": "deterministic_inference",
-            "policy_verified": "deterministic_inference",
-            "static_evidence": "deterministic_inference",
-            "model_hypothesis": "model_hypothesis",
-            "imported_claim": "imported_claim",
-            "caller_asserted": "caller_asserted",
-        }
         self.edges.setdefault(
             identity,
             AttackEdge(
@@ -134,7 +125,7 @@ class _Graph:
                 kind,
                 evidence,
                 confidence,
-                evidence_kind=kinds[evidence.origin],
+                evidence_kind=evidence_kind_for_origin(evidence.origin),
                 correlation_id=evidence.contract_id,
                 proof_gaps=tuple(gaps),
             ),

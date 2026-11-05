@@ -19,8 +19,13 @@ from .gateway import (
 )
 from .mcp_gateway import SwarmMCPAdapter
 from .hooks_gateway import SwarmHookAdapter
+from .causal_graph import SwarmCausalGraph, SwarmGraphView
+from .lineage import SwarmDelegationLink
 
 __all__ = [
+    "SwarmCausalGraph",
+    "SwarmGraphView",
+    "SwarmDelegationLink",
     "ForwardTicket",
     "GatewayAgent",
     "GatewayAuthorization",
