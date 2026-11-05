@@ -1,5 +1,13 @@
 # Host-issued delegation
 
+The additive `rest_requests` authority field preserves exact REST scheme,
+headers and body commitments through the composite verifier. It is omitted when
+empty, preserving existing JSON and authority digests. A matching request plus
+broad TCP does not provide specific REST protocol rights. The opt-in
+[online swarm authority](../swarm/distributed-delegation.md) retains these original
+private grants and checks independently authenticated workloads on every use;
+serialized grant reports remain data.
+
 `verify_delegation_subset` checks a proposed child authority against its current
 parent, protected operator maximum and task maximum. The accepted child is the
 requested subset of their intersection; a broader proposal is refused rather

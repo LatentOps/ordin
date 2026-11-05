@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-remote-review.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "admission_digest",
+    "disposition",
+    "action_digest",
+    "grant_digest",
+    "issuer_generation",
+    "expires_at",
+    "reason_codes",
+    "requires_online_authority",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_remote_review.v1"
+    },
+    "admission_digest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "disposition": {
+      "enum": [
+        "execute",
+        "escalate",
+        "deny"
+      ]
+    },
+    "action_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "grant_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "issuer_generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "expires_at": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "reason_codes": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+      }
+    },
+    "requires_online_authority": {
+      "const": true
+    },
+    "execution_authority": {
+      "const": false
+    },
+    "admission_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

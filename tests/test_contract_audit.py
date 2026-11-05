@@ -248,6 +248,69 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
         "execution_authority": False,
     }
 
+    from ordin.swarm import RemoteDelegation, RemoteReview, DelegationDispatch
+
+    samples["swarm_remote_delegation"] = RemoteDelegation(
+        "f" * 64,
+        "a" * 64,
+        "b" * 64,
+        "c" * 64,
+        None,
+        0,
+        0,
+        200,
+        0,
+        4,
+        (16, 8, 256),
+        "d" * 64,
+        "e" * 64,
+    ).as_dict()
+    samples["swarm_remote_review"] = RemoteReview(
+        None,
+        "deny",
+        "a" * 64,
+        "b" * 64,
+        0,
+        200,
+        ("delegation.core_denied",),
+    ).as_dict()
+    samples["swarm_delegation_dispatch"] = DelegationDispatch(
+        "unknown",
+        "a" * 64,
+        "b" * 64,
+        "delegation.forward_uncertain",
+    ).as_dict()
+    samples["swarm_broker_admission_scope"] = {
+        "schema_version": "ordin.swarm_broker_admission_scope.v1",
+        "admission_digest": "a" * 64,
+        "action_digest": "b" * 64,
+        "grant_digest": "c" * 64,
+        "subject_digest": "d" * 64,
+        "host_digest": "e" * 64,
+        "issuer_generation": 0,
+        "expires_at": 200,
+        "authority_digest": "f" * 64,
+        "ancestry_digest": "a" * 64,
+        "requires_online_authority": True,
+        "execution_authority": False,
+    }
+    samples["swarm_authority_audit"] = {
+        "schema_version": "ordin.swarm_authority_audit.v1",
+        "kind": "root_published",
+        "reference_digest": "a" * 64,
+        "authority_digest": "b" * 64,
+        "execution_authority": False,
+    }
+    samples["swarm_credential_audit"] = {
+        "schema_version": "ordin.swarm_credential_audit.v1",
+        "route_digest": "a" * 64,
+        "binding_digest": "b" * 64,
+        "admission_digest": "c" * 64,
+        "action_digest": "d" * 64,
+        "status": "host_completed",
+        "execution_authority": False,
+    }
+
     from ordin.swarm import (
         AttachCoverage,
         HostSessionEndpoint,
@@ -454,6 +517,12 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
         "swarm_budget",
         "swarm_budget_reservation",
         "swarm_budget_audit",
+        "swarm_remote_delegation",
+        "swarm_remote_review",
+        "swarm_delegation_dispatch",
+        "swarm_broker_admission_scope",
+        "swarm_authority_audit",
+        "swarm_credential_audit",
         "swarm_message",
         "swarm_message_outcome",
         "swarm_message_peer_status",

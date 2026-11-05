@@ -11,11 +11,15 @@ from dataclasses import dataclass
 import hashlib
 from threading import RLock
 import time
-from typing import Callable, Protocol
+from typing import Callable, Protocol, TYPE_CHECKING
 from uuid import uuid4
 
 from .identity import HostChannel
 from .models import CoverageManifest, SwarmContext, SwarmIdentity, counter, identifier, timestamp
+
+if TYPE_CHECKING:
+    from ordin.assurance.delegation import DelegationIssuer, IssuedDelegation
+    from ordin.assurance.host import HostEvidenceSource
 
 
 class AgentRegistry(Protocol):
@@ -62,6 +66,21 @@ class AgentRegistry(Protocol):
     ) -> SwarmContext: ...
 
     def advance_policy_epoch(self, epoch: int) -> None: ...
+
+    def rebind_delegation(
+        self,
+        context: SwarmContext,
+        channel: HostChannel,
+        adapter: object,
+        *,
+        parent_context: SwarmContext,
+        parent_channel: HostChannel,
+        parent_adapter: object,
+        issuer: DelegationIssuer,
+        grant: IssuedDelegation,
+        parent_source: HostEvidenceSource,
+        child_source: HostEvidenceSource,
+    ) -> SwarmContext: ...
 
     def forget_ended(
         self, context: SwarmContext, channel: HostChannel, adapter: object
@@ -355,6 +374,75 @@ class InMemoryAgentRegistry:
             if epoch <= self._policy_epoch:
                 raise ValueError("policy epoch must increase monotonically")
             self._policy_epoch = epoch
+
+    def rebind_delegation(
+        self,
+        context: SwarmContext,
+        channel: HostChannel,
+        adapter: object,
+        *,
+        parent_context: SwarmContext,
+        parent_channel: HostChannel,
+        parent_adapter: object,
+        issuer: DelegationIssuer,
+        grant: IssuedDelegation,
+        parent_source: HostEvidenceSource,
+        child_source: HostEvidenceSource,
+    ) -> SwarmContext:
+        """Host-only current private grant binding, preserving the physical session.
+
+        This increments the authorization generation and fences older contexts
+        and descendant parent-generation references. It neither restarts the
+        process nor turns a serialized grant ID into authority.
+        """
+        from ordin.assurance.delegation import DelegationIssuer, IssuedDelegation
+        from ordin.assurance.delegated_paths import verify_current_delegation_relationship
+        from ordin.assurance.host import HostEvidenceSource
+
+        if (
+            type(issuer) is not DelegationIssuer
+            or type(grant) is not IssuedDelegation
+            or type(parent_source) is not HostEvidenceSource
+            or type(child_source) is not HostEvidenceSource
+        ):
+            raise ValueError("delegation rebind requires original protected issuer/source objects")
+        with issuer._lock, self._lock:
+            verify_current_delegation_relationship(issuer, grant, parent_source, child_source)
+            now = self._now()
+            child = self._record(context, channel, adapter)
+            parent = self._live(parent_context, parent_channel, parent_adapter, now)
+            identity = context.identity
+            if (
+                self._phase(child, now) != "active"
+                or identity.policy_epoch != self._policy_epoch
+                or identity.agent_id != grant.record.child_principal
+                or parent.context.identity.agent_id != grant.record.parent_principal
+                or child_source.epoch != identity.policy_epoch
+                or (identity.tenant_id, identity.swarm_id, identity.task_id)
+                != (
+                    parent_context.identity.tenant_id,
+                    parent_context.identity.swarm_id,
+                    parent_context.identity.task_id,
+                )
+            ):
+                raise ValueError("delegation rebind differs from live parent/child workload scope")
+            if (
+                identity.delegation_id == grant.record.grant_id
+                and identity.parent_agent_id == parent_context.identity.agent_id
+                and identity.parent_generation == parent_context.identity.generation
+            ):
+                return context
+            return self._issue(
+                channel,
+                self._channel(channel, adapter),
+                agent_id=identity.agent_id,
+                session_id=identity.session_id,
+                task_id=identity.task_id,
+                parent_agent_id=parent_context.identity.agent_id,
+                delegation_id=grant.record.grant_id,
+                coverage=context.coverage,
+                now=now,
+            )
 
     def forget_ended(self, context: SwarmContext, channel: HostChannel, adapter: object) -> None:
         with self._lock:

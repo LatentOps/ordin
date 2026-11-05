@@ -28,6 +28,12 @@ from ._json import digest, freeze, thaw, validate
 from .host import HostEvidenceSource
 from .models import ApprovedSecurityProfile, DelegationGrant, JsonRecord
 from .requests import verify_assurance_capability, verify_assurance_request_authority
+from .rest import (
+    RestRequestAuthority,
+    RestRequestBoundary,
+    RestRequestContract,
+    verify_rest_request_authority,
+)
 
 DOMAINS = (
     "filesystem",
@@ -41,6 +47,22 @@ DOMAINS = (
 )
 
 
+def _network_boundary(
+    authority: DelegationAuthority, candidates: tuple[NetworkCapability, ...]
+) -> RuntimeCapabilityBoundary:
+    """Retain declared protocol rights when matching literal candidates to grants."""
+    networks = list(authority.capability.network)
+    for candidate in candidates:
+        networks.extend(
+            NetworkCapability(
+                candidate.host, grant.port, grant.protocol, grant.access, grant.methods, grant.paths
+            )
+            for grant in authority.network_grants
+            if grant.port == candidate.port and host_matches(grant.host_pattern, candidate.host)
+        )
+    return replace(authority.capability, network=tuple(networks))
+
+
 @dataclass(frozen=True)
 class DelegationAuthority:
     """Immutable data describing rights, not an issued or enforced grant."""
@@ -49,6 +71,7 @@ class DelegationAuthority:
     requests: tuple[RequestAuthority, ...] = ()
     network_grants: tuple[NetworkAuthorityGrant, ...] = ()
     requires_approval: bool = False
+    rest_requests: tuple[RestRequestAuthority, ...] = ()
 
     def __post_init__(self) -> None:
         if (
@@ -59,6 +82,7 @@ class DelegationAuthority:
         for name, model in (
             ("requests", RequestAuthority),
             ("network_grants", NetworkAuthorityGrant),
+            ("rest_requests", RestRequestAuthority),
         ):
             value = getattr(self, name)
             if (
@@ -76,6 +100,11 @@ class DelegationAuthority:
             "requests": [v.as_dict() for v in self.requests],
             "network_grants": [v.as_dict() for v in self.network_grants],
             "requires_approval": self.requires_approval,
+            **(
+                {"rest_requests": [v.as_dict() for v in self.rest_requests]}
+                if self.rest_requests
+                else {}
+            ),
         }
 
     @cached_property
@@ -84,12 +113,16 @@ class DelegationAuthority:
 
     @classmethod
     def from_dict(cls, payload: Mapping) -> DelegationAuthority:
-        if not isinstance(payload, Mapping) or set(payload) != {
+        allowed = {
             "capability",
             "requests",
             "network_grants",
             "requires_approval",
-        }:
+        }
+        if not isinstance(payload, Mapping) or set(payload) not in (
+            allowed,
+            allowed | {"rest_requests"},
+        ):
             raise ValueError("invalid delegation authority data")
         parsed = thaw(freeze(payload))
         return cls(
@@ -97,6 +130,7 @@ class DelegationAuthority:
             tuple(RequestAuthority(**v) for v in parsed["requests"]),
             tuple(NetworkAuthorityGrant(**v) for v in parsed["network_grants"]),
             parsed["requires_approval"],
+            tuple(RestRequestAuthority.from_dict(v) for v in parsed.get("rest_requests", ())),
         )
 
 
@@ -178,6 +212,31 @@ def verify_delegation_subset(
         raise ValueError("delegation subset requires four typed authority specifications")
     coverage = dict.fromkeys(DOMAINS, True)
     states, reasons, gaps = [], [], []
+    for request in child.rest_requests:
+        requested_network = NetworkCapability(
+            request.host, request.port, "rest", request.access, (request.method,), (request.path,)
+        )
+        selected = verify_assurance_capability(
+            RuntimeCapabilityContract(
+                "rest-delegation-proposal",
+                child.digest,
+                "allow",
+                "low",
+                network=(requested_network,),
+                source={
+                    "kind": "delegation",
+                    "operation": "subset",
+                    "adapter": None,
+                    "effects": [],
+                    "provenance_digest": None,
+                },
+            ),
+            _network_boundary(child, (requested_network,)),
+        )
+        if not selected.ok:
+            states.append(selected.result)
+            coverage["requests"] = False
+            reasons.append("delegation.rest_request_outside_child_capability")
     if child.capability.allow_any_executable:
         states.append("unsupported")
         coverage["process"] = False
@@ -201,6 +260,10 @@ def verify_delegation_subset(
         if maximum.requires_approval and not child.requires_approval:
             states.append("exceeds_boundary")
             reasons.append("delegation." + name + "_approval_removed")
+        if any(request not in maximum.rest_requests for request in child.rest_requests):
+            states.append("exceeds_boundary")
+            coverage["requests"] = False
+            reasons.append("delegation." + name + "_rest_request_commitment_exceeds")
         if contract is None:
             continue
         if child.requests or any(
@@ -642,9 +705,17 @@ class DelegationIssuer:
 
     def _check_operation(
         self,
-        contract: RuntimeCapabilityContract | RuntimeRequestContractV2,
+        contract: RuntimeCapabilityContract | RuntimeRequestContractV2 | RestRequestContract,
         handle: IssuedDelegation,
     ):
+        if isinstance(contract, RestRequestContract):
+            return verify_rest_request_authority(
+                contract,
+                RestRequestBoundary(
+                    _network_boundary(handle.authority, contract.capability.network),
+                    handle.authority.rest_requests,
+                ),
+            )
         if isinstance(contract, RuntimeRequestContractV2) and contract.requests:
             return verify_assurance_request_authority(
                 contract,
@@ -678,7 +749,7 @@ class DelegationIssuer:
         handle: IssuedDelegation,
         source: HostEvidenceSource,
         action_digest: str,
-        contract: RuntimeCapabilityContract | RuntimeRequestContractV2,
+        contract: RuntimeCapabilityContract | RuntimeRequestContractV2 | RestRequestContract,
     ) -> str:
         with self._lock:
             self._preview_operation(handle, source, contract)
@@ -695,7 +766,7 @@ class DelegationIssuer:
         self,
         handle: IssuedDelegation,
         source: HostEvidenceSource,
-        contract: RuntimeCapabilityContract | RuntimeRequestContractV2,
+        contract: RuntimeCapabilityContract | RuntimeRequestContractV2 | RestRequestContract,
     ) -> None:
         """Check current rights and quotas without reserving or consuming anything."""
         with self._lock:
