@@ -577,3 +577,67 @@ def test_label_changes_fence_old_swarm_assessments_without_journal_change():
         reason_code="reclassify",
     )
     assert not authority.verify(receipt, **bindings)
+
+
+def test_caller_event_labels_cannot_authenticate_root_lineage():
+    flow, _, hosts, _, data = configured()
+    _, ingest, contexts, _, channels, adapters, *_ = data
+    claims = ingest.bind_source(
+        contexts["a"], channels["a"], adapters["a"], source_id="claims", role="asserted"
+    )
+    flow.bind_actor(claims, contexts["a"], hosts["a"])
+    ingest.ingest(
+        claims,
+        packet(
+            contexts["a"],
+            claims,
+            "claimed",
+            "artifact_read",
+            1,
+            resources=(hashlib.sha256(SECRET.encode()).hexdigest(),),
+            evidence_class="caller_asserted",
+        ),
+    )
+    origin = register_instruction_origin(
+        hosts["a"], origin_id="claim", kind="mcp_result", classification="sensitive", content=SECRET
+    )
+    with pytest.raises(ValueError, match="authenticated"):
+        flow.register(
+            claims, event_id="claimed", origin=origin, sensitivity=Sensitivity(("secret",))
+        )
+
+
+def test_lineage_depth_is_bounded_and_origin_bytes_must_match_event():
+    flow, _, hosts, event, data = configured(max_depth=1)
+    sources = data[3]
+    handle = root(flow, hosts, event, sources)
+    with pytest.raises(ValueError, match="depth"):
+        flow.derive(sources["a"], event_id="read", content=SECRET, parents=(handle,), complete=True)
+    other = register_instruction_origin(
+        hosts["a"],
+        origin_id="other",
+        kind="mcp_result",
+        classification="public",
+        content="different bytes",
+    )
+    with pytest.raises(ValueError, match="exact-content"):
+        flow.register(
+            sources["a"], event_id="read", origin=other, sensitivity=Sensitivity(("public",))
+        )
+
+
+@pytest.mark.parametrize("route", ["network", "mcp", "tool", "message"])
+def test_configured_sink_classes_never_allow_sensitive_unauthorized_destination(route):
+    flow, _, hosts, event, data = configured()
+    flow._sinks["external"] = replace(flow._sinks["external"], kind=route)
+    handle = root(flow, hosts, event, data[3])
+    assert (
+        flow.assess(
+            data[3]["a"],
+            upload(SECRET),
+            sink_id="external",
+            uses=(LineageUse(handle, PATH),),
+            complete=True,
+        ).status
+        == "violated"
+    )

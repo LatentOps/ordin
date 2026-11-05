@@ -354,25 +354,20 @@ class SwarmSourceFlow:
             edges = [
                 e for e in view.edges if e["kind"] not in {"delegated_to", "hypothesized_influence"}
             ]
-            children: dict[str, list[str]] = {}
+            predecessors: dict[str, list[str]] = {}
             for edge in edges:
-                children.setdefault(edge["source_id"], []).append(edge["target_id"])
-
-            def reaches(start: str) -> bool:
-                pending, seen = [start], set()
-                while pending:
-                    node = pending.pop()
-                    if node == event_id:
-                        return True
-                    if node not in seen:
-                        seen.add(node)
-                        pending.extend(children.get(node, ()))
-                return False
+                predecessors.setdefault(edge["target_id"], []).append(edge["source_id"])
+            pending, ancestors = [event_id], set()
+            while pending:
+                node = pending.pop()
+                if node not in ancestors:
+                    ancestors.add(node)
+                    pending.extend(predecessors.get(node, ()))
 
             gaps = set(view.proof_gaps)
             for row in rows:
                 gaps.update(row.gaps)
-            linked = all(row.established and reaches(row.event_id) for row in rows)
+            linked = all(row.established and row.event_id in ancestors for row in rows)
             if not linked:
                 gaps.add("unverified_transfer")
             if not complete:
@@ -484,6 +479,7 @@ class SwarmSourceFlow:
             if not complete:
                 gaps.add("partial_egress_inputs")
             rows = []
+            visible_events = {n["event_id"] for n in view.nodes}
             for use in uses:
                 use.__post_init__()
                 row = self._record(use.handle)
@@ -496,7 +492,7 @@ class SwarmSourceFlow:
                 ):
                     raise ValueError("lineage input changed from exact proposed bytes")
                 self._event(actor, row.event_id, row.content_digest)
-                if row.event_id not in {n["event_id"] for n in view.nodes}:
+                if row.event_id not in visible_events:
                     gaps.add("lineage_event_outside_window")
                 gaps.update(row.gaps)
                 rows.append(row)
