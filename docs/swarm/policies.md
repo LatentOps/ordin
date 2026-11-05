@@ -162,6 +162,12 @@ resurrect its earlier approval, context generation or execution ticket.
 Read-only policy compilation cannot prove applied kernel/runtime enforcement.
 Activation reports explicitly keep `physical_enforcement: false`.
 
+The runtime's read-only evidence digest includes the protected source-flow
+records, declassification audit, configured sinks, current causal graph and
+source lifecycle. Revoking a source session changes this binding even when no
+new event or lineage record is added. Reading the digest does not issue evidence
+or renew an expired fact receipt.
+
 A required `broker.enforce` needs an original verified broker factory proof
 bound to the exact document, with explicit
 `enforcement_scope: broker_owned_fresh_worker_route`. The candidate's finite

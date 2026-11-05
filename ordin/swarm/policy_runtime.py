@@ -499,18 +499,10 @@ class SwarmPolicyRuntime:
             channel, adapter = self._context(context)
             flow = None
             if self._flow is not None:
-                with self._flow._lock:
-                    flow = digest(
-                        [
-                            self._flow._incarnation,
-                            len(self._flow._records),
-                            len(self._flow._audit),
-                            [
-                                (key, repr(value))
-                                for key, value in sorted(self._flow._sinks.items())
-                            ],
-                        ]
-                    )
+                try:
+                    flow = self._flow.binding_digest
+                except ValueError:
+                    flow = "unavailable"
             temporal = None
             if self._temporal is not None:
                 try:

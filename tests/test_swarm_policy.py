@@ -651,6 +651,39 @@ def test_permissive_policy_cannot_override_mandatory_assurance_escalation(tmp_pa
     assert decision.baseline.requires_approval and not decision.may_execute
 
 
+def test_runtime_evidence_binds_live_source_flow_records_declassification_and_revocation():
+    from ordin.swarm import Sensitivity
+    from tests.test_swarm_source_flow import configured, root
+
+    flow, flow_operator, hosts, event, data = configured()
+    registry, _, contexts, sources, channels, adapters, _, now = data
+    runtime = SwarmPolicyRuntime(
+        registry,
+        SwarmPolicyMaximum("tenant", "swarm", SwarmPolicyPermissions(action_kinds=("network",))),
+        operator=object(),
+        clock=lambda: now[0],
+        flow=flow,
+    )
+    original = runtime.evidence_digest(contexts["c"])
+    assert runtime.evidence_digest(contexts["c"]) == original
+    handle = root(flow, hosts, event, sources)
+    captured = runtime.evidence_digest(contexts["c"])
+    assert captured != original
+    flow.declassify(
+        handle,
+        operator=flow_operator,
+        policy_epoch=contexts["a"].identity.policy_epoch,
+        sensitivity=Sensitivity(("public",)),
+        reason_code="operator.reviewed",
+    )
+    declassified = runtime.evidence_digest(contexts["c"])
+    assert declassified != captured
+    registry.end(contexts["a"], channels["a"], adapters["a"])
+    revoked = runtime.evidence_digest(contexts["c"])
+    assert revoked != declassified
+    assert runtime.evidence_digest(contexts["c"]) == revoked
+
+
 def test_original_delegated_baseline_composition_does_not_repeat_quota_preview(tmp_path):
     from ordin.assurance import DelegatingAssuranceGate, DelegationIssuer, DelegationLimits
     from tests.assurance.test_delegating_gate import configured, action as read_action
