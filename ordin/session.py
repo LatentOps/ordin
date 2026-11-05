@@ -430,11 +430,15 @@ class IntegrationSession:
                 raise ValueError("approval_supported must be boolean")
             # Validate the exact snapshot size before calling an audit sink or
             # changing state. Copying also prevents caller mutation after review.
-            proposed, history, observations, extra = self._review_inputs(action, contract_check)
+            proposed, history, typed_observations, extra = self._review_inputs(
+                action, contract_check
+            )
+            if action.action_id is None:
+                raise ValueError("session actions require an action_id")
             decision = self.gate.evaluate_action(
                 proposed,
                 history=history,
-                observations=observations,
+                observations=typed_observations,
                 **extra,
             )
             if self._runtime_active:
