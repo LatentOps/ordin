@@ -681,6 +681,24 @@ class DelegationIssuer:
         contract: RuntimeCapabilityContract | RuntimeRequestContractV2,
     ) -> str:
         with self._lock:
+            self._preview_operation(handle, source, contract)
+            ticket = secrets.token_hex(32)
+            self._pending[ticket] = (
+                handle.record.grant_id,
+                action_digest,
+                contract.digest,
+                self._generation,
+            )
+            return ticket
+
+    def _preview_operation(
+        self,
+        handle: IssuedDelegation,
+        source: HostEvidenceSource,
+        contract: RuntimeCapabilityContract | RuntimeRequestContractV2,
+    ) -> None:
+        """Check current rights and quotas without reserving or consuming anything."""
+        with self._lock:
             self._require_current(handle, source, self._now())
             if not self._check_operation(contract, handle).ok:
                 raise ValueError("delegated operation exceeds current grant or is unsupported")
@@ -690,14 +708,6 @@ class DelegationIssuer:
                 or self._used[handle.record.grant_id] + active >= self.limits.actions_per_grant
             ):
                 raise ValueError("delegated operation quota exhausted")
-            ticket = secrets.token_hex(32)
-            self._pending[ticket] = (
-                handle.record.grant_id,
-                action_digest,
-                contract.digest,
-                self._generation,
-            )
-            return ticket
 
     def cancel_operation(self, ticket: str) -> None:
         with self._lock:

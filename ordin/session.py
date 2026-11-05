@@ -384,6 +384,39 @@ class IntegrationSession:
             oldest = self._actions[0].action_id
             return oldest is not None and oldest in action_ids
 
+    def _review_inputs(
+        self,
+        action: ActionEnvelope,
+        contract_check: MCPContractCheck | None = None,
+    ) -> tuple[ActionEnvelope, ActionHistory, ObservationHistory, dict[str, Any]]:
+        """Detach current review inputs without changing history; caller holds the lock."""
+        self.require_identity(self.identity)
+        if not action.action_id:
+            raise ValueError("session actions require an action_id")
+        if any(prior.action_id == action.action_id for prior in self._actions):
+            raise ValueError("duplicate session action_id; use a distinct ID for each proposal")
+        proposed = ActionEnvelope.from_dict(_load(_json(action.as_dict())))
+        history = ActionHistory(tuple(self._actions))
+        observations = ObservationHistory(tuple(self._observations.values()))
+        extra: dict[str, Any] = (
+            {"contract_check": contract_check} if contract_check is not None else {}
+        )
+        if self._runtime_active:
+            if self._runtime_current is None:
+                raise RuntimeCorrelationError("runtime_observation_untrusted_source")
+            self._runtime_history.correlate(
+                history,
+                session_digest=self.runtime_session_digest,
+                allowed_sources=tuple(self._runtime_sources.values()),
+            )
+            extra.update(
+                runtime_observations=self._runtime_history,
+                runtime_binding=RuntimeReviewBinding(
+                    self.runtime_session_digest, self._sequence + 1, self._runtime_epoch
+                ),
+            )
+        return proposed, history, observations, extra
+
     def evaluate(
         self,
         action: ActionEnvelope,
@@ -393,37 +426,15 @@ class IntegrationSession:
     ) -> AgentDecision:
         """Keep the core decision, recording denials from hosts without approval."""
         with self._lock:
-            self.require_identity(self.identity)
             if not isinstance(approval_supported, bool):
                 raise ValueError("approval_supported must be boolean")
-            if not action.action_id:
-                raise ValueError("session actions require an action_id")
-            if any(prior.action_id == action.action_id for prior in self._actions):
-                raise ValueError("duplicate session action_id; use a distinct ID for each proposal")
             # Validate the exact snapshot size before calling an audit sink or
             # changing state. Copying also prevents caller mutation after review.
-            proposed = ActionEnvelope.from_dict(_load(_json(action.as_dict())))
-            extra: dict[str, Any] = (
-                {"contract_check": contract_check} if contract_check is not None else {}
-            )
-            if self._runtime_active:
-                if self._runtime_current is None:
-                    raise RuntimeCorrelationError("runtime_observation_untrusted_source")
-                self._runtime_history.correlate(
-                    ActionHistory(tuple(self._actions)),
-                    session_digest=self.runtime_session_digest,
-                    allowed_sources=tuple(self._runtime_sources.values()),
-                )
-                extra.update(
-                    runtime_observations=self._runtime_history,
-                    runtime_binding=RuntimeReviewBinding(
-                        self.runtime_session_digest, self._sequence + 1, self._runtime_epoch
-                    ),
-                )
+            proposed, history, observations, extra = self._review_inputs(action, contract_check)
             decision = self.gate.evaluate_action(
                 proposed,
-                history=ActionHistory(tuple(self._actions)),
-                observations=ObservationHistory(tuple(self._observations.values())),
+                history=history,
+                observations=observations,
                 **extra,
             )
             if self._runtime_active:

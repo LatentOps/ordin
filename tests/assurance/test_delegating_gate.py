@@ -46,6 +46,42 @@ def test_normal_child_read_binds_and_commits_only_once(tmp_path):
         DelegatedDecision.from_dict(result.as_dict())
 
 
+def test_pure_preview_preserves_history_quotas_and_audit_boundary(tmp_path):
+    issuer, root, source, grant, gate, clock = configured(tmp_path)
+
+    class RejectAudit:
+        def record(self, review):
+            raise AssertionError("pure preview emitted audit IO")
+
+    gate.assurance = replace(
+        gate.assurance,
+        baseline_gate=replace(
+            gate.assurance.baseline_gate, ordin=replace(gate.assurance.ordin, audit=RejectAudit())
+        ),
+    )
+    history = gate.snapshot()
+    pending, used = dict(issuer._pending), dict(issuer._used)
+    preview = gate.preview_action(action())
+    assert preview.may_execute and preview.verification.ok
+    assert not gate.commit_use(preview, action())
+    assert gate.snapshot() == history
+    assert issuer._pending == pending and issuer._used == used
+    assert gate.preview_action(action()).digest == preview.digest
+
+
+def test_pure_preview_preserves_quota_and_revocation_denials(tmp_path):
+    limits = DelegationLimits(in_flight_operations=1)
+    issuer, root, source, grant, gate, clock = configured(tmp_path, limits=limits)
+    reserved = gate.evaluate_action(action("reserved"))
+    assert reserved.may_execute
+    before, pending = gate.snapshot(), dict(issuer._pending)
+    assert gate.preview_action(action("preview")).denied
+    assert gate.snapshot() == before and issuer._pending == pending
+    issuer.revoke(root)
+    assert gate.preview_action(action("revoked-preview")).denied
+    assert gate.snapshot() == before
+
+
 def test_child_cannot_read_env_or_lexical_neighbor_or_impersonate_parent(tmp_path):
     issuer, root, source, grant, gate, clock = configured(tmp_path)
     for index, path in enumerate(("/fixture/.env", "/fixture2/source", "/fixture/source2")):
