@@ -1,12 +1,16 @@
 """Policy activation uses actual owned factory probes, never serialized readiness."""
 
 from copy import copy
+from contextlib import ExitStack, contextmanager
 from dataclasses import replace
 
 import pytest
 
 from ordin import ActionEnvelope
 from ordin.swarm import CoverageManifest
+from ordin.swarm.broker import SwarmExecutionBroker
+from ordin.swarm.gate import SwarmGate
+from ordin.swarm.policy_facts import SwarmBudgetFact
 from ordin.swarm.authorization import BrokerActivationProof
 from ordin.swarm.policy_compiler import SwarmPolicyMaximum
 from ordin.swarm.policy_runtime import SwarmPolicyReplayCase, SwarmPolicyRuntime
@@ -15,6 +19,9 @@ from ordin.swarm.policy_set import (
     SwarmPolicyResource,
     SwarmPolicySet,
     SwarmPolicyTool,
+    SwarmBudgetCondition,
+    SwarmPolicyRule,
+    SwarmPolicySelector,
 )
 from tests.test_swarm_broker import fixture, require_kernel
 
@@ -201,3 +208,214 @@ def test_serialized_factory_identifier_is_not_original_even_when_all_fields_matc
             runtime.bind_enforcement(
                 selected, broker, BrokerActivationProof(proof.proof_id), operator=operator
             )
+
+
+@contextmanager
+def current_policy_broker(data, selected):
+    """Activate, then actually re-enroll fresh epoch sources over real TLS channels."""
+    from ordin.assurance import DelegationIssuer
+    from ordin.swarm.delegation import SwarmDelegationService
+    from ordin.swarm.workload_auth import WorkloadAuthenticator
+    from tests.test_swarm_delegation import fingerprint, server_context, tls_pair
+
+    old_broker, old_service, old_budget, backend = data[:4]
+    clock, operator, rights, registry = data[10], data[11], data[12], data[14]
+    old_enrollments = {
+        row.context.identity.agent_id: row
+        for row in old_service.authenticator._enrollments.values()
+        if row.context is not None
+    }
+    maximum = SwarmPolicyMaximum(
+        "tenant",
+        "swarm",
+        selected.permissions,
+        budget_limits=old_budget.policy.limits,
+        delegation_maximum_digest=rights.digest,
+    )
+    runtime = SwarmPolicyRuntime(
+        registry,
+        maximum,
+        operator=operator,
+        clock=lambda: clock[0],
+        budget_ledger=old_budget,
+        delegation_service=old_service,
+        delegation_operator=operator,
+    )
+    approved_policy, _ = approved(
+        runtime, old_broker, selected, old_enrollments["parent"].context, data[4], operator
+    )
+    activation = runtime.activate(approved_policy, operator=operator)
+    ledger = activation.budget_ledger
+    assert ledger is not None
+    assert ledger.policy.policy_epoch == 1 and not activation.as_dict()["physical_enforcement"]
+    contexts, sources = {}, {}
+    for name, row in old_enrollments.items():
+        contexts[name] = registry.refresh_policy_context(
+            row.context,
+            row.registry_channel,
+            row.adapter,
+            coverage=CoverageManifest("intercept"),
+        )
+        sources[name] = replace(row.source, epoch=1)
+    issuer = DelegationIssuer(
+        sources["parent"], old_service.issuer.profile, rights, rights, clock=lambda: clock[0]
+    )
+    root = issuer.authorize_root(rights, grant_id="fresh-root", expires_at=200)
+    tls = server_context()
+    auth = WorkloadAuthenticator(registry, tls, operator=operator, clock=lambda: clock[0])
+    service = SwarmDelegationService(issuer, old_service.assurance, auth, operator=operator)
+    with ExitStack() as stack:
+        enrollments, sockets = {}, {}
+        for name, row in old_enrollments.items():
+            enrollments[name] = auth.enroll_workload(
+                host_id=row.host_id,
+                certificate_digest=row.certificate_digest,
+                context=contexts[name],
+                source=sources[name],
+                channel=row.registry_channel,
+                adapter=row.adapter,
+                operator=operator,
+                runtime_identity=row.runtime_identity,
+            )
+            sockets[name] = stack.enter_context(tls_pair(tls, name))[0]
+        auth.enroll_broker(
+            host_id="host-b", certificate_digest=fingerprint("broker-b"), operator=operator
+        )
+        broker_socket = stack.enter_context(tls_pair(tls, "broker-b"))[0]
+        root_ref = service.publish_root(enrollments["parent"], root, operator=operator)
+        runtime.rebind_sources(
+            operator=operator, delegation_service=service, delegation_operator=operator
+        )
+
+        def facts(context, action, current_runtime, baseline):
+            row = registry._agents[context.identity.agent_id]
+            report = ledger.report(
+                context, channel=row.channel, adapter=registry._channels[row.channel][0]
+            )
+            return current_runtime.facts_source.issue(
+                context,
+                action,
+                policy_digest=current_runtime.binding_digest,
+                snapshot_digest=current_runtime.evidence_digest(context),
+                budgets=tuple(
+                    SwarmBudgetFact(item["scope"], item["metric"], item["remaining"])
+                    for item in report["limits"]
+                ),
+            )
+
+        service.bind_policy_runtime(runtime, operator=operator, facts_provider=facts)
+        child = service.issue_child(
+            auth.authenticate(sockets["parent"]),
+            root_ref.grant_id,
+            enrollments["child"],
+            rights,
+            request_id="fresh-child",
+            lifetime=60,
+        )
+        context = service.bind_delegation_context(child.grant_id, operator=operator)
+        channel = auth.authenticate(sockets["child"])
+        global_gate = SwarmGate(registry, service.assurance)
+        broker = SwarmExecutionBroker(
+            service,
+            auth.authenticate(broker_socket),
+            global_gate,
+            ledger,
+            backend,
+            operator=operator,
+            policy_runtime=runtime,
+        )
+        proof = broker.activation_proof(selected.digest, operator=operator)
+        runtime.bind_enforcement(selected, broker, proof, operator=operator)
+        yield runtime, broker, ledger, service, channel, child.grant_id, context, operator
+
+
+@pytest.mark.parametrize("physical", (False, True))
+def test_real_effect_joins_current_datadoc_and_post_reserve_budget_rule(tmp_path, physical):
+    require_kernel()
+    with fixture(tmp_path, physical=physical) as data:
+        selected = replace(
+            scoped_policy(data[13]),
+            rules=(
+                SwarmPolicyRule(
+                    "reserve-exhaustion",
+                    "deny",
+                    SwarmPolicySelector(budgets=(SwarmBudgetCondition("swarm", "requests", 2),)),
+                ),
+            ),
+        )
+        with current_policy_broker(data, selected) as current:
+            runtime, broker, ledger, _, channel, grant, context, _ = current
+            first = broker.prepare(channel, grant, data[4], idempotency_key="first-policy-read")
+            assert first.authorization is not None, first.as_dict()
+            result = broker.dispatch(first.authorization)
+            assert result.status == "completed" and result.physical_enforcement, result.as_dict()
+            assert result.value == b"broker-owned-benign-data\n"
+            second_action = replace(data[4], action_id="second-policy-read")
+            second = broker.prepare(
+                channel, grant, second_action, idempotency_key="second-policy-read"
+            )
+            assert second.disposition == "deny" and second.authorization is None, second.as_dict()
+            assert any(
+                fact.metric == "requests" and fact.remaining == 2
+                for receipt in runtime.facts_source._issued
+                for fact in receipt.budgets or ()
+            )
+            row = ledger._registry._agents[context.identity.agent_id]
+            report = ledger.report(
+                context, channel=row.channel, adapter=ledger._registry._channels[row.channel][0]
+            )
+            requests = next(item for item in report["limits"] if item["metric"] == "requests")
+            assert requests["consumed"] == 1 and requests["reserved"] == 0
+            assert data[13].read_bytes() == b"broker-owned-benign-data\n"
+
+
+def test_uncapped_billing_budget_does_not_become_ready_from_a_kernel_file_factory(tmp_path):
+    require_kernel()
+    with fixture(tmp_path, physical=True, metric="dollar_micros") as data:
+        selected = scoped_policy(data[13])
+        maximum = SwarmPolicyMaximum(
+            "tenant", "swarm", selected.permissions, budget_limits=data[2].policy.limits
+        )
+        runtime = SwarmPolicyRuntime(
+            data[14],
+            maximum,
+            operator=data[11],
+            clock=lambda: data[10][0],
+            budget_ledger=data[2],
+        )
+        proof = data[0].activation_proof(selected.digest, operator=data[11])
+        runtime.bind_enforcement(selected, data[0], proof, operator=data[11])
+        assert not data[2].admission_available
+        with pytest.raises(ValueError, match="capability unavailable"):
+            runtime.prepare(selected)
+        assert runtime.epoch == 0 and runtime.selection_digest is None
+
+
+def test_reload_fences_actual_unused_broker_ticket_before_any_owned_effect(tmp_path, monkeypatch):
+    require_kernel()
+    with fixture(tmp_path) as data:
+        selected = scoped_policy(data[13])
+        with current_policy_broker(data, selected) as current:
+            runtime, broker, _, _, channel, grant, _, operator = current
+            preparation = broker.prepare(channel, grant, data[4], idempotency_key="before-reload")
+            assert preparation.authorization is not None, preparation.as_dict()
+            parent = runtime._registry._agents["parent"].context
+            replacement = replace(selected, revision=2, default_disposition="deny")
+            proof = broker.activation_proof(replacement.digest, operator=operator)
+            runtime.bind_enforcement(replacement, broker, proof, operator=operator)
+            proposal = runtime.prepare(replacement)
+            simulation = runtime.simulate(
+                proposal,
+                (SwarmPolicyReplayCase("read", parent, data[4], "benign"),),
+                ordin=broker._gate._baseline.ordin,
+            )
+            runtime.activate(
+                runtime.approve(proposal, simulation, operator=operator), operator=operator
+            )
+            monkeypatch.setattr(
+                broker._executor,
+                "execute",
+                lambda *a, **k: pytest.fail("old policy ticket reached the real executor"),
+            )
+            result = broker.dispatch(preparation.authorization)
+            assert not result.forwarded and result.status != "completed", result.as_dict()

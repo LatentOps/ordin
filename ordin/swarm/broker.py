@@ -726,7 +726,11 @@ class SwarmExecutionBroker:
                     )
 
                 dispatch = self._service.guarded_dispatch(
-                    self._broker_channel, row.admission_id, captured, forward
+                    self._broker_channel,
+                    row.admission_id,
+                    captured,
+                    forward,
+                    policy_broker=self,
                 )
                 outcome = dispatch.value
                 if (

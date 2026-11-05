@@ -162,6 +162,14 @@ resurrect its earlier approval, context generation or execution ticket.
 Read-only policy compilation cannot prove applied kernel/runtime enforcement.
 Activation reports explicitly keep `physical_enforcement: false`.
 
+Budget readiness uses the ledger's protected `admission_available` check. A hard
+budget still requires an original per-action proof from the actual fixed worker
+and revalidation before forwarding. A read-file factory cannot cap remote token
+or dollar billing. Such a required budget blocks activation; it is not inferred
+from a cost estimate or a caller-provided physical-enforcement flag. Epoch reload
+preserves charged and uncertain history; a replacement hard-budget ledger needs
+its current enforcing broker rebound before actions can pass.
+
 The runtime's read-only evidence digest includes the protected source-flow
 records, declassification audit, configured sinks, current causal graph and
 source lifecycle. Revoking a source session changes this binding even when no

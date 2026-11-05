@@ -534,7 +534,7 @@ class SwarmPolicyRuntime:
         if (
             self._budget is not None
             and self._budget.policy.policy_epoch == self._epoch
-            and not self._budget.policy.require_physical_enforcement
+            and self._budget.admission_available
             and self._budget_binding() != "unavailable"
         ):
             values.add("budget.admission")
