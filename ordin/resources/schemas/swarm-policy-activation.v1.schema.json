@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-policy-activation.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_digest",
+    "compilation_digest",
+    "epoch",
+    "state",
+    "reason_codes",
+    "execution_authority",
+    "physical_enforcement"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_policy_activation.v1"
+    },
+    "policy_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "compilation_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "state": {
+      "enum": [
+        "active_requires_reenrollment",
+        "failed_closed"
+      ]
+    },
+    "reason_codes": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+      }
+    },
+    "execution_authority": {
+      "const": false
+    },
+    "physical_enforcement": {
+      "const": false
+    }
+  }
+}

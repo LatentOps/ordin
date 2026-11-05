@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from contextlib import nullcontext
 from threading import RLock
 import time
 from typing import Any, Callable, Mapping
@@ -82,6 +83,7 @@ class _Actor:
     journal_gap: bool = False
     active_route: str | None = None
     assessment_provider: Any = None
+    policy_facts_provider: Any = None
     closed: bool = False
     broker: Any = None
     broker_binding: Any = None
@@ -112,6 +114,16 @@ class _GatewayReviewGate(AgentGate):
             assessments = self.actor.assessment_provider(
                 self.actor.context, action, self.actor.gate, provider_options
             )
+        provider_options = dict(kwargs)
+        if self.actor.gate._events is not None:
+            provider_options["event_source"] = self.actor.event_source
+        policy_facts = (
+            self.actor.policy_facts_provider(
+                self.actor.context, action, self.actor.gate, provider_options
+            )
+            if self.actor.policy_facts_provider is not None
+            else None
+        )
         decision = self.actor.gate.evaluate_action(
             self.actor.context,
             action,
@@ -119,6 +131,7 @@ class _GatewayReviewGate(AgentGate):
             adapter=self.actor.adapter,
             event_source=self.actor.event_source if self.actor.gate._events is not None else None,
             assessments=assessments,
+            policy_facts=policy_facts,
             **kwargs,
         )
         self.actor.captured = (decision, dict(kwargs))
@@ -205,11 +218,16 @@ class SwarmToolGateway:
         routes: frozenset[str],
         approval_ui: bool = False,
         assessment_provider: Callable[..., tuple[SwarmAssessment, ...]] | None = None,
+        policy_facts_provider: Callable[..., Any] | None = None,
     ) -> GatewayAgent:
         if type(gate) is not SwarmGate or type(approval_ui) is not bool:
             raise ValueError("gateway requires a protected gate and explicit approval capability")
         if assessment_provider is not None and not callable(assessment_provider):
             raise ValueError("assessment provider must be a protected host callable")
+        if policy_facts_provider is not None and (
+            gate._policy_runtime is None or not callable(policy_facts_provider)
+        ):
+            raise ValueError("policy facts require the protected current runtime and host provider")
         if type(routes) is not frozenset or not routes <= ROUTES:
             raise ValueError("unknown gateway route")
         gate._registry.authenticate(context, channel, adapter)
@@ -231,6 +249,7 @@ class SwarmToolGateway:
                 )
             actor = _Actor(context, channel, adapter, gate, routes, approval_ui, source)
             actor.assessment_provider = assessment_provider
+            actor.policy_facts_provider = policy_facts_provider
             baseline = gate._baseline
             ordin = baseline.ordin
             facade = _GatewayReviewGate(ordin=ordin, owner=self, actor=actor)
@@ -383,6 +402,54 @@ class SwarmToolGateway:
                         )
                     except BudgetError as exc:
                         disposition, budget_reason = "deny", exc.reason_code
+            if (
+                budget_ticket is not None
+                and self._budget is not None
+                and actor.gate._policy_runtime is not None
+            ):
+                try:
+                    provider_options = dict(options)
+                    if actor.gate._events is not None:
+                        provider_options["event_source"] = actor.event_source
+                    refreshed_assessments = (
+                        actor.assessment_provider(
+                            actor.context, normalized, actor.gate, provider_options
+                        )
+                        if actor.assessment_provider is not None
+                        else assessments
+                    )
+                    refreshed_facts = (
+                        actor.policy_facts_provider(
+                            actor.context, normalized, actor.gate, provider_options
+                        )
+                        if actor.policy_facts_provider is not None
+                        else None
+                    )
+                    refreshed = actor.gate.evaluate_action(
+                        actor.context,
+                        normalized,
+                        channel=actor.channel,
+                        adapter=actor.adapter,
+                        event_source=actor.event_source if actor.gate._events is not None else None,
+                        assessments=refreshed_assessments,
+                        policy_facts=refreshed_facts,
+                        **options,
+                    )
+                    if tuple(refreshed.review.effects) != tuple(decision.review.effects):
+                        raise ValueError("budget cost semantics changed")
+                    decision = refreshed
+                    disposition = max(
+                        (disposition, refreshed.disposition),
+                        key={"execute": 0, "escalate": 1, "deny": 2}.__getitem__,
+                    )
+                except Exception:
+                    disposition, budget_reason = (
+                        "deny",
+                        "policy.post_reservation_evidence_unavailable",
+                    )
+                if disposition != "execute":
+                    self._budget.cancel(budget_ticket)
+                    budget_reason = budget_reason or "policy.post_reservation_restricted"
             if disposition == "execute":
                 with self._lock:
                     if len(self._pending) >= self._pending_limit:
@@ -508,7 +575,12 @@ class SwarmToolGateway:
             return self._forward_broker(handle, actor, ticket, action)
         if not callable(executor):
             raise ValueError("forwarding requires an explicit host executor")
-        with self._operation_lock, actor.lock:
+        guard = (
+            actor.gate._policy_runtime.execution_guard(actor.context)
+            if actor.gate._policy_runtime is not None
+            else nullcontext()
+        )
+        with guard, self._operation_lock, actor.lock:
             budget_started = False
             if actor.closed:
                 raise ValueError("gateway actor was revoked")

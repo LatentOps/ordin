@@ -7,6 +7,7 @@ from .credential_broker import SwarmCredentialBroker
 from .broker import SwarmExecutionBroker, LinuxFileReadBackend
 from .attach import HostSessionEndpoint, RunningSessionIdentity, SwarmAttachManager
 from .coverage import AttachCoverage
+from .policy import SwarmPolicyRuntime, SwarmPolicySet, SwarmPolicyMaximum, compile_swarm_policy_set
 from .budget_store import (
     BudgetLedger,
     BudgetPolicy,
@@ -36,6 +37,10 @@ __all__ = [
     "VectorPointArtifactAdapter",
     "SwarmExecutionBroker",
     "LinuxFileReadBackend",
+    "SwarmPolicyRuntime",
+    "SwarmPolicySet",
+    "SwarmPolicyMaximum",
+    "compile_swarm_policy_set",
     "BudgetLedger",
     "BudgetPolicy",
     "BudgetLimit",

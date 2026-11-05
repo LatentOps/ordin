@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-policy-compilation.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_digest",
+    "maximum_digest",
+    "compilation_digest",
+    "scope_digest",
+    "required_checks",
+    "required_capabilities",
+    "rule_count",
+    "execution_authority",
+    "live_capabilities_verified",
+    "deployment_authorized"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_policy_compilation.v1"
+    },
+    "policy_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "maximum_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "compilation_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "scope_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "required_checks": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+      }
+    },
+    "required_capabilities": {
+      "type": "array",
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "broker.enforce",
+          "budget.admission",
+          "delegation.online",
+          "filesystem.enforce",
+          "identity",
+          "process.enforce",
+          "protected_facts",
+          "source_flow",
+          "temporal"
+        ]
+      }
+    },
+    "rule_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 128
+    },
+    "execution_authority": {
+      "const": false
+    },
+    "live_capabilities_verified": {
+      "const": false
+    },
+    "deployment_authorized": {
+      "const": false
+    }
+  }
+}

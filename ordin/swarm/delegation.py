@@ -8,6 +8,7 @@ Only an enrolled broker on the subject host can consume a one-use admission.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from contextlib import ExitStack, nullcontext
 import json
 import secrets
 import ssl
@@ -238,6 +239,7 @@ class _Admission:
     service_generation: int
     ancestry_digest: str
     state: str = "pending"
+    policy_binding: str | None = None
 
 
 class SwarmDelegationService:
@@ -287,6 +289,8 @@ class SwarmDelegationService:
         self._pending: dict[str, _Admission] = {}
         self._generation = 0
         self._available = True
+        self._policy_runtime: Any = None
+        self._policy_facts_provider: Any = None
         self._audit: list[dict[str, Any]] = []
         self._audit_limit = max_admissions * 3 + issuer.limits.maximum_grants * 3
         self._audit_full = False
@@ -295,6 +299,60 @@ class SwarmDelegationService:
     def _operator_check(self, operator: object) -> None:
         if operator is not self._operator:
             raise ValueError("protected authority operator capability required")
+
+    def bind_policy_runtime(self, runtime, *, operator: object, facts_provider=None) -> None:
+        """Protected policy composition; never accept runtime/facts from wire JSON."""
+        self._operator_check(operator)
+        from .policy_runtime import SwarmPolicyRuntime
+
+        if (
+            type(runtime) is not SwarmPolicyRuntime
+            or runtime._registry is not self.authenticator._registry
+            or runtime.maximum.delegation_maximum_digest != self.issuer.operator_maximum.digest
+            or facts_provider is not None
+            and not callable(facts_provider)
+        ):
+            raise ValueError(
+                "original matching policy runtime and protected fact provider required"
+            )
+        with runtime.execution_barrier, self._lock, self.issuer._lock:
+            for admission in tuple(self._pending.values()):
+                self._cancel(admission, "canceled")
+            self._generation += 1
+            self.authenticator.fence(operator=operator)
+            self._policy_runtime, self._policy_facts_provider = runtime, facts_provider
+
+    def _policy_barrier(self):
+        return (
+            self._policy_runtime.execution_barrier
+            if self._policy_runtime is not None
+            else nullcontext()
+        )
+
+    def _policy_projection(
+        self,
+        row: _Grant,
+        subject: WorkloadEnrollment,
+        action: ActionEnvelope,
+        decision: DelegatedDecision,
+    ):
+        if self._policy_runtime is None:
+            return decision.disposition, decision.reason_codes, None
+        if subject.context is None:
+            raise ValueError("original policy workload context unavailable")
+        facts = (
+            self._policy_facts_provider(subject.context, action, self._policy_runtime, decision)
+            if self._policy_facts_provider is not None
+            else None
+        )
+        result = self._policy_runtime.evaluate_baseline(
+            subject.context, action, decision, facts=facts, delegation_gate=row.gate
+        )
+        return (
+            result.disposition,
+            tuple(dict.fromkeys(decision.reason_codes + result.reason_codes)),
+            self._policy_runtime.binding_digest,
+        )
 
     def _online(self) -> None:
         if not self._available or self._audit_full:
@@ -648,7 +706,7 @@ class SwarmDelegationService:
     ) -> RemoteReview:
         if type(action) is not ActionEnvelope or type(credential_uses) is not tuple:
             raise ValueError("typed exact action and protected credential receipts required")
-        with self._lock, self.issuer._lock:
+        with self._policy_barrier(), self._lock, self.issuer._lock:
             row, subject = self._grant(channel, reference)
             self._expire_admissions()
             if len(self._admissions) >= self._limit:
@@ -658,6 +716,11 @@ class SwarmDelegationService:
             captured = ActionEnvelope.from_dict(action.as_dict())
             context = subject.source.context(credential_uses=credential_uses)
             decision = row.gate.evaluate_action(captured, host_context=context)
+            final, reasons, policy_binding = self._policy_projection(
+                row, subject, captured, decision
+            )
+            if final != "execute" and decision._ticket:
+                self.issuer.cancel_operation(decision._ticket)
             try:
                 ancestry = self._ancestry_digest(row)
             except ValueError:
@@ -666,7 +729,7 @@ class SwarmDelegationService:
                 raise
             admission = None
             expires = min(row.handle.record.expires_at, self.issuer._now() + self._lifetime)
-            if decision.may_execute:
+            if final == "execute":
                 admission = secrets.token_hex(32)
                 issued = _Admission(
                     admission,
@@ -680,20 +743,21 @@ class SwarmDelegationService:
                     ancestry,
                 )
                 self._admissions[admission] = self._pending[admission] = issued
+                issued.policy_binding = policy_binding
             self._audit_event(
                 "action_reviewed",
                 admission or secrets.token_hex(32),
                 action_digest=digest(captured.as_dict()),
-                disposition=decision.disposition,
+                disposition=final,
             )
             return RemoteReview(
                 admission,
-                decision.disposition,
+                final,
                 digest(captured.as_dict()),
                 digest(reference),
                 self.issuer._generation,
                 expires,
-                decision.reason_codes,
+                reasons,
             )
 
     def _cancel(self, admission: _Admission, state: str) -> None:
@@ -743,6 +807,8 @@ class SwarmDelegationService:
         admission_id: str,
         action: ActionEnvelope,
         forward: Callable[[ActionEnvelope], Any],
+        *,
+        policy_broker=None,
     ) -> DelegationDispatch:
         """Trusted broker callback under current issuer fence; never return a cached permit.
 
@@ -753,7 +819,7 @@ class SwarmDelegationService:
         _hex(admission_id, "admission reference")
         if type(action) is not ActionEnvelope or not callable(forward):
             raise ValueError("exact action and protected broker forwarder required")
-        with self._lock, self.issuer._lock:
+        with self._policy_barrier(), self._lock, self.issuer._lock, ExitStack() as policy_guard:
             self._online()
             broker = self.authenticator.require(broker_channel, role="broker")
             admission = self._admissions.get(admission_id)
@@ -766,6 +832,15 @@ class SwarmDelegationService:
             try:
                 row, subject = self._grant(admission.owner_channel, admission.grant_ref)
                 captured = ActionEnvelope.from_dict(admission.action.as_dict())
+                if self._policy_runtime is not None:
+                    policy_guard.enter_context(
+                        self._policy_runtime.execution_guard(subject.context, broker=policy_broker)
+                    )
+                final, _, policy_binding = self._policy_projection(
+                    row, subject, captured, admission.decision
+                )
+                if final != "execute" or policy_binding != admission.policy_binding:
+                    raise ValueError("current policy admission refused")
                 if (
                     broker.host_id != subject.host_id
                     or self._ancestry_digest(row) != admission.ancestry_digest
@@ -815,9 +890,13 @@ class SwarmDelegationService:
         admission_id: str,
         action: ActionEnvelope,
         forward: Callable[[ActionEnvelope], Any],
+        *,
+        policy_broker=None,
     ) -> DelegationDispatch:
         """Alias requiring an immediate broker callback, never a reusable boolean lease."""
-        return self.guarded_dispatch(broker_channel, admission_id, action, forward)
+        return self.guarded_dispatch(
+            broker_channel, admission_id, action, forward, policy_broker=policy_broker
+        )
 
     def revoke(
         self, channel: AuthorityChannel, parent_ref: str, target_ref: str

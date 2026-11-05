@@ -67,6 +67,7 @@ The Python API reviews actions but never executes them.
 - [Cross-agent sensitivity labels and mediated egress](swarm/source-flow.md)
 - [Late attach, event continuity and coverage diagnostics](swarm/late-attach.md)
 - [Authenticated inter-agent data messages and transports](swarm/messages.md)
+- [Declarative swarm policy, precedence and safe reload](swarm/policies.md)
 - [Guarded artifacts, shared memory and workspaces](swarm/artifacts.md)
 - [Cross-agent causal temporal policies](swarm/temporal.md)
 - [Transactional shared budgets and reservations](swarm/budgets.md)

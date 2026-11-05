@@ -418,6 +418,17 @@ class DelegatingAssuranceGate:
             finally:
                 self._next_context = None
 
+    def is_original_decision(self, decision: DelegatedDecision, action: ActionEnvelope) -> bool:
+        """Protected composition of an existing reservation without a second review."""
+        if type(decision) is not DelegatedDecision:
+            return False
+        with self._lock, self.issuer._lock:
+            try:
+                self.original_review_inputs(decision)
+                return self.binding_matches(decision, action)
+            except ValueError:
+                return False
+
     def binding_matches(self, decision: DelegatedDecision, action: ActionEnvelope) -> bool:
         if (
             not isinstance(decision, DelegatedDecision)

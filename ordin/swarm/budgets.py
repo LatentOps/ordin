@@ -839,6 +839,42 @@ class BudgetLedger:
                 "execution_authority": False,
             }
 
+    def snapshot_digest(
+        self, context: SwarmContext, *, channel: HostChannel, adapter: object
+    ) -> str:
+        """Pure protected quota binding; does not expire holds or issue authority."""
+        scopes = self._scopes(context, channel, adapter)
+        with self._lock, self._store.transaction() as connection:
+            meta = connection.execute("SELECT * FROM budget_meta WHERE singleton=1").fetchone()
+            if (
+                meta is None
+                or meta["nonce"] != self._nonce
+                or meta["generation"] != self._generation
+                or meta["policy_digest"] != self.policy.digest
+            ):
+                raise BudgetError("budget.coordinator_fenced")
+            values = []
+            for selected in self._buckets(context, scopes):
+                row = connection.execute(
+                    "SELECT * FROM budget_buckets WHERE bucket=?", (selected.key,)
+                ).fetchone()
+                values.append((selected.key, None if row is None else tuple(row)))
+            return digest([self.policy.digest, self._generation, digest(context.as_dict()), values])
+
+    @property
+    def authority_binding_digest(self) -> str:
+        """Pure current coordinator/configuration binding, without counter state."""
+        with self._lock, self._store.transaction() as connection:
+            meta = connection.execute("SELECT * FROM budget_meta WHERE singleton=1").fetchone()
+            if (
+                meta is None
+                or meta["nonce"] != self._nonce
+                or meta["generation"] != self._generation
+                or meta["policy_digest"] != self.policy.digest
+            ):
+                raise BudgetError("budget.coordinator_fenced")
+            return digest([self.policy.digest, self._generation, self._nonce])
+
     def audit(self, *, operator: object, offset: int = 0, limit: int = 128) -> dict[str, Any]:
         if operator is not self._operator:
             raise BudgetError("budget.protected_operator_required")

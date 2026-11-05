@@ -140,6 +140,7 @@ class InMemoryAgentRegistry:
         self._channels: dict[HostChannel, tuple[object, str]] = {}
         self._agents: dict[str, _Agent] = {}
         self._lock = RLock()
+        self._policy_execution_barrier = RLock()
 
     def _now(self) -> float:
         now = timestamp(self._clock())
@@ -374,6 +375,40 @@ class InMemoryAgentRegistry:
             if epoch <= self._policy_epoch:
                 raise ValueError("policy epoch must increase monotonically")
             self._policy_epoch = epoch
+
+    def refresh_policy_context(
+        self,
+        context: SwarmContext,
+        channel: HostChannel,
+        adapter: object,
+        *,
+        coverage: CoverageManifest = CoverageManifest(),
+    ) -> SwarmContext:
+        """Host-only re-enrollment after fencing, preserving the physical session.
+
+        Refresh live parents before children. Coverage requires fresh host
+        verification and defaults to uncovered. This renews no delegated grant.
+        """
+        with self._lock:
+            record = self._record(context, channel, adapter)
+            now = self._now()
+            if (
+                self._phase(record, now) != "active"
+                or context.identity.policy_epoch >= self._policy_epoch
+            ):
+                raise ValueError("only a live stale-policy context can be refreshed")
+            identity = context.identity
+            return self._issue(
+                channel,
+                self._channel(channel, adapter),
+                agent_id=identity.agent_id,
+                session_id=identity.session_id,
+                task_id=identity.task_id,
+                parent_agent_id=identity.parent_agent_id,
+                delegation_id=identity.delegation_id,
+                coverage=coverage,
+                now=now,
+            )
 
     def rebind_delegation(
         self,
