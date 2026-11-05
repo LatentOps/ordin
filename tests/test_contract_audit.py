@@ -203,6 +203,30 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     ).as_dict()
     from tests.assurance.contract_examples import assurance_contract_examples
 
+    from ordin.swarm import ArtifactAddress, SwarmArtifact, EventRef
+
+    samples["swarm_artifact"] = SwarmArtifact(
+        ArtifactAddress("tenant", "swarm", "workspace", "artifacts", "fixture"),
+        "a" * 64,
+        1,
+        "b" * 64,
+        0,
+        ("public",),
+        101,
+        EventRef("tenant", "swarm", "write-fixture"),
+        ("c" * 64,),
+    ).as_dict()
+    samples["swarm_artifact_diagnostics"] = {
+        "schema_version": "ordin.swarm_artifact_diagnostics.v1",
+        "managed_api": "mediated",
+        "raw_backing_access": "uncovered",
+        "opaque_vector_queries": "unsupported",
+        "healthy": True,
+        "physical_enforcement": False,
+        "resource_count": 0,
+        "grant_count": 0,
+    }
+
     from ordin.swarm import (
         AttachCoverage,
         HostSessionEndpoint,
@@ -379,6 +403,8 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
+        "swarm_artifact",
+        "swarm_artifact_diagnostics",
         "swarm_message",
         "swarm_message_outcome",
         "swarm_message_peer_status",
