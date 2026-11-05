@@ -6,6 +6,9 @@ changes no `ActionEnvelope` or `IntegrationSession` serialization. Each registry
 is scoped to one tenant and swarm. A host with multiple scopes creates separate
 registries and keeps them outside agent control.
 
+See the [architecture](architecture.md) and [support matrix](support-matrix.md)
+for current versus planned integration and enforcement boundaries.
+
 ```python
 from ordin.swarm import CoverageEntry, CoverageManifest, InMemoryAgentRegistry
 
