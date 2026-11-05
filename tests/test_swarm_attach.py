@@ -301,7 +301,7 @@ def test_revoked_gateway_facade_and_pending_ticket_cannot_execute():
 
 
 def test_cli_dry_run_live_refusal_offline_status_and_doctor(tmp_path, capsys):
-    from ordin.cli import main
+    from ordin.entrypoint import main
     from ordin.schema import validate_named_schema
 
     assert (
