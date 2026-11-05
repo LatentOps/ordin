@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/ordin/swarm-decision.v1.schema.json",
+  "title": "Ordin Swarm Decision v1",
+  "description": "Redacted review data. JSON cannot authorize use or restore a gate-issued binding.",
+  "$comment": "Runtime validation additionally enforces monotonic composition and verifies the protected gate seal and original baseline review.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "disposition",
+    "baseline_disposition",
+    "core_decision",
+    "registry_id",
+    "identity",
+    "action_digest",
+    "context_digest",
+    "configuration_digest",
+    "policy_digest",
+    "evidence_snapshot_digest",
+    "assessment_digests",
+    "reason_codes",
+    "matched_rules",
+    "check_results"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_decision.v1"
+    },
+    "disposition": {
+      "enum": [
+        "execute",
+        "escalate",
+        "deny"
+      ]
+    },
+    "baseline_disposition": {
+      "enum": [
+        "execute",
+        "escalate",
+        "deny"
+      ]
+    },
+    "core_decision": {
+      "enum": [
+        "allow",
+        "warn",
+        "ask",
+        "block"
+      ]
+    },
+    "registry_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "swarm_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "agent_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "runtime_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "policy_epoch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "parent_agent_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "task_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "delegation_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+        },
+        "parent_generation": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "parent_agent_id": {
+              "type": "null"
+            },
+            "parent_generation": {
+              "type": "null"
+            },
+            "delegation_id": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "parent_agent_id": {
+              "type": "string"
+            },
+            "parent_generation": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ],
+      "required": [
+        "tenant_id",
+        "swarm_id",
+        "agent_id",
+        "runtime_id",
+        "session_id",
+        "generation",
+        "policy_epoch",
+        "parent_agent_id",
+        "task_id",
+        "delegation_id",
+        "parent_generation"
+      ]
+    },
+    "action_digest": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "context_digest": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "configuration_digest": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "policy_digest": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "evidence_snapshot_digest": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "assessment_digests": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "minLength": 64,
+        "maxLength": 64,
+        "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+      }
+    },
+    "reason_codes": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+      }
+    },
+    "matched_rules": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+      }
+    },
+    "check_results": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "check_id",
+          "status"
+        ],
+        "properties": {
+          "check_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+          },
+          "status": {
+            "enum": [
+              "satisfied",
+              "violated",
+              "unknown"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -72,6 +72,13 @@ class DelegatedDecision:
         }
 
     @property
+    def review(self) -> ActionReview:
+        review = self.assurance.review
+        if not isinstance(review, ActionReview):
+            raise ValueError("delegated decision requires a generic action review")
+        return review
+
+    @property
     def digest(self) -> str:
         return digest("delegated_decision", self.as_dict())
 
@@ -142,12 +149,20 @@ class DelegatingAssuranceGate:
         )
 
     def _review(
-        self, action: ActionEnvelope, *, history: ActionHistory, **kwargs
+        self,
+        action: ActionEnvelope,
+        *,
+        history: ActionHistory,
+        _reserve: bool = True,
+        _assurance: AssuranceGate | None = None,
+        _host_context: AssuranceHostContext | None = None,
+        **kwargs,
     ) -> DelegatedDecision:
-        context = self._next_context or self.source.context(history=history)
+        assurance = _assurance if _assurance is not None else self.assurance
+        context = _host_context or self._next_context or self.source.context(history=history)
         if context.source.key != self.source.key:
             raise ValueError("child review context belongs to another host identity")
-        underlying = self.assurance.evaluate_action(
+        underlying = assurance.evaluate_action(
             action, host_context=context, history=history, **kwargs
         )
         assert isinstance(underlying.review, ActionReview)
@@ -229,7 +244,7 @@ class DelegatingAssuranceGate:
                         credential_uses=context.credential_uses,
                         history=history,
                     )
-                    underlying = self.assurance.evaluate_action(
+                    underlying = assurance.evaluate_action(
                         underlying.review.action, host_context=context, history=history, **kwargs
                     )
                     final = underlying.disposition
@@ -249,9 +264,12 @@ class DelegatingAssuranceGate:
                         final = "escalate"
                     reasons.append("delegation.grant_approval_required")
                 if final == "execute":
-                    ticket = self.issuer._reserve_operation(
-                        self.grant, self.source, underlying.action_digest, contract
-                    )
+                    if _reserve:
+                        ticket = self.issuer._reserve_operation(
+                            self.grant, self.source, underlying.action_digest, contract
+                        )
+                    else:
+                        self.issuer._preview_operation(self.grant, self.source, contract)
             except ValueError:
                 final = "deny"
                 reasons.append("delegation.current_grant_or_quota_invalid")
@@ -274,6 +292,57 @@ class DelegatingAssuranceGate:
         return DelegatedDecision(
             **values, _seal=_DelegatedSeal(self.issuer._issuer_key, preview.digest)
         )
+
+    @property
+    def preview_binding_digest(self) -> str:
+        """Read-only fingerprint of the exact child history and quota state."""
+        with self._lock, self._session._lock, self.issuer._lock:
+            return core_digest(
+                {
+                    "assurance": self.assurance.configuration_digest,
+                    "grant": self.grant.digest,
+                    "source": self.source.key,
+                    "issuer_generation": self.issuer._generation,
+                    "history": self._session.snapshot(),
+                    "runtime": self._session.runtime_snapshot(),
+                    "used": dict(self.issuer._used),
+                    "pending": sorted(self.issuer._pending.values()),
+                }
+            )
+
+    def preview_action(
+        self,
+        action: ActionEnvelope,
+        *,
+        host_context: AssuranceHostContext | None = None,
+        contract_check=None,
+    ) -> DelegatedDecision:
+        """Read-only review: no audit emission, session append, ticket or credential."""
+        if not isinstance(action, ActionEnvelope):
+            raise ValueError("delegated preview requires a normalized typed action")
+        if host_context is not None and (
+            not isinstance(host_context, AssuranceHostContext)
+            or host_context.source.key != self.source.key
+        ):
+            raise ValueError("agent JSON cannot supply a child host context")
+        with self._lock, self._session._lock:
+            proposed, history, observations, extra = self._session._review_inputs(
+                action, contract_check
+            )
+            baseline = replace(
+                self.assurance.baseline_gate,
+                ordin=replace(self.assurance.ordin, audit=None),
+            )
+            assurance = replace(self.assurance, baseline_gate=baseline)
+            return self._review(
+                proposed,
+                history=history,
+                observations=observations,
+                _reserve=False,
+                _assurance=assurance,
+                _host_context=host_context,
+                **extra,
+            )
 
     def evaluate_action(
         self,

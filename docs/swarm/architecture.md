@@ -3,7 +3,8 @@
 Status: design contract for [SWARM-01](https://github.com/LatentOps/ordin/issues/256).
 Local [host enrollment and lifecycle](identity.md) are available through the
 opt-in in-memory registry, with a local [authenticated event journal](events.md).
-`SwarmGate` and the distributed coordinator remain planned components.
+Local [pure SwarmGate composition](gate.md) is available. The distributed
+coordinator remains planned.
 Enrollment and event ingestion do not execute or enforce actions. See the
 [support matrix](support-matrix.md) for current boundaries and the
 [threat model](threat-model.md) for acceptance scenarios.
