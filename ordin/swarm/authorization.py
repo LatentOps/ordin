@@ -15,6 +15,15 @@ from .gate import SwarmDecision
 from .models import SwarmContext
 
 
+def _checked(value: dict[str, Any]) -> dict[str, Any]:
+    from ordin.schema import validate_named_schema
+
+    name = value["schema_version"].removeprefix("ordin.").removesuffix(".v1")
+    if validate_named_schema(name, value):
+        raise ValueError("invalid bounded broker report")
+    return value
+
+
 @dataclass(frozen=True, eq=False, slots=True)
 class BrokerAuthorization:
     authorization_id: str
@@ -50,18 +59,20 @@ class BrokerPreparation:
     decision: SwarmDecision | None = field(default=None, repr=False)
 
     def as_dict(self) -> dict[str, Any]:
-        return {
-            "schema_version": "ordin.swarm_broker_preparation.v1",
-            "disposition": self.disposition,
-            "reason_codes": list(self.reason_codes),
-            "action_digest": self.action_digest,
-            "caller_digest": self.caller_digest,
-            "policy_digest": self.policy_digest,
-            "authorization_digest": digest(self.authorization.authorization_id)
-            if self.authorization
-            else None,
-            "execution_authority": False,
-        }
+        return _checked(
+            {
+                "schema_version": "ordin.swarm_broker_preparation.v1",
+                "disposition": self.disposition,
+                "reason_codes": list(self.reason_codes),
+                "action_digest": self.action_digest,
+                "caller_digest": self.caller_digest,
+                "policy_digest": self.policy_digest,
+                "authorization_digest": digest(self.authorization.authorization_id)
+                if self.authorization
+                else None,
+                "execution_authority": False,
+            }
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,19 +89,21 @@ class BrokerAuthorizationScope:
     policy_digest: str
 
     def as_dict(self) -> dict[str, Any]:
-        return {
-            "schema_version": "ordin.swarm_broker_scope.v1",
-            "action_digest": digest(self.action.as_dict()),
-            "context_digest": digest(self.context.as_dict()),
-            "plan_digest": digest(self.plan.as_dict()),
-            "caller_digest": self.caller_digest,
-            "authorization_digest": self.authorization_digest,
-            "expires_at": self.expires_at,
-            "policy_digest": self.policy_digest,
-            "budget_reservation_digest": digest(self.budget_ticket.reservation_id),
-            "delegation_admission_digest": self.delegation_scope.admission_digest,
-            "execution_authority": False,
-        }
+        return _checked(
+            {
+                "schema_version": "ordin.swarm_broker_scope.v1",
+                "action_digest": digest(self.action.as_dict()),
+                "context_digest": digest(self.context.as_dict()),
+                "plan_digest": digest(self.plan.as_dict()),
+                "caller_digest": self.caller_digest,
+                "authorization_digest": self.authorization_digest,
+                "expires_at": self.expires_at,
+                "policy_digest": self.policy_digest,
+                "budget_reservation_digest": digest(self.budget_ticket.reservation_id),
+                "delegation_admission_digest": self.delegation_scope.admission_digest,
+                "execution_authority": False,
+            }
+        )
 
 
 @dataclass(frozen=True, eq=False, slots=True)
@@ -108,19 +121,21 @@ class BrokerResult:
     value: Any = field(default=None, repr=False)
 
     def as_dict(self) -> dict[str, Any]:
-        return {
-            "schema_version": "ordin.swarm_broker_result.v1",
-            "status": self.status,
-            "reason_code": self.reason_code,
-            "action_digest": self.action_digest,
-            "caller_digest": self.caller_digest,
-            "authorization_digest": self.authorization_digest,
-            "physical_enforcement": self.physical_enforcement,
-            "forwarded": self.forwarded,
-            "budget_status": self.budget_status,
-            "observation_digest": self.observation_digest,
-            "execution_authority": False,
-        }
+        return _checked(
+            {
+                "schema_version": "ordin.swarm_broker_result.v1",
+                "status": self.status,
+                "reason_code": self.reason_code,
+                "action_digest": self.action_digest,
+                "caller_digest": self.caller_digest,
+                "authorization_digest": self.authorization_digest,
+                "physical_enforcement": self.physical_enforcement,
+                "forwarded": self.forwarded,
+                "budget_status": self.budget_status,
+                "observation_digest": self.observation_digest,
+                "execution_authority": False,
+            }
+        )
 
 
 @dataclass(frozen=True, eq=False, slots=True)
@@ -135,16 +150,18 @@ class BrokerControlReceipt:
     owned_job_digest: str
 
     def as_dict(self) -> dict[str, Any]:
-        return {
-            "schema_version": "ordin.swarm_broker_control.v1",
-            "authorization_digest": self.authorization_digest,
-            "status": self.status,
-            "reason_code": self.reason_code,
-            "state": self.state,
-            "action_digest": self.action_digest,
-            "context_digest": self.context_digest,
-            "policy_epoch": self.policy_epoch,
-            "owned_job_digest": self.owned_job_digest,
-            "rollback_claim": False,
-            "execution_authority": False,
-        }
+        return _checked(
+            {
+                "schema_version": "ordin.swarm_broker_control.v1",
+                "authorization_digest": self.authorization_digest,
+                "status": self.status,
+                "reason_code": self.reason_code,
+                "state": self.state,
+                "action_digest": self.action_digest,
+                "context_digest": self.context_digest,
+                "policy_epoch": self.policy_epoch,
+                "owned_job_digest": self.owned_job_digest,
+                "rollback_claim": False,
+                "execution_authority": False,
+            }
+        )

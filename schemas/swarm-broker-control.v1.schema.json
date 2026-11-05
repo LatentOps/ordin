@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-broker-control.v1.schema.json",
+  "title": "swarm_broker_control",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "authorization_digest",
+    "status",
+    "reason_code",
+    "state",
+    "action_digest",
+    "context_digest",
+    "policy_epoch",
+    "owned_job_digest",
+    "rollback_claim",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_broker_control.v1"
+    },
+    "authorization_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "canceled",
+        "unknown",
+        "unable_to_stop"
+      ]
+    },
+    "reason_code": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_.:-]+$"
+    },
+    "state": {
+      "enum": [
+        "prepared",
+        "checking",
+        "forwarding",
+        "completed",
+        "denied",
+        "canceled",
+        "unknown"
+      ]
+    },
+    "action_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "context_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "policy_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "owned_job_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "rollback_claim": {
+      "const": false
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

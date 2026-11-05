@@ -86,7 +86,9 @@ class ExecutorOutcome:
     observation: RuntimeObservation | None = field(default=None, repr=False)
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        from ordin.schema import validate_named_schema
+
+        payload = {
             "schema_version": "ordin.swarm_executor_outcome.v1",
             "backend": "linux-owned-file-read-v1",
             "status": self.status,
@@ -101,6 +103,9 @@ class ExecutorOutcome:
             "payload_digest": self.payload_digest,
             "execution_authority": False,
         }
+        if validate_named_schema("swarm_executor_outcome", payload):
+            raise ValueError("invalid bounded executor report")
+        return payload
 
 
 @dataclass(frozen=True, eq=False, slots=True)

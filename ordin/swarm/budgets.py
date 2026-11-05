@@ -339,6 +339,15 @@ class BudgetLedger:
         with self._lock:
             self._executors.add(executor)
 
+    @property
+    def admission_available(self) -> bool:
+        """Readiness only; physical mode still requires a per-action original proof."""
+        with self._lock:
+            executors = tuple(self._executors)
+        return not self.policy.require_physical_enforcement or any(
+            executor.supports_budget_policy(self.policy) for executor in executors
+        )
+
     def for_registry(self, registry: InMemoryAgentRegistry) -> BudgetLedger:
         """Protected same-coordinator view; tenant counters aggregate across swarms."""
         if (

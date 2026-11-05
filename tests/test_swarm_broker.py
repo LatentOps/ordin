@@ -409,3 +409,50 @@ def test_mediated_deny_and_uncovered_host_bypass_are_separate_claims(tmp_path):
         assert denied.disposition == "deny" and denied.authorization is None
         # Parent host access is deliberately outside the owned child boundary.
         assert data[13].read_bytes() == b"broker-owned-benign-data\n"
+
+
+def test_owned_process_stop_does_not_wait_for_execution_barrier(tmp_path, monkeypatch):
+    require_kernel()
+    from threading import Event, Thread
+    import ordin.swarm.linux_backend as module
+
+    with fixture(tmp_path) as data:
+        broker, _, ledger, backend, action, channel, grant, *_ = data
+        prepared = broker.prepare(channel, grant, action, idempotency_key="running-stop")
+        auth = prepared.authorization
+        started, release, stop_returned = Event(), Event(), Event()
+        original = module.subprocess.Popen
+
+        def launch(*args, **kwargs):
+            process = original(*args, **kwargs)
+            started.set()
+            assert release.wait(10)
+            return process
+
+        monkeypatch.setattr(module.subprocess, "Popen", launch)
+        results, controls = [], []
+        dispatch = Thread(target=lambda: results.append(broker.dispatch(auth)))
+        dispatch.start()
+        assert started.wait(10)
+
+        def stop():
+            controls.append(broker.request_stop(auth))
+            stop_returned.set()
+
+        stopper = Thread(target=stop)
+        stopper.start()
+        try:
+            assert stop_returned.wait(5), "stop waited for the effect/issuer barrier"
+        finally:
+            release.set()
+            dispatch.join(15)
+            stopper.join(15)
+        assert not dispatch.is_alive() and not stopper.is_alive()
+        assert broker.verify_control_receipt(controls[0], auth)
+        assert results[0].status == "canceled", results[0].as_dict()
+        assert (
+            ledger.reservation_status(broker.authorization_scope(auth).budget_ticket)["status"]
+            == "uncertain"
+        )
+        final = broker.status(auth)
+        assert final.status == "canceled" and broker.verify_control_receipt(final, auth)

@@ -40,6 +40,17 @@ from .delegation import (
     SwarmDelegationService,
 )
 from .workload_auth import AuthorityChannel, WorkloadAuthenticator
+from .broker import SwarmExecutionBroker
+from .authorization import (
+    BrokerActivationProof,
+    BrokerAuthorization,
+    BrokerAuthorizationScope,
+    BrokerControlReceipt,
+    BrokerGatewayBinding,
+    BrokerPreparation,
+    BrokerResult,
+)
+from .linux_backend import LinuxFileReadBackend, ExecutorOutcome
 from .credential_broker import CredentialRoute, PrivateCredentialRequest, SwarmCredentialBroker
 from .labels import Sensitivity
 from .source_flow import EgressSink, LineageHandle, LineageUse, SourceFlowResult, SwarmSourceFlow
@@ -116,6 +127,16 @@ __all__ = [
     "SwarmTemporalRule",
     "default_swarm_temporal_policy",
     "load_swarm_temporal_policy",
+    "SwarmExecutionBroker",
+    "BrokerActivationProof",
+    "BrokerAuthorization",
+    "BrokerAuthorizationScope",
+    "BrokerControlReceipt",
+    "BrokerGatewayBinding",
+    "BrokerPreparation",
+    "BrokerResult",
+    "LinuxFileReadBackend",
+    "ExecutorOutcome",
     "BudgetCost",
     "BudgetError",
     "BudgetLedger",

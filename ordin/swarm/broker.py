@@ -284,7 +284,9 @@ class SwarmExecutionBroker:
                     subject.context is context
                     and context is scope.context
                     and digest(action.as_dict()) == scope.action_digest
-                    and grant.handle.digest == scope.grant_digest
+                    and digest(grant_ref) == scope.grant_digest
+                    and grant.gate is scope.delegating_gate
+                    and grant.handle is scope.delegating_gate.grant
                     and self._service.issuer._now() < scope.expires_at
                     and self.configuration_digest == config
                     and self.verify_activation(
@@ -302,6 +304,19 @@ class SwarmExecutionBroker:
                 )
         except (ValueError, OSError, RuntimeError):
             return False
+
+    def supports_budget_policy(self, policy) -> bool:
+        """Current original factory readiness; every action still needs its proof."""
+        if policy is not self._budget.policy:
+            return False
+        bounds = {v.metric: v.amount for v in self._default_costs() if v.amount is not None}
+        with self._state_lock:
+            proofs = tuple(self._proofs.items())
+        return all(
+            v.metric in bounds and v.maximum >= bounds[v.metric] for v in policy.limits
+        ) and any(
+            self.verify_activation(proof, policy_digest=row.policy_digest) for proof, row in proofs
+        )
 
     def _cancel_admission(self, reference: str) -> None:
         with self._service._lock, self._service.issuer._lock:

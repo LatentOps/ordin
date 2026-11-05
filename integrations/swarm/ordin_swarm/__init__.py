@@ -4,6 +4,7 @@ from .mcp_adapter import SwarmMCPAdapter
 from .hooks import SwarmHookAdapter
 from .delegation_service import SwarmDelegationService, WorkloadAuthenticator, AuthorityChannel
 from .credential_broker import SwarmCredentialBroker
+from .broker import SwarmExecutionBroker, LinuxFileReadBackend
 from .attach import HostSessionEndpoint, RunningSessionIdentity, SwarmAttachManager
 from .coverage import AttachCoverage
 from .budget_store import (
@@ -33,6 +34,8 @@ __all__ = [
     "WorkspaceArtifactAdapter",
     "SharedMemoryAdapter",
     "VectorPointArtifactAdapter",
+    "SwarmExecutionBroker",
+    "LinuxFileReadBackend",
     "BudgetLedger",
     "BudgetPolicy",
     "BudgetLimit",

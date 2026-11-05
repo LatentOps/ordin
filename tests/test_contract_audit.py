@@ -388,6 +388,9 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     )
     samples["swarm_budget_reservation"] = budget.reservation_status(budget_ticket)
     samples["swarm_budget_audit"] = budget.audit(operator=budget_operator)
+    from tests.swarm_broker_contract_samples import broker_contract_samples
+
+    samples.update(broker_contract_samples())
     assert set(samples) == set(SCHEMA_FILES)
     for name, payload in samples.items():
         assert not validate_named_schema(name, payload), name
@@ -511,6 +514,11 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
         "swarm_artifact",
         "swarm_artifact_diagnostics",
+        "swarm_broker_preparation",
+        "swarm_broker_scope",
+        "swarm_broker_result",
+        "swarm_broker_control",
+        "swarm_executor_outcome",
         "swarm_temporal_policy_set",
         "swarm_temporal_evaluation",
         "swarm_temporal_validation",

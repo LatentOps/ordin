@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-broker-result.v1.schema.json",
+  "title": "swarm_broker_result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "reason_code",
+    "action_digest",
+    "caller_digest",
+    "authorization_digest",
+    "physical_enforcement",
+    "forwarded",
+    "budget_status",
+    "observation_digest",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_broker_result.v1"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "denied",
+        "canceled",
+        "unknown"
+      ]
+    },
+    "reason_code": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_.:-]+$"
+    },
+    "action_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "caller_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "authorization_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "physical_enforcement": {
+      "type": "boolean"
+    },
+    "forwarded": {
+      "type": "boolean"
+    },
+    "budget_status": {
+      "enum": [
+        "committed",
+        "canceled",
+        "uncertain",
+        "exhausted"
+      ]
+    },
+    "observation_digest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}
