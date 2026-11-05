@@ -386,7 +386,10 @@ class LinuxFileReadBackend:
                 if len(self._sources) >= 256:
                     raise ValueError("executor reporting scope capacity reached")
                 self._sources[key] = RuntimeEvidenceSource(
-                    self.name, session_digest, "owned-worker-" + self._nonce, policy_digest
+                    self.name,
+                    session_digest,
+                    "owned-worker-" + digest([self._nonce, context_digest])[:32],
+                    policy_digest,
                 )
             return self._sources[key]
 
@@ -650,10 +653,9 @@ class LinuxFileReadBackend:
                     if value is not None
                     else "broker.kernel_read_denied",
                     metadata={
-                        "isolation_digest": digest(isolation),
-                        "execution_nonce": nonce,
-                        "compiled_policy_digest": plan.policy_digest,
-                        "stdout_frame_bytes": len(frame),
+                        "event_digest": digest([isolation, nonce, plan.policy_digest, len(frame)]),
+                        "request_id_digest": nonce,
+                        "source_schema_version": PROTOCOL,
                     },
                 )
                 return self._result(
