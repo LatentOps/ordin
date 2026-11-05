@@ -262,6 +262,20 @@ def test_schema_rejects_trailing_newlines_and_errors_do_not_echo_untrusted_conte
     assert "private-canary-value" not in str(failure.value)
 
 
+def test_encoded_context_limit_counts_multibyte_resources():
+    registry, adapter, channel, _ = host()
+    manifest = CoverageManifest(
+        "observe",
+        tuple(
+            CoverageEntry("tool", f"route-{i}", "\U0001f642" * 512, "observer", "observe_only")
+            for i in range(40)
+        ),
+    )
+    with pytest.raises(ValueError, match="64 KiB"):
+        enroll(registry, adapter, channel, coverage=manifest)
+    assert enroll(registry, adapter, channel).identity.generation == 1
+
+
 def test_late_enrollment_and_restart_keep_partial_coverage_explicit():
     registry, adapter, channel, now = host()
     manifest = CoverageManifest(
@@ -305,7 +319,7 @@ def test_bad_clock_parent_depth_and_manifest_inputs_fail_closed():
         enroll(registry, adapter, channel, "grandchild", parent_agent_id="child")
     with pytest.raises(ValueError):
         enroll(registry, adapter, channel, "unknown-parent", parent_agent_id="missing")
-    for invalid in (99, float("nan"), float("inf"), True):
+    for invalid in (99, float("nan"), float("inf"), True, 10**1000):
         now[0] = invalid
         with pytest.raises(ValueError):
             registry.authenticate(root, channel, adapter)

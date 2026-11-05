@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
-import json
 from threading import RLock
 import time
 from typing import Callable, Protocol
@@ -81,9 +80,7 @@ class _Agent:
 
 
 def _digest(context: SwarmContext) -> str:
-    context.__post_init__()
-    raw = json.dumps(context.as_dict(), sort_keys=True, separators=(",", ":"), allow_nan=False)
-    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return hashlib.sha256(context._validated_bytes()).hexdigest()
 
 
 class InMemoryAgentRegistry:

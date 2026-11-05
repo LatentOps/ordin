@@ -88,7 +88,9 @@ a 30-second heartbeat deadline. Configured maxima are 4,096 records/channels,
 32 parent edges and a 3,600-second deadline. Manifests contain at most 64 unique
 capability/route/resource entries; IDs are bounded to 128 ASCII characters and
 resource descriptions to 512 characters. Generations and policy epochs are
-bounded 63-bit counters. Backward, non-finite and invalid clocks fail closed.
+bounded 63-bit counters. The complete context is limited to 64 KiB of canonical
+UTF-8 JSON, including multibyte resources. Backward, non-finite and invalid clocks
+fail closed.
 
 Ended records still consume capacity until the host calls `forget_ended()` or
 closes their channel. Forgetting frees bounded storage without resetting the

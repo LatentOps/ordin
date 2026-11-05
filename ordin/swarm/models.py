@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import json
 import math
 import re
 from typing import Any, Mapping
@@ -29,7 +30,7 @@ def counter(value: int, name: str) -> int:
 
 
 def timestamp(value: float) -> float:
-    if type(value) not in {int, float} or not math.isfinite(value) or not 0 <= value <= 1e18:
+    if type(value) not in {int, float} or not 0 <= value <= 1e18 or not math.isfinite(value):
         raise ValueError("host clock must provide finite nonnegative monotonic seconds")
     return float(value)
 
@@ -137,12 +138,28 @@ class SwarmContext:
     enrolled_at: float
 
     def __post_init__(self) -> None:
+        self._validated_bytes()
+
+    def _validated_bytes(self) -> bytes:
         identifier(self.registry_id, "registry_id")
         if type(self.identity) is not SwarmIdentity or type(self.coverage) is not CoverageManifest:
             raise ValueError("context requires immutable identity and coverage")
         self.identity.__post_init__()
         self.coverage.__post_init__()
         timestamp(self.enrolled_at)
+        try:
+            raw = json.dumps(
+                self.as_dict(),
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                allow_nan=False,
+            ).encode("utf-8")
+        except UnicodeError:
+            raise ValueError("swarm context must be valid UTF-8") from None
+        if len(raw) > 65536:
+            raise ValueError("swarm context exceeds the 64 KiB encoded limit")
+        return raw
 
     def as_dict(self) -> dict[str, Any]:
         return {

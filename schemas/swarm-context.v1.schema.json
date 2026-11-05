@@ -3,6 +3,7 @@
   "$id": "https://latentops.dev/schemas/ordin/swarm-context.v1.schema.json",
   "title": "Ordin Swarm Context v1",
   "description": "Host enrollment data. JSON does not authenticate a principal or attest enforcement.",
+  "$comment": "Runtime validation additionally bounds canonical UTF-8 context JSON to 65536 bytes and checks parent/coverage semantic invariants.",
   "type": "object",
   "additionalProperties": false,
   "required": [
