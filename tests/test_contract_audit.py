@@ -303,6 +303,28 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     }
 
     samples.update(assurance_contract_examples(tmp_path))
+    from ordin.swarm import BudgetLedger, BudgetPolicy, BudgetLimit, BudgetCost
+
+    budget_operator = object()
+    budget = BudgetLedger(
+        swarm_registry,
+        BudgetPolicy(0, (BudgetLimit("swarm", "requests", 10),)),
+        clock=lambda: 100,
+        operator=budget_operator,
+    )
+    budget_ticket = budget.reserve(
+        swarm_context,
+        action,
+        channel=swarm_channel,
+        adapter=swarm_adapter,
+        idempotency_key="contract-budget",
+        costs=(BudgetCost("requests", 1),),
+    )
+    samples["swarm_budget"] = budget.report(
+        swarm_context, channel=swarm_channel, adapter=swarm_adapter
+    )
+    samples["swarm_budget_reservation"] = budget.reservation_status(budget_ticket)
+    samples["swarm_budget_audit"] = budget.audit(operator=budget_operator)
     assert set(samples) == set(SCHEMA_FILES)
     for name, payload in samples.items():
         assert not validate_named_schema(name, payload), name
@@ -429,6 +451,9 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
         "swarm_temporal_policy_set",
         "swarm_temporal_evaluation",
         "swarm_temporal_validation",
+        "swarm_budget",
+        "swarm_budget_reservation",
+        "swarm_budget_audit",
         "swarm_message",
         "swarm_message_outcome",
         "swarm_message_peer_status",

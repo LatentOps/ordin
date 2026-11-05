@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-budget.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "policy_digest",
+    "policy_epoch",
+    "limits",
+    "execution_authority",
+    "enforcement",
+    "physical_enforcement"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_budget.v1"
+    },
+    "policy_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+      "maxLength": 64
+    },
+    "policy_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "limits": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bucket_digest",
+          "scope",
+          "metric",
+          "maximum",
+          "reserved",
+          "consumed",
+          "observed",
+          "remaining",
+          "blocked"
+        ],
+        "properties": {
+          "bucket_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+            "maxLength": 64
+          },
+          "scope": {
+            "enum": [
+              "tenant",
+              "swarm",
+              "task",
+              "agent"
+            ]
+          },
+          "metric": {
+            "enum": [
+              "dollar_micros",
+              "tokens",
+              "external_operations",
+              "child_spawns",
+              "requests",
+              "concurrency",
+              "output_bytes",
+              "destructive_actions",
+              "tool_calls",
+              "processes"
+            ]
+          },
+          "maximum": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "reserved": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "consumed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "observed": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9223372036854775807
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remaining": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "blocked": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "execution_authority": {
+      "const": false
+    },
+    "enforcement": {
+      "enum": [
+        "admission_accounting",
+        "unsupported"
+      ]
+    },
+    "physical_enforcement": {
+      "const": false
+    }
+  }
+}

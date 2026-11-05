@@ -4,6 +4,14 @@ from .mcp_adapter import SwarmMCPAdapter
 from .hooks import SwarmHookAdapter
 from .attach import HostSessionEndpoint, RunningSessionIdentity, SwarmAttachManager
 from .coverage import AttachCoverage
+from .budget_store import (
+    BudgetLedger,
+    BudgetPolicy,
+    BudgetLimit,
+    BudgetCost,
+    InMemoryBudgetStore,
+    SQLiteBudgetStore,
+)
 from .message_gateway import (
     SwarmMessageGateway,
     SwarmMessageAdapter,
@@ -23,6 +31,12 @@ __all__ = [
     "WorkspaceArtifactAdapter",
     "SharedMemoryAdapter",
     "VectorPointArtifactAdapter",
+    "BudgetLedger",
+    "BudgetPolicy",
+    "BudgetLimit",
+    "BudgetCost",
+    "InMemoryBudgetStore",
+    "SQLiteBudgetStore",
     "SwarmMCPAdapter",
     "SwarmHookAdapter",
     "HostSessionEndpoint",

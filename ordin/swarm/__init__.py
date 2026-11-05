@@ -9,6 +9,17 @@ from .journal import EventJournal, JournalRecord
 from .gate import SwarmDecision, SwarmGate
 from .policy import SwarmPolicy, SwarmRule
 from .facts import SwarmAssessment, SwarmAssessmentSource
+from .budgets import (
+    BudgetCost,
+    BudgetError,
+    BudgetLedger,
+    BudgetLimit,
+    BudgetObservation,
+    BudgetObservationSource,
+    BudgetPolicy,
+    BudgetTicket,
+)
+from .budget_store import BudgetStore, InMemoryBudgetStore, SQLiteBudgetStore
 from .gateway import (
     ForwardTicket,
     GatewayAgent,
@@ -96,6 +107,17 @@ __all__ = [
     "SwarmTemporalRule",
     "default_swarm_temporal_policy",
     "load_swarm_temporal_policy",
+    "BudgetCost",
+    "BudgetError",
+    "BudgetLedger",
+    "BudgetLimit",
+    "BudgetObservation",
+    "BudgetObservationSource",
+    "BudgetPolicy",
+    "BudgetTicket",
+    "BudgetStore",
+    "InMemoryBudgetStore",
+    "SQLiteBudgetStore",
     "MessageChannel",
     "MessageOutcome",
     "MessagePeer",

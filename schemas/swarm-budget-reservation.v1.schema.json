@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-budget-reservation.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reservation_id",
+    "action_digest",
+    "status",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_budget_reservation.v1"
+    },
+    "reservation_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}(?![\\s\\S])",
+      "maxLength": 32
+    },
+    "action_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+      "maxLength": 64
+    },
+    "status": {
+      "enum": [
+        "reserved",
+        "forwarding",
+        "uncertain",
+        "committed",
+        "released",
+        "canceled",
+        "expired",
+        "overrun"
+      ]
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}
