@@ -15,6 +15,8 @@ import subprocess
 import sys
 import tempfile
 from threading import RLock
+from threading import Event
+import time
 from typing import Any
 from uuid import uuid4
 
@@ -106,6 +108,21 @@ class KernelFactoryProof:
     proof_id: str
 
 
+@dataclass(frozen=True, eq=False, slots=True)
+class KernelJob:
+    job_id: str
+
+
+@dataclass
+class _Job:
+    binding: tuple[str, str, str]
+    cancel: Event = field(default_factory=Event)
+    state: str = "queued"
+    process: Any = None
+    pidfd: int | None = None
+    outcome: ExecutorOutcome | None = None
+
+
 class LinuxFileReadBackend:
     """Finite exact read_file route, not arbitrary code or an existing-agent sandbox.
 
@@ -184,6 +201,8 @@ class LinuxFileReadBackend:
         self._proofs: dict[KernelFactoryProof, tuple[str, str]] = {}
         self._sources: dict[str, RuntimeEvidenceSource] = {}
         self._lock = RLock()
+        self._jobs_lock = RLock()
+        self._jobs: dict[KernelJob, _Job] = {}
         self._shipped = Path(__file__).with_name("_file_worker.py").resolve()
         self._worker_digest = _sha(self._shipped)
         self._executable = Path(getattr(sys, "_base_executable", sys.executable)).resolve()
@@ -206,7 +225,7 @@ class LinuxFileReadBackend:
             else None
         )
         self._root_identity: tuple[int, int] | None = None
-        self._boot = None
+        self._boot: str | None = None
         if self._supported:
             self._install()
 
@@ -393,6 +412,58 @@ class LinuxFileReadBackend:
                 )
             return self._sources[key]
 
+    def create_job(self, plan: EnforcementPlan, *, operator: object) -> KernelJob:
+        if operator is not self._operator or type(plan) is not EnforcementPlan:
+            raise ValueError("protected executor owner and exact plan required")
+        with self._jobs_lock:
+            if len(self._jobs) >= self._limit:
+                raise ValueError("owned executor job capacity reached")
+            job = KernelJob(uuid4().hex)
+            self._jobs[job] = _Job(
+                (plan.plan_id, plan.contract.action_digest, plan.contract.digest)
+            )
+            return job
+
+    def _job(self, job: KernelJob) -> _Job:
+        if type(job) is not KernelJob or job not in self._jobs:
+            raise ValueError("unknown original executor job")
+        return self._jobs[job]
+
+    def request_stop(self, job: KernelJob, *, operator: object) -> str:
+        if operator is not self._operator:
+            raise ValueError("protected executor operator required")
+        with self._jobs_lock:
+            row = self._job(job)
+            if row.state in {"finished", "canceled"}:
+                return "canceled" if row.state == "canceled" else "completed"
+            row.cancel.set()
+            if row.state == "queued":
+                row.state = "canceled"
+                return "canceled"
+            if row.state == "unable_to_stop":
+                return "unable_to_stop"
+            return "unknown"
+
+    def job_status(self, job: KernelJob, *, operator: object) -> str:
+        if operator is not self._operator:
+            raise ValueError("protected executor operator required")
+        with self._jobs_lock:
+            return self._job(job).state
+
+    @staticmethod
+    def _terminate(process, pidfd: int | None) -> bool:
+        try:
+            if process.poll() is not None:
+                return True
+            if pidfd is not None and hasattr(signal, "pidfd_send_signal"):
+                signal.pidfd_send_signal(pidfd, signal.SIGKILL)
+            else:
+                process.kill()  # Original owned Popen child; no caller PID is accepted.
+            process.wait(timeout=2)
+            return True
+        except (OSError, subprocess.TimeoutExpired):
+            return process.poll() is not None
+
     def _result(
         self,
         plan,
@@ -404,6 +475,7 @@ class LinuxFileReadBackend:
         stdout_bytes=0,
         value=None,
         observation=None,
+        job: KernelJob | None = None,
     ):
         outcome = ExecutorOutcome(
             status,
@@ -422,6 +494,11 @@ class LinuxFileReadBackend:
         self._outcomes[outcome] = digest(outcome.as_dict())
         if evidence is not None:
             self._evidence[outcome] = freeze(evidence)
+        if job is not None:
+            with self._jobs_lock:
+                row = self._job(job)
+                row.outcome = outcome
+                row.state = "canceled" if status == "canceled" else "finished"
         return outcome
 
     def evidence_record(self, outcome: ExecutorOutcome, *, operator: object) -> dict[str, Any]:
@@ -479,18 +556,40 @@ class LinuxFileReadBackend:
         source: RuntimeEvidenceSource,
         *,
         operator: object,
+        job: KernelJob | None = None,
     ) -> ExecutorOutcome:
         if operator is not self._operator or type(source) is not RuntimeEvidenceSource:
             raise ValueError("protected executor owner and original reporting source required")
         with self._lock:
             if len(self._outcomes) >= self._limit:
                 raise ValueError("executor outcome capacity reached")
+            job = self.create_job(plan, operator=operator) if job is None else job
+            with self._jobs_lock:
+                job_state = self._job(job)
+                if job_state.binding != (
+                    plan.plan_id,
+                    plan.contract.action_digest,
+                    plan.contract.digest,
+                ):
+                    raise ValueError("owned executor job binding changed")
+                if job_state.state == "canceled" or job_state.cancel.is_set():
+                    return self._result(
+                        plan, "canceled", "broker.executor_canceled_before_start", job=job
+                    )
+                if job_state.state != "queued":
+                    raise ValueError("owned executor job already consumed")
+                job_state.state = "checking"
+
+            def emit(*args, **kwargs):
+                return self._result(*args, **kwargs, job=job)
+
             if not self.validate(plan).ok:
-                return self._result(plan, "unsupported", "broker.executor_plan_changed")
+                return emit(plan, "unsupported", "broker.executor_plan_changed")
             descriptor = None
             process = None
             output = None
             writer = None
+            pidfd = None
             try:
                 name = self._target(action, plan)
                 descriptor = os.open(
@@ -506,7 +605,7 @@ class LinuxFileReadBackend:
                     or info.st_nlink != 1
                     or info.st_size > self.max_payload_bytes
                 ):
-                    return self._result(plan, "denied", "broker.executor_target_unverified")
+                    return emit(plan, "denied", "broker.executor_target_unverified")
                 bound = _file_identity(descriptor)
                 nonce = secrets.token_hex(32)
                 packet = {
@@ -529,6 +628,8 @@ class LinuxFileReadBackend:
                 writer = os.open(
                     "/proc/self/fd/" + str(output.fileno()), os.O_WRONLY | os.O_CLOEXEC
                 )
+                if job_state.cancel.is_set():
+                    return emit(plan, "canceled", "broker.executor_canceled_before_start")
                 process = subprocess.Popen(
                     [str(self._executable), "-I", "-S", "-B", "-u", str(self.worker)],
                     cwd=self.cwd,
@@ -540,19 +641,46 @@ class LinuxFileReadBackend:
                     pass_fds=(descriptor,),
                     start_new_session=True,
                 )
+                if hasattr(os, "pidfd_open"):
+                    try:
+                        pidfd = os.pidfd_open(process.pid)
+                    except OSError:
+                        pidfd = None
+                with self._jobs_lock:
+                    job_state.process, job_state.pidfd, job_state.state = process, pidfd, "running"
                 try:
-                    process.communicate(_wire(packet), timeout=self.timeout_ms / 1000)
-                except subprocess.TimeoutExpired:
-                    os.killpg(process.pid, signal.SIGKILL)
-                    process.communicate(timeout=2)
-                    return self._result(plan, "unknown", "broker.executor_timeout")
+                    assert process.stdin is not None
+                    data = _wire(packet)
+                    if len(data) > 2048:
+                        raise ValueError("executor control packet exceeds fixed pipe bound")
+                    process.stdin.write(data)
+                    process.stdin.close()
+                    deadline = time.monotonic() + self.timeout_ms / 1000
+                    while process.poll() is None:
+                        if job_state.cancel.is_set() or time.monotonic() >= deadline:
+                            canceled = job_state.cancel.is_set()
+                            stopped = self._terminate(process, pidfd)
+                            result = emit(
+                                plan,
+                                "canceled" if canceled and stopped else "unknown",
+                                "broker.executor_canceled"
+                                if canceled and stopped
+                                else "broker.executor_timeout",
+                            )
+                            if not stopped:
+                                with self._jobs_lock:
+                                    job_state.state = "unable_to_stop"
+                            return result
+                        time.sleep(0.005)
+                except (OSError, ValueError):
+                    return emit(plan, "unknown", "broker.executor_control_failed")
                 size = os.fstat(output.fileno()).st_size
                 if size > self.max_stdout_bytes:
-                    return self._result(plan, "unknown", "broker.executor_frame_limit")
+                    return emit(plan, "unknown", "broker.executor_frame_limit")
                 output.seek(0)
                 frame = output.read(self.max_stdout_bytes + 1)
                 if process.returncode != 0:
-                    return self._result(
+                    return emit(
                         plan,
                         "unsupported",
                         "broker.kernel_restriction_unavailable",
@@ -658,7 +786,7 @@ class LinuxFileReadBackend:
                         "source_schema_version": PROTOCOL,
                     },
                 )
-                return self._result(
+                return emit(
                     plan,
                     response["status"],
                     "broker.kernel_read_completed"
@@ -671,14 +799,16 @@ class LinuxFileReadBackend:
                     observation=observation,
                 )
             except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
-                return self._result(plan, "unknown", "broker.executor_binding_or_runtime_failed")
+                return emit(plan, "unknown", "broker.executor_binding_or_runtime_failed")
             finally:
                 if process is not None and process.poll() is None:
-                    try:
-                        os.killpg(process.pid, signal.SIGKILL)
-                        process.communicate(timeout=2)
-                    except (OSError, subprocess.TimeoutExpired):
-                        pass
+                    if not self._terminate(process, pidfd):
+                        with self._jobs_lock:
+                            job_state.state = "unable_to_stop"
+                if pidfd is not None and process is not None and process.poll() is not None:
+                    os.close(pidfd)
+                    with self._jobs_lock:
+                        job_state.pidfd = None
                 if descriptor is not None:
                     os.close(descriptor)
                 if writer is not None:

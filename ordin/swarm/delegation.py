@@ -174,6 +174,14 @@ class BrokerAdmissionScope:
     def review_history(self):
         return self.delegated_decision._history
 
+    @property
+    def review_options(self):
+        return {
+            "host_context": self.review_context,
+            "history": self.review_history,
+            **self.delegating_gate.original_review_inputs(self.delegated_decision),
+        }
+
     def as_dict(self) -> dict[str, Any]:
         return _checked(
             "swarm_broker_admission_scope",
