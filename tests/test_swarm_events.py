@@ -363,6 +363,20 @@ def test_backend_observation_requires_original_receipt_source_action_and_resourc
         ingest.ingest(
             collector, replace(packet, observed_outcome="denied"), observation=observation
         )
+    foreign_source = RuntimeEvidenceSource("fixture-backend", "c" * 64, "other-sandbox", "d" * 64)
+    foreign = foreign_source.observe(
+        contract,
+        observation_id="foreign",
+        trust="backend_observed",
+        enforcement_point="filesystem",
+        outcome="completed",
+        operation="read",
+        resources=observation.resources,
+    )
+    with pytest.raises(ValueError):
+        ingest.ingest(
+            collector, replace(packet, observation_digest=foreign.digest), observation=foreign
+        )
     ingest.ingest(collector, packet, observation=observation)
     state = ingest.action_state(
         collector, action_id=contract.action_id, action_digest=contract.action_digest
@@ -441,3 +455,28 @@ def test_published_schema_and_semantic_reader_reject_malformed_event_shapes():
         mutate(raw)
         with pytest.raises(ValueError):
             SwarmEvent.from_dict(raw)
+
+
+def test_sender_capacity_and_distinct_event_sequence_reuse_fail_without_state_loss():
+    _, adapter, channel, context, ingest, source, _ = fixture(max_sources=1)
+    with pytest.raises(ValueError, match="capacity"):
+        ingest.bind_source(context, channel, adapter, source_id="other")
+    packet = event(context, "one", "proposed", 1)
+    ingest.ingest(source, packet)
+    with pytest.raises(ValueError, match="sequence replay"):
+        ingest.ingest(source, event(context, "two", "proposed", 1))
+    assert ingest.ingest(source, packet).duplicate
+    assert len(ingest.snapshot()) == 1
+
+
+def test_stage_presence_without_causal_links_cannot_complete_a_lifecycle():
+    _, _, _, context, ingest, source, _ = fixture()
+    ingest.ingest(source, event(context, "proposal", "proposed", 1))
+    ingest.ingest(source, event(context, "review", "reviewed", 2, parents=("proposal",)))
+    for sequence, kind in enumerate(("reserved", "committed", "forwarded", "completed"), 3):
+        ingest.ingest(
+            source, event(context, kind, kind, sequence, parents=("review",), review="review")
+        )
+    state = ingest.action_state(source, action_id="action", action_digest=DIGEST)
+    assert state.authenticated_completion and not state.missing_stages
+    assert not state.causally_complete
