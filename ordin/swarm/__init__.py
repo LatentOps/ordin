@@ -21,8 +21,16 @@ from .mcp_gateway import SwarmMCPAdapter
 from .hooks_gateway import SwarmHookAdapter
 from .causal_graph import SwarmCausalGraph, SwarmGraphView
 from .lineage import SwarmDelegationLink
+from .labels import Sensitivity
+from .source_flow import EgressSink, LineageHandle, LineageUse, SourceFlowResult, SwarmSourceFlow
 
 __all__ = [
+    "Sensitivity",
+    "EgressSink",
+    "LineageHandle",
+    "LineageUse",
+    "SourceFlowResult",
+    "SwarmSourceFlow",
     "SwarmCausalGraph",
     "SwarmGraphView",
     "SwarmDelegationLink",

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-source-flow.v1.schema.json",
+  "title": "Redacted swarm source-flow result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "status",
+    "reason_code",
+    "labels",
+    "lineage_digests",
+    "proof_gaps",
+    "execution_authority",
+    "observed_exfiltration"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_source_flow.v1"
+    },
+    "kind": {
+      "const": "swarm_source_flow"
+    },
+    "status": {
+      "enum": [
+        "satisfied",
+        "violated",
+        "unknown"
+      ]
+    },
+    "reason_code": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$",
+      "maxLength": 128
+    },
+    "labels": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "secret",
+          "pii",
+          "private_code",
+          "public",
+          "unclassified"
+        ]
+      }
+    },
+    "lineage_digests": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "proof_gaps": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_.-]+$"
+      }
+    },
+    "execution_authority": {
+      "const": false
+    },
+    "observed_exfiltration": {
+      "const": "unknown"
+    }
+  }
+}

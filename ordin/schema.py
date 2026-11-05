@@ -27,6 +27,7 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "swarm_source_flow": "swarm-source-flow.v1.schema.json",
     "swarm_causal_graph": "swarm-causal-graph.v1.schema.json",
     "swarm_gateway_status": "swarm-gateway-status.v1.schema.json",
     "swarm_decision": "swarm-decision.v1.schema.json",
