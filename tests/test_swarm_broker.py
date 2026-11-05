@@ -35,7 +35,7 @@ from tests.test_swarm_linux_executor import supported
 
 
 @contextmanager
-def fixture(tmp_path, *, global_policy=None, mediated=True):
+def fixture(tmp_path, *, global_policy=None, mediated=True, physical=False, metric="output_bytes"):
     clock = [100]
     operator = object()
     workspace = (tmp_path / "workspace").resolve()
@@ -143,8 +143,9 @@ def fixture(tmp_path, *, global_policy=None, mediated=True):
                 (
                     BudgetLimit("swarm", "requests", 4),
                     BudgetLimit("swarm", "concurrency", 1),
-                    BudgetLimit("swarm", "output_bytes", 1000000),
+                    BudgetLimit("swarm", metric, 1000000),
                 ),
+                require_physical_enforcement=physical,
             ),
             store=InMemoryBudgetStore(),
             clock=lambda: clock[0],
@@ -310,3 +311,101 @@ def test_owned_factory_proof_is_scoped_finite_and_cannot_authorize_arbitrary_rig
         assert not broker.policy_fits(proof, broadened, policy_digest=policy)
         clock[0] += 31
         assert not broker.verify_activation(proof, policy_digest=policy)
+
+
+def test_gateway_uses_original_broker_and_preserves_outer_request_binding(tmp_path):
+    require_kernel()
+    from ordin.swarm import SwarmToolGateway
+    from ordin._runtime_json import digest
+
+    with fixture(tmp_path) as data:
+        broker, _, _, _, action, channel, grant, _, _, _, _, operator, *_ = data
+        binding = broker.bind_gateway(channel, grant, operator=operator)
+        gateway = SwarmToolGateway()
+        actor = gateway.bind_broker_agent(broker, binding, routes=frozenset({"file"}))
+        prepared = gateway.prepare(actor, action, route="file", budget_idempotency_key="gateway")
+        assert prepared.disposition == "execute", prepared
+        pending = gateway._pending[prepared.ticket]
+        scope = broker.authorization_scope(pending.broker_authorization)
+        assert scope.caller_digest == digest(action.as_dict())
+        assert scope.action.action_id != action.action_id
+        assert prepared.action_digest == digest(scope.action.as_dict())
+        with pytest.raises(ValueError):
+            gateway.forward(actor, prepared.ticket, lambda _: pytest.fail("callback bypass"))
+        result = gateway.forward(actor, prepared.ticket, action=action)
+        assert result.status == "completed" and result.value == b"broker-owned-benign-data\n"
+
+
+@pytest.mark.parametrize(
+    "metric,success", [("output_bytes", True), ("tokens", False), ("dollar_micros", False)]
+)
+def test_physical_budget_admission_only_accepts_current_real_executor_bounds(
+    tmp_path, metric, success
+):
+    require_kernel()
+    with fixture(tmp_path, physical=True, metric=metric) as data:
+        broker, _, ledger, _, action, channel, grant, *_ = data
+        prepared = broker.prepare(channel, grant, action, idempotency_key="physical")
+        assert (prepared.authorization is not None) == success, prepared.as_dict()
+        if success:
+            result = broker.dispatch(prepared.authorization)
+            assert result.status == "completed", result.as_dict()
+        assert not ledger.report(data[7], channel=data[8], adapter=data[9])["physical_enforcement"]
+
+
+def test_queued_cancel_and_copied_control_are_not_execution_evidence(tmp_path):
+    require_kernel()
+    with fixture(tmp_path) as data:
+        broker, _, ledger, _, action, channel, grant, *_ = data
+        prepared = broker.prepare(channel, grant, action, idempotency_key="cancel")
+        auth = prepared.authorization
+        receipt = broker.cancel(auth)
+        assert receipt.status == "canceled" and not receipt.as_dict()["rollback_claim"]
+        assert broker.verify_control_receipt(receipt, auth)
+        assert not broker.verify_control_receipt(replace(receipt), auth)
+        assert (
+            ledger.reservation_status(broker.authorization_scope(auth).budget_ticket)["status"]
+            == "canceled"
+        )
+        with pytest.raises(ValueError):
+            broker.dispatch(auth)
+
+
+def test_untrusted_executor_report_retains_uncertain_budget_and_no_retry(tmp_path, monkeypatch):
+    require_kernel()
+    from ordin.swarm.linux_backend import ExecutorOutcome
+
+    with fixture(tmp_path) as data:
+        broker, _, ledger, backend, action, channel, grant, *_ = data
+        prepared = broker.prepare(channel, grant, action, idempotency_key="untrusted")
+        scope = broker.authorization_scope(prepared.authorization)
+        forged = ExecutorOutcome(
+            "completed",
+            "forged",
+            scope.plan.contract.action_digest,
+            scope.plan.contract.digest,
+            scope.plan.policy_digest,
+            True,
+            "a" * 64,
+            1,
+            1,
+            "b" * 64,
+        )
+        monkeypatch.setattr(backend, "execute", lambda *a, **k: forged)
+        result = broker.dispatch(prepared.authorization)
+        assert result.status == "unknown" and not result.physical_enforcement
+        assert ledger.reservation_status(scope.budget_ticket)["status"] == "uncertain"
+        with pytest.raises(ValueError):
+            broker.dispatch(prepared.authorization)
+
+
+def test_mediated_deny_and_uncovered_host_bypass_are_separate_claims(tmp_path):
+    require_kernel()
+    with fixture(
+        tmp_path, global_policy=SwarmPolicy("deny", "1", rules=(SwarmRule("stop", "deny"),))
+    ) as data:
+        broker, _, _, _, action, channel, grant, *_ = data
+        denied = broker.prepare(channel, grant, action, idempotency_key="deny")
+        assert denied.disposition == "deny" and denied.authorization is None
+        # Parent host access is deliberately outside the owned child boundary.
+        assert data[13].read_bytes() == b"broker-owned-benign-data\n"

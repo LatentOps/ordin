@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import hashlib
 import tempfile
 from pathlib import Path
@@ -38,6 +38,7 @@ from .authorization import (
     BrokerActivationProof,
     BrokerAuthorization,
     BrokerAuthorizationScope,
+    BrokerBudgetProof,
     BrokerControlReceipt,
     BrokerGatewayBinding,
     BrokerPreparation,
@@ -55,6 +56,7 @@ from .workload_auth import AuthorityChannel
 @dataclass
 class _Pending:
     scope: BrokerAuthorizationScope
+    caller_action: ActionEnvelope
     workload_channel: AuthorityChannel
     admission_id: str
     registry_channel: Any
@@ -66,6 +68,7 @@ class _Pending:
     owned_job: Any
     reporting_source: Any
     delegation_binding_digest: str
+    runtime_evidence_digest: str | None = None
     state: str = "prepared"
     stop: Event = field(default_factory=Event)
     forwarded: bool = False
@@ -147,7 +150,9 @@ class SwarmExecutionBroker:
         self._results: dict[BrokerResult, tuple[BrokerAuthorization, str]] = {}
         self._controls: dict[BrokerControlReceipt, tuple[BrokerAuthorization, str]] = {}
         self._proofs: dict[BrokerActivationProof, _Activation] = {}
+        self._budget_proofs: dict[BrokerBudgetProof, tuple] = {}
         self._gateway_bindings: dict[BrokerGatewayBinding, tuple] = {}
+        budget.bind_executor(self, operator=operator)
 
     def _guard(self, context: SwarmContext):
         return (
@@ -238,11 +243,143 @@ class SwarmExecutionBroker:
             )
         )
 
+    def _budget_proof(self, scope, channel, grant_ref):
+        complete, capability = self._contract(scope, scope.delegated_decision.assurance.review)
+        if complete.digest != capability.digest:
+            raise ValueError("owned executor cannot enforce the complete request domain")
+        compiled = self._executor.compile(capability)
+        if (
+            not compiled.enforceable
+            or compiled.plan is None
+            or not self._executor.validate(compiled.plan).ok
+        ):
+            raise ValueError("physical budget executor requirements unsupported")
+        factory = self.activation_proof(self._gate.policy_digest, operator=self._operator)
+        limits = dict((v.metric, v.amount) for v in self._default_costs() if v.amount is not None)
+        proof = BrokerBudgetProof(uuid4().hex)
+        with self._state_lock:
+            if len(self._budget_proofs) >= self._limit:
+                raise ValueError("broker budget proof capacity reached")
+            self._budget_proofs[proof] = (
+                scope,
+                channel,
+                grant_ref,
+                factory,
+                compiled.plan,
+                self.configuration_digest,
+                limits,
+            )
+        return proof
+
+    def verify_budget_proof(self, proof, context, action, costs) -> bool:
+        with self._state_lock:
+            row = self._budget_proofs.get(proof) if type(proof) is BrokerBudgetProof else None
+        if row is None or type(context) is not SwarmContext or type(action) is not ActionEnvelope:
+            return False
+        scope, channel, grant_ref, factory, plan, config, limits = row
+        try:
+            with self._service._lock, self._service.issuer._lock:
+                grant, subject = self._service._grant(channel, grant_ref)
+                return (
+                    subject.context is context
+                    and context is scope.context
+                    and digest(action.as_dict()) == scope.action_digest
+                    and grant.handle.digest == scope.grant_digest
+                    and self._service.issuer._now() < scope.expires_at
+                    and self.configuration_digest == config
+                    and self.verify_activation(
+                        factory, policy_digest=self._gate.policy_digest, context=context
+                    )
+                    and self._executor.validate(plan).ok
+                    and type(costs) is tuple
+                    and all(
+                        type(v) is BudgetCost
+                        and v.metric in limits
+                        and type(v.amount) is int
+                        and v.amount >= limits[v.metric]
+                        for v in costs
+                    )
+                )
+        except (ValueError, OSError, RuntimeError):
+            return False
+
     def _cancel_admission(self, reference: str) -> None:
         with self._service._lock, self._service.issuer._lock:
             row = self._service._admissions.get(reference)
             if row is not None:
                 self._service._cancel(row, "broker_canceled")
+
+    def bind_gateway(self, workload_channel, grant_ref: str, *, operator: object):
+        """Bind an original host route; a JSON grant name alone cannot enroll it."""
+        if operator is not self._operator:
+            raise ValueError("protected broker operator required")
+        with self._service._lock, self._service.issuer._lock:
+            _, subject = self._service._grant(workload_channel, grant_ref)
+            if subject.context is None or subject.context.coverage.mode not in {
+                "intercept",
+                "enforce",
+            }:
+                raise ValueError("current mediated workload required")
+            binding = BrokerGatewayBinding(uuid4().hex)
+            with self._state_lock:
+                if len(self._gateway_bindings) >= self._limit:
+                    raise ValueError("broker gateway binding capacity reached")
+                self._gateway_bindings[binding] = (
+                    workload_channel,
+                    grant_ref,
+                    subject.context,
+                    subject.registry_channel,
+                    subject.adapter,
+                )
+            return binding
+
+    def gateway_scope(self, binding: BrokerGatewayBinding):
+        with self._state_lock:
+            row = (
+                self._gateway_bindings.get(binding)
+                if type(binding) is BrokerGatewayBinding
+                else None
+            )
+        if row is None:
+            raise ValueError("original broker gateway binding required")
+        channel, grant_ref, context, registry_channel, adapter = row
+        if type(context) is not SwarmContext:
+            raise ValueError("broker gateway original context required")
+        with self._service._lock, self._service.issuer._lock:
+            _, current = self._service._grant(channel, grant_ref)
+            if current.context is not context:
+                raise ValueError("broker gateway context changed")
+        self._registry.authenticate(context, registry_channel, adapter)
+        return row
+
+    def _policy_review(self, scope, decision, registry_channel, adapter):
+        if self._runtime is None:
+            return None
+        from importlib import import_module
+
+        SwarmBudgetFact = getattr(import_module("ordin.swarm.policy_facts"), "SwarmBudgetFact")
+
+        report = self._budget.report(scope.context, channel=registry_channel, adapter=adapter)
+        snapshot = self._runtime.evidence_digest(scope.context)
+        facts = self._runtime.facts_source.issue(
+            scope.context,
+            scope.action,
+            policy_digest=self._runtime.binding_digest,
+            snapshot_digest=snapshot,
+            budgets=tuple(
+                SwarmBudgetFact(v["scope"], v["metric"], v["remaining"]) for v in report["limits"]
+            ),
+        )
+        result = self._runtime.evaluate_baseline(
+            scope.context,
+            scope.action,
+            decision.baseline,
+            facts=facts,
+            delegation_gate=scope.delegating_gate,
+        )
+        if result.disposition != "execute":
+            raise ValueError("current compiled policy restricts broker execution")
+        return snapshot
 
     def prepare(
         self,
@@ -252,11 +389,18 @@ class SwarmExecutionBroker:
         *,
         idempotency_key: str,
         event_source=None,
+        gateway_binding: BrokerGatewayBinding | None = None,
     ) -> BrokerPreparation:
         if type(action) is not ActionEnvelope:
             raise ValueError("typed exact broker action required")
         caller = ActionEnvelope.from_dict(action.as_dict())
         caller_digest = digest(caller.as_dict())
+        reviewed_action = caller
+        if gateway_binding is not None:
+            bound = self.gateway_scope(gateway_binding)
+            if bound[:2] != (workload_channel, grant_ref):
+                raise ValueError("foreign broker gateway binding")
+            reviewed_action = replace(caller, action_id="swarm-" + uuid4().hex)
         admission_id = None
         budget_ticket = None
         canonical_digest = None
@@ -287,7 +431,7 @@ class SwarmExecutionBroker:
                 )
                 grant.gate.bind_runtime_source(source)
             with self._barrier(), self._guard(context), self._execution_lock:
-                reviewed = self._service.review(workload_channel, grant_ref, caller)
+                reviewed = self._service.review(workload_channel, grant_ref, reviewed_action)
                 admission_id = reviewed.admission_id
                 canonical_digest = reviewed.action_digest
                 if reviewed.disposition != "execute" or admission_id is None:
@@ -299,7 +443,7 @@ class SwarmExecutionBroker:
                         self._gate.policy_digest,
                     )
                 scope = self._service.admission_scope(self._broker_channel, admission_id)
-                if scope.action_digest != caller_digest:
+                if scope.action_digest != digest(reviewed_action.as_dict()):
                     raise ValueError(
                         "broker canonical caller action requires an explicit protected binding"
                     )
@@ -307,6 +451,11 @@ class SwarmExecutionBroker:
                     self._default_costs()
                     if self._costs is None
                     else self._costs(scope.context, scope.action, scope)
+                )
+                executor_proof = (
+                    self._budget_proof(scope, workload_channel, grant_ref)
+                    if self._budget.policy.require_physical_enforcement
+                    else None
                 )
                 budget_ticket = self._budget.reserve(
                     scope.context,
@@ -316,6 +465,8 @@ class SwarmExecutionBroker:
                     idempotency_key=idempotency_key,
                     costs=costs,
                     effects=tuple(scope.delegated_decision.assurance.review.effects),
+                    executor=self,
+                    executor_proof=executor_proof,
                 )
                 options = scope.review_options
                 provider_options = (
@@ -351,6 +502,9 @@ class SwarmExecutionBroker:
                         self._gate.policy_digest,
                         decision=decision,
                     )
+                runtime_evidence = self._policy_review(
+                    scope, decision, subject.registry_channel, subject.adapter
+                )
                 complete, capability = self._contract(scope, decision.review)
                 if getattr(complete, "requests", ()) or decision.review.adapter == "network.rest":
                     raise ValueError(
@@ -384,6 +538,7 @@ class SwarmExecutionBroker:
                 )
                 row = _Pending(
                     prepared,
+                    caller,
                     workload_channel,
                     admission_id,
                     subject.registry_channel,
@@ -395,6 +550,7 @@ class SwarmExecutionBroker:
                     owned_job,
                     source,
                     scope.delegating_gate.preview_binding_digest,
+                    runtime_evidence,
                 )
                 with self._state_lock:
                     if len(self._pending) >= self._limit:
@@ -474,7 +630,7 @@ class SwarmExecutionBroker:
         budget_started = False
         try:
             with self._barrier(), self._guard(row.scope.context), self._execution_lock:
-                selected = row.scope.action if action is None else action
+                selected = row.caller_action if action is None else action
                 if (
                     row.stop.is_set()
                     or type(selected) is not ActionEnvelope
@@ -490,6 +646,12 @@ class SwarmExecutionBroker:
                     raise ValueError("broker policy or configuration changed")
                 if self._service.issuer._now() >= row.scope.expires_at:
                     raise ValueError("broker authorization expired")
+                if (
+                    self._runtime is not None
+                    and self._runtime.evidence_digest(row.scope.context)
+                    != row.runtime_evidence_digest
+                ):
+                    raise ValueError("broker compiled policy evidence changed")
                 current = self._service.admission_scope(self._broker_channel, row.admission_id)
                 if current.ancestry_digest != row.scope.delegation_scope.ancestry_digest:
                     raise ValueError("broker current delegation binding changed")
@@ -619,10 +781,16 @@ class SwarmExecutionBroker:
         self, receipt: BrokerControlReceipt, authorization: BrokerAuthorization
     ) -> bool:
         with self._state_lock:
+            row = self._pending.get(authorization)
             return (
                 type(receipt) is BrokerControlReceipt
-                and authorization in self._pending
+                and row is not None
                 and self._controls.get(receipt) == (authorization, digest(receipt.as_dict()))
+                and receipt.authorization_digest == row.scope.authorization_digest
+                and receipt.action_digest == digest(row.scope.action.as_dict())
+                and receipt.context_digest == digest(row.scope.context.as_dict())
+                and receipt.policy_epoch == row.scope.context.identity.policy_epoch
+                and receipt.owned_job_digest == digest(row.owned_job.job_id)
             )
 
     def request_stop(self, authorization: BrokerAuthorization) -> BrokerControlReceipt:
@@ -642,7 +810,7 @@ class SwarmExecutionBroker:
                 "canceled"
                 if row.state == "canceled" or job == "canceled"
                 else "completed"
-                if row.result is not None or job == "finished"
+                if row.result is not None and row.result.status in {"completed", "denied"}
                 else "unable_to_stop"
                 if job == "unable_to_stop"
                 else "unknown"

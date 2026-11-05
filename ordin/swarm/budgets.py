@@ -252,6 +252,9 @@ class _Binding:
     context_digest: str
     action_digest: str
     generation: int
+    executor: Any = None
+    executor_proof: Any = None
+    physical_costs: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -292,6 +295,7 @@ class BudgetLedger:
             raise ValueError("unsupported nontransactional budget backend")
         self._observations = observations
         self._issued: dict[str, _Binding] = {}
+        self._executors: set = set()
         self._lock = RLock()
         self._nonce = uuid4().hex
         now = timestamp(clock())
@@ -322,6 +326,18 @@ class BudgetLedger:
                 "INSERT OR REPLACE INTO budget_meta VALUES(1,?,?,?,?,?)",
                 (policy.digest, policy.policy_epoch, self._generation, self._nonce, now),
             )
+
+    def bind_executor(self, executor, *, operator: object) -> None:
+        from .broker import SwarmExecutionBroker
+
+        if (
+            operator is not self._operator
+            or type(executor) is not SwarmExecutionBroker
+            or executor._budget is not self
+        ):
+            raise BudgetError("budget.protected_original_executor_required")
+        with self._lock:
+            self._executors.add(executor)
 
     def for_registry(self, registry: InMemoryAgentRegistry) -> BudgetLedger:
         """Protected same-coordinator view; tenant counters aggregate across swarms."""
@@ -451,10 +467,10 @@ class BudgetLedger:
         idempotency_key: str,
         costs: tuple[BudgetCost, ...] = (),
         effects: tuple[str, ...] = (),
+        executor=None,
+        executor_proof=None,
     ) -> BudgetTicket:
         identifier(idempotency_key, "idempotency_key")
-        if self.policy.require_physical_enforcement:
-            raise BudgetError("budget.physical_enforcement_unavailable")
         if type(action) is not ActionEnvelope or action.action_id is None:
             raise ValueError("budget reservation requires an exact host-correlated action")
         if type(effects) is not tuple or len(effects) > 64:
@@ -483,6 +499,15 @@ class BudgetLedger:
                 ):
                     raise BudgetError("budget.unknown_cost")
                 resolved[metric] = max(limit.unknown_ceiling or 0 for limit in selected_limits)
+        physical_costs = tuple(
+            BudgetCost(metric, resolved[metric])
+            for metric in sorted({bucket.limits[0].metric for bucket in buckets})
+        )
+        if self.policy.require_physical_enforcement and (
+            executor not in self._executors
+            or not executor.verify_budget_proof(executor_proof, context, action, physical_costs)
+        ):
+            raise BudgetError("budget.physical_enforcement_unavailable")
         action_digest, context_digest = digest(action.as_dict()), digest(context.as_dict())
         key = digest([context.identity.tenant_id, idempotency_key])
         cost_digest = digest({"costs": values, "effects": effects})
@@ -551,7 +576,16 @@ class BudgetLedger:
                 )
             ticket = BudgetTicket(reservation_id)
             staged.append(
-                _Binding(ticket, self._registry, context_digest, action_digest, self._generation)
+                _Binding(
+                    ticket,
+                    self._registry,
+                    context_digest,
+                    action_digest,
+                    self._generation,
+                    executor if self.policy.require_physical_enforcement else None,
+                    executor_proof,
+                    physical_costs,
+                )
             )
             return ticket
 
@@ -587,6 +621,15 @@ class BudgetLedger:
         adapter: object,
     ) -> None:
         self._scopes(context, channel, adapter)
+        binding = self._issued.get(ticket.reservation_id) if type(ticket) is BudgetTicket else None
+        if self.policy.require_physical_enforcement and (
+            binding is None
+            or binding.executor not in self._executors
+            or not binding.executor.verify_budget_proof(
+                binding.executor_proof, context, action, binding.physical_costs
+            )
+        ):
+            raise BudgetError("budget.physical_enforcement_unavailable")
         with self._lock, self._store.transaction() as connection:
             now = self._meta(connection)
             self._expire(connection, now)

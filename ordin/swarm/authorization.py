@@ -34,6 +34,11 @@ class BrokerActivationProof:
     proof_id: str
 
 
+@dataclass(frozen=True, eq=False, slots=True)
+class BrokerBudgetProof:
+    proof_id: str
+
+
 @dataclass(frozen=True, slots=True)
 class BrokerPreparation:
     disposition: str
