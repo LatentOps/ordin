@@ -203,6 +203,31 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     ).as_dict()
     from tests.assurance.contract_examples import assurance_contract_examples
 
+    from ordin.swarm import (
+        AttachCoverage,
+        HostSessionEndpoint,
+        RunningSessionIdentity,
+        SwarmAttachManager,
+    )
+
+    running = RunningSessionIdentity("running", "running-session")
+    attach_manager = SwarmAttachManager(
+        swarm_registry,
+        events=swarm_events,
+        gateway=SwarmToolGateway(events=swarm_events),
+        gate=SwarmGate(swarm_registry, events=swarm_events),
+    )
+    endpoint = HostSessionEndpoint(
+        swarm_channel,
+        swarm_adapter,
+        identify=lambda: running,
+        get_router=lambda: None,
+        coverage=AttachCoverage("observe"),
+    )
+    attached = attach_manager.register(endpoint)
+    samples["swarm_attach_status"] = attach_manager.status(attached)
+    samples["swarm_attach_plan"] = attach_manager.plan(attached)
+
     samples.update(assurance_contract_examples(tmp_path))
     assert set(samples) == set(SCHEMA_FILES)
     for name, payload in samples.items():
@@ -326,6 +351,8 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert all(hasattr(ordin, name) for name in ordin.__all__)
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
         "swarm_source_flow",
+        "swarm_attach_status",
+        "swarm_attach_plan",
         "swarm_causal_graph",
         "swarm_gateway_status",
         "swarm_decision",

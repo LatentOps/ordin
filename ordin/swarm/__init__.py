@@ -23,6 +23,14 @@ from .causal_graph import SwarmCausalGraph, SwarmGraphView
 from .lineage import SwarmDelegationLink
 from .labels import Sensitivity
 from .source_flow import EgressSink, LineageHandle, LineageUse, SourceFlowResult, SwarmSourceFlow
+from .attach import (
+    AttachedSession,
+    HostSessionEndpoint,
+    MediatedSessionRouter,
+    RunningSessionIdentity,
+    SwarmAttachManager,
+)
+from .coverage import AttachCoverage
 
 __all__ = [
     "Sensitivity",
@@ -31,6 +39,12 @@ __all__ = [
     "LineageUse",
     "SourceFlowResult",
     "SwarmSourceFlow",
+    "AttachedSession",
+    "HostSessionEndpoint",
+    "MediatedSessionRouter",
+    "RunningSessionIdentity",
+    "SwarmAttachManager",
+    "AttachCoverage",
     "SwarmCausalGraph",
     "SwarmGraphView",
     "SwarmDelegationLink",
