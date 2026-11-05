@@ -1,0 +1,201 @@
+"""Bounded local atomic budget transactions; not an eventually consistent cache."""
+
+from contextlib import contextmanager
+from pathlib import Path
+import os
+import re
+import sqlite3
+from threading import RLock
+from typing import Iterator, Protocol
+
+from ordin._private_storage import private_database
+
+
+class BudgetRejected(ValueError):
+    """Business denial before admission changes; preserve safe housekeeping."""
+
+
+_TABLES = (
+    "CREATE TABLE IF NOT EXISTS budget_meta (singleton INTEGER PRIMARY KEY CHECK(singleton=1), policy_digest TEXT NOT NULL, epoch INTEGER NOT NULL, generation INTEGER NOT NULL, nonce TEXT NOT NULL, last_now REAL NOT NULL)",
+    "CREATE TABLE IF NOT EXISTS budget_buckets (bucket TEXT PRIMARY KEY, metric TEXT NOT NULL, held INTEGER NOT NULL CHECK(held>=0), consumed INTEGER NOT NULL CHECK(consumed>=0), observed INTEGER NOT NULL CHECK(observed>=0), observations INTEGER NOT NULL CHECK(observations>=0), blocked_epoch INTEGER NOT NULL)",
+    "CREATE TABLE IF NOT EXISTS budget_reservations (reservation_id TEXT PRIMARY KEY, idempotency_digest TEXT NOT NULL UNIQUE, context_digest TEXT NOT NULL, action_digest TEXT NOT NULL, costs_digest TEXT NOT NULL, epoch INTEGER NOT NULL, generation INTEGER NOT NULL, status TEXT NOT NULL, expires_at REAL NOT NULL, settlement_digest TEXT)",
+    "CREATE TABLE IF NOT EXISTS budget_items (reservation_id TEXT NOT NULL REFERENCES budget_reservations(reservation_id), bucket TEXT NOT NULL REFERENCES budget_buckets(bucket), metric TEXT NOT NULL, amount INTEGER NOT NULL CHECK(amount>=0), PRIMARY KEY(reservation_id,bucket))",
+    "CREATE INDEX IF NOT EXISTS budget_expiry ON budget_reservations(status,expires_at)",
+)
+
+
+_DEFINITIONS = {
+    ("table", "budget_meta"): _TABLES[0],
+    ("table", "budget_buckets"): _TABLES[1],
+    ("table", "budget_reservations"): _TABLES[2],
+    ("table", "budget_items"): _TABLES[3],
+    ("index", "budget_expiry"): _TABLES[4],
+}
+
+
+def _normalized_sql(value: str) -> str:
+    return " ".join(
+        re.sub(r"\bIF\s+NOT\s+EXISTS\b", "", value, flags=re.IGNORECASE).casefold().split()
+    )
+
+
+def _validate_schema(connection: sqlite3.Connection) -> None:
+    connection.row_factory = sqlite3.Row
+    if connection.execute("PRAGMA foreign_keys").fetchone()[0] != 1:
+        raise ValueError("budget store requires foreign-key integrity")
+    if connection.execute("PRAGMA synchronous").fetchone()[0] < 2:
+        raise ValueError("budget store requires durable commit synchronization")
+    rows = connection.execute(
+        "SELECT type,name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'"
+    ).fetchall()
+    definitions = {(row["type"], row["name"]): row["sql"] for row in rows}
+    if definitions.keys() != _DEFINITIONS.keys() or any(
+        type(definitions[key]) is not str
+        or _normalized_sql(definitions[key]) != _normalized_sql(expected)
+        for key, expected in _DEFINITIONS.items()
+    ):
+        raise ValueError("budget schema unavailable or changed; history cannot be recreated")
+
+
+def _initialize_schema(connection: sqlite3.Connection) -> None:
+    if connection.execute("SELECT 1 FROM sqlite_master LIMIT 1").fetchone() is not None:
+        raise ValueError("budget schema initialization requires an empty new database")
+    for statement in _TABLES:
+        connection.execute(statement)
+    _validate_schema(connection)
+
+
+def _validate_history(connection: sqlite3.Connection, allow_initialize: bool) -> None:
+    _validate_schema(connection)
+    count = connection.execute("SELECT count(*) FROM budget_meta").fetchone()[0]
+    if count == 1:
+        return
+    if (
+        count != 0
+        or not allow_initialize
+        or any(
+            connection.execute("SELECT 1 FROM " + table + " LIMIT 1").fetchone() is not None
+            for table in ("budget_buckets", "budget_reservations", "budget_items")
+        )
+    ):
+        raise ValueError("budget coordinator history unavailable; reinitialization denied")
+
+
+class BudgetStore(Protocol):
+    def transaction(self): ...
+
+
+class InMemoryBudgetStore:
+    """Stable in-process test backend with the same SQL transaction semantics."""
+
+    def __init__(self) -> None:
+        self._connection = sqlite3.connect(
+            ":memory:", isolation_level=None, check_same_thread=False
+        )
+        self._connection.execute("PRAGMA trusted_schema=OFF")
+        self._connection.execute("PRAGMA foreign_keys=ON")
+        self._connection.execute("PRAGMA max_page_count=16384")
+        self._lock = RLock()
+        self._allow_initialize = True
+        self._connection.execute("BEGIN IMMEDIATE")
+        try:
+            _initialize_schema(self._connection)
+            self._connection.commit()
+        except Exception:
+            self._connection.rollback()
+            self._connection.close()
+            raise
+
+    def _initialized(self) -> None:
+        if self._connection.execute("SELECT 1 FROM budget_meta LIMIT 1").fetchone() is not None:
+            self._allow_initialize = False
+
+    @contextmanager
+    def transaction(self) -> Iterator[sqlite3.Connection]:
+        with self._lock:
+            self._connection.execute("BEGIN IMMEDIATE")
+            try:
+                _validate_history(self._connection, self._allow_initialize)
+                yield self._connection
+                self._initialized()
+                self._connection.commit()
+            except BudgetRejected:
+                self._initialized()
+                self._connection.commit()
+                raise
+            except sqlite3.Error:
+                self._connection.rollback()
+                raise ValueError("budget transaction unavailable or corrupt") from None
+            except Exception:
+                self._connection.rollback()
+                raise
+
+
+class SQLiteBudgetStore:
+    """Explicit private SQLite file; BEGIN IMMEDIATE protects all ledger updates.
+
+    One active protected coordinator may have multiple registry views. Starting a
+    new coordinator fences older tickets and recovers outstanding uncertainty.
+    This adapter does not claim a multi-host consensus or network partition lease.
+    """
+
+    def __init__(self, path: str | Path, *, create: bool = False) -> None:
+        self.path = Path(path).absolute()
+        if type(create) is not bool:
+            raise ValueError("budget initialization must be explicit host configuration")
+        self._allow_initialize = create
+        try:
+            if create:
+                descriptor = os.open(
+                    self.path,
+                    os.O_CREAT | os.O_EXCL | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0),
+                    0o600,
+                )
+                os.close(descriptor)
+                with private_database(
+                    self.path, "swarm_budget", create=False, foreign_keys=True
+                ) as connection:
+                    _initialize_schema(connection)
+            else:
+                # Opening an absent/uninitialized file after restart must never
+                # silently create a new zero-spend accounting domain.
+                with private_database(
+                    self.path, "swarm_budget", readonly=True, create=False, foreign_keys=True
+                ) as connection:
+                    _validate_history(connection, False)
+            info = self.path.stat()
+            self._identity = (info.st_dev, info.st_ino)
+        except (OSError, sqlite3.Error, ValueError):
+            raise ValueError(
+                "budget store requires explicit initialization or valid existing history"
+            ) from None
+
+    @contextmanager
+    def transaction(self) -> Iterator[sqlite3.Connection]:
+        try:
+            info = self.path.stat()
+            if (info.st_dev, info.st_ino) != self._identity:
+                raise ValueError("budget file was replaced")
+            with private_database(
+                self.path, "swarm_budget", create=False, foreign_keys=True
+            ) as connection:
+                _validate_history(connection, self._allow_initialize)
+                try:
+                    yield connection
+                    if (
+                        connection.execute("SELECT 1 FROM budget_meta LIMIT 1").fetchone()
+                        is not None
+                    ):
+                        self._allow_initialize = False
+                except BudgetRejected:
+                    if (
+                        connection.execute("SELECT 1 FROM budget_meta LIMIT 1").fetchone()
+                        is not None
+                    ):
+                        self._allow_initialize = False
+                    connection.commit()
+                    raise
+        except BudgetRejected:
+            raise
+        except (OSError, sqlite3.Error, ValueError):
+            raise ValueError("budget transaction unavailable or corrupt") from None

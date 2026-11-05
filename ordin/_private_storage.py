@@ -11,12 +11,22 @@ from typing import Iterator, Literal
 
 
 MAX_DATABASE_BYTES = 64 * 1024 * 1024
-_APPLICATION_IDS = {"session": 0x4F524453, "trace": 0x4F524454, "runtime": 0x4F524452}
+_APPLICATION_IDS = {
+    "session": 0x4F524453,
+    "trace": 0x4F524454,
+    "runtime": 0x4F524452,
+    "swarm_budget": 0x4F524442,
+}
 
 
 @contextmanager
 def private_database(
-    path: str | Path, kind: Literal["session", "trace", "runtime"], *, readonly: bool = False
+    path: str | Path,
+    kind: Literal["session", "trace", "runtime", "swarm_budget"],
+    *,
+    readonly: bool = False,
+    create: bool = True,
+    foreign_keys: bool = False,
 ) -> Iterator[sqlite3.Connection]:
     target = Path(path).absolute()
     if not target.parent.is_dir():
@@ -25,7 +35,7 @@ def private_database(
     if os.name == "posix" and (parent.st_uid != os.geteuid() or parent.st_mode & 0o022):
         raise ValueError("private database directory must be owned and writable only by its user")
     flags = (
-        (os.O_RDONLY if readonly else os.O_CREAT | os.O_RDWR)
+        (os.O_RDONLY if readonly else (os.O_CREAT if create else 0) | os.O_RDWR)
         | getattr(os, "O_NOFOLLOW", 0)
         | getattr(os, "O_BINARY", 0)
     )
@@ -52,6 +62,8 @@ def private_database(
         if connection.execute("PRAGMA page_size").fetchone()[0] != 4096:
             raise ValueError("unsupported private database page size")
         connection.execute("PRAGMA trusted_schema=OFF")
+        if foreign_keys:
+            connection.execute("PRAGMA foreign_keys=ON")
         if not readonly:
             connection.execute("PRAGMA secure_delete=ON")
             connection.execute("PRAGMA max_page_count=16384")

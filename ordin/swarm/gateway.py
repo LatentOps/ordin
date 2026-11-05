@@ -21,6 +21,7 @@ from .gate import SwarmDecision, SwarmGate
 from .identity import HostChannel
 from .ingest import HostEventSource, SwarmEventIngestor
 from .models import SwarmContext, identifier, timestamp
+from .budgets import BudgetCost, BudgetError, BudgetLedger, BudgetTicket
 
 ROUTES = frozenset({"shell", "mcp", "file", "database", "http", "sdk"})
 
@@ -42,6 +43,8 @@ class GatewayAuthorization:
     action_digest: str
     decision: SwarmDecision
     ticket: ForwardTicket | None = None
+    budget_reservation_id: str | None = None
+    budget_reason_code: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -140,6 +143,7 @@ class _Pending:
     session_digest: str
     expires_at: float
     route: str
+    budget_ticket: BudgetTicket | None = None
 
 
 class SwarmToolGateway:
@@ -157,6 +161,8 @@ class SwarmToolGateway:
         max_pending: int = 256,
         ticket_lifetime: float = 30,
         clock: Callable[[], float] = time.monotonic,
+        budget_ledger: BudgetLedger | None = None,
+        budget_cost_provider: Callable[..., tuple[BudgetCost, ...]] | None = None,
     ) -> None:
         for value in (max_agents, max_pending):
             if type(value) is not int or not 1 <= value <= 4096:
@@ -165,6 +171,13 @@ class SwarmToolGateway:
             raise ValueError("invalid gateway ticket lifetime")
         if events is not None and type(events) is not SwarmEventIngestor:
             raise ValueError("gateway journal must be a protected event ingestor")
+        if budget_ledger is not None and type(budget_ledger) is not BudgetLedger:
+            raise ValueError("gateway budget must be a protected transactional ledger")
+        if budget_cost_provider is not None and (
+            budget_ledger is None or not callable(budget_cost_provider)
+        ):
+            raise ValueError("budget costs require a protected ledger and host provider")
+        self._budget, self._budget_cost_provider = budget_ledger, budget_cost_provider
         self._events, self._limit, self._pending_limit = events, max_agents, max_pending
         self._lifetime, self._clock, self._last_now = float(ticket_lifetime), clock, 0.0
         self._actors: dict[GatewayAgent, _Actor] = {}
@@ -197,6 +210,8 @@ class SwarmToolGateway:
         if type(routes) is not frozenset or not routes <= ROUTES:
             raise ValueError("unknown gateway route")
         gate._registry.authenticate(context, channel, adapter)
+        if self._budget is not None and self._budget._registry is not gate._registry:
+            raise ValueError("gateway and budget must share the protected registry view")
         if isinstance(gate._baseline, DelegatingAssuranceGate):
             raise ValueError("delegated execution requires its action-bound broker integration")
         with self._lock:
@@ -248,6 +263,16 @@ class SwarmToolGateway:
         with self._operation_lock, self._lock:
             actor = self._actor(handle, authenticate=False)
             actor.closed = True
+            for pending in self._pending.values():
+                if (
+                    pending.actor is handle
+                    and pending.budget_ticket is not None
+                    and self._budget is not None
+                ):
+                    try:
+                        self._budget.cancel(pending.budget_ticket)
+                    except Exception:
+                        actor.journal_gap = True
             self._pending = {
                 ticket: row for ticket, row in self._pending.items() if row.actor is not handle
             }
@@ -261,6 +286,7 @@ class SwarmToolGateway:
         *,
         route: str = "sdk",
         assessments: tuple[SwarmAssessment, ...] = (),
+        budget_idempotency_key: str | None = None,
     ) -> GatewayAuthorization:
         actor = self._actor(handle)
         if route not in ROUTES:
@@ -292,9 +318,34 @@ class SwarmToolGateway:
             if not mediated or actor.journal_gap:
                 disposition = "deny"
             ticket = None
+            budget_ticket = None
+            budget_reason = None
+            if disposition == "execute" and self._budget is not None:
+                if budget_idempotency_key is None:
+                    disposition, budget_reason = "deny", "budget.missing_idempotency_key"
+                else:
+                    costs = (
+                        self._budget.default_costs()
+                        if self._budget_cost_provider is None
+                        else self._budget_cost_provider(actor.context, normalized, decision)
+                    )
+                    try:
+                        budget_ticket = self._budget.reserve(
+                            actor.context,
+                            normalized,
+                            channel=actor.channel,
+                            adapter=actor.adapter,
+                            idempotency_key=budget_idempotency_key,
+                            costs=costs,
+                            effects=tuple(decision.review.effects),
+                        )
+                    except BudgetError as exc:
+                        disposition, budget_reason = "deny", exc.reason_code
             if disposition == "execute":
                 with self._lock:
                     if len(self._pending) >= self._pending_limit:
+                        if budget_ticket is not None and self._budget is not None:
+                            self._budget.cancel(budget_ticket)
                         raise ValueError("gateway forwarding capacity reached")
                     ticket = ForwardTicket(uuid4().hex)
                     self._pending[ticket] = _Pending(
@@ -305,6 +356,7 @@ class SwarmToolGateway:
                         digest(actor.session.snapshot()),
                         timestamp(self._now() + self._lifetime),
                         route,
+                        budget_ticket,
                     )
                     actor.active = ticket
             if disposition != "execute":
@@ -323,8 +375,27 @@ class SwarmToolGateway:
                     forwarded=False,
                 )
             return GatewayAuthorization(
-                disposition, normalized.action_id, digest(normalized.as_dict()), decision, ticket
+                disposition,
+                normalized.action_id,
+                digest(normalized.as_dict()),
+                decision,
+                ticket,
+                budget_ticket.reservation_id if budget_ticket is not None else None,
+                budget_reason,
             )
+
+    def cancel(self, handle: GatewayAgent, ticket: ForwardTicket) -> None:
+        """Cancel only a not-yet-forwarded host attempt; no execution occurs."""
+        actor = self._actor(handle, authenticate=False)
+        with self._operation_lock, actor.lock, self._lock:
+            pending = self._pending.get(ticket) if type(ticket) is ForwardTicket else None
+            if pending is None or pending.actor is not handle:
+                raise ValueError("unknown, foreign or consumed forwarding ticket")
+            del self._pending[ticket]
+            actor.active = None
+            if pending.budget_ticket is not None and self._budget is not None:
+                self._budget.cancel(pending.budget_ticket)
+            self._journal(actor, pending, "canceled", forwarded=False)
 
     def forward(
         self,
@@ -338,6 +409,9 @@ class SwarmToolGateway:
         if not callable(executor):
             raise ValueError("forwarding requires an explicit host executor")
         with self._operation_lock, actor.lock:
+            budget_started = False
+            if actor.closed:
+                raise ValueError("gateway actor was revoked")
             with self._lock:
                 pending = self._pending.get(ticket) if type(ticket) is ForwardTicket else None
                 if pending is None or pending.actor is not handle:
@@ -367,16 +441,59 @@ class SwarmToolGateway:
                 detached = ActionEnvelope.from_dict(selected.as_dict())
                 if detached.action_id is None:
                     raise ValueError("forwarding requires its host action ID")
+                if pending.budget_ticket is not None and self._budget is not None:
+                    self._budget.begin_forward(
+                        pending.budget_ticket,
+                        actor.context,
+                        detached,
+                        channel=actor.channel,
+                        adapter=actor.adapter,
+                    )
+                    budget_started = True
                 try:
                     value = executor(detached)
                 except Exception:
+                    if (
+                        budget_started
+                        and pending.budget_ticket is not None
+                        and self._budget is not None
+                    ):
+                        try:
+                            self._budget.uncertain(pending.budget_ticket)
+                        except ValueError:
+                            actor.journal_gap = True
                     self._journal(actor, pending, "failed")
                     raise
                 outcome = value.status if type(value) is GatewayOutcome else "completed"
                 payload = value.value if type(value) is GatewayOutcome else value
+                if (
+                    budget_started
+                    and pending.budget_ticket is not None
+                    and self._budget is not None
+                ):
+                    try:
+                        if outcome == "completed":
+                            self._budget.commit(pending.budget_ticket)
+                        else:
+                            self._budget.uncertain(pending.budget_ticket)
+                    except ValueError:
+                        actor.journal_gap = True
+                        self._journal(actor, pending, "pending")
+                        raise ValueError(
+                            "budget settlement is uncertain after forwarding"
+                        ) from None
                 self._journal(actor, pending, outcome)
                 return GatewayResult(detached.action_id, outcome, payload, actor.journal_gap)
             finally:
+                if (
+                    not budget_started
+                    and pending.budget_ticket is not None
+                    and self._budget is not None
+                ):
+                    try:
+                        self._budget.cancel(pending.budget_ticket)
+                    except ValueError:
+                        actor.journal_gap = True
                 actor.active = None
 
     def _journal(
