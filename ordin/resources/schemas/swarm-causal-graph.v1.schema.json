@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://latentops.dev/schemas/ordin/swarm-causal-graph.v1.schema.json",
+  "title": "Ordin Swarm Causal Graph v1",
+  "description": "Redacted evidence projection; reachability is not exploitation or authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scope_digest",
+    "snapshot_digest",
+    "nodes",
+    "edges",
+    "proof_gaps",
+    "truncated",
+    "successful_exploitation",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_causal_graph.v1"
+    },
+    "scope_digest": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "snapshot_digest": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "nodes": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_id",
+          "event_digest",
+          "event_kind",
+          "actor_digest",
+          "session_digest",
+          "action_digest",
+          "resource_digests",
+          "phase",
+          "evidence_class",
+          "observed_outcome"
+        ],
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+          },
+          "event_digest": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+          },
+          "event_kind": {
+            "enum": [
+              "proposed",
+              "reviewed",
+              "reserved",
+              "committed",
+              "forwarded",
+              "completed",
+              "observed",
+              "failed",
+              "denied",
+              "canceled",
+              "delegated",
+              "message_sent",
+              "message_received",
+              "artifact_read",
+              "artifact_write",
+              "revoked"
+            ]
+          },
+          "actor_digest": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+          },
+          "session_digest": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+          },
+          "action_digest": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+          },
+          "resource_digests": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+            }
+          },
+          "phase": {
+            "enum": [
+              "unverified",
+              "intended",
+              "host_result",
+              "observed_attempt",
+              "observed_completion"
+            ]
+          },
+          "evidence_class": {
+            "enum": [
+              "caller_asserted",
+              "host_authenticated",
+              "backend_observed",
+              "backend_enforced"
+            ]
+          },
+          "observed_outcome": {
+            "enum": [
+              null,
+              "allowed",
+              "denied",
+              "failed",
+              "completed",
+              "unknown"
+            ]
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "maxItems": 16384,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "target_id",
+          "kind",
+          "evidence_origin",
+          "evidence_kind",
+          "resource_digests"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+          },
+          "target_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+          },
+          "kind": {
+            "enum": [
+              "delegated_to",
+              "message_sent/received",
+              "artifact_written/read",
+              "observed_data_flow",
+              "depends_on",
+              "hypothesized_influence"
+            ]
+          },
+          "evidence_origin": {
+            "enum": [
+              "runtime_backend_observed",
+              "host_authenticated_source",
+              "policy_verified",
+              "caller_asserted"
+            ]
+          },
+          "evidence_kind": {
+            "enum": [
+              "host_observed",
+              "deterministic_inference",
+              "caller_asserted"
+            ]
+          },
+          "resource_digests": {
+            "type": "array",
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+            }
+          }
+        }
+      }
+    },
+    "proof_gaps": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+      }
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "successful_exploitation": {
+      "const": "unknown"
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

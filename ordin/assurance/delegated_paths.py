@@ -14,6 +14,30 @@ from .models import AttackEdge, AttackNode, AttackPathEvidence
 from .origins import InstructionOrigin, SourceUse
 
 
+def verify_current_delegation_relationship(
+    issuer: DelegationIssuer,
+    grant: IssuedDelegation,
+    parent_source: HostEvidenceSource,
+    child_source: HostEvidenceSource,
+) -> None:
+    """Shared current-issuer relationship check; names and JSON never suffice."""
+    if (
+        not isinstance(issuer, DelegationIssuer)
+        or not isinstance(grant, IssuedDelegation)
+        or not isinstance(parent_source, HostEvidenceSource)
+        or not isinstance(child_source, HostEvidenceSource)
+    ):
+        raise ValueError("delegation relationship requires protected host objects")
+    with issuer._lock:
+        now = issuer._now()
+        issuer._require_current(grant, child_source, now)
+        parent_id = grant.record.parent_grant_id
+        parent = issuer._issued.get(parent_id) if parent_id is not None else None
+        if parent is None or grant.record.parent_principal != parent_source.principal:
+            raise ValueError("cross-agent graph has no authenticated current parent relationship")
+        issuer._require_current(parent, parent_source, now)
+
+
 def build_delegated_attack_path(
     issuer: DelegationIssuer,
     grant: IssuedDelegation,
@@ -46,13 +70,7 @@ def build_delegated_attack_path(
     ):
         raise ValueError("cross-agent graph requires bounded protected host inputs")
     with issuer._lock:
-        now = issuer._now()
-        issuer._require_current(grant, child_source, now)
-        parent_id = grant.record.parent_grant_id
-        parent = issuer._issued.get(parent_id) if parent_id is not None else None
-        if parent is None or grant.record.parent_principal != parent_source.principal:
-            raise ValueError("cross-agent graph has no authenticated current parent relationship")
-        issuer._require_current(parent, parent_source, now)
+        verify_current_delegation_relationship(issuer, grant, parent_source, child_source)
         if not child_reviews or any(
             not isinstance(row, DelegatedDecision)
             or row._seal is None

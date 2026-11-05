@@ -330,6 +330,23 @@ class AttackNode(JsonRecord):
     value_digest: str | None = None
 
 
+def evidence_kind_for_origin(origin: str) -> str:
+    """Shared evidence semantics: classification never strengthens its origin."""
+    kinds = {
+        "runtime_backend_observed": "host_observed",
+        "host_authenticated_source": "host_observed",
+        "deterministically_derived": "deterministic_inference",
+        "policy_verified": "deterministic_inference",
+        "static_evidence": "deterministic_inference",
+        "model_hypothesis": "model_hypothesis",
+        "imported_claim": "imported_claim",
+        "caller_asserted": "caller_asserted",
+    }
+    if type(origin) is not str or origin not in kinds:
+        raise ValueError("unknown evidence origin")
+    return kinds[origin]
+
+
 @dataclass(frozen=True)
 class AttackEdge(JsonRecord):
     SCHEMA = "attack_edge"
@@ -347,16 +364,7 @@ class AttackEdge(JsonRecord):
     def __post_init__(self) -> None:
         if not isinstance(self.evidence, EvidenceLink):
             raise ValueError("attack edge requires typed evidence")
-        expected = {
-            "runtime_backend_observed": "host_observed",
-            "host_authenticated_source": "host_observed",
-            "deterministically_derived": "deterministic_inference",
-            "policy_verified": "deterministic_inference",
-            "static_evidence": "deterministic_inference",
-            "model_hypothesis": "model_hypothesis",
-            "imported_claim": "imported_claim",
-            "caller_asserted": "caller_asserted",
-        }[self.evidence.origin]
+        expected = evidence_kind_for_origin(self.evidence.origin)
         if self.evidence_kind is None:
             object.__setattr__(self, "evidence_kind", expected)
         elif self.evidence_kind != expected:

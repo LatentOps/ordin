@@ -63,6 +63,7 @@ The Python API reviews actions but never executes them.
 - [Authenticated swarm events, journal and causal gaps](swarm/events.md)
 - [Pure swarm decision composition and mandatory checks](swarm/gate.md)
 - [Protected tool gateway and MCP/hook adapters](swarm/gateway.md)
+- [Authenticated cross-agent causal graph](swarm/causal-graph.md)
 - [Planned opt-in swarm architecture and coverage contract](swarm/architecture.md)
 - [Integration starter kit](../examples/integrations/README.md)
 - [Claude Code hooks](claude-code-integration.md)
