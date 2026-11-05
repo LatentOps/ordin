@@ -84,6 +84,10 @@ class SwarmOpenShellBackend:
             )
         result = self.backend.compile(capability)
         if result.plan is not None and result.enforceable:
+            if len(self._plans) >= 4096:
+                return CompilationResult(
+                    "unsupported", "openshell", "swarm.openshell_plan_capacity_reached"
+                )
             self._plans[id(result.plan)] = result.plan
         return result
 

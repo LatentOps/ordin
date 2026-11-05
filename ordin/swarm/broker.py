@@ -254,7 +254,18 @@ class SwarmExecutionBroker:
             or not self._executor.validate(compiled.plan).ok
         ):
             raise ValueError("physical budget executor requirements unsupported")
-        factory = self.activation_proof(self._gate.policy_digest, operator=self._operator)
+        with self._state_lock:
+            candidates = tuple(self._proofs)
+        factory = next(
+            (
+                v
+                for v in candidates
+                if self.verify_activation(v, policy_digest=self._gate.policy_digest)
+            ),
+            None,
+        )
+        if factory is None:
+            factory = self.activation_proof(self._gate.policy_digest, operator=self._operator)
         limits = dict((v.metric, v.amount) for v in self._default_costs() if v.amount is not None)
         proof = BrokerBudgetProof(uuid4().hex)
         with self._state_lock:
@@ -789,6 +800,10 @@ class SwarmExecutionBroker:
             digest(row.owned_job.job_id),
         )
         with self._state_lock:
+            # Control operations remain available when the report history is
+            # full. Evicted reports cease to be current protected evidence.
+            while len(self._controls) >= self._limit * 4:
+                self._controls.pop(next(iter(self._controls)))
             self._controls[receipt] = (authorization, digest(receipt.as_dict()))
         return receipt
 
