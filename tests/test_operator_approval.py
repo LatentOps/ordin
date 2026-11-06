@@ -54,7 +54,7 @@ def issue(configured):
         review,
         "a" * 64,
         scope,
-        satisfaction_id="human-approval",
+        satisfaction_id="_human-approval",
         lifetime=5,
         operator=operator,
     )
@@ -65,6 +65,9 @@ def test_original_host_approval_is_current_but_json_copy_and_other_scope_are_not
         configured_scope = configured(data)
         source, scope, action, review, _, _ = configured_scope
         proof = issue(configured_scope)
+        from ordin.schema import validate_named_schema
+
+        assert not validate_named_schema("approval_satisfaction", proof.as_dict())
         assert source.verify(proof, action, review, "a" * 64, scope)
         assert not source.verify(copy(proof), action, review, "a" * 64, scope)
         assert not source.verify(proof.as_dict(), action, review, "a" * 64, scope)
