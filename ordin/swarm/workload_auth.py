@@ -184,6 +184,91 @@ class WorkloadAuthenticator:
         with self._lock:
             return self._enroll(host_id, certificate_digest, "broker", None, None, None, object())
 
+    def enroll_operator(
+        self, *, principal_id: str, certificate_digest: str, operator: object
+    ) -> str:
+        """Explicit out-of-band human credential enrollment; never a workload/broker role."""
+        self._operator_check(operator)
+        identifier(principal_id, "operator_principal_id")
+        _hex(certificate_digest, "operator certificate digest")
+        with self._lock:
+            return self._enroll(
+                principal_id, certificate_digest, "operator", None, None, None, object()
+            )
+
+    def _operator_peer(self, connection: ssl.SSLSocket) -> WorkloadEnrollment:
+        """Called under auth lock; no clock/DB or workload-registry lookup."""
+        if (
+            type(connection) is not ssl.SSLSocket
+            or connection.context is not self._tls
+            or not connection.server_side
+            or self._configuration() != self._tls_binding
+            or connection.fileno() < 0
+            or connection.version() not in {"TLSv1.2", "TLSv1.3"}
+        ):
+            raise ValueError("original verified operator TLS connection required")
+        certificate = connection.getpeercert(binary_form=True)
+        identity = (
+            self._certificates.get(hashlib.sha256(certificate).hexdigest()) if certificate else None
+        )
+        row = self._enrollments.get(identity) if identity is not None else None
+        if row is None or row.enrollment_id in self._revoked or row.role != "operator":
+            raise ValueError("operator TLS credential has wrong role or was revoked")
+        return row
+
+    def _operator_time(self, now: float) -> float:
+        """Accept a protected clock sample taken BEFORE entering any auth lock."""
+        if now < self._last_now:
+            raise ValueError("operator clock sample became stale or moved backward")
+        self._last_now = now
+        return now
+
+    def authenticate_operator(self, connection: ssl.SSLSocket) -> AuthorityChannel:
+        """Preemptive operator path: never wait for a running workload callback barrier."""
+        if type(connection) is not ssl.SSLSocket:
+            raise ValueError("actual operator TLS socket required")
+        now = timestamp(self._clock())
+        with self._lock:
+            self._operator_time(now)
+            enrolled = self._operator_peer(connection)
+            self._channels = {
+                handle: row
+                for handle, row in self._channels.items()
+                if row.generation == self._generation
+                and now < row.expires_at
+                and row.socket.fileno() >= 0
+            }
+            for handle, row in self._channels.items():
+                if row.socket is connection and row.enrollment is enrolled:
+                    return handle
+            if len(self._channels) >= self._channel_limit:
+                raise ValueError("authenticated operator channel capacity reached")
+            handle = AuthorityChannel(uuid4().hex)
+            self._channels[handle] = _TLSChannel(
+                enrolled, connection, now + self._lifetime, self._generation
+            )
+            return handle
+
+    def require_operator(self, channel: AuthorityChannel) -> WorkloadEnrollment:
+        if type(channel) is not AuthorityChannel:
+            raise ValueError("original operator authority channel required")
+        # A DB-backed clock must never be sampled while holding auth/issuer locks.
+        now = timestamp(self._clock())
+        with self._lock:
+            self._operator_time(now)
+            row = self._channels.get(channel)
+            if (
+                row is None
+                or row.generation != self._generation
+                or now >= row.expires_at
+                or row.enrollment.role != "operator"
+            ):
+                raise ValueError("operator authority expired, fenced or has wrong role")
+            current = self._operator_peer(row.socket)
+            if current is not row.enrollment:
+                raise ValueError("operator authority identity changed")
+            return current
+
     def _enroll(
         self, host, certificate, role, context, source, channel, adapter, runtime_identity=None
     ) -> str:
