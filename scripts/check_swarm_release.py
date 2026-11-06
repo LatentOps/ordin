@@ -223,6 +223,24 @@ def verify_wheels(root, directory):
             raise ValueError("release wheel inventory is ambiguous")
         wheel = candidates[0]
         with zipfile.ZipFile(wheel) as archive:
+            members = archive.namelist()
+            if len(members) != len(set(members)):
+                raise ValueError("release wheel contains duplicate archive entries")
+            metadata_names = [item for item in members if item.endswith(".dist-info/METADATA")]
+            if len(metadata_names) != 1:
+                raise ValueError("release wheel metadata inventory is invalid")
+            metadata_prefix = metadata_names[0].split("/", 1)[0] + "/"
+            if not re.fullmatch(
+                re.escape(package.name) + r"-[A-Za-z0-9_.!+]+\.dist-info/", metadata_prefix
+            ):
+                raise ValueError("release wheel metadata belongs to a different distribution")
+            if any(
+                "\\" in item
+                or ".." in item.split("/")
+                or not item.startswith((package.name + "/", metadata_prefix))
+                for item in members
+            ):
+                raise ValueError("release wheel contains an unexpected top-level payload")
             expected_files = set()
             for path in package.rglob("*"):
                 if not path.is_file() or path.suffix == ".pyc" or "__pycache__" in path.parts:
@@ -238,11 +256,6 @@ def verify_wheels(root, directory):
             }
             if packaged_files != expected_files:
                 raise ValueError("release wheel contains an unexpected package payload")
-            metadata_names = [
-                item for item in archive.namelist() if item.endswith(".dist-info/METADATA")
-            ]
-            if len(metadata_names) != 1:
-                raise ValueError("release wheel metadata inventory is invalid")
             metadata = email.message_from_bytes(archive.read(metadata_names[0]))
             requirements = metadata.get_all("Requires-Dist", [])
             from packaging.requirements import Requirement

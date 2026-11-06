@@ -168,6 +168,24 @@ def test_unexpected_wheel_code_cannot_borrow_source_parity(tmp_path):
         verify_wheels(root, directory)
 
 
+@pytest.mark.parametrize("payload", ("injected.pth", "foreign.py", "ordin/../foreign.py"))
+def test_extra_wheel_installation_payload_is_rejected_before_install(tmp_path, payload):
+    root, directory = wheels(tmp_path)
+    with zipfile.ZipFile(directory / "ordin-1-py3-none-any.whl", "a") as archive:
+        archive.writestr(payload, "# unversioned installation payload\n")
+    with pytest.raises(ValueError, match="top-level payload"):
+        verify_wheels(root, directory)
+
+
+def test_duplicate_wheel_entries_cannot_hide_behind_identical_source_bytes(tmp_path):
+    root, directory = wheels(tmp_path)
+    with zipfile.ZipFile(directory / "ordin-1-py3-none-any.whl", "a") as archive:
+        with pytest.warns(UserWarning, match="Duplicate name"):
+            archive.writestr("ordin/__init__.py", (root / "ordin/__init__.py").read_bytes())
+    with pytest.raises(ValueError, match="duplicate archive"):
+        verify_wheels(root, directory)
+
+
 @pytest.mark.parametrize("kind", ("traversal", "link", "oversized"))
 def test_git_fixture_extraction_refuses_unowned_or_unbounded_entries(tmp_path, kind):
     data = io.BytesIO()
