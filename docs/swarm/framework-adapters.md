@@ -33,6 +33,15 @@ The optional extras also pin the common native argument parser to
 `requirements/swarm-*.txt`, generated from the tested Linux Python 3.12
 environment with `scripts/lock_swarm_frameworks.py` and primary PyPI hashes.
 
+### LangGraph UUID dependency boundary
+
+The tested LangGraph closure includes LangSmith 0.14.17, whose
+[published metadata](https://pypi.org/pypi/langsmith/0.14.17/json) requires
+`uuid-utils>=0.12.0,<1.0`. The managed lock retains 0.19.0; UUID Utils 1.2.0 does
+not satisfy this requirement. The optional extra and lock generator state the
+same compatible range explicitly. These are dependency-resolution bounds, not
+an attestation of arbitrary externally installed dependency combinations.
+
 ### AutoGen legacy dependency boundary
 
 AutoGen Core 0.7.5's [published dependency metadata](https://pypi.org/pypi/autogen-core/0.7.5/json)

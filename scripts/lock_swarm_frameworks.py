@@ -16,7 +16,12 @@ from packaging.utils import canonicalize_name
 from packaging.version import Version
 
 ROOTS = {
-    "langgraph": ("langgraph==1.2.20", "langgraph-prebuilt==1.1.1", "langchain-core==1.7.6"),
+    "langgraph": (
+        "langgraph==1.2.20",
+        "langgraph-prebuilt==1.1.1",
+        "langchain-core==1.7.6",
+        "uuid-utils>=0.12.0,<1.0",
+    ),
     "autogen": ("autogen-core==0.7.5", "protobuf~=5.29.3"),
 }
 
