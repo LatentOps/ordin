@@ -384,6 +384,14 @@ def test_report_and_context_schemas_match_published_synthetic_artifacts_and_opti
     assert validate_named_schema("swarm_risk_calibration", artifact["report"]) == []
     assert not artifact["authorization_suite_included"] and not artifact["promotion_configured"]
     assert semantic_signals.SwarmRiskScorer is SwarmRiskScorer
+    reviewed = json.loads((root / "examples/swarm/risk-review-holdout-report.json").read_text())
+    assert not validate_named_schema("swarm_risk_calibration", reviewed["report"])
+    for measured in (artifact, reviewed):
+        assert measured["report"]["dataset_digest_kind"] == "private_scorer_hmac"
+        assert measured["provenance"]["provider_scope"] == "packaged_local_rules_only"
+        assert len(measured["provenance"]["source_file_sha256"]) == 64
+        assert measured["report"]["false_positive"] and measured["report"]["false_negative"]
+        assert not measured["performance"]["physical_provider_billing_enforced"]
     data = configured(enabled=True)
     receipt = score(data[0], data[2], ActionEnvelope.shell("git status"))
     assert validate_named_schema("swarm_risk_receipt", receipt.as_dict()) == []

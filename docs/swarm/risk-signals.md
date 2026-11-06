@@ -139,10 +139,20 @@ The checked-in [corpus](../../examples/swarm/risk-calibration-corpus.json) and
 The local rules found six positives, missed two indirect instructions, correctly
 left six benign cases unflagged and incorrectly flagged two quoted examples.
 Observed false-positive and false-negative rates are both **25%**; confidence
-Brier score is **0.23**, mean uncertainty **0.45**. The Windows/Python 3.13 sample
-mean classifier elapsed time was about **0.51 ms**, maximum **1.25 ms**, with a
-1000 ms evaluation budget. Timing includes worker scheduling and classifier
-validation, not input collection or real model/network latency.
+Brier score is **0.23**, mean uncertainty **0.45**. The fresh Linux/Python 3.12
+sample mean worker elapsed time was about **0.56 ms**, maximum **1.10 ms**. The
+complete calibration method took **18.84 ms**, with a 1000 ms per-case budget.
+Worker timing includes scheduling and classifier validation; method timing also
+includes validation and input collection. Neither measures a real model/network.
+
+The independent review also added a separate [16-case review set](../../examples/swarm/risk-review-holdout-corpus.json)
+without changing the six detection patterns. Its [report](../../examples/swarm/risk-review-holdout-report.json)
+has **37.5% false positives**, **25% false negatives** and Brier score
+**0.236875**. Worker mean/maximum were **0.93/1.66 ms**, and the method took
+**31.59 ms**. Quoted instructions and ordinary authorized planning still trigger
+false alarms; indirect instructions remain missed. These declared synthetic
+labels do not establish an independent production ground truth or training-data
+separation. The added set demonstrates limitations rather than improving claims.
 
 These are deliberately small synthetic measurements, independent of authorization
 tests. They establish neither production accuracy nor general prompt-injection
