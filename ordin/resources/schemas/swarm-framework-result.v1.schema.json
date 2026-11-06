@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-framework-result.v1.schema.json",
+  "title": "swarm_framework_result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "action_digest",
+    "call_digest",
+    "journal_gap",
+    "physical_enforcement",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_framework_result.v1"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "failed",
+        "pending",
+        "denied",
+        "unknown",
+        "canceled"
+      ]
+    },
+    "action_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "call_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "journal_gap": {
+      "type": "boolean"
+    },
+    "physical_enforcement": {
+      "type": "boolean"
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

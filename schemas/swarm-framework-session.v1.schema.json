@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-framework-session.v1.schema.json",
+  "title": "swarm_framework_session",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "context_digest",
+    "tool_names",
+    "state",
+    "mode",
+    "physical_enforcement",
+    "uncovered",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_framework_session.v1"
+    },
+    "context_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "tool_names": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "maxItems": 16384,
+      "uniqueItems": true
+    },
+    "state": {
+      "const": "connected"
+    },
+    "mode": {
+      "enum": [
+        "intercept",
+        "broker",
+        "coordinator"
+      ]
+    },
+    "physical_enforcement": {
+      "const": false
+    },
+    "uncovered": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "maxItems": 128,
+      "uniqueItems": true
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

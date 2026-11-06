@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-framework-preparation.v1.schema.json",
+  "title": "swarm_framework_preparation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "disposition",
+    "action_digest",
+    "reason_codes",
+    "call_digest",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_framework_preparation.v1"
+    },
+    "disposition": {
+      "enum": [
+        "execute",
+        "escalate",
+        "deny"
+      ]
+    },
+    "action_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "maxItems": 128,
+      "uniqueItems": true
+    },
+    "call_digest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

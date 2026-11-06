@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-framework-setup.v1.schema.json",
+  "title": "swarm_framework_setup",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "framework",
+    "dry_run",
+    "manifest_written",
+    "manifest_digest",
+    "runtime_installed",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_framework_setup.v1"
+    },
+    "framework": {
+      "enum": [
+        "custom",
+        "langgraph",
+        "crewai",
+        "autogen"
+      ]
+    },
+    "dry_run": {
+      "type": "boolean"
+    },
+    "manifest_written": {
+      "type": "boolean"
+    },
+    "manifest_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "runtime_installed": {
+      "const": false
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

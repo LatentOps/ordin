@@ -53,7 +53,7 @@ it must never silently become observe-only while retaining an enforcement label.
 | OpenShell optional integration | Compile/prove supported capabilities; applied runtime evidence is a separate boundary | Broker admission and generation checks for enrolled agents; unsupported protocols cannot become broad TCP permissions |
 | Vetted Linux sandbox fixtures | Isolation and evidence for the documented fixture and supported host | Not a general attach-to-any-process containment service |
 | Existing uninstrumented swarm | Protected host endpoint can explicitly attach observation or verified future dispatch mediation without restarting an existing session | Direct sockets, existing credentials and unwrapped executors remain uncovered; unsupported live restrictions require restart |
-| LangGraph / CrewAI / AutoGen / custom orchestrators | No swarm-wide framework conformance claim | Dedicated adapters and pinned conformance tests required |
+| [Pinned LangGraph / CrewAI / AutoGen legacy / custom Python](framework-adapters.md) | Real version-pinned tool/lifecycle conformance, exact normalized callback arguments, original host identities, explicit typed message/artifact handoff and optional coordinator/broker routing | Native async/injected/plugin/background/direct paths remain explicit gaps; AutoGen upstream is archived; framework interception is separate from original physical broker evidence |
 | Shared files, memory, messages and delegated credentials | Existing action review does not prove all accesses are mediated | Enroll the actual storage/transport/credential broker; unwrapped access remains uncovered |
 
 ## Late attachment and running processes
@@ -79,8 +79,9 @@ tested physical enforcement where available. Each step is independently
 configured and reversible by an authorized host/operator; removing protection
 invalidates dependent permits before new dispatches. A future release may claim
 support only with positive and bypass/negative tests, installed-wheel evidence,
-bounded failure behavior and an exact tested version/platform record. Until
-those gates exist, the framework and distributed entries above remain planned.
+bounded failure behavior and an exact tested version/platform record. The
+linked framework and coordinator modules define their verified limited scopes;
+unlisted versions and pathways remain unverified.
 
 See the [architecture](architecture.md), [threat scenarios](threat-model.md) and
 [local-first ADR](adr-001-local-first-coordination.md).
