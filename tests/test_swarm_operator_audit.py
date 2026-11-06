@@ -137,3 +137,43 @@ def test_backwards_clock_and_sql_index_tampering_fail_closed(tmp_path):
         connection.execute("UPDATE audit_events SET admitted_at=101")
     with pytest.raises(ValueError):
         selected.export(operator=operator)
+
+
+def test_ordered_batch_matches_individual_chain_and_retention(tmp_path):
+    (tmp_path / "individual").mkdir()
+    (tmp_path / "batch").mkdir()
+    policy = SwarmAuditPolicy(2, 5, 4)
+    individual, first_operator, _ = journal(tmp_path / "individual", policy=policy)
+    batched, second_operator, _ = journal(tmp_path / "batch", policy=policy)
+    records = [
+        {
+            "kind": "decision",
+            "state": "reviewed",
+            "evidence": "intent",
+            "refs": {"action": str(index)},
+            "facts": {"disposition": "escalate", "risk": "high"},
+        }
+        for index in range(8)
+    ]
+    expected = [individual._append(**record, operator=first_operator) for record in records]
+    actual = batched._append_many(records, operator=second_operator)
+    assert actual == expected
+    bundle = batched.export(operator=second_operator)
+    assert verify_swarm_audit(bundle).valid
+    assert bundle["first_sequence"] == 7 and bundle["events"] == actual[-2:]
+    assert bundle["base_hash"] == actual[-3]["event_hash"]
+
+
+def test_invalid_bounded_batch_rolls_back_every_event(tmp_path):
+    selected, operator, _ = journal(tmp_path)
+    valid = {
+        "kind": "risk_signal",
+        "state": "risk_reported",
+        "evidence": "diagnostic",
+        "refs": {},
+        "facts": {"model_risk": "high"},
+    }
+    for records in ([], [valid] * 33, [valid, {**valid, "facts": {"prompt": "secret"}}]):
+        with pytest.raises(ValueError):
+            selected._append_many(records, operator=operator)
+        assert selected.export(operator=operator)["events"] == []

@@ -122,7 +122,9 @@ successful. Legacy audit/trace imports remain diagnostic even if their chains
 and separately retained checkpoints verify.
 
 The writer queue is bounded (at most 256 records); it performs no journal I/O
-under enforcement locks. Overflow, unavailable storage and pending flushes are
+under enforcement locks. It commits ordered batches of at most 32 records,
+validating the existing chain once per atomic batch and every new event before
+commit. A failed batch leaves no partial journal tail. Overflow, unavailable storage and pending flushes are
 explicit gaps in operator snapshots and capture status in API audit exports.
 Transport-limited exports retain a verifiable suffix and explicitly flag the
 truncated export window; keep independently held earlier bundles/checkpoints.

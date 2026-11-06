@@ -131,13 +131,23 @@ class SwarmAuditSource:
                 data = self._queue.get(timeout=0.05)
             except Empty:
                 continue
+            batch = [data]
+            while len(batch) < 32:
+                try:
+                    batch.append(self._queue.get_nowait())
+                except Empty:
+                    break
             try:
                 if not self._fault:
-                    self.journal._append(**data, operator=self._operator)
+                    if len(batch) == 1:
+                        self.journal._append(**data, operator=self._operator)
+                    else:
+                        self.journal._append_many(batch, operator=self._operator)
             except (ValueError, OSError, RuntimeError, sqlite3.Error):
                 self._fault = True
             finally:
-                self._queue.task_done()
+                for _ in batch:
+                    self._queue.task_done()
 
     def flush(self, *, operator: object, timeout: float = 2) -> bool:
         self._check(operator)

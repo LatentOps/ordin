@@ -345,48 +345,71 @@ class SwarmAuditJournal:
         facts: dict[str, Any],
         operator: object,
     ):
+        return self._append_many(
+            [{"kind": kind, "state": state, "evidence": evidence, "refs": refs, "facts": facts}],
+            operator=operator,
+        )[0]
+
+    def _append_many(self, records: list[dict[str, Any]], *, operator: object):
+        """Commit one bounded ordered batch, validating the existing chain once."""
         self._check(operator)
-        if kind not in KINDS or state not in STATES or evidence not in EVIDENCE:
-            raise ValueError("audit.closed_event_vocabulary")
-        refs, facts = decode(encode(refs, 65536), 65536), decode(encode(facts, 65536), 65536)
+        if type(records) is not list or not 1 <= len(records) <= 32:
+            raise ValueError("audit.bounded_batch_required")
+        records = [decode(encode(record, 65536), 65536) for record in records]
+        for record in records:
+            if (
+                set(record) != {"kind", "state", "evidence", "refs", "facts"}
+                or type(record["refs"]) is not dict
+                or type(record["facts"]) is not dict
+                or any(type(record[name]) is not str for name in ("kind", "state", "evidence"))
+                or record["kind"] not in KINDS
+                or record["state"] not in STATES
+                or record["evidence"] not in EVIDENCE
+            ):
+                raise ValueError("audit.closed_event_vocabulary")
         with private_database(self.path, "swarm_audit", create=False) as connection:
             now = timestamp(self._clock())
             meta, events = self._read(connection)
             if now < meta["last_now"]:
                 raise ValueError("audit.clock_rollback")
-            pseudonyms = {name: self.redactor.ref(name, value) for name, value in refs.items()}
-            if meta["scope_ref"] is not None and pseudonyms.get("scope") != meta["scope_ref"]:
-                raise ValueError("audit.scoped_producer_required")
-            if len(set(pseudonyms.values())) > self.policy.maximum_entities:
-                raise ValueError("audit.entity_cardinality_limit")
-            sequence = meta["tail_sequence"] + 1
-            event = {
-                "schema_version": "ordin.swarm_audit_event.v1",
-                "sequence": sequence,
-                "admitted_at": now,
-                "kind": kind,
-                "state": state,
-                "evidence": evidence,
-                "refs": pseudonyms,
-                "facts": facts,
-                "previous_hash": meta["tail_hash"],
-                "execution_authority": False,
-            }
-            event["event_hash"] = digest(event)
             from ordin.schema import validate_named_schema
 
-            if validate_named_schema("swarm_audit_event", event):
-                raise ValueError("audit.invalid_event")
-            connection.execute(
-                "INSERT INTO audit_events VALUES(?,?,?,?)",
-                (sequence, now, encode(event, 65536), event["event_hash"]),
-            )
-            if sequence > 2**53 - 1:
-                raise ValueError("audit.sequence_limit")
-            meta.update(tail_sequence=sequence, tail_hash=event["event_hash"], last_now=now)
-            self._trim(connection, meta, [*events, event], now)
+            appended = []
+            for record in records:
+                pseudonyms = {
+                    name: self.redactor.ref(name, value) for name, value in record["refs"].items()
+                }
+                if meta["scope_ref"] is not None and pseudonyms.get("scope") != meta["scope_ref"]:
+                    raise ValueError("audit.scoped_producer_required")
+                if len(set(pseudonyms.values())) > self.policy.maximum_entities:
+                    raise ValueError("audit.entity_cardinality_limit")
+                sequence = meta["tail_sequence"] + 1
+                if sequence > 2**53 - 1:
+                    raise ValueError("audit.sequence_limit")
+                event = {
+                    "schema_version": "ordin.swarm_audit_event.v1",
+                    "sequence": sequence,
+                    "admitted_at": now,
+                    "kind": record["kind"],
+                    "state": record["state"],
+                    "evidence": record["evidence"],
+                    "refs": pseudonyms,
+                    "facts": record["facts"],
+                    "previous_hash": meta["tail_hash"],
+                    "execution_authority": False,
+                }
+                event["event_hash"] = digest(event)
+                if validate_named_schema("swarm_audit_event", event):
+                    raise ValueError("audit.invalid_event")
+                connection.execute(
+                    "INSERT INTO audit_events VALUES(?,?,?,?)",
+                    (sequence, now, encode(event, 65536), event["event_hash"]),
+                )
+                meta.update(tail_sequence=sequence, tail_hash=event["event_hash"], last_now=now)
+                appended.append(event)
+            self._trim(connection, meta, [*events, *appended], now)
             self._save(connection, meta)
-            return event
+            return appended
 
     def _trim(self, connection, meta, events, now):
         remove = [
