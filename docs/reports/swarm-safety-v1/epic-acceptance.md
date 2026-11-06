@@ -29,8 +29,13 @@ combined-HEAD acceptance and the two post-epic local reports remain pending;
 these merges do not themselves certify unmeasured external conformance. CrewAI is now
 security-blocked by the separate PR299; no positive current CrewAI SDK coverage
 or claim of two active maintained framework integrations is made.
-SWARM-23 is optional for v1 enforcement; it is still part of this user's requested
-issue queue and must receive its own verified PR before closing this task.
+SWARM-23 is optional for v1 enforcement and has now merged through its separate
+PR313. All 23 implementation child issues #256–#278 are closed, with their
+intended PRs merged after the applicable checks passed. The newly arrived
+dependency queue #302–#312 remains partially pending: CodeQL #302 and the
+development-tool batch #305 have merged; #306/#310/#311/#312 are verified
+superseded. Proposals #303/#304/#307/#308/#309, this separate epic review and
+the two final reports remain. Child delivery alone does not complete those steps.
 
 ## All 23 implementation children
 
@@ -58,7 +63,7 @@ issue queue and must receive its own verified PR before closing this task.
 | 20 / #275 | Audit/operator API/observability | `audit.py`, `diagnostics.py`, `operator_api.py`, `operator_cli.py`; protected privacy/governance/export tests | [PR298](https://github.com/LatentOps/ordin/pull/298), merged as `b88161669f940e5cb1a111c1d4ad3b3d644756cc`; all 40 required and all 61 observed statuses green; closure verified. |
 | 21 / #276 | Corpus, oracles, properties and overhead | `benchmark.py`, `corpus_controls.py`, `corpus_kernel.py`, `overhead_benchmark.py`; corpus/fault/property/oracle tests | [PR300](https://github.com/LatentOps/ordin/pull/300), merged as `85e5b458871b92a27065ea0284d13e6bbaef133c`; 41 unique successful jobs, 61 successful observed check runs and only two not-applicable tag skips out of 63 total; closure verified. |
 | 22 / #277 | Packaging, conformance and release evidence | optional `quickstart.py`, `owned_demo.py`, release-evidence producer/runner, schemas, workflows/runbook | [PR301](https://github.com/LatentOps/ordin/pull/301), merged as `5c29527d697ea28a30a445c19b6e00c81547d66c`; 43 unique successful jobs, 65 successful observed check runs and only two not-applicable tag skips out of 67 total; closure verified. |
-| 23 / #278 | Optional semantic risk signals | Pending #278 source checkpoint: risk-signal provider and semantic adapter with default-off/privacy/calibration/timeout/currentness/approval-join tests; intentionally absent from the verified #277 checkout | Pending separate final PR/CI/merge; not a v1 enforcement dependency |
+| 23 / #278 | Optional semantic risk signals | `ordin/swarm/risk_signals.py`, optional `semantic_signals.py`, `docs/swarm/risk-signals.md`; `test_swarm_risk_signals.py`, `test_swarm_risk_approval_join.py`, `test_swarm_risk_corpus_contract.py`, `test_swarm_risk_diagnostics.py` | [PR313](https://github.com/LatentOps/ordin/pull/313), merged as `9639378571fcab450df8e610c36fa69192e832f9`; 43 unique successful jobs, 65 successful observed check runs and only two not-applicable tag skips out of 67 total; closure verified. Default-off inference can tighten only; not a v1 enforcement dependency. |
 
 Use the final ledger for exact merge SHA and all check URLs. The initial PRs
 were guarded by the then-applicable complete matrix; later matrices add actual
@@ -66,11 +71,12 @@ PostgreSQL, installed SDK, corpus and release lanes. Do not retrospectively clai
 that a newer lane ran on an older implementation commit.
 
 Read-only anchor verification against the integrated #277 checkout at
-`454caab0822558ec07049153801d7e83bcaad5b7` found all 72 current implementation,
-test and documentation anchors. The future optional #278 source is deliberately
-not used as an existing #277 anchor. The five workstream ranges above match the
-epic's exact engineering-gate map. This path-presence check is not a test result
-or a final-HEAD acceptance claim; repeat/update it after #278 and the epic PR.
+`454caab0822558ec07049153801d7e83bcaad5b7` found all 72 then-current implementation,
+test and documentation anchors. A separate read-only check against the merged
+#278 commit `9639378571fcab450df8e610c36fa69192e832f9` includes the now-delivered
+risk sources and tests. The five workstream ranges above match the epic's exact
+engineering-gate map. Path presence is not a test result or a final-HEAD
+acceptance claim; repeat/update it after the final dependency and epic PRs.
 
 ### Subsequent dependency security quarantine
 
@@ -92,6 +98,26 @@ result as a promise about future advisories. Active maintained SDK claims cover
 LangGraph; AutoGen remains explicitly archived-version compatibility. Historical
 CrewAI workflow passes remain evidence for their original revision only.
 
+### Subsequent dependency queue
+
+CodeQL [PR302](https://github.com/LatentOps/ordin/pull/302) merged as
+`025db68b11ef4ccb6493ad5e3ff53513887fd66d` after all 43 unique applicable jobs
+and 43 observed successful check runs passed, with only the two inapplicable
+tag-only skips out of 45 total. Exact release validation was run 42199682108.
+Development-tool [PR305](https://github.com/LatentOps/ordin/pull/305) merged as
+`c265203a9d77472b4fe3da4775de2f1e82464853` after 43 unique and 43 observed
+successful jobs, with only two inapplicable tag skips out of 45 total. The guard
+also inspected 48 exact-head check runs and successful dispatched release
+42202656328. Main's exact versions were verified: pytest 9.2.0, filelock 4.2.7,
+Ruff 0.17.3, pluggy 1.7.0 and nodeenv 1.12.0. PR306/PR310/PR311/PR312 were closed
+as superseded after their requested upgrades were verified in this merge;
+those proposals were not themselves merged or ignored.
+
+Remaining proposals #303/#304/#307/#308/#309 still require actual resolution
+and complete checks. Coupled or identical proposals may be closed as superseded
+only after a green merged change contains their requested upgrades; an explicit
+legacy compatibility correction must not be called a successful major upgrade.
+
 ## Epic definition-of-done audit
 
 - [ ] Verify running-session enrollment/coverage and future-call denial from the
@@ -106,10 +132,22 @@ CrewAI workflow passes remain evidence for their original revision only.
   separately successful uncovered bypass; show unsupported/restart-required paths.
 - [ ] Record per-class false allows, false blocks, approvals, coverage, revocation
   and overhead with declared denominators/environments; unknown is not success.
-- [ ] Verify all 23 child issues closed by the intended separate merged PRs and
+- [x] Verify all 23 child issues closed by the intended separate merged PRs and
   every applicable final-head CI check passed before each squash merge.
-- [ ] Verify no open task-scoped issues/PRs or unresolved Dependabot alerts remain;
-  distinguish superseded dependency PR closure from a successful merged upgrade.
+- [ ] At epic PR publication/review, verify all implementation child issues
+  #256–#278 and task-scoped dependency/fix PRs are closed or merged, with no
+  unresolved Dependabot alerts. Exclude #255 and this still-open epic review PR
+  from this publication-time check. Distinguish superseded dependency PR closure
+  from a successful merged upgrade. #278 merged and closed through PR313;
+  CodeQL #302 and development-tool #305 have merged, with verified superseded
+  closures #306/#310/#311/#312. Proposals #303/#304/#307/#308/#309 remain pending
+  at this draft update.
+
+Final delivery is a separate post-merge step: after this epic PR merges and #255
+closes, refresh all task-scoped issues/PRs and dependency alerts again, including
+the epic itself, and record the zero-open result in the two exact-final-HEAD local
+reports. That refresh and report generation are not claimed complete by a
+publication-time checkbox in the still-open epic review.
 
 ## Evidence record and report generation
 
@@ -146,8 +184,11 @@ conformance lanes or general production enforcement.
 - No atomic undo, automatic non-idempotent replay or uncapped external billing
   guarantee. Recovery requires current operator standing, fresh fences and actual
   original outcome reconciliation; old approvals and grants remain invalid.
-- SDK claims name tested versions/paths only; AutoGen is explicitly legacy
-  compatibility. CrewAI is security-blocked pending a verified patched dependency
+- SDK claims name tested versions/paths only; AutoGen is explicitly archived
+  legacy compatibility, and its required protobuf 5.x is past upstream support.
+  Its latest published SDK has no compatible supported protobuf upgrade;
+  compatibility tests do not establish dependency-security clearance.
+  CrewAI is security-blocked pending a verified patched dependency
   closure and new positive conformance checks. The mandatory quarantine lane is
   negative evidence, not an available second maintained framework. Async, direct,
   injected and unwrapped paths stay reported gaps.
