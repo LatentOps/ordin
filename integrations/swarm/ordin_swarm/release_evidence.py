@@ -34,6 +34,19 @@ CHECKS = (
     "openshell",
 )
 EXTERNAL = frozenset({"langgraph", "crewai", "legacy_autogen", "postgres", "openshell"})
+ACTIVE_LOCKS = (
+    "requirements/dev-baseline.txt",
+    "requirements/coordinator-postgres.txt",
+    "requirements/swarm-langgraph.txt",
+    "requirements/swarm-autogen.txt",
+)
+CREWAI_SECURITY_REASON = "security_blocked_unpatched_chromadb"
+CREWAI_ADVISORIES = (
+    "GHSA-36p7-vc44-83pf",
+    "GHSA-xph7-9rjv-w5fr",
+    "GHSA-2wm9-hf6c-p5cr",
+    "GHSA-f4j7-r4q5-qw2c",
+)
 COMMON_REQUIRED = frozenset(
     {
         "core_compatibility",
@@ -131,6 +144,36 @@ def not_evaluated(check_id: str, reason: str) -> dict[str, Any]:
     }
 
 
+def external_reference(check_id, workflow, workflow_sha256, lock_sha256):
+    """Retain unavailable integrations without borrowing a positive SDK result."""
+    blocked = check_id == "crewai"
+    return {
+        "checks": [check_id],
+        "workflow": workflow,
+        "workflow_sha256": workflow_sha256,
+        "observed_status": "not_evaluated",
+        "required_lock_sha256": lock_sha256,
+        "observed_artifact_sha256": None,
+        "availability": "security_blocked" if blocked else "enabled",
+        "security_advisories": [
+            {
+                "id": advisory,
+                "url": "https://github.com/advisories/" + advisory,
+                "package": "chromadb",
+                "affected_version": "1.5.9",
+                "first_patched_version": None,
+                "reviewed_on": "2026-11-06",
+            }
+            for advisory in CREWAI_ADVISORIES
+        ]
+        if blocked
+        else [],
+        "reason_code": CREWAI_SECURITY_REASON
+        if blocked
+        else "dedicated_gate_not_run_in_this_collection",
+    }
+
+
 def validate_manifest(value: Any) -> list[str]:
     """Validate report data only; success does not authenticate a producer."""
     try:
@@ -202,8 +245,11 @@ def validate_manifest(value: Any) -> list[str]:
             value["wheels"]
         ) != 2:
             errors.append("release.wheel_inventory_mismatch")
-        if len({row["name"] for row in value["locks"]}) != len(value["locks"]):
-            errors.append("release.duplicate_lock")
+        if {row["name"] for row in value["locks"]} != set(ACTIVE_LOCKS):
+            errors.append("release.active_lock_inventory_mismatch")
+        crewai = by_id["crewai"]
+        if crewai != not_evaluated("crewai", CREWAI_SECURITY_REASON):
+            errors.append("release.quarantined_sdk_cannot_claim_conformance")
         benchmarks = value["benchmarks"]
         if benchmarks["cases"] != sum(
             benchmarks[key] for key in ("evaluated", "kernel_not_run", "optional_not_evaluated")
@@ -227,6 +273,18 @@ def validate_manifest(value: Any) -> list[str]:
         referenced = {name for row in value["external_gate_references"] for name in row["checks"]}
         if referenced != set(EXTERNAL):
             errors.append("release.external_inventory_mismatch")
+        references = value["external_gate_references"]
+        if len(references) != len(EXTERNAL) or any(len(row["checks"]) != 1 for row in references):
+            errors.append("release.external_inventory_mismatch")
+        for row in references:
+            check_id = row["checks"][0]
+            expected = external_reference(
+                check_id, row["workflow"], row["workflow_sha256"], row["required_lock_sha256"]
+            )
+            if row != expected or (
+                check_id == "crewai" and row["required_lock_sha256"] is not None
+            ):
+                errors.append("release.integration_availability_mismatch")
         material = {key: item for key, item in value.items() if key != "manifest_sha256"}
         if value["manifest_sha256"] != evidence_sha256(material):
             errors.append("release.manifest_digest_mismatch")

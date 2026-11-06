@@ -8,7 +8,7 @@ import sys
 
 def collect(inputs_path: Path, directory: Path):
     from ordin.schema import validate_named_schema
-    from ordin_swarm.release_evidence import CHECKS, build_manifest, not_evaluated, artifact_errors
+    from ordin_swarm.release_evidence import CHECKS, CREWAI_SECURITY_REASON, not_evaluated
 
     def load(name, schema=None):
         path = directory / name
@@ -23,6 +23,7 @@ def collect(inputs_path: Path, directory: Path):
     checks = {
         name: not_evaluated(name, "dedicated_gate_not_run_in_this_collection") for name in CHECKS
     }
+    checks["crewai"] = not_evaluated("crewai", CREWAI_SECURITY_REASON)
 
     def passed(name, artifact, boundary, count=1, skipped=0, physical=False):
         checks[name] = {
@@ -158,13 +159,18 @@ def collect(inputs_path: Path, directory: Path):
 
 
 def finish(inputs, environment_report, artifacts, checks, corpus, overhead, directory):
-    from ordin_swarm.release_evidence import CHECKS, build_manifest, artifact_errors
+    from ordin_swarm.release_evidence import (
+        CHECKS,
+        build_manifest,
+        artifact_errors,
+        external_reference,
+    )
 
     locks = {item["name"]: item["sha256"] for item in inputs["locks"]}
     references = []
     for name, workflow, lock in (
         ("langgraph", ".github/workflows/swarm-frameworks.yml", "requirements/swarm-langgraph.txt"),
-        ("crewai", ".github/workflows/swarm-frameworks.yml", "requirements/swarm-crewai.txt"),
+        ("crewai", ".github/workflows/swarm-frameworks.yml", None),
         (
             "legacy_autogen",
             ".github/workflows/swarm-frameworks.yml",
@@ -174,15 +180,9 @@ def finish(inputs, environment_report, artifacts, checks, corpus, overhead, dire
         ("openshell", ".github/workflows/runtime-extension.yml", None),
     ):
         references.append(
-            {
-                "checks": [name],
-                "workflow": workflow,
-                "workflow_sha256": inputs["workflow_hashes"][workflow],
-                "observed_status": "not_evaluated",
-                "required_lock_sha256": locks[lock] if lock else None,
-                "observed_artifact_sha256": None,
-                "reason_code": "dedicated_gate_not_run_in_this_collection",
-            }
+            external_reference(
+                name, workflow, inputs["workflow_hashes"][workflow], locks[lock] if lock else None
+            )
         )
     metrics = corpus["metrics"]
     benchmarks = {

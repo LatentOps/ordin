@@ -21,7 +21,6 @@ LOCKS = (
     "requirements/dev-baseline.txt",
     "requirements/coordinator-postgres.txt",
     "requirements/swarm-langgraph.txt",
-    "requirements/swarm-crewai.txt",
     "requirements/swarm-autogen.txt",
 )
 GROUPS = ("mcp", "hooks", "coordinator_restart", "multi_host_epochs")

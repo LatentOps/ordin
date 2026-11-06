@@ -15,7 +15,7 @@ entries, and never grants execution authority.
 | Owned Linux worker | Recorded Linux x86-64 kernel with required backend support | Original broker result from a fresh finite read worker; replay/epoch controls and raw parent bypass reported separately |
 | Windows host | Recorded Windows release-gate image | Actual unsupported-Linux-worker control plus reviews, mediation and validation; no whole-process or host confinement claim |
 | LangGraph | Exactly 1.2.20, prebuilt 1.1.1, langchain-core 1.7.6, Pydantic 2.12.5 | Dedicated installed framework workflow and immutable lock; not locally rerun by this collector |
-| CrewAI | Historical pinned 1.15.35/core 1.15.35 tuple; unresolved dependency-security scope | Compatibility evidence is not security clearance or production support; retain an explicit unmeasured/quarantined entry when unavailable |
+| CrewAI | Security blocked; historical 1.15.35/core 1.15.35 tuple is unavailable | No active SDK extra or lock. The mandatory `CrewAI security quarantine` job verifies refusal before SDK import; positive SDK conformance remains not-evaluated |
 | Legacy AutoGen | Archived AutoGen Core 0.7.5, Pydantic 2.12.5 | Legacy compatibility fixture only; no upstream maintenance or future-version guarantee |
 | Coordinator restart/epochs | This release's real mTLS protocol over owned SQLite development fixtures | Takeover, retained uncertain holds, stale epochs and authenticated host scopes; no PostgreSQL consensus claim |
 | PostgreSQL | Exact driver lock and owned-cluster gate at the same source commit | Separate coordinator workflow; not-evaluated in a local release collection until that actual gate runs |
@@ -26,7 +26,8 @@ arbitrary host configurations, upstream support duration, or a service SLA.
 The tested window ends at the recorded pinned tuple. Expanding it requires new
 immutable pins, the corresponding installed conformance gate, and a new release
 evidence manifest. An archived integration stays explicitly legacy even when
-its finite fixture passes. An unavailable integration stays unknown/unmeasured.
+its finite fixture passes. CrewAI remains `security_blocked` with SDK conformance
+`not_evaluated`; its quarantine checks do not claim that the SDK works safely.
 
 The previously pinned CrewAI 1.15.35 runtime dependency set includes
 `chromadb==1.5.9`, which is affected by four open advisories:
@@ -39,8 +40,13 @@ The reviewed advisory records listed no patched version when checked on
 `crewai-core` alone is not a compatible replacement for the Agent/Task/tool-hook
 runtime. Do not remove required dependencies to manufacture a passing test,
 dismiss alerts, or waive the dependency-security gate. A disabled/quarantined
-adapter remains explicit in the inventory, and production use is not authorized
-by this release evidence.
+adapter remains explicit in the inventory. The release manifest retains all four
+advisory identifiers, primary-source URLs, the affected historical version and
+the review date. Its active lock inventory contains only the development tools,
+PostgreSQL, LangGraph and legacy AutoGen locks. There is no CrewAI provisioning
+path; a matching SDK installed elsewhere remains blocked. Existing processes
+must follow the operator fence/drain/restart procedure before the new guard can
+apply. Production use is not authorized by this release evidence.
 
 The collector references the existing
 [`swarm-frameworks` workflow](../../.github/workflows/swarm-frameworks.yml),

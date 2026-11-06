@@ -129,7 +129,6 @@
               "requirements/dev-baseline.txt",
               "requirements/coordinator-postgres.txt",
               "requirements/swarm-langgraph.txt",
-              "requirements/swarm-crewai.txt",
               "requirements/swarm-autogen.txt"
             ]
           },
@@ -142,8 +141,8 @@
           }
         }
       },
-      "minItems": 5,
-      "maxItems": 5
+      "minItems": 4,
+      "maxItems": 4
     },
     "environment": {
       "type": "object",
@@ -486,7 +485,9 @@
           "observed_status",
           "required_lock_sha256",
           "observed_artifact_sha256",
-          "reason_code"
+          "reason_code",
+          "availability",
+          "security_advisories"
         ],
         "properties": {
           "checks": {
@@ -539,7 +540,59 @@
             "const": null
           },
           "reason_code": {
-            "const": "dedicated_gate_not_run_in_this_collection"
+            "enum": [
+              "dedicated_gate_not_run_in_this_collection",
+              "security_blocked_unpatched_chromadb"
+            ]
+          },
+          "availability": {
+            "enum": [
+              "enabled",
+              "security_blocked"
+            ]
+          },
+          "security_advisories": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "url",
+                "package",
+                "affected_version",
+                "first_patched_version",
+                "reviewed_on"
+              ],
+              "properties": {
+                "id": {
+                  "enum": [
+                    "GHSA-36p7-vc44-83pf",
+                    "GHSA-xph7-9rjv-w5fr",
+                    "GHSA-2wm9-hf6c-p5cr",
+                    "GHSA-f4j7-r4q5-qw2c"
+                  ]
+                },
+                "url": {
+                  "type": "string",
+                  "pattern": "^https://github[.]com/advisories/GHSA-[a-z0-9-]{14}$"
+                },
+                "package": {
+                  "const": "chromadb"
+                },
+                "affected_version": {
+                  "const": "1.5.9"
+                },
+                "first_patched_version": {
+                  "const": null
+                },
+                "reviewed_on": {
+                  "const": "2026-11-06"
+                }
+              }
+            }
           }
         }
       },

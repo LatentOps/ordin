@@ -137,3 +137,43 @@ def test_optional_plugin_and_unmeasured_cases_are_not_dropped():
     )
     assert not validate_manifest(reseal(value))
     assert {row["id"] for row in value["checks"]} >= {"legacy_autogen", "postgres", "openshell"}
+
+
+def test_quarantined_crewai_stays_explicit_without_an_active_sdk_lock_or_pass():
+    value = manifest_sample()
+    assert len(value["locks"]) == 4
+    assert "requirements/swarm-crewai.txt" not in {row["name"] for row in value["locks"]}
+    row = next(row for row in value["checks"] if row["id"] == "crewai")
+    reference = next(
+        row for row in value["external_gate_references"] if row["checks"] == ["crewai"]
+    )
+    assert row["status"] == "not_evaluated"
+    assert row["reason_code"] == "security_blocked_unpatched_chromadb"
+    assert reference["availability"] == "security_blocked"
+    assert reference["observed_status"] == "not_evaluated"
+    assert reference["required_lock_sha256"] is None
+    assert len(reference["security_advisories"]) == 4
+    assert all(row["first_patched_version"] is None for row in reference["security_advisories"])
+
+
+@pytest.mark.parametrize(
+    "change", ("enabled", "omit_advisory", "claim_sdk", "old_lock", "foreign_block")
+)
+def test_rehashed_quarantine_relabeling_cannot_manufacture_sdk_conformance(change):
+    value = manifest_sample()
+    reference = next(
+        row for row in value["external_gate_references"] if row["checks"] == ["crewai"]
+    )
+    if change == "enabled":
+        reference["availability"] = "enabled"
+    elif change == "omit_advisory":
+        reference["security_advisories"].pop()
+    elif change == "claim_sdk":
+        next(row for row in value["checks"] if row["id"] == "crewai")["reason_code"] = "sdk_passed"
+    elif change == "old_lock":
+        value["locks"][-1]["name"] = "requirements/swarm-crewai.txt"
+    else:
+        next(row for row in value["external_gate_references"] if row["checks"] == ["langgraph"])[
+            "availability"
+        ] = "security_blocked"
+    assert validate_manifest(reseal(value))

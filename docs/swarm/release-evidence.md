@@ -48,6 +48,11 @@ does not waive those findings, authorize that runtime, or permit production
 expansion. Keep quarantined/unavailable integrations visible and require a
 reviewed compatible dependency path and the unchanged security gates before
 changing that status.
+CrewAI's retained reference explicitly records `availability=security_blocked`,
+SDK conformance `not_evaluated`, no active lock, and the four advisory records.
+The separate mandatory `CrewAI security quarantine` job establishes rejection
+before import; this collector does not borrow its result or turn that rejection
+into a positive SDK compatibility result.
 
 Public artifacts contain finite reason codes, counts, hashes and relative
 contract names. Raw pytest diagnostics, if needed after failure, stay in an

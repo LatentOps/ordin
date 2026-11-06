@@ -5,16 +5,17 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "integrations/swarm"))
-from ordin_swarm.release_evidence import CHECKS, build_manifest, not_evaluated
+from ordin_swarm.release_evidence import (
+    ACTIVE_LOCKS,
+    CHECKS,
+    CREWAI_SECURITY_REASON,
+    build_manifest,
+    external_reference,
+    not_evaluated,
+)
 
 RAW = b'{"schema_version":"synthetic.release.example.v1"}\n'
-LOCKS = (
-    "requirements/dev-baseline.txt",
-    "requirements/coordinator-postgres.txt",
-    "requirements/swarm-langgraph.txt",
-    "requirements/swarm-crewai.txt",
-    "requirements/swarm-autogen.txt",
-)
+LOCKS = ACTIVE_LOCKS
 
 
 def manifest_sample():
@@ -65,7 +66,12 @@ def manifest_sample():
                 "schema_version": "synthetic.release.example.v1",
             }
         ],
-        checks=[not_evaluated(name, "synthetic_schema_example") for name in CHECKS],
+        checks=[
+            not_evaluated(
+                name, CREWAI_SECURITY_REASON if name == "crewai" else "synthetic_schema_example"
+            )
+            for name in CHECKS
+        ],
         benchmarks={
             "corpus_artifact": "example.json",
             "corpus_result_sha256": "f" * 64,
@@ -88,15 +94,7 @@ def manifest_sample():
             "retained_state_bounded": None,
         },
         references=[
-            {
-                "checks": [name],
-                "workflow": workflow,
-                "workflow_sha256": "0" * 64,
-                "observed_status": "not_evaluated",
-                "required_lock_sha256": None,
-                "observed_artifact_sha256": None,
-                "reason_code": "dedicated_gate_not_run_in_this_collection",
-            }
+            external_reference(name, workflow, "0" * 64, None)
             for name, workflow in (
                 ("langgraph", ".github/workflows/swarm-frameworks.yml"),
                 ("crewai", ".github/workflows/swarm-frameworks.yml"),
