@@ -56,6 +56,7 @@ BOUNDARIES = (
     "unknown",
 )
 LIMITATIONS = (
+    "Compatibility checks do not establish dependency-security clearance or waive unresolved advisories.",
     "Synthetic fixtures and data-only manifests are not deployment prevalence or runtime authority.",
     "Only the separately observed owned Linux read worker establishes physical enforcement in this gate.",
     "Raw host tools, network, credentials, existing processes and unwrapped routes remain uncovered.",
@@ -273,6 +274,7 @@ def build_manifest(
         "production_rollout_authorized": False,
         "publication_authorized": False,
         "origin_authenticated_by_json": False,
+        "dependency_security_clearance": "not_established",
         "execution_authority": False,
         "limitations": list(LIMITATIONS),
     }

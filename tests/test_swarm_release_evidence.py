@@ -31,6 +31,7 @@ def test_closed_unmeasured_manifest_is_schema_valid_but_never_authority():
     assert all(row["status"] == "not_evaluated" for row in value["checks"])
     assert not value["local_gate_passed"] and not value["complete_conformance"]
     assert not value["origin_authenticated_by_json"]
+    assert value["dependency_security_clearance"] == "not_established"
     assert not value["execution_authority"] and not value["production_rollout_authorized"]
 
 

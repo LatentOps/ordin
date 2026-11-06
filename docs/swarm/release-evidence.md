@@ -41,6 +41,14 @@ JSON, a recomputed hash or a claimed physical flag cannot restore an original
 broker observation, grant, approval or runtime authority. Artifact verification
 checks byte consistency and explicitly does not authenticate a runtime producer.
 
+Dependency-security clearance is **not established** by this collector. In
+particular, the historical CrewAI/chromadb tuple has unresolved advisories listed
+in the [conformance/support matrix](conformance.md). Offline compatibility success
+does not waive those findings, authorize that runtime, or permit production
+expansion. Keep quarantined/unavailable integrations visible and require a
+reviewed compatible dependency path and the unchanged security gates before
+changing that status.
+
 Public artifacts contain finite reason codes, counts, hashes and relative
 contract names. Raw pytest diagnostics, if needed after failure, stay in an
 log outside the published evidence directory, with owner-only modes on POSIX.

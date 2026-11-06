@@ -24,7 +24,8 @@
     "origin_authenticated_by_json",
     "execution_authority",
     "limitations",
-    "manifest_sha256"
+    "manifest_sha256",
+    "dependency_security_clearance"
   ],
   "properties": {
     "schema_version": {
@@ -594,6 +595,9 @@
     "manifest_sha256": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$"
+    },
+    "dependency_security_clearance": {
+      "const": "not_established"
     }
   }
 }

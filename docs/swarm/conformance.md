@@ -15,7 +15,7 @@ entries, and never grants execution authority.
 | Owned Linux worker | Recorded Linux x86-64 kernel with required backend support | Original broker result from a fresh finite read worker; replay/epoch controls and raw parent bypass reported separately |
 | Windows host | Recorded Windows release-gate image | Actual unsupported-Linux-worker control plus reviews, mediation and validation; no whole-process or host confinement claim |
 | LangGraph | Exactly 1.2.20, prebuilt 1.1.1, langchain-core 1.7.6, Pydantic 2.12.5 | Dedicated installed framework workflow and immutable lock; not locally rerun by this collector |
-| CrewAI | Exactly 1.15.35/core 1.15.35, Pydantic 2.12.5 | Dedicated installed framework workflow and immutable lock; not locally rerun by this collector |
+| CrewAI | Historical pinned 1.15.35/core 1.15.35 tuple; unresolved dependency-security scope | Compatibility evidence is not security clearance or production support; retain an explicit unmeasured/quarantined entry when unavailable |
 | Legacy AutoGen | Archived AutoGen Core 0.7.5, Pydantic 2.12.5 | Legacy compatibility fixture only; no upstream maintenance or future-version guarantee |
 | Coordinator restart/epochs | This release's real mTLS protocol over owned SQLite development fixtures | Takeover, retained uncertain holds, stale epochs and authenticated host scopes; no PostgreSQL consensus claim |
 | PostgreSQL | Exact driver lock and owned-cluster gate at the same source commit | Separate coordinator workflow; not-evaluated in a local release collection until that actual gate runs |
@@ -27,6 +27,20 @@ The tested window ends at the recorded pinned tuple. Expanding it requires new
 immutable pins, the corresponding installed conformance gate, and a new release
 evidence manifest. An archived integration stays explicitly legacy even when
 its finite fixture passes. An unavailable integration stays unknown/unmeasured.
+
+The previously pinned CrewAI 1.15.35 runtime dependency set includes
+`chromadb==1.5.9`, which is affected by four open advisories:
+[GHSA-36p7-vc44-83pf](https://github.com/advisories/GHSA-36p7-vc44-83pf),
+[GHSA-xph7-9rjv-w5fr](https://github.com/advisories/GHSA-xph7-9rjv-w5fr),
+[GHSA-2wm9-hf6c-p5cr](https://github.com/advisories/GHSA-2wm9-hf6c-p5cr), and
+[GHSA-f4j7-r4q5-qw2c](https://github.com/advisories/GHSA-f4j7-r4q5-qw2c).
+The reviewed advisory records listed no patched version when checked on
+2026-11-06. A successful offline hook fixture does not resolve those findings.
+`crewai-core` alone is not a compatible replacement for the Agent/Task/tool-hook
+runtime. Do not remove required dependencies to manufacture a passing test,
+dismiss alerts, or waive the dependency-security gate. A disabled/quarantined
+adapter remains explicit in the inventory, and production use is not authorized
+by this release evidence.
 
 The collector references the existing
 [`swarm-frameworks` workflow](../../.github/workflows/swarm-frameworks.yml),
