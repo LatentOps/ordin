@@ -30,6 +30,7 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "swarm_release_manifest": "swarm-release-manifest.v1.schema.json",
     "swarm_approval_policy": "swarm-approval-policy.v1.schema.json",
     "swarm_approval": "swarm-approval.v1.schema.json",
     "swarm_recovery_request": "swarm-recovery-request.v1.schema.json",

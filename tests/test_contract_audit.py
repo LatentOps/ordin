@@ -462,6 +462,9 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
         "physical_enforcement": False,
         "execution_authority": False,
     }
+    from tests.swarm_release_contract_samples import manifest_sample
+
+    samples["swarm_release_manifest"] = manifest_sample()
     assert set(samples) == set(SCHEMA_FILES)
     for name, payload in samples.items():
         assert not validate_named_schema(name, payload), name
@@ -583,6 +586,7 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
+        "swarm_release_manifest",
         "swarm_approval_policy",
         "swarm_approval",
         "swarm_recovery_request",
