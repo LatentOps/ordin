@@ -13,8 +13,10 @@ extras and exact versions you intend to operate.
 Start with the [offline quickstart](quickstart.md), then read the
 [architecture](architecture.md), [trust model](threat-model.md),
 [coverage matrix](support-matrix.md) and [operator runbook](operator-runbook.md).
-The [framework guide](framework-adapters.md) records pinned LangGraph and CrewAI
-coverage and the separate legacy AutoGen compatibility boundary.
+The [framework guide](framework-adapters.md) records the pinned LangGraph window,
+CrewAI security quarantine and separate legacy AutoGen compatibility boundary.
+The [swarm acceptance evidence](../reports/swarm-safety-v1/epic-acceptance.md)
+maps the five engineering gates to all 23 deliveries, verification and limits.
 
 ## Adoption stages
 
