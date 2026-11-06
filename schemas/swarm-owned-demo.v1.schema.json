@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.latentops.dev/schemas/swarm-owned-demo.v1.schema.json",
+  "title": "Explicit owned Linux broker canary",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "execution_authority",
+        "status",
+        "trust_boundary",
+        "environment",
+        "execution_boundary",
+        "policy_digest",
+        "action_digest",
+        "verified_outcome_digest",
+        "payload_bytes",
+        "allowed_read_completed",
+        "mediated_out_of_scope_request",
+        "authorization_replay",
+        "stale_epoch_authorization",
+        "raw_host_bypass",
+        "budget_boundary",
+        "coordinator_exercised",
+        "physical_enforcement",
+        "whole_host_enforced"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "ordin.swarm_owned_demo.v1"
+        },
+        "execution_authority": {
+          "const": false,
+          "type": "boolean"
+        },
+        "status": {
+          "const": "completed"
+        },
+        "trust_boundary": {
+          "const": "owned_loopback_fixture_with_public_test_pki"
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "python",
+            "kernel",
+            "machine"
+          ],
+          "properties": {
+            "python": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "kernel": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "machine": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        },
+        "execution_boundary": {
+          "const": "fresh_owned_linux_read_worker"
+        },
+        "policy_digest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "action_digest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "verified_outcome_digest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "payload_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "allowed_read_completed": {
+          "const": true,
+          "type": "boolean"
+        },
+        "mediated_out_of_scope_request": {
+          "const": "denied_before_worker"
+        },
+        "authorization_replay": {
+          "const": "refused"
+        },
+        "stale_epoch_authorization": {
+          "const": "refused"
+        },
+        "raw_host_bypass": {
+          "enum": [
+            "uncovered_success",
+            "unknown"
+          ]
+        },
+        "budget_boundary": {
+          "const": "local_admission_accounting"
+        },
+        "coordinator_exercised": {
+          "const": false,
+          "type": "boolean"
+        },
+        "physical_enforcement": {
+          "const": true,
+          "type": "boolean"
+        },
+        "whole_host_enforced": {
+          "const": false,
+          "type": "boolean"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "execution_authority",
+        "status",
+        "reason_code",
+        "physical_enforcement"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "ordin.swarm_owned_demo.v1"
+        },
+        "execution_authority": {
+          "const": false,
+          "type": "boolean"
+        },
+        "status": {
+          "const": "unsupported"
+        },
+        "reason_code": {
+          "const": "owned_demo.linux_x86_64_required"
+        },
+        "physical_enforcement": {
+          "const": false,
+          "type": "boolean"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "execution_authority",
+        "status",
+        "reason_code",
+        "physical_enforcement"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "ordin.swarm_owned_demo.v1"
+        },
+        "execution_authority": {
+          "const": false,
+          "type": "boolean"
+        },
+        "status": {
+          "const": "failed"
+        },
+        "reason_code": {
+          "const": "owned_demo.fixture_failed"
+        },
+        "physical_enforcement": {
+          "const": null,
+          "type": "null"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,294 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fixture",
+    "label_provenance",
+    "environment",
+    "observe_only",
+    "shadow",
+    "mediated",
+    "execution_boundary",
+    "runtime_enforcement",
+    "physical_enforcement",
+    "uncovered_paths",
+    "runtime_network_guard",
+    "hosted_model_calls",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_quickstart.v1"
+    },
+    "fixture": {
+      "const": "offline_two_agent_v1"
+    },
+    "label_provenance": {
+      "const": "synthetic_fixture_definition"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "python",
+        "platform",
+        "machine"
+      ],
+      "properties": {
+        "python": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "platform": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "machine": {
+          "type": "string",
+          "maxLength": 128
+        }
+      }
+    },
+    "observe_only": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviews",
+        "callbacks_invoked",
+        "interception_active"
+      ],
+      "properties": {
+        "reviews": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "actor",
+              "case_id",
+              "disposition"
+            ],
+            "properties": {
+              "actor": {
+                "enum": [
+                  "planner",
+                  "worker"
+                ]
+              },
+              "case_id": {
+                "enum": [
+                  "benign",
+                  "unsafe"
+                ]
+              },
+              "disposition": {
+                "enum": [
+                  "execute",
+                  "escalate",
+                  "deny"
+                ]
+              }
+            }
+          }
+        },
+        "callbacks_invoked": {
+          "const": 0
+        },
+        "interception_active": {
+          "const": false
+        }
+      }
+    },
+    "shadow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviews",
+        "disposition_changes",
+        "execution_performed"
+      ],
+      "properties": {
+        "reviews": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "actor",
+              "case_id",
+              "disposition"
+            ],
+            "properties": {
+              "actor": {
+                "enum": [
+                  "planner",
+                  "worker"
+                ]
+              },
+              "case_id": {
+                "enum": [
+                  "benign",
+                  "unsafe"
+                ]
+              },
+              "disposition": {
+                "enum": [
+                  "execute",
+                  "escalate",
+                  "deny"
+                ]
+              }
+            }
+          }
+        },
+        "disposition_changes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "execution_performed": {
+          "const": false
+        }
+      }
+    },
+    "mediated": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "framework",
+        "versions",
+        "upstream_status",
+        "trust_boundary",
+        "allowed_read_completed",
+        "private_handoff_delivered",
+        "inherited_labels",
+        "source_flow_violated",
+        "egress_callbacks",
+        "child_callbacks",
+        "denied_reviews",
+        "post_tool_outcome_linked",
+        "physical_enforcement",
+        "observed_exfiltration",
+        "execution_authority"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "ordin.swarm_framework_fixture.v1"
+        },
+        "framework": {
+          "enum": [
+            "custom",
+            "langgraph",
+            "crewai",
+            "autogen"
+          ]
+        },
+        "versions": {
+          "type": "object",
+          "maxProperties": 3,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "upstream_status": {
+          "enum": [
+            "host_owned",
+            "maintained",
+            "archived"
+          ]
+        },
+        "trust_boundary": {
+          "const": "host_owned_synthetic_fixture"
+        },
+        "allowed_read_completed": {
+          "type": "boolean"
+        },
+        "private_handoff_delivered": {
+          "type": "boolean"
+        },
+        "inherited_labels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 32
+          },
+          "maxItems": 16,
+          "uniqueItems": true
+        },
+        "source_flow_violated": {
+          "type": "boolean"
+        },
+        "egress_callbacks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "child_callbacks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "denied_reviews": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4096
+        },
+        "post_tool_outcome_linked": {
+          "type": "boolean"
+        },
+        "physical_enforcement": {
+          "const": false
+        },
+        "observed_exfiltration": {
+          "const": "unknown"
+        },
+        "execution_authority": {
+          "const": false
+        }
+      }
+    },
+    "execution_boundary": {
+      "const": "host_owned_callback_fixture"
+    },
+    "runtime_enforcement": {
+      "const": "not_evaluated"
+    },
+    "physical_enforcement": {
+      "const": false
+    },
+    "uncovered_paths": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "direct_host_tools",
+          "raw_host_network",
+          "existing_credentials",
+          "unwrapped_processes"
+        ]
+      }
+    },
+    "runtime_network_guard": {
+      "const": "disabled_connections_in_explicit_fixture"
+    },
+    "hosted_model_calls": {
+      "const": 0
+    },
+    "execution_authority": {
+      "const": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.latentops.dev/schemas/swarm-quickstart.v1.schema.json",
+  "title": "Offline two-agent adoption fixture"
+}
