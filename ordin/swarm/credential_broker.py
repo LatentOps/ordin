@@ -281,6 +281,10 @@ class SwarmCredentialBroker:
             if type(route) is not CredentialRoute or route not in self._routes:
                 raise ValueError("unknown original credential route")
             self._routes[route].revoked = True
+            # Release the vault's retained reference. Already-started transport
+            # calls may still hold their private request; this is not a promise
+            # of Python memory erasure or upstream credential rotation.
+            self._routes[route].secret = b""
             for reference, selected in tuple(self._prepared.items()):
                 if selected.route is route:
                     self._prepared.pop(reference, None)

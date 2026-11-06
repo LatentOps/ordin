@@ -24,7 +24,7 @@ from tests.assurance.test_delegating_gate import action
 
 
 @contextmanager
-def second_scope(data, tmp_path, *, temporal_policy=None):
+def second_scope(data, tmp_path, *, temporal_policy=None, core=None):
     """Another independently authenticated host/issuer on the same DB authority."""
     from ordin import AgentGate, Ordin
     from ordin.assurance import AssuranceGate, DelegationIssuer, HostEvidenceSource
@@ -62,7 +62,7 @@ def second_scope(data, tmp_path, *, temporal_policy=None):
     auth = WorkloadAuthenticator(registry, tls, operator=operator, clock=clock)
     native = SwarmDelegationService(
         issuer,
-        AssuranceGate(AgentGate(Ordin(tool_semantics=SEMANTICS)), profile),
+        AssuranceGate(AgentGate(core or Ordin(tool_semantics=SEMANTICS)), profile),
         auth,
         operator=operator,
     )
@@ -477,3 +477,104 @@ def test_automatic_repeated_denials_require_current_original_temporal_facts(tmp_
         assert value._original(receipt).done.wait(5)
         report = value.status(receipt, operator=data["operator"])
         assert report["affected_agents"] == 1 and not report["resumed"]
+
+
+def test_group_resume_reconciles_every_member_before_clearing_tenant_barrier(tmp_path):
+    with configured(tmp_path / "first") as data, second_scope(data, tmp_path / "second") as other:
+        value, source = controller(data)
+        prepare(data)
+        prepare_other(data, other)
+        receipt = value.pause(signal(data, source, "tenant"), operator=data["operator"])
+        settled(value, receipt, data)
+        data["coordinator"].start(data["scope"], control=data["control"], takeover=True)
+        with pytest.raises(ValueError):
+            value.approve_resume(receipt, operator=data["operator"])
+        data["coordinator"].start(other["scope"], control=data["control"], takeover=True)
+        approval = value.approve_resume(receipt, operator=data["operator"])
+        assert value.resume(receipt, approval, operator=data["operator"])["resumed"]
+        with data["store"].transaction() as transaction:
+            states = [
+                transaction.scope(handle.scope_key) for handle in (data["scope"], other["scope"])
+            ]
+            assert all(
+                state["fences"][str(state["revocation_epoch"])]["reconciled"] for state in states
+            )
+            assert (
+                transaction.connection.execute("SELECT state FROM coordinator_barriers").fetchone()[
+                    0
+                ]
+                == "reconciled"
+            )
+
+
+def test_lost_fence_ack_never_leaves_cached_native_admission_open(tmp_path, monkeypatch):
+    from ordin.swarm.coordinator_store import CoordinatorUnavailable
+
+    with configured(tmp_path) as data:
+        value, source = controller(data)
+        proposed, _, _ = prepare(data)
+        original = data["store"].transaction
+
+        @contextmanager
+        def lost_ack():
+            with original() as transaction:
+                yield transaction
+            raise CoordinatorUnavailable("lost durable acknowledgement")
+
+        monkeypatch.setattr(data["store"], "transaction", lost_ack)
+        selected = signal(data, source)
+        with pytest.raises(CoordinatorUnavailable):
+            value.pause(selected, operator=data["operator"])
+        monkeypatch.setattr(data["store"], "transaction", original)
+        with pytest.raises(ValueError):
+            data["native"].review(data["channels"]["child"], data["references"]["child"], proposed)
+        with pytest.raises(ValueError, match="already used"):
+            value.pause(selected, operator=data["operator"])
+        with original() as transaction:
+            assert transaction.scope(data["scope"].scope_key)["revocation_epoch"] == 1
+
+
+def test_scoped_credential_route_is_revoked_without_exposing_private_bytes(tmp_path):
+    from ordin import Ordin
+    from ordin.assurance import RestSemantics
+    from ordin.runtime_contract import CredentialBinding
+    from ordin.swarm.credential_broker import SwarmCredentialBroker
+    from tests.test_swarm_delegation import GET
+
+    with (
+        configured(tmp_path / "first") as data,
+        second_scope(
+            data, tmp_path / "second", core=Ordin(rest_semantics=RestSemantics())
+        ) as other,
+    ):
+        secret = b"SYNTHETIC_INCIDENT_PRIVATE_CREDENTIAL"
+        vault = SwarmCredentialBroker(other["native"], operator=data["operator"])
+        route = vault.register(
+            binding=CredentialBinding("fixture-key", "fixture.invalid", 443),
+            action=GET,
+            credential=secret,
+            forward=lambda request: pytest.fail("revoked credential forwarded"),
+            operator=data["operator"],
+        )
+        signals = IncidentSignalSource(operator=data["operator"])
+        value = SwarmContainmentController(
+            data["coordinator"],
+            other["scope"],
+            control=data["control"],
+            operator=data["operator"],
+            policy=IncidentPolicy("credentials", 1),
+            signals=signals,
+            credentials=(
+                (vault, route, IncidentScope("agent", "tenant", "other-swarm", "parent")),
+            ),
+        )
+        selected_signal = signals.operator_signal(
+            IncidentScope("agent", "tenant", "other-swarm", "parent"),
+            severity="critical",
+            operator=data["operator"],
+        )
+        receipt = value.revoke(selected_signal, operator=data["operator"])
+        report = settled(value, receipt, data)
+        assert vault._routes[route].revoked
+        assert vault._routes[route].secret == b""
+        assert secret.decode() not in json.dumps(report) + json.dumps(vault.audit())
