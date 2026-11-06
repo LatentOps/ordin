@@ -17,7 +17,7 @@ from ordin.runtime_requests_v2 import RuntimeRequestContractV2
 def fixture():
     compiler = pytest.importorskip("ordin_openshell.compiler")
     from ordin_openshell.backend_cli import OpenShellCLI
-    from ordin_swarm.openshell_backend import SwarmOpenShellBackend
+    from ordin.swarm.openshell_backend import SwarmOpenShellBackend
 
     original = derive_runtime_capability_contract(
         Ordin().review_action(
