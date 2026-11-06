@@ -10,7 +10,10 @@ from typing import Any, Iterable
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_SCHEMA_DIR = ROOT / "schemas"
 PACKAGE_SCHEMA_DIR = Path(__file__).resolve().parent / "resources" / "schemas"
-SCHEMA_DIR = SOURCE_SCHEMA_DIR if SOURCE_SCHEMA_DIR.exists() else PACKAGE_SCHEMA_DIR
+# A sibling site-packages/schemas directory can belong to another distribution.
+# Runtime validation uses the resources owned by this Ordin package; source
+# schemas remain available for the checkout parity checks below.
+SCHEMA_DIR = PACKAGE_SCHEMA_DIR
 SOURCE_DATA_DIR = ROOT / "data"
 PACKAGE_DATA_DIR = Path(__file__).resolve().parent / "resources"
 DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
