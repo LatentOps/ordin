@@ -381,8 +381,8 @@ def test_initialization_lost_ack_can_recover_same_original_but_missing_history_c
     require_kernel()
     from ordin.swarm.coordinator_store import CoordinatorUnavailable
 
-    with configured(tmp_path, initialize=False) as data:
-        service, coordinator, scope, _, _, _, _, humans, _, native = data
+    with configured(tmp_path, decision="allow", initialize=False) as data:
+        service, coordinator, scope, channel, lease, grant, action, humans, _, native = data
         original = coordinator.store.transaction
 
         @contextmanager
@@ -396,6 +396,13 @@ def test_initialization_lost_ack_can_recover_same_original_but_missing_history_c
             service.initialize(operator=native[11])
         assert native[1]._governance is None
         monkeypatch.setattr(coordinator.store, "transaction", original)
+        with pytest.raises(ValueError, match="not acknowledged"):
+            native[1].review(channel, grant, action)
+        assert (
+            not native[0]
+            .prepare(channel, grant, action, idempotency_key="unacknowledged")
+            .may_execute
+        )
         service.initialize(operator=native[11], recover=True)
         assert native[1]._governance is service
         with original() as current:

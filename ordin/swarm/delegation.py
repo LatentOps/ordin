@@ -747,6 +747,11 @@ class SwarmDelegationService:
         if type(action) is not ActionEnvelope or type(credential_uses) is not tuple:
             raise ValueError("typed exact action and protected credential receipts required")
         with self._policy_barrier(), self._lock, self.issuer._lock:
+            if (
+                self.assurance.baseline_gate.approval_source is not None
+                and self._governance is None
+            ):
+                raise ValueError("configured human governance installation is not acknowledged")
             row, subject = self._grant(channel, reference)
             self._expire_admissions()
             if len(self._admissions) >= self._limit:
@@ -871,6 +876,11 @@ class SwarmDelegationService:
             raise ValueError("exact action and protected broker forwarder required")
         with self._policy_barrier(), self._lock, self.issuer._lock, ExitStack() as policy_guard:
             self._online()
+            if (
+                self.assurance.baseline_gate.approval_source is not None
+                and self._governance is None
+            ):
+                raise ValueError("configured human governance installation is not acknowledged")
             broker = self.authenticator.require(broker_channel, role="broker")
             admission = self._admissions.get(admission_id)
             if admission is None or admission.state != "pending":

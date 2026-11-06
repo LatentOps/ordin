@@ -37,6 +37,9 @@ factory_proofs={host_id: original_broker_activation_proof})`, then explicitly
 call `initialize(operator=installation_capability)`. Governance uses the same
 durable coordinator authority and clock. A configured native service accepts
 governed dispatch only through its original owned broker preparation.
+Configuring the approval source arms native admission immediately: an
+unacknowledged or partially bound installation cannot fall back to ordinary
+`allow` admission. Explicit installation recovery must complete the binding.
 
 ## Approve an exact proposal
 
