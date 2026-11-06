@@ -1,0 +1,209 @@
+# Optional behavioral risk signals
+
+`SwarmRiskScorer` is disabled by default. Disabled submission returns `None`
+before collecting inputs, hashing text, calling a provider, starting a worker or
+reserving cost. Importing Ordin or `ordin_swarm.semantic_signals` starts nothing.
+There are no required model dependencies, network clients or implicit downloads.
+
+This is an optional inference input. It cannot establish identity, approval,
+completion, verified effects, causal counterexamples or execution permission.
+Deterministic core blocks, mandatory escalation, unknown required checks and
+revoked delegation remain stronger. A risk receipt cannot replace a host event,
+observation, `SwarmAssessment`, delegation grant or broker admission.
+
+## Explicit collection and shadow scoring
+
+The protected integration owner selects bounded `SwarmRiskInput` values. Input
+kinds distinguish private instructions, untrusted messages, tool output, shared
+plans and retries; all remain behavioral input, never host-authenticated facts.
+Do not expose the scorer's configuration or collector to model tools.
+
+```python
+from ordin.swarm.risk_signals import SwarmRiskInput, SwarmRiskScorer
+
+operator = object()  # retained by the protected integration owner
+scorer = SwarmRiskScorer(enabled=True, operator=operator)
+ticket = scorer.submit(
+    original_context,
+    original_action,
+    (SwarmRiskInput("tool_output", captured_tool_output),),
+)
+receipt = scorer.poll(ticket)  # None while shadow work is pending
+```
+
+Default provider input contains fixed feature names and opaque evidence pointers,
+with no prompt or payload text. Pointers use a private per-scorer/context HMAC key; the
+provider cannot use a public plain-content hash as a prompt guessing oracle.
+The context carries no workload identity, host evidence or review authority.
+The caller retains ownership of its original input; Ordin retains bounded
+features and inference receipts.
+Providers receive detached context and budget values. Mutating those values
+cannot rewrite the retained evidence pointers, deadline or full cost reservation.
+
+`include_redacted_excerpt=True` is a separate explicit opt-in. It passes at most
+256 normalized characters per input after bounded token/email redaction. This
+can still contain private text: context output marks `raw_payload_included: true`
+and `residual_privacy_risk: bounded_excerpt_may_contain_private_text`. Redaction
+does not establish that an excerpt is safe to disclose. A user-configured
+semantic provider receives this bounded context only when explicitly configured.
+
+Inputs are limited to 16 items, 16 KiB each and 64 KiB together. The local provider
+uses six fixed bounded patterns. Operators cannot install regex policy programs,
+Python snippets, remote includes or provider discovery strings.
+
+## Provider and resource boundary
+
+An optional user-configured object implements
+`score(context: SwarmRiskContext, budget: SwarmRiskBudget)`. Output is the exact
+`ordin.swarm_risk_signal.v1` shape: class, original context evidence pointers,
+finite confidence and uncertainty, reported cost and the unchanged time/cost
+budget. Positive classes need at least one original pointer. Extra approval,
+identity, permit, effect or counterexample fields are rejected. Output never
+contains free-form model explanations.
+
+The class vocabulary covers prompt injection, policy persuasion, task redirection,
+collusive coordination, evasive retries and coordinated plan changes, plus
+`none` and `unknown`. A class is a hypothesis; it does not prove intent or an
+observed effect. The local rules' numerical confidence is not a general calibrated
+probability.
+
+The scorer admits at most 1–8 daemon workers and a finite job history. Each job
+has a 1–1000 ms classifier deadline. Polling waits at most the requested bounded
+time and original remaining deadline. A timed-out job produces no signal; its
+worker slot remains occupied until the provider actually exits. Late output
+cannot replace the timeout receipt or retroactively change a decision. A hung
+in-process provider is not forcibly killed; saturated capacity fails without
+starting more workers. A separate process/container boundary is needed to
+contain arbitrary user-supplied provider code physically.
+
+The protected caller reserves the entire cost budget before starting a job.
+Model-reported low cost never refunds that reservation. This is conservative
+admission accounting, **not physical provider-billing enforcement**. Unknown or
+uncapped remote billing needs a provider-side bound outside this optional plugin.
+
+## Operator-controlled promotion
+
+Without promotion, scoring is shadow-only and gate disposition stays unchanged.
+A pure `SwarmGate` review never invokes a classifier or waits for one:
+
+```python
+gate = SwarmGate(registry, risk_scorer=scorer)
+decision = gate.evaluate_action(
+    original_context, original_action,
+    channel=original_channel, adapter=original_adapter,
+    risk_receipt=receipt,
+)
+```
+
+Promotion requires `configure_promotion(policy, original_report, operator=operator)`
+with an original same-scorer/current-configuration calibration report. Calibration
+must include explicit positive and benign cases; incomplete or failed runs cannot
+enable promotion. The operator can require a maximum observed false-positive
+rate. JSON or copied reports cannot approve configuration.
+
+`SwarmRiskPromotionPolicy` can select only `escalate` or `deny`, confidence and
+uncertainty thresholds, and explicit `on_missing=ignore|escalate|deny`. The default
+missing/failure behavior preserves the core result. Even a scored `none` or
+forged `approved` cannot turn a mandatory unknown, escalation or block into
+execution. Promotion changes fence existing scorer bindings and old receipts.
+An explicit `unknown`, or a selected positive prediction outside the configured
+confidence/uncertainty thresholds, follows the missing-result policy. A required
+inconclusive inference cannot borrow an original core human approval. Promotion
+policy values are copied before retention; changing the caller's policy object
+does not change the configured restriction.
+Receipts are original-object, action/context/configuration bound and expire after
+30 seconds on the protected scorer clock. JSON and copied receipts are inference
+data only. A decision receipt remains a review result, never an execution permit.
+Every new capture for the same action/context invalidates its previous receipt,
+including a new timeout or exhausted-budget capture. Cached benign inference
+cannot silently stand in for newly captured suspicious input. Traffic that the
+protected collector never captures remains outside this guarantee.
+If the job history is full, a rejected capture also invalidates the previous
+receipt for that action/context without allocating another job or worker.
+
+Provider identifiers are host-declared labels. Arbitrary external provider code,
+weights, network behavior and billing are not attested by this optional module.
+
+The original operator can call `disable_promotion(operator=operator)` without a
+new calibration run, including during provider failure or exhausted capacity.
+This fences old risk bindings without resetting workers or reserved cost.
+
+## Independent synthetic calibration
+
+The two public calibration inputs use the registered
+`ordin.swarm_risk_corpus.v1` contract. It bounds the closed case records and case
+count; calibration also checks distinct case IDs, mixed positive and benign
+labels, and the 16 KiB UTF-8 input limit. The offline evaluation CLI also caps
+the entire encoded corpus file at 64 KiB. These explicit synthetic labels confer
+no execution, approval or host-evidence authority.
+
+Run the explicit offline evaluation from the repository root:
+
+```text
+python -m examples.swarm.evaluate_risk_signals --corpus examples/swarm/risk-calibration-corpus.json --output risk-calibration.json
+```
+
+The checked-in [corpus](../../examples/swarm/risk-calibration-corpus.json) and
+[report](../../examples/swarm/risk-calibration-report.json) cover 16 synthetic cases.
+The local rules found six positives, missed two indirect instructions, correctly
+left six benign cases unflagged and incorrectly flagged two quoted examples.
+Observed false-positive and false-negative rates are both **25%**; confidence
+Brier score is **0.23**, mean uncertainty **0.45**. The Windows/Python 3.13.12
+sample mean worker elapsed time was about **8.38 ms**, maximum **51.30 ms**. The
+complete calibration method took **209.77 ms**, with a 1000 ms per-case budget.
+Worker timing includes scheduling and classifier validation; method timing also
+includes validation and input collection. Neither measures a real model/network.
+
+The independent review also added a separate [16-case review set](../../examples/swarm/risk-review-holdout-corpus.json)
+without changing the six detection patterns. Its [report](../../examples/swarm/risk-review-holdout-report.json)
+has **37.5% false positives**, **25% false negatives** and Brier score
+**0.236875**. Worker mean/maximum were **1.45/3.77 ms**, and the method took
+**53.47 ms**. Quoted instructions and ordinary authorized planning still trigger
+false alarms; indirect instructions remain missed. These declared synthetic
+labels do not establish an independent production ground truth or training-data
+separation. The added set demonstrates limitations rather than improving claims.
+These Windows samples are descriptive local measurements, not Linux latency
+acceptance results. The previous [original-set Linux artifact](../../examples/swarm/risk-calibration-report-linux-f054dd0.json)
+and [review-set Linux artifact](../../examples/swarm/risk-review-holdout-report-linux-f054dd0.json)
+are retained as historical measurements of their recorded source-file hash.
+
+These are deliberately small synthetic measurements, independent of authorization
+tests. They establish neither production accuracy nor general prompt-injection
+prevention. Exact class confusion, failures, dataset digest, provider binding,
+platform and timing are retained in the artifact; no customer prompts are used.
+The report does not enable promotion. An original report from a different scorer
+process cannot approve a live scorer.
+Calibration uses a separate synthetic action identity and does not replace the
+latest evidence on a live action. Its `dataset_digest` is a private per-scorer
+HMAC, rather than a public hash of raw case text; repeated datasets across scorer
+instances cannot be linked through that field. The explicit offline artifact may
+identify its published synthetic corpus separately.
+
+The artifact identifies the evaluator's packaged source-file hash and explicit
+synthetic corpus-file hash. Those identify this local experiment, not arbitrary
+provider code, weights, remote services or human review. Worker elapsed time and
+complete calibration-method wall time are separate metrics. Neither includes
+external model/network latency in these local-rule fixtures.
+
+Context, signal, receipt and calibration schemas have source/package parity.
+`as_dict()`, `binding_digest`, decision `risk_receipt_digest` and `status()` are
+redacted audit/evaluation integration hooks. Durable audit/evaluation consumers
+must preserve `evidence_class: behavioral_inference` and the separate performance
+and accuracy metrics. The explicit operator diagnostic bridge and optional corpus
+controls preserve those distinctions. Unmediated execution paths remain outside
+this optional review.
+
+## Explicit diagnostic recording
+
+With the final operator audit API installed, a protected host may call
+`scorer.record_diagnostic(receipt, context, action, source=original_audit_source,
+channel=original_registry_channel, adapter=original_adapter,
+operator=installation_capability, severity="high")`. It verifies the original
+current receipt and actual task-scoped registry context, then queues a
+`risk_signal` with `diagnostic` provenance through `record_risk`. It performs no
+collection or scoring and never records a host observation or completion.
+`source.flush` and an explicit checkpoint are required when the caller needs
+durable diagnostic acknowledgement. A disabled scorer touches no scope or sink.
+The dependency direction is risk-to-audit; the audit API does not import this
+optional plugin. The #276 corpus keeps its complete case inventory and reports
+optional risk cases separately from deterministic authorization and performance.

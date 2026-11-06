@@ -54,6 +54,12 @@ from .broker import SwarmExecutionBroker, LinuxFileReadBackend
 from .attach import HostSessionEndpoint, RunningSessionIdentity, SwarmAttachManager
 from .coverage import AttachCoverage
 from .policy import SwarmPolicyRuntime, SwarmPolicySet, SwarmPolicyMaximum, compile_swarm_policy_set
+from .semantic_signals import (
+    SwarmRiskScorer,
+    SwarmRiskSignalProvider,
+    SwarmRiskInput,
+    SwarmRiskPromotionPolicy,
+)
 from .budget_store import (
     BudgetLedger,
     BudgetPolicy,
@@ -124,6 +130,10 @@ __all__ = [
     "SQLiteCoordinatorStore",
     "SwarmExecutionBroker",
     "LinuxFileReadBackend",
+    "SwarmRiskScorer",
+    "SwarmRiskSignalProvider",
+    "SwarmRiskInput",
+    "SwarmRiskPromotionPolicy",
     "SwarmPolicyRuntime",
     "SwarmPolicySet",
     "SwarmPolicyMaximum",

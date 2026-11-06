@@ -1,0 +1,113 @@
+{
+  "report": {
+    "schema_version": "ordin.swarm_risk_calibration.v1",
+    "report_id": "adfd3c5c6eba4c5097cddc7f9d3339c0",
+    "provider_binding": "b07b1ac7e25432faf29d8bf1999f8796cd8c9d2442186b4620c070d028e7b323",
+    "dataset_digest": "f724d5e39bb6e79e68c1974b42873a0a8685d2e764f06a2897afe870de9802ab",
+    "dataset_digest_kind": "private_scorer_hmac",
+    "cases": 16,
+    "true_positive": 6,
+    "false_positive": 3,
+    "true_negative": 5,
+    "false_negative": 2,
+    "exact_class_matches": 11,
+    "failures": 0,
+    "false_positive_rate": 0.375,
+    "false_negative_rate": 0.25,
+    "mean_elapsed_ms": 0.9275195000011394,
+    "maximum_elapsed_ms": 1.6553020000031893,
+    "confidence_brier_score": 0.236875,
+    "mean_uncertainty": 0.44375000000000003,
+    "class_confusion": [
+      {
+        "expected": "collusive_coordination",
+        "predicted": "collusive_coordination",
+        "count": 1
+      },
+      {
+        "expected": "collusive_coordination",
+        "predicted": "none",
+        "count": 1
+      },
+      {
+        "expected": "coordinated_plan_change",
+        "predicted": "coordinated_plan_change",
+        "count": 1
+      },
+      {
+        "expected": "evasive_retry",
+        "predicted": "evasive_retry",
+        "count": 1
+      },
+      {
+        "expected": "none",
+        "predicted": "coordinated_plan_change",
+        "count": 1
+      },
+      {
+        "expected": "none",
+        "predicted": "none",
+        "count": 5
+      },
+      {
+        "expected": "none",
+        "predicted": "policy_persuasion",
+        "count": 1
+      },
+      {
+        "expected": "none",
+        "predicted": "prompt_injection",
+        "count": 1
+      },
+      {
+        "expected": "policy_persuasion",
+        "predicted": "policy_persuasion",
+        "count": 1
+      },
+      {
+        "expected": "prompt_injection",
+        "predicted": "none",
+        "count": 1
+      },
+      {
+        "expected": "prompt_injection",
+        "predicted": "prompt_injection",
+        "count": 1
+      },
+      {
+        "expected": "task_redirection",
+        "predicted": "task_redirection",
+        "count": 1
+      }
+    ],
+    "confidence_calibration": "measured_on_declared_synthetic_corpus_only",
+    "data_scope": "caller_declared_synthetic_calibration",
+    "authorization_tests_included": false,
+    "general_prompt_injection_prevention": "not_established",
+    "execution_authority": false
+  },
+  "provider_id": "local-fixed-rules-v1",
+  "python": "3.12.3",
+  "platform": "Linux",
+  "authorization_suite_included": false,
+  "promotion_configured": false,
+  "performance": {
+    "calibration_method_wall_ms": 31.587772,
+    "per_case_method_wall_ms": 1.97423575,
+    "scope": "validation_capture_worker_scheduling_and_reporting",
+    "file_read_provider_setup_and_network_included": false,
+    "active_workers_after": 0,
+    "reserved_cost_micros": 0,
+    "physical_provider_billing_enforced": false
+  },
+  "provenance": {
+    "provider_scope": "packaged_local_rules_only",
+    "source_module": "ordin.swarm.risk_signals",
+    "source_file_sha256": "071737233f283ddeec0d9f979ce8c905230bf4fba9df80a44d83e3650fb0dfb5",
+    "explicit_synthetic_corpus_file_sha256": "2aeb66c01f2c5f7a50ad253bd6819e3f4968fda1a2d642ef0ba0af6662a8e7c6",
+    "runtime_dataset_digest": "private_scorer_hmac",
+    "calibration_relationship": "caller_declared_synthetic_held_out_cases_not_training_attestation",
+    "binary_score_rule": "confidence_for_positive_class_else_one_minus_confidence",
+    "external_models_or_provider_billing": "not_exercised"
+  }
+}

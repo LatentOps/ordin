@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-risk-corpus.v1.schema.json",
+  "type": "object",
+  "description": "Explicit public synthetic calibration cases. Runtime calibration also checks UTF-8 byte bounds, distinct case IDs and mixed positive/benign labels; this data grants no authority.",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_risk_corpus.v1"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "kind",
+          "text",
+          "expected_class"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "kind": {
+            "enum": [
+              "private_instruction",
+              "untrusted_message",
+              "tool_output",
+              "shared_plan",
+              "retry"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 16384
+          },
+          "expected_class": {
+            "enum": [
+              "none",
+              "prompt_injection",
+              "policy_persuasion",
+              "task_redirection",
+              "collusive_coordination",
+              "evasive_retry",
+              "coordinated_plan_change"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

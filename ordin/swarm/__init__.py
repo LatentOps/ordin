@@ -45,6 +45,22 @@ from .ingest import ActionEventState, HostEventSource, IngestReceipt, SwarmEvent
 from .journal import EventJournal, JournalRecord
 from .gate import SwarmDecision, SwarmGate
 from .policy import SwarmPolicy, SwarmRule
+from .risk_signals import (
+    LocalSwarmRiskRules,
+    SwarmRiskBudget,
+    SwarmRiskCalibrationCase,
+    SwarmRiskCalibrationReport,
+    SwarmRiskContext,
+    SwarmRiskEvidencePointer,
+    SwarmRiskInput,
+    SwarmRiskPromotionPolicy,
+    SwarmRiskReceipt,
+    SwarmRiskScorer,
+    SwarmRiskSignal,
+    SwarmRiskSignalProvider,
+    SwarmRiskTicket,
+    build_swarm_risk_context,
+)
 from .facts import SwarmAssessment, SwarmAssessmentSource
 from .budgets import (
     BudgetCost,
@@ -254,6 +270,20 @@ __all__ = [
     "BrokerResult",
     "LinuxFileReadBackend",
     "ExecutorOutcome",
+    "LocalSwarmRiskRules",
+    "SwarmRiskBudget",
+    "SwarmRiskCalibrationCase",
+    "SwarmRiskCalibrationReport",
+    "SwarmRiskContext",
+    "SwarmRiskEvidencePointer",
+    "SwarmRiskInput",
+    "SwarmRiskPromotionPolicy",
+    "SwarmRiskReceipt",
+    "SwarmRiskScorer",
+    "SwarmRiskSignal",
+    "SwarmRiskSignalProvider",
+    "SwarmRiskTicket",
+    "build_swarm_risk_context",
     "SwarmBudgetCondition",
     "SwarmBudgetConstraint",
     "SwarmPolicyPermissions",
