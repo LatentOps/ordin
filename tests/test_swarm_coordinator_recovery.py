@@ -207,3 +207,169 @@ def test_projection_lag_denies_until_checkpoint_and_contains_no_raw_action(tmp_p
         prepare(data, request="safe")
         raw = data["store"].path.read_bytes()
         assert b"approval" not in raw and b"read_file" not in raw
+
+
+def test_resume_requires_original_receipts_new_fence_and_fresh_native_grants(tmp_path):
+    with configured(tmp_path) as data:
+        coordinator, scope = data["coordinator"], data["scope"]
+        _, _, reserved = prepare(data)
+        target = digest(["tenant", "swarm", "child"])
+        fence = coordinator.record_fence(
+            scope, control=data["control"], kind="agent", subject_digest=target
+        )
+
+        class Controller:
+            original = object()
+
+            def verify_resume_receipt(self, receipt, **bindings):
+                # This nested read proves the verifier runs outside the DB lock.
+                coordinator.status(scope, control=data["control"])
+                return (
+                    receipt is self.original
+                    and bindings["revocation_epoch"] == fence.revocation_epoch
+                )
+
+        controller = Controller()
+        coordinator.bind_recovery_verifier(scope, controller, control=data["control"])
+        with pytest.raises(CoordinatorRejected, match="fresh_policy_or_owner"):
+            coordinator.reconcile_fence(scope, fence, controller.original, control=data["control"])
+        coordinator.start(scope, control=data["control"], takeover=True)
+        with pytest.raises(CoordinatorRejected, match="original_recovery"):
+            coordinator.reconcile_fence(
+                scope, replace(fence), controller.original, control=data["control"]
+            )
+        result = coordinator.reconcile_fence(
+            scope, fence, controller.original, control=data["control"]
+        )
+        assert result.status == "fresh_admission_required"
+        lease = coordinator.admit(scope, data["channels"]["child"])
+        with pytest.raises(CoordinatorRejected, match="revoked"):
+            coordinator.bind_grant(
+                scope, data["channels"]["child"], lease.reference, data["references"]["child"]
+            )
+        with data["store"].transaction() as transaction:
+            state = transaction.scope(scope.scope_key)
+            assert state["reservations"][reserved.reference]["status"] == "canceled"
+            assert (
+                transaction.connection.execute("SELECT held FROM coordinator_buckets").fetchone()[0]
+                == 0
+            )
+
+
+def test_epoch_change_during_backend_reconciliation_cannot_resume(tmp_path):
+    with configured(tmp_path) as data:
+        coordinator, scope, control = data["coordinator"], data["scope"], data["control"]
+        fence = coordinator.record_fence(scope, control=control, kind="swarm")
+        coordinator.start(scope, control=control, takeover=True)
+
+        class Controller:
+            def verify_resume_receipt(self, receipt, **bindings):
+                coordinator.record_fence(scope, control=control, kind="swarm")
+                return True
+
+        coordinator.bind_recovery_verifier(scope, Controller(), control=control)
+        with pytest.raises(CoordinatorRejected, match="intent_changed"):
+            coordinator.reconcile_fence(scope, fence, object(), control=control)
+        with pytest.raises(CoordinatorRejected, match="contained"):
+            coordinator.admit(scope, data["channels"]["child"])
+
+
+@pytest.mark.parametrize("table", ["coordinator_outbox", "coordinator_checkpoints"])
+def test_missing_initialized_history_never_becomes_empty_allow_state(tmp_path, table):
+    with configured(tmp_path) as data:
+        coordinator, scope = data["coordinator"], data["scope"]
+        coordinator.checkpoint(scope, control=data["control"])
+        with data["store"].transaction() as transaction:
+            transaction.connection.execute(
+                "DELETE FROM " + table + " WHERE scope_key=?", (scope.scope_key,)
+            )
+        with pytest.raises(CoordinatorUnavailable):
+            prepare(data)
+        assert coordinator.status(scope, control=data["control"])["execution_authority"] is False
+
+
+def test_event_action_identity_and_review_context_are_exact(tmp_path):
+    with configured(tmp_path) as data:
+        review = replace(
+            event(data, "review", 1), event_kind="reviewed", action_id="run", action_digest="a" * 64
+        )
+        ingest(data, review)
+        with pytest.raises(CoordinatorRejected, match="identity_digest"):
+            ingest(
+                data,
+                replace(
+                    event(data, "changed", 2),
+                    event_kind="proposed",
+                    action_id="run",
+                    action_digest="b" * 64,
+                ),
+            )
+        reference = (EventRef("tenant", "swarm", "review"),)
+        with pytest.raises(CoordinatorRejected, match="review_anchor"):
+            ingest(
+                data,
+                replace(
+                    event(data, "wrong-action", 2),
+                    event_kind="completed",
+                    action_id="different",
+                    action_digest="a" * 64,
+                    review_event_id="review",
+                    parent_event_ids=reference,
+                ),
+            )
+        with pytest.raises(CoordinatorRejected, match="backend_receipt"):
+            ingest(
+                data,
+                replace(
+                    event(data, "observation", 2),
+                    event_kind="observed",
+                    action_id="run",
+                    action_digest="a" * 64,
+                    review_event_id="review",
+                    parent_event_ids=reference,
+                ),
+            )
+
+
+@pytest.mark.parametrize("fault", ["state", "missing"])
+def test_corrupt_barrier_state_cannot_silently_clear_containment(tmp_path, fault):
+    with configured(tmp_path) as data:
+        coordinator, scope = data["coordinator"], data["scope"]
+        coordinator.record_fence(scope, control=data["control"], kind="swarm")
+        with data["store"].transaction() as transaction:
+            if fault == "state":
+                transaction.connection.execute("UPDATE coordinator_barriers SET state='reconciled'")
+            else:
+                transaction.connection.execute("DELETE FROM coordinator_barriers")
+        with pytest.raises(CoordinatorUnavailable):
+            coordinator.admit(scope, data["channels"]["child"])
+
+
+def test_unknown_inflight_effect_cannot_resume_from_operator_boolean_or_json(tmp_path):
+    with configured(tmp_path) as data:
+        coordinator, scope, control = data["coordinator"], data["scope"], data["control"]
+        _, _, reserved = prepare(data)
+        coordinator.begin_forward(scope, data["channels"]["broker-b"], reserved.reference)
+        fence = coordinator.record_fence(scope, control=control, kind="swarm")
+        coordinator.start(scope, control=control, takeover=True)
+
+        class Controller:
+            called = False
+
+            def verify_resume_receipt(self, receipt, **bindings):
+                self.called = True
+                return True
+
+        controller = Controller()
+        coordinator.bind_recovery_verifier(scope, controller, control=control)
+        with pytest.raises(CoordinatorRejected, match="incident_outcomes_unresolved"):
+            coordinator.reconcile_fence(scope, fence, object(), control=control)
+        assert not controller.called
+        with pytest.raises(CoordinatorRejected):
+            coordinator.reconcile_broker_outcome(
+                scope,
+                reserved.reference,
+                {"status": "completed"},
+                control=control,
+                revocation_epoch=fence.revocation_epoch,
+            )

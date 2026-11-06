@@ -315,7 +315,14 @@ class SwarmPolicyRuntime:
             raise ValueError("coordinator budget must share original runtime and registry")
         with self._execution_barrier, self._lock:
             if self._coordinator_budget is not None and self._coordinator_budget is not view:
-                raise ValueError("coordinator budget accounting cannot be replaced")
+                old = self._coordinator_budget
+                if (
+                    old._coordinator.store.identity != view._coordinator.store.identity
+                    or old._handle.scope_key != view._handle.scope_key
+                ):
+                    raise ValueError("coordinator budget accounting cannot be reset or replaced")
+                self.facts_source.fence()
+                self._source_generation += 1
             self._coordinator_budget = view
 
     def _delegation_binding(self) -> str | None:

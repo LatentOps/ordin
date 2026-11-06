@@ -14,3 +14,6 @@ postgres = ["psycopg[binary]>=3.3.8,<4"]
 
 [tool.setuptools]
 packages = ["ordin_swarm"]
+
+[tool.setuptools.package-data]
+ordin_swarm = ["migrations/*.sql", "migrations/*.md"]

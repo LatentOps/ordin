@@ -18,7 +18,25 @@ def main() -> int:
     pg_config = shutil.which("pg_config")
     if sys.platform != "linux" or pg_config is None:
         raise SystemExit("owned PostgreSQL fixture requires Linux and pg_config")
-    directory = Path(subprocess.check_output([pg_config, "--bindir"], text=True).strip())
+    directory = Path(
+        os.environ.get("ORDIN_POSTGRES_BINDIR")
+        or subprocess.check_output([pg_config, "--bindir"], text=True).strip()
+    )
+    # libpq development headers may advertise a version whose server binaries
+    # are not installed. Discover installed server directories without touching
+    # any running cluster or system service.
+    if not all((directory / tool).is_file() for tool in ("initdb", "pg_ctl")):
+        candidates = sorted(Path("/usr/lib/postgresql").glob("*/bin"), reverse=True)
+        directory = next(
+            (
+                path
+                for path in candidates
+                if all((path / tool).is_file() for tool in ("initdb", "pg_ctl"))
+            ),
+            directory,
+        )
+    if not all((directory / tool).is_file() for tool in ("initdb", "pg_ctl")):
+        raise SystemExit("installed PostgreSQL initdb and pg_ctl are required")
     root = Path(__file__).resolve().parents[1]
     with tempfile.TemporaryDirectory(prefix="ordin-coordinator-pg-") as name:
         fixture = Path(name)
@@ -36,13 +54,17 @@ def main() -> int:
             os.chown(sockets, owner.pw_uid, owner.pw_gid)
 
         def run(arguments):
-            subprocess.run(
-                [*commands, *map(str, arguments)],
-                check=True,
-                timeout=60,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-            )
+            try:
+                subprocess.run(
+                    [*commands, *map(str, arguments)],
+                    check=True,
+                    timeout=60,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                )
+            except subprocess.CalledProcessError as error:
+                print(error.stdout.decode("utf-8", errors="replace"), file=sys.stderr)
+                raise
 
         run(
             [

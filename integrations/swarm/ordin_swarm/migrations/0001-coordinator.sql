@@ -1,0 +1,11 @@
+-- Ordin optional coordinator initial schema v1
+-- Manifest: fc0618acf0a66bd3b266e28bcf351ec125a9f45c4e5e76f5096d320c12d075f0
+-- Reference only. Protected store constructors initialize root identity atomically.
+CREATE TABLE coordinator_meta (singleton INTEGER PRIMARY KEY CHECK(singleton=1), version INTEGER NOT NULL, manifest TEXT NOT NULL, database_id TEXT NOT NULL, last_now DOUBLE PRECISION NOT NULL, scopes_json TEXT NOT NULL, checksum TEXT NOT NULL);
+CREATE TABLE coordinator_scopes (scope_key TEXT PRIMARY KEY, state_json TEXT NOT NULL, state_digest TEXT NOT NULL);
+CREATE TABLE coordinator_barriers (realm_key TEXT PRIMARY KEY, epoch BIGINT NOT NULL CHECK(epoch>0), state TEXT NOT NULL, intent_digest TEXT NOT NULL, checksum TEXT NOT NULL);
+CREATE TABLE coordinator_buckets (bucket TEXT PRIMARY KEY, tenant_digest TEXT NOT NULL, metric TEXT NOT NULL, maximum BIGINT NOT NULL CHECK(maximum>=0), held BIGINT NOT NULL CHECK(held>=0), consumed BIGINT NOT NULL CHECK(consumed>=0), observed BIGINT NOT NULL CHECK(observed>=0), blocked_epoch BIGINT NOT NULL, checksum TEXT NOT NULL);
+CREATE TABLE coordinator_items (scope_key TEXT NOT NULL REFERENCES coordinator_scopes(scope_key), reservation_id TEXT NOT NULL, bucket TEXT NOT NULL REFERENCES coordinator_buckets(bucket), metric TEXT NOT NULL, amount BIGINT NOT NULL CHECK(amount>=0), PRIMARY KEY(scope_key,reservation_id,bucket));
+CREATE TABLE coordinator_requests (scope_key TEXT NOT NULL REFERENCES coordinator_scopes(scope_key), operation TEXT NOT NULL, idempotency_key TEXT NOT NULL, request_digest TEXT NOT NULL, result_json TEXT NOT NULL, PRIMARY KEY(scope_key,operation,idempotency_key));
+CREATE TABLE coordinator_outbox (scope_key TEXT NOT NULL REFERENCES coordinator_scopes(scope_key), sequence BIGINT NOT NULL CHECK(sequence>0), event_id TEXT NOT NULL, record_json TEXT NOT NULL, record_digest TEXT NOT NULL, acknowledged INTEGER NOT NULL CHECK(acknowledged IN (0,1)), PRIMARY KEY(scope_key,sequence), UNIQUE(scope_key,event_id));
+CREATE TABLE coordinator_checkpoints (scope_key TEXT NOT NULL REFERENCES coordinator_scopes(scope_key), sequence BIGINT NOT NULL CHECK(sequence>=0), state_json TEXT NOT NULL, state_digest TEXT NOT NULL, PRIMARY KEY(scope_key,sequence));

@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 import importlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -35,7 +36,7 @@ MAX_RESULT_BYTES = 65536
 TABLES = (
     "CREATE TABLE coordinator_meta (singleton INTEGER PRIMARY KEY CHECK(singleton=1), version INTEGER NOT NULL, manifest TEXT NOT NULL, database_id TEXT NOT NULL, last_now DOUBLE PRECISION NOT NULL, scopes_json TEXT NOT NULL, checksum TEXT NOT NULL)",
     "CREATE TABLE coordinator_scopes (scope_key TEXT PRIMARY KEY, state_json TEXT NOT NULL, state_digest TEXT NOT NULL)",
-    "CREATE TABLE coordinator_barriers (realm_key TEXT PRIMARY KEY, epoch BIGINT NOT NULL CHECK(epoch>0), state TEXT NOT NULL, intent_digest TEXT NOT NULL)",
+    "CREATE TABLE coordinator_barriers (realm_key TEXT PRIMARY KEY, epoch BIGINT NOT NULL CHECK(epoch>0), state TEXT NOT NULL, intent_digest TEXT NOT NULL, checksum TEXT NOT NULL)",
     "CREATE TABLE coordinator_buckets (bucket TEXT PRIMARY KEY, tenant_digest TEXT NOT NULL, metric TEXT NOT NULL, maximum BIGINT NOT NULL CHECK(maximum>=0), held BIGINT NOT NULL CHECK(held>=0), consumed BIGINT NOT NULL CHECK(consumed>=0), observed BIGINT NOT NULL CHECK(observed>=0), blocked_epoch BIGINT NOT NULL, checksum TEXT NOT NULL)",
     "CREATE TABLE coordinator_items (scope_key TEXT NOT NULL REFERENCES coordinator_scopes(scope_key), reservation_id TEXT NOT NULL, bucket TEXT NOT NULL REFERENCES coordinator_buckets(bucket), metric TEXT NOT NULL, amount BIGINT NOT NULL CHECK(amount>=0), PRIMARY KEY(scope_key,reservation_id,bucket))",
     "CREATE TABLE coordinator_requests (scope_key TEXT NOT NULL REFERENCES coordinator_scopes(scope_key), operation TEXT NOT NULL, idempotency_key TEXT NOT NULL, request_digest TEXT NOT NULL, result_json TEXT NOT NULL, PRIMARY KEY(scope_key,operation,idempotency_key))",
@@ -88,6 +89,8 @@ def _bounded_json(value, maximum):
                 visit(item, depth + 1)
         elif type(node) not in {str, int, float, bool, type(None)}:
             raise ValueError("coordinator data-only JSON required")
+        elif type(node) is float and not math.isfinite(node):
+            raise ValueError("coordinator finite JSON number required")
 
     visit(value, 0)
 
@@ -157,8 +160,10 @@ class _Connection:
         )
 
 
-def _root_checksum(database_id: str, last_now: float, scopes: list[str]) -> str:
-    return digest([SCHEMA_VERSION, MANIFEST, database_id, last_now, scopes])
+def _root_checksum(
+    database_id: str, last_now: float, scopes: list[str], barriers: list[str]
+) -> str:
+    return digest([SCHEMA_VERSION, MANIFEST, database_id, last_now, scopes, barriers])
 
 
 def _read_root(connection: _Connection, *, lock: bool = False):
@@ -174,7 +179,10 @@ def _read_root(connection: _Connection, *, lock: bool = False):
             or len(row["scopes_json"].encode("utf-8")) > MAX_ROOT_BYTES
         ):
             raise ValueError("root bound")
-        scopes = json.loads(row["scopes_json"], parse_constant=_reject_constant)
+        index = decode(row["scopes_json"], MAX_ROOT_BYTES)
+        if set(index) != {"scopes", "barriers"}:
+            raise ValueError("root index shape")
+        scopes, barriers = index["scopes"], index["barriers"]
         if (
             row["singleton"] != 1
             or row["version"] != SCHEMA_VERSION
@@ -183,13 +191,17 @@ def _read_root(connection: _Connection, *, lock: bool = False):
             or len(scopes) > MAX_SCOPES
             or len(set(scopes)) != len(scopes)
             or scopes != sorted(scopes)
+            or type(barriers) is not list
+            or len(barriers) > MAX_SCOPES * 3
+            or len(set(barriers)) != len(barriers)
+            or barriers != sorted(barriers)
         ):
             raise ValueError("root shape")
         _hex(row["database_id"], "coordinator database identity")
-        for scope in scopes:
+        for scope in [*scopes, *barriers]:
             _hex(scope, "coordinator scope")
         last_now = timestamp(row["last_now"])
-        if row["checksum"] != _root_checksum(row["database_id"], last_now, scopes):
+        if row["checksum"] != _root_checksum(row["database_id"], last_now, scopes, barriers):
             raise ValueError("root checksum")
         actual = sorted(
             value[0]
@@ -197,6 +209,12 @@ def _read_root(connection: _Connection, *, lock: bool = False):
         )
         if actual != scopes:
             raise ValueError("scope history missing")
+        actual_barriers = sorted(
+            value[0]
+            for value in connection.execute("SELECT realm_key FROM coordinator_barriers").fetchall()
+        )
+        if actual_barriers != barriers:
+            raise ValueError("containment barrier history missing")
     except (TypeError, ValueError, KeyError, RecursionError):
         raise CoordinatorUnavailable("coordinator root history unavailable or corrupt") from None
     return row, scopes
@@ -208,7 +226,14 @@ def _initialize(connection: _Connection, now: float) -> str:
     database_id = uuid4().hex + uuid4().hex
     connection.execute(
         "INSERT INTO coordinator_meta VALUES(1,?,?,?,?,?,?)",
-        (SCHEMA_VERSION, MANIFEST, database_id, now, "[]", _root_checksum(database_id, now, [])),
+        (
+            SCHEMA_VERSION,
+            MANIFEST,
+            database_id,
+            now,
+            '{"scopes":[],"barriers":[]}',
+            _root_checksum(database_id, now, [], []),
+        ),
     )
     return database_id
 
@@ -242,6 +267,7 @@ class CoordinatorTransaction:
         self.connection, self.now = connection, now
         self.database_id = root["database_id"]
         self._scopes = scopes
+        self._barriers = decode(root["scopes_json"], MAX_ROOT_BYTES)["barriers"]
         self._loaded: dict[str, dict[str, Any]] = {}
 
     def scope(self, key: str) -> dict[str, Any]:
@@ -263,6 +289,14 @@ class CoordinatorTransaction:
                 raise CoordinatorUnavailable("coordinator scope state changed")
             self._loaded[key] = state
         return self._loaded[key]
+
+    def register_barrier(self, key: str) -> None:
+        _hex(key, "coordinator barrier")
+        if key not in self._barriers:
+            if len(self._barriers) >= MAX_SCOPES * 3:
+                raise CoordinatorRejected("coordinator.barrier_history_capacity")
+            self._barriers.append(key)
+            self._barriers.sort()
 
     def create_scope(self, key: str, state: dict[str, Any]) -> None:
         _hex(key, "coordinator scope")
@@ -388,6 +422,41 @@ class CoordinatorTransaction:
         state["checkpoint_sequence"], state["checkpoint_digest"] = state["sequence"], checksum
         return snapshot
 
+    def verify_journal_head(self, scope: str) -> None:
+        state = self.scope(scope)
+        summary = self.connection.execute(
+            "SELECT count(*) AS n,min(sequence) AS first,max(sequence) AS last FROM coordinator_outbox WHERE scope_key=?",
+            (scope,),
+        ).fetchone()
+        if (
+            summary["n"] != state["sequence"]
+            or state["sequence"]
+            and (summary["first"] != 1 or summary["last"] != state["sequence"])
+        ):
+            raise CoordinatorUnavailable("coordinator journal history missing")
+        if state["sequence"]:
+            row = self.connection.execute(
+                "SELECT record_json,record_digest FROM coordinator_outbox WHERE scope_key=? AND sequence=?",
+                (scope, state["sequence"]),
+            ).fetchone()
+            if (
+                row is None
+                or digest(decode(row["record_json"], 65536)) != row["record_digest"]
+                or row["record_digest"] != state["journal_head"]
+            ):
+                raise CoordinatorUnavailable("coordinator journal head changed")
+        if state["checkpoint_digest"] is not None:
+            row = self.connection.execute(
+                "SELECT state_json,state_digest FROM coordinator_checkpoints WHERE scope_key=? AND sequence=?",
+                (scope, state["checkpoint_sequence"]),
+            ).fetchone()
+            if (
+                row is None
+                or digest(decode(row["state_json"])) != row["state_digest"]
+                or row["state_digest"] != state["checkpoint_digest"]
+            ):
+                raise CoordinatorUnavailable("coordinator checkpoint history missing or changed")
+
     def flush(self) -> None:
         for key, state in self._loaded.items():
             text = encode(state)
@@ -399,8 +468,8 @@ class CoordinatorTransaction:
             "UPDATE coordinator_meta SET last_now=?,scopes_json=?,checksum=? WHERE singleton=1",
             (
                 self.now,
-                encode(self._scopes, MAX_ROOT_BYTES),
-                _root_checksum(self.database_id, self.now, self._scopes),
+                encode({"scopes": self._scopes, "barriers": self._barriers}, MAX_ROOT_BYTES),
+                _root_checksum(self.database_id, self.now, self._scopes, self._barriers),
             ),
         )
 
@@ -625,7 +694,7 @@ class PostgresCoordinatorStore:
                 "checksum",
             ),
             "coordinator_scopes": ("scope_key", "state_json", "state_digest"),
-            "coordinator_barriers": ("realm_key", "epoch", "state", "intent_digest"),
+            "coordinator_barriers": ("realm_key", "epoch", "state", "intent_digest", "checksum"),
             "coordinator_buckets": (
                 "bucket",
                 "tenant_digest",
@@ -667,7 +736,7 @@ class PostgresCoordinatorStore:
         }
         for name, columns in expected_columns.items():
             actual = connection.execute(
-                "SELECT column_name,data_type FROM information_schema.columns WHERE table_schema=? AND table_name=? ORDER BY ordinal_position",
+                "SELECT column_name,data_type,is_nullable FROM information_schema.columns WHERE table_schema=? AND table_name=? ORDER BY ordinal_position",
                 (self._schema_name, name),
             ).fetchall()
             numeric = {
@@ -696,6 +765,7 @@ class PostgresCoordinatorStore:
             if (
                 tuple(row[0] for row in actual) != columns
                 or tuple(row[1] for row in actual) != expected_types
+                or any(row[2] != "NO" for row in actual)
             ):
                 raise CoordinatorUnavailable("coordinator PostgreSQL columns changed")
             keys = connection.execute(
@@ -716,6 +786,50 @@ class PostgresCoordinatorStore:
             ("coordinator_checkpoints", "scope_key", "coordinator_scopes", "scope_key"),
         }:
             raise CoordinatorUnavailable("coordinator PostgreSQL history references changed")
+        checks = connection.execute(
+            "SELECT t.relname,pg_get_constraintdef(c.oid,true) FROM pg_constraint c JOIN pg_class t ON t.oid=c.conrelid JOIN pg_namespace n ON n.oid=t.relnamespace WHERE n.nspname=? AND c.contype='c'",
+            (self._schema_name,),
+        ).fetchall()
+        normalized = {(row[0], re.sub(r"[\s()\"]", "", row[1]).lower()) for row in checks}
+        expected_checks = {
+            ("coordinator_meta", "checksingleton=1"),
+            ("coordinator_barriers", "checkepoch>0"),
+            *(
+                ("coordinator_buckets", "check" + column + ">=0")
+                for column in ("maximum", "held", "consumed", "observed")
+            ),
+            ("coordinator_items", "checkamount>=0"),
+            ("coordinator_outbox", "checksequence>0"),
+            ("coordinator_outbox", "checkacknowledged=anyarray[0,1]"),
+            ("coordinator_checkpoints", "checksequence>=0"),
+        }
+        if normalized != expected_checks:
+            raise CoordinatorUnavailable("coordinator PostgreSQL checks changed")
+        unique = connection.execute(
+            "SELECT c.table_name,k.column_name,k.ordinal_position FROM information_schema.table_constraints c JOIN information_schema.key_column_usage k ON c.constraint_catalog=k.constraint_catalog AND c.constraint_schema=k.constraint_schema AND c.constraint_name=k.constraint_name WHERE c.table_schema=? AND c.constraint_type='UNIQUE' ORDER BY c.table_name,k.ordinal_position",
+            (self._schema_name,),
+        ).fetchall()
+        if [(row[0], row[1], row[2]) for row in unique] != [
+            ("coordinator_outbox", "scope_key", 1),
+            ("coordinator_outbox", "event_id", 2),
+        ]:
+            raise CoordinatorUnavailable("coordinator PostgreSQL uniqueness changed")
+        foreign_rules = connection.execute(
+            "SELECT r.update_rule,r.delete_rule,r.match_option FROM information_schema.referential_constraints r WHERE r.constraint_schema=?",
+            (self._schema_name,),
+        ).fetchall()
+        if len(foreign_rules) != 5 or any(
+            tuple(row.values()) != ("NO ACTION", "NO ACTION", "NONE") for row in foreign_rules
+        ):
+            raise CoordinatorUnavailable("coordinator PostgreSQL reference rules changed")
+        if (
+            connection.execute(
+                "SELECT 1 FROM information_schema.table_constraints WHERE table_schema=? AND (is_deferrable<>'NO' OR initially_deferred<>'NO') LIMIT 1",
+                (self._schema_name,),
+            ).fetchone()
+            is not None
+        ):
+            raise CoordinatorUnavailable("coordinator PostgreSQL deferred authority constraint")
         if (
             connection.execute(
                 "SELECT 1 FROM information_schema.triggers WHERE trigger_schema=? LIMIT 1",

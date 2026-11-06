@@ -261,6 +261,52 @@ def postgres_fixture():
     return PostgresCoordinatorStore(dsn, schema="ordin_test_" + uuid4().hex, create=True)
 
 
+def test_initial_migration_reference_matches_runtime_manifest():
+    from ordin.swarm.coordinator_store import MANIFEST, TABLES
+
+    root = Path(__file__).resolve().parents[1]
+    source = (root / "integrations/swarm/ordin_swarm/migrations/0001-coordinator.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "-- Manifest: " + MANIFEST in source
+    ddl = "\n".join(line for line in source.splitlines() if not line.startswith("--"))
+    assert tuple(part.strip() for part in ddl.split(";") if part.strip()) == TABLES
+
+
+@pytest.mark.parametrize("change", ["check", "unique", "nullable", "missing_table"])
+def test_real_postgresql_missing_or_changed_constraints_fail_closed(change):
+    backend = postgres_fixture()
+    statements = {
+        "check": "ALTER TABLE coordinator_buckets DROP CONSTRAINT coordinator_buckets_held_check",
+        "unique": "ALTER TABLE coordinator_outbox DROP CONSTRAINT coordinator_outbox_scope_key_event_id_key",
+        "nullable": "ALTER TABLE coordinator_buckets ALTER COLUMN held DROP NOT NULL",
+        "missing_table": "DROP TABLE coordinator_requests",
+    }
+    with backend._connect() as raw:
+        raw.execute(statements[change])
+    with pytest.raises(CoordinatorUnavailable):
+        with backend.transaction():
+            pytest.fail("changed schema became authority")
+    with pytest.raises(CoordinatorUnavailable):
+        PostgresCoordinatorStore(backend._dsn, schema=backend._schema_name, create=True)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        '{"value":1e309}',
+        '{"value":NaN}',
+        '{"value":1,"value":2}',
+        '{"value":' + "[" * 33 + "0" + "]" * 33 + "}",
+    ],
+)
+def test_transport_and_stored_json_are_bounded_finite_data_only(raw):
+    from ordin.swarm.coordinator_store import decode
+
+    with pytest.raises(CoordinatorUnavailable):
+        decode(raw)
+
+
 def test_real_postgresql_two_authenticated_hosts_and_tenant_isolation(tmp_path):
     from tests.test_swarm_coordinator import configured, prepare
 

@@ -14,7 +14,7 @@ import ssl
 import struct
 import time
 from threading import RLock
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Mapping
 from uuid import uuid4
 
 from ordin.action import ActionEnvelope
@@ -42,6 +42,14 @@ from .events import REVIEW_BOUND_STAGES, SwarmEvent, _hex
 from .models import counter, identifier, timestamp
 from .registry import InMemoryAgentRegistry
 from .workload_auth import AuthorityChannel, WorkloadAuthenticator
+
+if TYPE_CHECKING:
+    from .broker import SwarmExecutionBroker
+    from .ingest import HostEventSource
+    from .memory import ArtifactAddress, ArtifactGrant, SwarmArtifact, SwarmArtifactGateway
+    from .policy_runtime import SwarmPolicyRuntime
+    from .source_flow import LineageHandle
+    from .temporal import SwarmTemporalEngine
 
 
 @dataclass(frozen=True, eq=False, slots=True)
@@ -302,12 +310,33 @@ def _save_bucket(connection, row):
     )
 
 
+def _barrier_checksum(key, epoch, state, intent):
+    return digest([key, epoch, state, intent])
+
+
+def _barrier(connection, key):
+    row = connection.execute(
+        "SELECT * FROM coordinator_barriers WHERE realm_key=?", (key,)
+    ).fetchone()
+    if row is not None:
+        if (
+            type(row["epoch"]) is not int
+            or not 0 < row["epoch"] < 2**53
+            or row["state"] not in {"blocked", "reconciled"}
+            or row["checksum"]
+            != _barrier_checksum(key, row["epoch"], row["state"], row["intent_digest"])
+        ):
+            raise CoordinatorUnavailable("coordinator containment barrier history changed")
+        _hex(row["intent_digest"], "coordinator containment intent")
+    return row
+
+
 class SwarmCoordinator:
     """Host-owned optional coordinator; local locks never grant hard authority."""
 
     def __init__(
         self,
-        store,
+        store: SQLiteCoordinatorStore | PostgresCoordinatorStore,
         *,
         operator: object,
         clock: CoordinatorClock | None = None,
@@ -317,7 +346,7 @@ class SwarmCoordinator:
         max_events: int = 2048,
         max_journal_lag: int = 128,
         settlements: BudgetObservationSource | None = None,
-    ):
+    ) -> None:
         if (
             type(store) not in {SQLiteCoordinatorStore, PostgresCoordinatorStore}
             or type(operator) is not object
@@ -349,6 +378,7 @@ class SwarmCoordinator:
         self._settlements = settlements
         self._scopes: dict[CoordinatorScope, _Scope] = {}
         self._prepared: dict[str, _Prepared] = {}
+        self._retired_prepared: dict[str, _Prepared] = {}
         self._fence_receipts: dict[CoordinatorFenceReceipt, str] = {}
         self._recovery_verifiers: dict[CoordinatorScope, Any] = {}
         self._budget_views: set[CoordinatorBudgetView] = set()
@@ -363,23 +393,23 @@ class SwarmCoordinator:
         if source is not self._control:
             raise ValueError("original coordinator server control source required")
 
-    def _scope(self, handle):
+    def _scope(self, handle: CoordinatorScope) -> _Scope:
         if type(handle) is not CoordinatorScope or handle not in self._scopes:
             raise ValueError("unknown original coordinator scope")
         return self._scopes[handle]
 
     def register_scope(
         self,
-        native,
-        budget,
+        native: SwarmDelegationService,
+        budget: BudgetPolicy,
         *,
-        control,
-        broker_channels,
-        runtime=None,
-        brokers=(),
-        artifacts=None,
-        temporal=None,
-    ):
+        control: CoordinatorControlSource,
+        broker_channels: tuple[AuthorityChannel, ...],
+        runtime: SwarmPolicyRuntime | None = None,
+        brokers: tuple[tuple[str, SwarmExecutionBroker], ...] = (),
+        artifacts: SwarmArtifactGateway | None = None,
+        temporal: SwarmTemporalEngine | None = None,
+    ) -> CoordinatorScope:
         self._control_check(control)
         if (
             type(native) is not SwarmDelegationService
@@ -415,6 +445,29 @@ class SwarmCoordinator:
                 or runtime.facts_source._clock is not self.clock
             ):
                 raise ValueError("original policy runtime and same DB clock required")
+            required = (
+                runtime._active.budget_limits
+                if runtime._active and runtime._active.budget_limits
+                else runtime._budget.policy.limits
+                if runtime._budget
+                else runtime.maximum.budget_limits
+            )
+            selected_limits = {
+                (limit.scope, limit.metric, limit.subject): limit for limit in budget.limits
+            }
+            for limit in required:
+                candidate = selected_limits.get((limit.scope, limit.metric, limit.subject))
+                if (
+                    candidate is None
+                    or candidate.maximum > limit.maximum
+                    or candidate.unknown_ceiling != limit.unknown_ceiling
+                    or limit.unknown_effects
+                    and (
+                        not candidate.unknown_effects
+                        or not set(candidate.unknown_effects) <= set(limit.unknown_effects)
+                    )
+                ):
+                    raise ValueError("coordinator budget exceeds or omits approved policy limits")
         if artifacts is not None:
             from .memory import SwarmArtifactGateway
 
@@ -485,7 +538,9 @@ class SwarmCoordinator:
             raise CoordinatorRejected("coordinator.policy_unavailable")
         return epoch, selected, binding
 
-    def initialize_scope(self, handle, *, control):
+    def initialize_scope(
+        self, handle: CoordinatorScope, *, control: CoordinatorControlSource
+    ) -> None:
         self._control_check(control)
         scope = self._scope(handle)
         epoch, selected, binding = self._policy(scope)
@@ -516,12 +571,11 @@ class SwarmCoordinator:
             raise CoordinatorUnavailable("coordinator requires online recovery")
         scope = self._scope(handle)
         state = transaction.scope(handle.scope_key)
+        transaction.verify_journal_head(handle.scope_key)
         if not allow_contained:
             for realm in self._realms(scope):
-                barrier = transaction.connection.execute(
-                    "SELECT state FROM coordinator_barriers WHERE realm_key=?", (realm,)
-                ).fetchone()
-                if barrier is not None and barrier[0] == "blocked":
+                barrier = _barrier(transaction.connection, realm)
+                if barrier is not None and barrier["state"] == "blocked":
                     raise CoordinatorRejected("coordinator.scope_contained")
         epoch, selected, binding = self._policy(scope)
         if (
@@ -571,14 +625,21 @@ class SwarmCoordinator:
                 elif reservation["status"] == "forwarding":
                     reservation["status"] = "uncertain"
 
-    def start(self, handle, *, control, takeover=False):
+    def start(
+        self, handle: CoordinatorScope, *, control: CoordinatorControlSource, takeover: bool = False
+    ) -> dict[str, Any]:
         self._control_check(control)
         if type(takeover) is not bool:
             raise ValueError("invalid coordinator takeover flag")
         scope = self._scope(handle)
+        if scope.runtime is not None:
+            view = scope.runtime._coordinator_budget
+            if view not in self._budget_views or view._handle is not handle:
+                raise CoordinatorRejected("coordinator.current_protected_budget_view_required")
         with self.store.transaction() as transaction:
             state = transaction.scope(handle.scope_key)
             epoch, selected, binding = self._policy(scope)
+            transaction.verify_journal_head(handle.scope_key)
             if epoch < state["policy_epoch"] or (
                 epoch == state["policy_epoch"] and selected != state["policy_digest"]
             ):
@@ -624,13 +685,20 @@ class SwarmCoordinator:
                 maximum=self._limit,
             )
             result = self._status(transaction, handle, state)
-        self._prepared = {
-            key: value for key, value in self._prepared.items() if value.scope is not handle
-        }
+        with self._lock:
+            for key, prepared in tuple(self._prepared.items()):
+                if prepared.scope is handle:
+                    if prepared.broker is not None and state["reservations"].get(key, {}).get(
+                        "status"
+                    ) in {"uncertain", "forwarding"}:
+                        self._retired_prepared[key] = prepared
+                    del self._prepared[key]
         self._available = True
         return result
 
-    def heartbeat(self, handle, *, control):
+    def heartbeat(
+        self, handle: CoordinatorScope, *, control: CoordinatorControlSource
+    ) -> dict[str, Any]:
         self._control_check(control)
         with self.store.transaction() as transaction:
             _, state = self._owner(transaction, handle, allow_incomplete=True, allow_contained=True)
@@ -659,7 +727,7 @@ class SwarmCoordinator:
             digest([scope.tenant_id, scope.swarm_id, context.identity.agent_id]),
         )
 
-    def admit(self, handle, channel):
+    def admit(self, handle: CoordinatorScope, channel: AuthorityChannel) -> CoordinatorRecord:
         scope, enrollment, subject_key = self._subject(handle, channel)
         context = enrollment.context
         with self.store.transaction() as transaction:
@@ -753,7 +821,13 @@ class SwarmCoordinator:
             raise CoordinatorRejected("coordinator.workload_lease_stale_or_foreign")
         return scope, state, enrollment, subject_key, row
 
-    def bind_grant(self, handle, channel, lease_id, native_reference):
+    def bind_grant(
+        self,
+        handle: CoordinatorScope,
+        channel: AuthorityChannel,
+        lease_id: str,
+        native_reference: str,
+    ) -> CoordinatorRecord:
         scope, _, _ = self._subject(handle, channel)
         metadata = scope.native.require_current(channel, native_reference)
         with self.store.transaction() as transaction:
@@ -835,7 +909,9 @@ class SwarmCoordinator:
                 raise CoordinatorRejected("coordinator.parent_grant_revalidation_required")
         return row
 
-    def policy_snapshot(self, handle, channel, lease_id):
+    def policy_snapshot(
+        self, handle: CoordinatorScope, channel: AuthorityChannel, lease_id: str
+    ) -> dict[str, Any]:
         with self.store.transaction() as transaction:
             _, state, _, _, _ = self._lease(
                 transaction, handle, channel, lease_id, allow_incomplete=True
@@ -851,7 +927,16 @@ class SwarmCoordinator:
                 "execution_authority": False,
             }
 
-    def evaluate(self, handle, channel, lease_id, native_reference, action, *, idempotency_key):
+    def evaluate(
+        self,
+        handle: CoordinatorScope,
+        channel: AuthorityChannel,
+        lease_id: str,
+        native_reference: str,
+        action: ActionEnvelope,
+        *,
+        idempotency_key: str,
+    ) -> CoordinatorRecord:
         """Non-authorizing preview; reserve/dispatch recheck original live authority."""
         identifier(idempotency_key, "idempotency_key")
         if type(action) is not ActionEnvelope or action.action_id is None:
@@ -1034,9 +1119,13 @@ class SwarmCoordinator:
             scope.budget, enrollment.context, self._scopes_for(scope, enrollment)
         )
         try:
-            _, resolved = _resolve_budget_costs(
-                buckets, self._known_costs(action, effects), effects
+            broker = scope.brokers.get(enrollment.host_id)
+            costs = (
+                broker._default_costs()
+                if broker is not None
+                else self._known_costs(action, effects)
             )
+            _, resolved = _resolve_budget_costs(buckets, costs, effects)
         except BudgetError as error:
             raise CoordinatorRejected(error.reason_code) from None
         charges = []
@@ -1091,7 +1180,16 @@ class SwarmCoordinator:
             )
         return effects
 
-    def reserve(self, handle, channel, lease_id, evaluation_id, action, *, idempotency_key):
+    def reserve(
+        self,
+        handle: CoordinatorScope,
+        channel: AuthorityChannel,
+        lease_id: str,
+        evaluation_id: str,
+        action: ActionEnvelope,
+        *,
+        idempotency_key: str,
+    ) -> CoordinatorRecord:
         identifier(idempotency_key, "idempotency_key")
         _hex(evaluation_id, "coordinator evaluation reference")
         if type(action) is not ActionEnvelope:
@@ -1101,7 +1199,11 @@ class SwarmCoordinator:
         scope, enrollment, _ = self._subject(handle, channel)
         staged = None
         guard = (
-            scope.runtime.execution_guard(enrollment.context) if scope.runtime else nullcontext()
+            scope.runtime.execution_guard(
+                enrollment.context, broker=scope.brokers.get(enrollment.host_id)
+            )
+            if scope.runtime
+            else nullcontext()
         )
         try:
             with guard, self.store.transaction() as transaction:
@@ -1279,7 +1381,9 @@ class SwarmCoordinator:
         )
         return scope, state, reservation
 
-    def begin_forward(self, handle, broker_channel, reservation_id):
+    def begin_forward(
+        self, handle: CoordinatorScope, broker_channel: AuthorityChannel, reservation_id: str
+    ) -> CoordinatorRecord:
         """Durably consume before any broker effect. ACK loss is never retried."""
         with self.store.transaction() as transaction:
             scope, state, reservation = self._broker_reservation(
@@ -1322,7 +1426,13 @@ class SwarmCoordinator:
             )
         return result
 
-    def cancel(self, handle, channel, lease_id, reservation_id):
+    def cancel(
+        self,
+        handle: CoordinatorScope,
+        channel: AuthorityChannel,
+        lease_id: str,
+        reservation_id: str,
+    ) -> bool:
         with self.store.transaction() as transaction:
             scope, state, _, subject, lease = self._lease(
                 transaction, handle, channel, lease_id, allow_incomplete=True
@@ -1347,7 +1457,9 @@ class SwarmCoordinator:
             self._cancel_prepared(scope, channel, prepared)
         return True
 
-    def uncertain(self, handle, broker_channel, reservation_id):
+    def uncertain(
+        self, handle: CoordinatorScope, broker_channel: AuthorityChannel, reservation_id: str
+    ) -> CoordinatorRecord:
         with self.store.transaction() as transaction:
             _, state, reservation = self._broker_reservation(
                 transaction,
@@ -1375,7 +1487,9 @@ class SwarmCoordinator:
                 reservation["action_digest"],
             )
 
-    def commit(self, handle, broker_channel, reservation_id):
+    def commit(
+        self, handle: CoordinatorScope, broker_channel: AuthorityChannel, reservation_id: str
+    ) -> CoordinatorRecord:
         """Broker-reported completion charges full bounds; no wire refund claims."""
         with self.store.transaction() as transaction:
             _, state, reservation = self._broker_reservation(
@@ -1431,7 +1545,14 @@ class SwarmCoordinator:
         self._prepared.pop(reservation_id, None)
         return result
 
-    def guarded_dispatch(self, handle, broker_channel, reservation_id, *, forward=None):
+    def guarded_dispatch(
+        self,
+        handle: CoordinatorScope,
+        broker_channel: AuthorityChannel,
+        reservation_id: str,
+        *,
+        forward: Callable[[ActionEnvelope], Any] | None = None,
+    ) -> CoordinatorDispatch:
         """One online DB admission then one original broker dispatch, never an ACK retry."""
         self.begin_forward(handle, broker_channel, reservation_id)
         prepared = self._prepared.get(reservation_id)
@@ -1446,7 +1567,12 @@ class SwarmCoordinator:
                 if not prepared.broker.verify_result(result, prepared.authorization):
                     raise ValueError("original broker result unavailable")
             else:
-                if forward is None or not callable(forward) or scope.runtime is not None:
+                if (
+                    forward is None
+                    or not callable(forward)
+                    or scope.runtime is not None
+                    or prepared.native_id is None
+                ):
                     raise ValueError("protected host mediator unavailable")
                 result = scope.native.guarded_dispatch(
                     broker_channel, prepared.native_id, prepared.action, forward
@@ -1482,7 +1608,9 @@ class SwarmCoordinator:
             result.value,
         )
 
-    def budget_report(self, handle, channel, lease_id):
+    def budget_report(
+        self, handle: CoordinatorScope, channel: AuthorityChannel, lease_id: str
+    ) -> dict[str, Any]:
         with self.store.transaction() as transaction:
             scope, state, enrollment, _, _ = self._lease(
                 transaction, handle, channel, lease_id, allow_incomplete=True
@@ -1551,12 +1679,15 @@ class SwarmCoordinator:
             "execution_authority": False,
         }
 
-    def status(self, handle, *, control):
+    def status(
+        self, handle: CoordinatorScope, *, control: CoordinatorControlSource
+    ) -> dict[str, Any]:
         self._control_check(control)
         self._scope(handle)
         try:
             with self.store.transaction() as transaction:
                 state = transaction.scope(handle.scope_key)
+                transaction.verify_journal_head(handle.scope_key)
                 return self._status(transaction, handle, state)
         except CoordinatorUnavailable:
             return {
@@ -1628,7 +1759,15 @@ class SwarmCoordinator:
         )
         return epoch, intent
 
-    def record_fence(self, handle, *, control, kind, subject_digest=None, expected_epoch=None):
+    def record_fence(
+        self,
+        handle: CoordinatorScope,
+        *,
+        control: CoordinatorControlSource,
+        kind: str,
+        subject_digest: str | None = None,
+        expected_epoch: int | None = None,
+    ) -> CoordinatorFenceReceipt:
         self._control_check(control)
         scope = self._scope(handle)
         if type(kind) is not str or kind not in {
@@ -1641,29 +1780,35 @@ class SwarmCoordinator:
         }:
             raise ValueError("unknown bounded coordinator fence scope")
         if kind in {"action", "agent", "subtree", "task"}:
+            if subject_digest is None:
+                raise ValueError("exact coordinator fence target required")
             _hex(subject_digest, "coordinator fence target")
         with self.store.transaction() as transaction:
             primary = transaction.scope(handle.scope_key)
+            transaction.verify_journal_head(handle.scope_key)
             if expected_epoch is not None and expected_epoch != primary["revocation_epoch"]:
                 raise CoordinatorRejected("coordinator.revocation_epoch_changed")
             realm = None
             if kind in {"tenant", "swarm", "task"}:
-                if kind == "task" and subject_digest != digest(scope.authenticator._scope[2]):
+                auth_scope = scope.authenticator._scope
+                if auth_scope is None:
+                    raise CoordinatorRejected("coordinator.original_task_scope_required")
+                if kind == "task" and subject_digest != digest(auth_scope[2]):
                     raise CoordinatorRejected("coordinator.foreign_task_fence")
                 realm = self._realms(scope)[{"tenant": 0, "swarm": 1, "task": 2}[kind]]
-                old = transaction.connection.execute(
-                    "SELECT epoch FROM coordinator_barriers WHERE realm_key=?", (realm,)
-                ).fetchone()
-                realm_epoch = counter((old[0] if old else 0) + 1, "realm revocation epoch")
+                old = _barrier(transaction.connection, realm)
+                realm_epoch = counter((old["epoch"] if old else 0) + 1, "realm revocation epoch")
+                initial = _barrier_checksum(realm, realm_epoch, "blocked", "0" * 64)
                 if old is None:
                     transaction.connection.execute(
-                        "INSERT INTO coordinator_barriers VALUES(?,?,'blocked',?)",
-                        (realm, realm_epoch, "0" * 64),
+                        "INSERT INTO coordinator_barriers VALUES(?,?,'blocked',?,?)",
+                        (realm, realm_epoch, "0" * 64, initial),
                     )
+                    transaction.register_barrier(realm)
                 else:
                     transaction.connection.execute(
-                        "UPDATE coordinator_barriers SET epoch=?,state='blocked',intent_digest=? WHERE realm_key=?",
-                        (realm_epoch, "0" * 64, realm),
+                        "UPDATE coordinator_barriers SET epoch=?,state='blocked',intent_digest=?,checksum=? WHERE realm_key=?",
+                        (realm_epoch, "0" * 64, initial, realm),
                     )
             members = {}
             for key in tuple(transaction._scopes):
@@ -1685,8 +1830,8 @@ class SwarmCoordinator:
             checksum = digest(intent)
             if realm:
                 transaction.connection.execute(
-                    "UPDATE coordinator_barriers SET intent_digest=? WHERE realm_key=?",
-                    (checksum, realm),
+                    "UPDATE coordinator_barriers SET intent_digest=?,checksum=? WHERE realm_key=?",
+                    (checksum, _barrier_checksum(realm, realm_epoch, "blocked", checksum), realm),
                 )
             transaction.append(
                 handle.scope_key,
@@ -1708,7 +1853,9 @@ class SwarmCoordinator:
         self._fence_receipts[receipt] = checksum
         return receipt
 
-    def bind_recovery_verifier(self, handle, verifier, *, control):
+    def bind_recovery_verifier(
+        self, handle: CoordinatorScope, verifier: object, *, control: CoordinatorControlSource
+    ) -> None:
         self._control_check(control)
         self._scope(handle)
         if type(verifier) in {dict, list, tuple, str, bytes, int, bool} or not callable(
@@ -1717,7 +1864,9 @@ class SwarmCoordinator:
             raise ValueError("original protected recovery controller required")
         self._recovery_verifiers[handle] = verifier
 
-    def recover_fence(self, handle, revocation_epoch, *, control):
+    def recover_fence(
+        self, handle: CoordinatorScope, revocation_epoch: int, *, control: CoordinatorControlSource
+    ) -> CoordinatorFenceReceipt:
         """Recover an intent reference; never recreate a resumed permission."""
         self._control_check(control)
         self._scope(handle)
@@ -1752,7 +1901,113 @@ class SwarmCoordinator:
             raise CoordinatorRejected("coordinator.recovery_intent_changed")
         return state, intent
 
-    def reconcile_fence(self, handle, receipt, original_resume_receipt, *, control):
+    @staticmethod
+    def _require_incident_outcomes(state, intent, epoch):
+        for reference in intent["reservations"]:
+            row = state["reservations"].get(reference)
+            if row is None:
+                raise CoordinatorUnavailable("coordinator incident reservation history missing")
+            if row["status"] in {"forwarding", "uncertain"}:
+                outcome = row.get("incident_outcome")
+                if (
+                    outcome is None
+                    or outcome["revocation_epoch"] != epoch
+                    or outcome["status"] not in {"completed", "canceled"}
+                ):
+                    raise CoordinatorRejected("coordinator.incident_outcomes_unresolved")
+
+    def reconcile_broker_outcome(
+        self,
+        handle: CoordinatorScope,
+        reservation_id: str,
+        original_receipt: object,
+        *,
+        control: CoordinatorControlSource,
+        revocation_epoch: int,
+    ) -> CoordinatorRecord:
+        """Record a known original broker outcome without refunding uncertain holds."""
+        from .authorization import BrokerControlReceipt, BrokerResult
+
+        self._control_check(control)
+        self._scope(handle)
+        counter(revocation_epoch, "revocation epoch")
+        prepared = self._prepared.get(reservation_id) or self._retired_prepared.get(reservation_id)
+        if prepared is None or prepared.scope is not handle or prepared.broker is None:
+            raise CoordinatorRejected("coordinator.original_incident_preparation_required")
+        broker, authorization = prepared.broker, prepared.authorization
+        # Verification may acquire broker/runtime locks; do it outside DB locks.
+        if type(original_receipt) is BrokerControlReceipt:
+            verified = broker.verify_control_receipt(original_receipt, authorization)
+        elif type(original_receipt) is BrokerResult:
+            verified = broker.verify_result(original_receipt, authorization)
+        else:
+            raise CoordinatorRejected("coordinator.original_known_broker_outcome_required")
+        if not verified or getattr(original_receipt, "status", None) not in {
+            "completed",
+            "canceled",
+        }:
+            raise CoordinatorRejected("coordinator.original_known_broker_outcome_required")
+        receipt_digest = digest(original_receipt.as_dict())
+        with self.store.transaction() as transaction:
+            state = transaction.scope(handle.scope_key)
+            transaction.verify_journal_head(handle.scope_key)
+            intent = state["fences"].get(str(revocation_epoch))
+            reservation = state["reservations"].get(reservation_id)
+            current = self._prepared.get(reservation_id) or self._retired_prepared.get(
+                reservation_id
+            )
+            if (
+                state["revocation_epoch"] != revocation_epoch
+                or intent is None
+                or intent["reconciled"]
+                or reservation_id not in intent["reservations"]
+                or reservation is None
+                or current is not prepared
+                or reservation["action_digest"] != prepared.action_digest
+            ):
+                raise CoordinatorRejected("coordinator.current_incident_outcome_binding_required")
+            outcome = {
+                "status": original_receipt.status,
+                "receipt_digest": receipt_digest,
+                "revocation_epoch": revocation_epoch,
+                "action_digest": prepared.action_digest,
+            }
+            previous = reservation.get("incident_outcome")
+            if previous is not None and previous != outcome:
+                raise CoordinatorRejected("coordinator.incident_outcome_conflict")
+            if previous is None:
+                reservation["incident_outcome"] = outcome
+                transaction.append(
+                    handle.scope_key,
+                    "broker_incident_reconciled",
+                    receipt_digest,
+                    {
+                        "reservation_digest": digest(reservation_id),
+                        "revocation_epoch": revocation_epoch,
+                        "status": original_receipt.status,
+                    },
+                    maximum=self._limit,
+                )
+            # No held/consumed counters or reservation phase are changed here.
+            return self._record(
+                "reconciliation",
+                receipt_digest,
+                handle,
+                reservation["subject"],
+                state,
+                None,
+                original_receipt.status + "_holds_retained",
+                prepared.action_digest,
+            )
+
+    def reconcile_fence(
+        self,
+        handle: CoordinatorScope,
+        receipt: CoordinatorFenceReceipt,
+        original_resume_receipt: object,
+        *,
+        control: CoordinatorControlSource,
+    ) -> CoordinatorRecord:
         self._control_check(control)
         self._scope(handle)
         verifier = self._recovery_verifiers.get(handle)
@@ -1765,7 +2020,8 @@ class SwarmCoordinator:
         ):
             raise CoordinatorRejected("coordinator.original_recovery_receipts_required")
         with self.store.transaction() as transaction:
-            state, _ = self._pending_intent(transaction, handle, receipt)
+            state, intent = self._pending_intent(transaction, handle, receipt)
+            self._require_incident_outcomes(state, intent, receipt.revocation_epoch)
             policy, owner = state["policy_epoch"], state["owner"]["fence"]
             if policy <= receipt.policy_epoch and owner <= receipt.owner_fence:
                 raise CoordinatorRejected("coordinator.fresh_policy_or_owner_fence_required")
@@ -1783,6 +2039,7 @@ class SwarmCoordinator:
             raise CoordinatorRejected("coordinator.backend_reconciliation_unverified")
         with self.store.transaction() as transaction:
             state, intent = self._pending_intent(transaction, handle, receipt)
+            self._require_incident_outcomes(state, intent, receipt.revocation_epoch)
             if (state["policy_epoch"], state["owner"]["fence"]) != (policy, owner):
                 raise CoordinatorRejected("coordinator.reconciliation_state_changed")
             for key, epoch in intent.get(
@@ -1797,9 +2054,7 @@ class SwarmCoordinator:
                     raise CoordinatorRejected("coordinator.member_reconciliation_required")
             realm = intent.get("realm")
             if realm:
-                row = transaction.connection.execute(
-                    "SELECT * FROM coordinator_barriers WHERE realm_key=?", (realm["key"],)
-                ).fetchone()
+                row = _barrier(transaction.connection, realm["key"])
                 if (
                     row is None
                     or row["epoch"] != realm["epoch"]
@@ -1807,13 +2062,20 @@ class SwarmCoordinator:
                 ):
                     raise CoordinatorRejected("coordinator.realm_fence_changed")
                 transaction.connection.execute(
-                    "UPDATE coordinator_barriers SET state='reconciled' WHERE realm_key=?",
-                    (realm["key"],),
+                    "UPDATE coordinator_barriers SET state='reconciled',checksum=? WHERE realm_key=?",
+                    (
+                        _barrier_checksum(
+                            realm["key"], row["epoch"], "reconciled", row["intent_digest"]
+                        ),
+                        realm["key"],
+                    ),
                 )
             for subject in intent["subjects"]:
                 row = state["subjects"][subject]
                 row["revoked"], row["lease_expires_at"] = False, 0
                 row["generation"] = counter(row["generation"] + 1, "recovered workload generation")
+            if intent["kind"] == "action" and intent["target_digest"] in state["blocked_actions"]:
+                state["blocked_actions"].remove(intent["target_digest"])
             intent["reconciled"] = True
             intent["reconciliation_digest"] = digest([receipt.intent_digest, policy, owner])
             transaction.append(
@@ -1833,7 +2095,9 @@ class SwarmCoordinator:
                 "fresh_admission_required",
             )
 
-    def admission_context(self, handle, channel, lease_id):
+    def admission_context(
+        self, handle: CoordinatorScope, channel: AuthorityChannel, lease_id: str
+    ) -> dict[str, Any]:
         """Data describing this verified producer; it is never an enrollment."""
         with self.store.transaction() as transaction:
             scope, state, enrollment, _, row = self._lease(
@@ -1875,11 +2139,15 @@ class SwarmCoordinator:
             parent not in events for row in events.values() for parent in row["parents"]
         )
 
-    def ingest_event(self, handle, channel, lease_id, event):
+    def ingest_event(
+        self, handle: CoordinatorScope, channel: AuthorityChannel, lease_id: str, event: SwarmEvent
+    ) -> dict[str, Any]:
         if type(event) is not SwarmEvent:
             raise CoordinatorRejected("coordinator.typed_event_required")
         event = SwarmEvent.from_dict(event.as_dict())
         if event.evidence_class not in {"caller_asserted", "host_authenticated"}:
+            raise CoordinatorRejected("coordinator.protected_backend_receipt_required")
+        if event.evidence_class == "host_authenticated" and event.event_kind == "observed":
             raise CoordinatorRejected("coordinator.protected_backend_receipt_required")
         with self.store.transaction() as transaction:
             scope, state, enrollment, subject, lease = self._lease(
@@ -1924,9 +2192,24 @@ class SwarmCoordinator:
                 if anchor is None or (
                     anchor["kind"],
                     anchor["subject"],
+                    anchor["context_digest"],
+                    anchor["action_id_digest"],
                     anchor["action_digest"],
-                ) != ("reviewed", subject, event.action_digest):
+                ) != (
+                    "reviewed",
+                    subject,
+                    lease["context_digest"],
+                    digest(event.action_id),
+                    event.action_digest,
+                ):
                     raise CoordinatorRejected("coordinator.review_anchor_missing_or_foreign")
+            if event.action_id is not None and any(
+                row["context_digest"] == lease["context_digest"]
+                and row["action_id_digest"] == digest(event.action_id)
+                and row["action_digest"] != event.action_digest
+                for row in events.values()
+            ):
+                raise CoordinatorRejected("coordinator.action_identity_digest_conflict")
             events[alias] = {
                 "kind": event.event_kind,
                 "subject": subject,
@@ -1985,7 +2268,7 @@ class SwarmCoordinator:
             }
 
     @classmethod
-    def _check_artifacts(cls, scope, state):
+    def _check_artifacts(cls, scope, state, *, deleting=False):
         current = cls._artifact_snapshot(scope)
         for key, floor in state["artifact_floors"].items():
             row = current.get(key)
@@ -1995,10 +2278,16 @@ class SwarmCoordinator:
                 or not set(floor["labels"]) <= set(row["labels"])
             ):
                 raise CoordinatorRejected("coordinator.artifact_history_requires_reconciliation")
-            if row["version"] == floor["version"] and row != floor:
+            if (
+                row["version"] == floor["version"]
+                and row != floor
+                and not (deleting and row == {**floor, "deleted": True})
+            ):
                 raise CoordinatorRejected("coordinator.artifact_version_or_tombstone_changed")
 
-    def checkpoint(self, handle, *, control):
+    def checkpoint(
+        self, handle: CoordinatorScope, *, control: CoordinatorControlSource
+    ) -> dict[str, Any]:
         self._control_check(control)
         scope = self._scope(handle)
         with self.store.transaction() as transaction:
@@ -2078,7 +2367,9 @@ class SwarmCoordinator:
         ):
             raise CoordinatorRejected("coordinator.temporal_history_requires_reconciliation")
 
-    def history(self, handle, *, control):
+    def history(
+        self, handle: CoordinatorScope, *, control: CoordinatorControlSource
+    ) -> dict[str, Any]:
         self._control_check(control)
         self._scope(handle)
         with self.store.transaction() as transaction:
@@ -2088,6 +2379,8 @@ class SwarmCoordinator:
                 (handle.scope_key,),
             ).fetchone()
             if row is None:
+                if state["checkpoint_digest"] is not None:
+                    raise CoordinatorUnavailable("coordinator checkpoint history missing")
                 return {"prehistory": "unknown", "live_authority": False, "projection": None}
             from .coordinator_store import decode
 
@@ -2100,8 +2393,16 @@ class SwarmCoordinator:
             return snapshot
 
     def artifact_write(
-        self, handle, source, address, value, *, expected_version, inputs=(), grant=None
-    ):
+        self,
+        handle: CoordinatorScope,
+        source: HostEventSource,
+        address: ArtifactAddress,
+        value: str,
+        *,
+        expected_version: int,
+        inputs: tuple[LineageHandle, ...] = (),
+        grant: ArtifactGrant | None = None,
+    ) -> SwarmArtifact:
         return self._artifact_transition(
             handle,
             "write",
@@ -2113,7 +2414,9 @@ class SwarmCoordinator:
             grant=grant,
         )
 
-    def budget_view(self, handle, *, control):
+    def budget_view(
+        self, handle: CoordinatorScope, *, control: CoordinatorControlSource
+    ) -> CoordinatorBudgetView:
         self._control_check(control)
         scope = self._scope(handle)
         if scope.runtime is None:
@@ -2126,7 +2429,15 @@ class SwarmCoordinator:
         scope.runtime.bind_coordinator_budget(view, operator=self._operator)
         return view
 
-    def artifact_delete(self, handle, source, address, *, expected_version, grant=None):
+    def artifact_delete(
+        self,
+        handle: CoordinatorScope,
+        source: HostEventSource,
+        address: ArtifactAddress,
+        *,
+        expected_version: int,
+        grant: ArtifactGrant | None = None,
+    ) -> None:
         return self._artifact_transition(
             handle, "delete", source, address, expected_version=expected_version, grant=grant
         )
@@ -2138,14 +2449,18 @@ class SwarmCoordinator:
         gateway, reference = scope.artifacts, uuid4().hex
         # Authenticate the original host source and scope before journaling an intent.
         context = gateway._actor(source, address).context
+        auth_scope = scope.authenticator._scope
+        if auth_scope is None:
+            raise CoordinatorRejected("coordinator.original_task_scope_required")
         if (context.identity.tenant_id, context.identity.swarm_id, context.identity.task_id) != (
             scope.tenant_id,
             scope.swarm_id,
-            scope.authenticator._scope[2],
+            auth_scope[2],
         ):
             raise CoordinatorRejected("coordinator.artifact_scope_mismatch")
         with self.store.transaction() as transaction:
             _, state = self._owner(transaction, handle)
+            before = self._artifact_snapshot(scope)
             state["artifact_pending"].append(reference)
             transaction.append(
                 handle.scope_key,
@@ -2158,7 +2473,7 @@ class SwarmCoordinator:
             result = getattr(gateway, operation)(source, address, **arguments)
             with self.store.transaction() as transaction:
                 _, state = self._owner(transaction, handle, allow_incomplete=True)
-                self._check_artifacts(scope, state)
+                self._check_artifacts(scope, state, deleting=operation == "delete")
                 state["artifact_floors"] = self._artifact_snapshot(scope)
                 state["artifact_pending"].remove(reference)
                 transaction.append(
@@ -2170,10 +2485,30 @@ class SwarmCoordinator:
                 )
             return result
         except BaseException:
-            # Failed/unknown effect or acknowledgement retains a durable pending hold.
+            # The gateway marks any partial backing-store effect faulted. A
+            # known validation denial may clear its intent only when the same
+            # original gateway remains healthy and its full metadata is unchanged.
+            if not gateway._fault and self._artifact_snapshot(scope) == before:
+                try:
+                    with self.store.transaction() as transaction:
+                        _, state = self._owner(transaction, handle, allow_incomplete=True)
+                        if reference in state["artifact_pending"]:
+                            state["artifact_pending"].remove(reference)
+                            transaction.append(
+                                handle.scope_key,
+                                "artifact_rejected_no_effect",
+                                reference,
+                                {},
+                                maximum=self._limit,
+                            )
+                except (CoordinatorUnavailable, CoordinatorRejected):
+                    pass
+            # Partial/unknown effects or acknowledgements retain the durable hold.
             raise
 
-    def revoke_lease(self, handle, channel, lease_id):
+    def revoke_lease(
+        self, handle: CoordinatorScope, channel: AuthorityChannel, lease_id: str
+    ) -> dict[str, Any]:
         with self.store.transaction() as transaction:
             _, state, _, subject, _ = self._lease(
                 transaction, handle, channel, lease_id, allow_incomplete=True
@@ -2187,7 +2522,9 @@ class SwarmCoordinator:
                 "execution_authority": False,
             }
 
-    def workload_status(self, handle, channel, lease_id):
+    def workload_status(
+        self, handle: CoordinatorScope, channel: AuthorityChannel, lease_id: str
+    ) -> dict[str, Any]:
         with self.store.transaction() as transaction:
             _, state, _, _, _ = self._lease(
                 transaction, handle, channel, lease_id, allow_incomplete=True

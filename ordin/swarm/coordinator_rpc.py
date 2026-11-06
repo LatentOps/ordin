@@ -6,12 +6,14 @@ import json
 import ssl
 import struct
 import time
+from typing import Any, Callable
 
 from ordin.action import ActionEnvelope
 
 from .coordinator import SwarmCoordinator, CoordinatorScope
 from .coordinator_store import CoordinatorRejected, CoordinatorUnavailable, decode, encode
 from .events import SwarmEvent
+from .workload_auth import AuthorityChannel
 
 MAX_FRAME = 65536
 
@@ -54,7 +56,7 @@ class CoordinatorEndpoint:
         coordinator._scope(scope)
         self.coordinator, self.scope = coordinator, scope
 
-    def handle(self, channel, request):
+    def handle(self, channel: AuthorityChannel, request: dict[str, Any]) -> Any:
         if (
             type(request) is not dict
             or set(request) != {"schema_version", "operation", "arguments"}
@@ -88,6 +90,8 @@ class CoordinatorEndpoint:
         ):
             raise CoordinatorRejected("coordinator.operation_shape")
         coordinator, scope = self.coordinator, self.scope
+        result: Any
+        method: Callable[..., Any]
         # Each service method verifies the original workload/broker channel again.
         if operation in {"admit", "renew"}:
             result = coordinator.admit(scope, channel)
@@ -126,12 +130,13 @@ class CoordinatorEndpoint:
             result = coordinator.ingest_event(
                 scope, channel, args["lease"], SwarmEvent.from_dict(args["event"])
             )
+        elif operation == "dispatch":
+            result = coordinator.guarded_dispatch(scope, channel, args["reservation"])
         else:
             method = {
                 "forward": coordinator.begin_forward,
                 "commit": coordinator.commit,
                 "uncertain": coordinator.uncertain,
-                "dispatch": coordinator.guarded_dispatch,
             }[operation]
             result = method(scope, channel, args["reservation"])
         return (
@@ -142,7 +147,7 @@ class CoordinatorEndpoint:
             else result
         )
 
-    def serve_one(self, connection: ssl.SSLSocket):
+    def serve_one(self, connection: ssl.SSLSocket) -> None:
         auth = self.coordinator._scope(self.scope).authenticator
         channel = auth.authenticate(connection)
         timeout = connection.gettimeout()
@@ -175,7 +180,7 @@ class CoordinatorEndpoint:
             # connection; the listener must call close_connection on EOF.
             connection.settimeout(timeout)
 
-    def close_connection(self, connection: ssl.SSLSocket):
+    def close_connection(self, connection: ssl.SSLSocket) -> None:
         auth = self.coordinator._scope(self.scope).authenticator
         try:
             auth.close(auth.authenticate(connection))
@@ -197,7 +202,7 @@ class CoordinatorClient:
             raise ValueError("verified hostname-checking mutual TLS client socket required")
         self.connection = connection
 
-    def request(self, operation, **arguments):
+    def request(self, operation: str, **arguments: Any) -> Any:
         deadline, timeout = time.monotonic() + 10, self.connection.gettimeout()
         try:
             _send(
