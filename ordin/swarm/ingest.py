@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from hashlib import sha256
+import json
 from threading import RLock
 from typing import Any
 
@@ -16,6 +18,24 @@ from .models import SwarmContext, SwarmIdentity, identifier
 from .registry import AgentRegistry
 
 _LIFECYCLE = ("proposed", "reviewed", "reserved", "committed", "forwarded", "completed")
+
+
+def _snapshot_binding_digest(
+    scope: tuple[str, str] | None,
+    events: list[tuple[str, str, str]],
+    streams: list[tuple[str, str, str, str, int]],
+) -> str:
+    # These fresh owned rows contain only primitives. JSON already emits tuples
+    # as arrays, so recursively copying them through thaw is unnecessary. Keep
+    # canonical bytes identical and hash the entire CURRENT state on every call.
+    encoded = json.dumps(
+        {"scope": scope, "events": events, "streams": streams},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    return sha256(encoded.encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True, eq=False, slots=True)
@@ -471,24 +491,22 @@ class SwarmEventIngestor:
             binding = self._source(source)
             if binding.context is not context:
                 raise ValueError("snapshot sender belongs to a different current principal")
-            return runtime_digest(
-                {
-                    "scope": self._scope,
-                    "events": [
-                        (record.event.event_id, record.digest, record.source_role)
-                        for record in self._records.values()
-                    ],
-                    "streams": [
-                        (
-                            key,
-                            value.role,
-                            value.context.registry_id,
-                            runtime_digest(value.context.identity.as_dict()),
-                            value.contiguous,
-                        )
-                        for key, value in sorted(self._source_ids.items())
-                    ],
-                }
+            return _snapshot_binding_digest(
+                self._scope,
+                [
+                    (record.event.event_id, record.digest, record.source_role)
+                    for record in self._records.values()
+                ],
+                [
+                    (
+                        key,
+                        value.role,
+                        value.context.registry_id,
+                        runtime_digest(value.context.identity.as_dict()),
+                        value.contiguous,
+                    )
+                    for key, value in sorted(self._source_ids.items())
+                ],
             )
 
     def snapshot(self) -> tuple[JournalRecord, ...]:

@@ -68,6 +68,15 @@ refusal checks. The separate overhead report distinguishes cold world setup,
 warm operation samples, signed paired deltas, input capacity, and bounded
 retained-session state. It keeps the existing p95 250 ms and p99 500 ms budgets.
 
+Protected snapshot fingerprints still rebuild and hash the complete current
+event and stream rows under the original lock on every call. Their fixed
+primitive payload uses the identical canonical UTF-8 JSON bytes without a
+redundant recursive container copy. Identity digests keep the generic encoder;
+no observed joins or prior snapshot hashes are cached. Differential tests cover
+empty, 683-event and 4,096-event payloads, Unicode, ordering, roles, scope and
+stream-generation changes. These tests prove fingerprint equivalence; actual
+latency qualification still requires the unchanged benchmark gates.
+
 Reports are evidence artifacts and always carry `execution_authority: false`.
 Synthetic successes do not authorize deployment or prove safety in arbitrary
 agent frameworks. Reproduce on a clean exact revision using the commands in the
