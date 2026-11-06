@@ -90,6 +90,7 @@ SCHEMA_FILES = {
     "swarm_broker_control": "swarm-broker-control.v1.schema.json",
     "swarm_executor_outcome": "swarm-executor-outcome.v1.schema.json",
     "swarm_risk_context": "swarm-risk-context.v1.schema.json",
+    "swarm_risk_corpus": "swarm-risk-corpus.v1.schema.json",
     "swarm_risk_signal": "swarm-risk-signal.v1.schema.json",
     "swarm_risk_receipt": "swarm-risk-receipt.v1.schema.json",
     "swarm_risk_calibration": "swarm-risk-calibration.v1.schema.json",

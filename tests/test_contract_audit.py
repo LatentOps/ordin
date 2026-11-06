@@ -649,6 +649,7 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
         "swarm_broker_control",
         "swarm_executor_outcome",
         "swarm_risk_context",
+        "swarm_risk_corpus",
         "swarm_risk_signal",
         "swarm_risk_receipt",
         "swarm_risk_calibration",

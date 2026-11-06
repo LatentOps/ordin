@@ -130,6 +130,12 @@ This fences old risk bindings without resetting workers or reserved cost.
 
 ## Independent synthetic calibration
 
+The two public calibration inputs use the registered
+`ordin.swarm_risk_corpus.v1` contract. It bounds the closed case records and case
+count; calibration also checks distinct case IDs, mixed positive and benign
+labels, and the 16 KiB UTF-8 input limit. These explicit synthetic labels confer
+no execution, approval or host-evidence authority.
+
 Run the explicit offline evaluation from the repository root:
 
 ```text
