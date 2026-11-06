@@ -284,6 +284,33 @@ def test_timeline_window_explicitly_reports_projection_truncation(tmp_path):
         assert "projection_truncated" in snapshot["proof_gaps"]
 
 
+def test_transactional_audit_storage_fault_is_explicit_without_partial_capture(
+    tmp_path, monkeypatch
+):
+    with operator_fixture(tmp_path) as (data, source, _, _, human, api, *_):
+        save = source.journal._save
+
+        def storage_failure(connection, meta):
+            save(connection, meta)
+            raise sqlite3.OperationalError("owned transactional storage failure")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(source.journal, "_save", storage_failure)
+            for index in range(3):
+                source.record_risk(
+                    severity="high",
+                    confidence=1,
+                    model_ref="fixed",
+                    action_ref=str(index),
+                    operator=data["operator"],
+                )
+            assert not source.flush(operator=data["operator"], timeout=5)
+        assert source._fault and not source._queue.unfinished_tasks
+        assert source.journal.export(operator=data["operator"])["events"] == []
+        snapshot = api.handle(human, request("status"))
+        assert "capture_unavailable" in snapshot["proof_gaps"]
+
+
 def test_audit_queue_overflow_is_explicit_and_cannot_change_a_core_deny(tmp_path, monkeypatch):
     from ordin.swarm.audit import verify_swarm_audit, SwarmAuditPolicy
 

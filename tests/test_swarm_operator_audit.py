@@ -173,7 +173,37 @@ def test_invalid_bounded_batch_rolls_back_every_event(tmp_path):
         "refs": {},
         "facts": {"model_risk": "high"},
     }
-    for records in ([], [valid] * 33, [valid, {**valid, "facts": {"prompt": "secret"}}]):
+    for records in (
+        [],
+        [None],
+        [1],
+        [valid] * 33,
+        [valid, {**valid, "facts": {"prompt": "secret"}}],
+    ):
         with pytest.raises(ValueError):
             selected._append_many(records, operator=operator)
         assert selected.export(operator=operator)["events"] == []
+
+
+def test_batch_storage_failure_rolls_back_inserted_events_and_metadata(tmp_path, monkeypatch):
+    selected, operator, _ = journal(tmp_path)
+    valid = {
+        "kind": "risk_signal",
+        "state": "risk_reported",
+        "evidence": "diagnostic",
+        "refs": {},
+        "facts": {"model_risk": "high"},
+    }
+    save = selected._save
+
+    def storage_failure(connection, meta):
+        save(connection, meta)
+        raise sqlite3.OperationalError("owned transactional storage failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(selected, "_save", storage_failure)
+        with pytest.raises(ValueError, match="private database unavailable or corrupt"):
+            selected._append_many([valid, valid], operator=operator)
+    bundle = selected.export(operator=operator)
+    assert bundle["events"] == [] and bundle["tail_sequence"] == 0
+    assert verify_swarm_audit(bundle).valid
