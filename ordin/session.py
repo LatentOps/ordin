@@ -603,10 +603,15 @@ class SqliteSessionStore:
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path).absolute()
+        # One shared store may serve several hook threads. Serialize them
+        # before opening SQLite so a succession of same-process transactions
+        # cannot exhaust another thread's database busy timeout. Independent
+        # stores/processes still use SQLite's bounded cross-process locking.
+        self._lock = threading.RLock()
 
     @contextmanager
     def _connection(self) -> Iterator[sqlite3.Connection]:
-        with private_database(self.path, "session") as connection:
+        with self._lock, private_database(self.path, "session") as connection:
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS sessions (identity TEXT PRIMARY KEY, snapshot TEXT NOT NULL)"
             )
