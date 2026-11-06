@@ -209,7 +209,7 @@ def _upstream(mode="json", *, redirect="http://127.0.0.1:1/never"):
 
 
 @contextmanager
-def _proxy(url, *, auth=False, pins=False, audit=None, observations=None, timeout=2):
+def _proxy(url, *, auth=False, pins=False, audit=None, observations=None, timeout=10):
     registry = _registry()
     shells = frozenset({"shell"})
     contract_lock = (

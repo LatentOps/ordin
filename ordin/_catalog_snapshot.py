@@ -61,6 +61,7 @@ def _owner():
 class _Snapshot:
     owner: tuple = field(default_factory=_owner)
     active: bool = True
+    fully_tracked: bool = True
     environment: tuple = field(
         default_factory=lambda: (
             os.environ.get("ORDIN_PACKS"),
@@ -103,6 +104,7 @@ class _Snapshot:
 
     def close(self):
         self.active = False
+        self.fully_tracked = False
         self.owner = (None, None)
         self.environment = ()
         self.files.clear()
@@ -123,6 +125,11 @@ def _current():
         if not _BYPASS.get() and value is not None and value.active and value.owner == _owner()
         else None
     )
+
+
+def prediction_reuse_allowed() -> bool:
+    state = _current()
+    return state is not None and state.fully_tracked
 
 
 @contextmanager
@@ -180,6 +187,7 @@ def read_catalog_json(path: Path, *, anchor=None):
         state.byte_count += len(raw)
         return value
     # Oversized/extra catalogs preserve the original fresh-read behavior.
+    state.fully_tracked = False
     return value
 
 
@@ -192,6 +200,7 @@ def catalog_paths(path: Path, kind: str, *, anchor=None):
     if key not in state.directories:
         values = _directory(*key)
         if len(values) > MAX_FILES or len(state.directories) >= MAX_FILES:
+            state.fully_tracked = False
             return values
         state.directories[key] = values
     return state.directories[key]
@@ -205,6 +214,7 @@ def catalog_exists(path: Path):
     if selected not in state.existence:
         exists = path.exists()
         if len(state.existence) >= MAX_FILES:
+            state.fully_tracked = False
             return exists
         state.existence[selected] = exists
     return state.existence[selected]

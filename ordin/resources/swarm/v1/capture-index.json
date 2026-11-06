@@ -1,0 +1,6 @@
+{
+  "schema_version": "ordin.swarm_capture_index.v1",
+  "captured_cases": [],
+  "private_capture_policy": "Private traces are not bundled. Promotion requires operator review, exact source revision, collection provenance, irreversible parameter/path/credential sanitization and a synthetic public equivalent.",
+  "public_capture_policy": "Never relabel a design reconstruction or synthetic failure as a captured runtime event."
+}

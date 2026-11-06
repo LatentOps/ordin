@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-corpus.v1.schema.json",
+  "title": "swarm_corpus",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "corpus_version",
+    "minimum_ordin",
+    "seed",
+    "schedule_limit",
+    "sanitization",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_corpus.v1"
+    },
+    "corpus_version": {
+      "const": "1.0.0"
+    },
+    "minimum_ordin": {
+      "type": "string",
+      "maxLength": 32
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "schedule_limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4096
+    },
+    "sanitization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "synthetic_values_only",
+        "raw_values_in_reports",
+        "captured_cases",
+        "private_traces_included"
+      ],
+      "properties": {
+        "synthetic_values_only": {
+          "const": true
+        },
+        "raw_values_in_reports": {
+          "const": false
+        },
+        "captured_cases": {
+          "const": 0
+        },
+        "private_traces_included": {
+          "const": false
+        }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "scenario",
+          "agents",
+          "label",
+          "critical",
+          "lane",
+          "expected",
+          "provenance"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,63}$"
+          },
+          "scenario": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "agents": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 10
+          },
+          "label": {
+            "enum": [
+              "adversarial",
+              "benign",
+              "unknown",
+              "bypass"
+            ]
+          },
+          "critical": {
+            "type": "boolean"
+          },
+          "lane": {
+            "enum": [
+              "stateful",
+              "kernel"
+            ]
+          },
+          "expected": {
+            "enum": [
+              "execute",
+              "deny",
+              "unknown",
+              "uncovered"
+            ]
+          },
+          "provenance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "source_issue",
+              "source_revision",
+              "description"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "captured",
+                  "reconstructed",
+                  "synthetic_from_failure",
+                  "control"
+                ]
+              },
+              "source_issue": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1
+              },
+              "source_revision": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^[a-f0-9]{40}$"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              }
+            }
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 128
+    }
+  }
+}

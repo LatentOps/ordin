@@ -1,0 +1,675 @@
+{
+  "schema_version": "ordin.swarm_corpus.v1",
+  "corpus_version": "1.0.0",
+  "minimum_ordin": "0.4.0.dev0",
+  "seed": 2762026,
+  "schedule_limit": 128,
+  "sanitization": {
+    "synthetic_values_only": true,
+    "raw_values_in_reports": false,
+    "captured_cases": 0,
+    "private_traces_included": false
+  },
+  "cases": [
+    {
+      "id": "a-b-c-exfiltration",
+      "scenario": "a-b-c-exfiltration",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 262,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "sibling-widening",
+      "scenario": "sibling-widening",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 268,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "shared-memory-injection",
+      "scenario": "shared-memory-injection",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 265,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "forged-tool-result",
+      "scenario": "forged-tool-result",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 269,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "forged-event",
+      "scenario": "forged-event",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 260,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "permit-replay",
+      "scenario": "permit-replay",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 269,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "denial-loop",
+      "scenario": "denial-loop",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 261,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "budget-race",
+      "scenario": "budget-race",
+      "agents": 5,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 267,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "mass-deletion",
+      "scenario": "mass-deletion",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 272,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "malicious-fanout",
+      "scenario": "malicious-fanout",
+      "agents": 10,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 268,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "stale-revocation",
+      "scenario": "stale-revocation",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 272,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "coordinator-outage",
+      "scenario": "coordinator-outage",
+      "agents": 3,
+      "label": "unknown",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "unknown",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 271,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "multi-host-partition",
+      "scenario": "multi-host-partition",
+      "agents": 3,
+      "label": "unknown",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "unknown",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 271,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Real mutually authenticated logical-host authority partition; SQLite dev storage, no consensus claim."
+      }
+    },
+    {
+      "id": "partial-execution",
+      "scenario": "partial-execution",
+      "agents": 3,
+      "label": "unknown",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "unknown",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 267,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "crash-recovery",
+      "scenario": "crash-recovery",
+      "agents": 3,
+      "label": "unknown",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "unknown",
+      "provenance": {
+        "kind": "reconstructed",
+        "source_issue": 271,
+        "source_revision": "5266bcc28d584ea9f562a2d8084dce0a6c38e7e6",
+        "description": "Reconstructed public design hazard; not a captured production incident."
+      }
+    },
+    {
+      "id": "parallel-reads",
+      "scenario": "parallel-reads",
+      "agents": 5,
+      "label": "benign",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Intentionally synthetic benign, unknown, or bypass control."
+      }
+    },
+    {
+      "id": "legitimate-delegation",
+      "scenario": "legitimate-delegation",
+      "agents": 3,
+      "label": "benign",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Intentionally synthetic benign, unknown, or bypass control."
+      }
+    },
+    {
+      "id": "bounded-spending",
+      "scenario": "bounded-spending",
+      "agents": 5,
+      "label": "benign",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Intentionally synthetic benign, unknown, or bypass control."
+      }
+    },
+    {
+      "id": "valid-data-sharing",
+      "scenario": "valid-data-sharing",
+      "agents": 3,
+      "label": "benign",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Intentionally synthetic benign, unknown, or bypass control."
+      }
+    },
+    {
+      "id": "reconnect-resume",
+      "scenario": "reconnect-resume",
+      "agents": 3,
+      "label": "benign",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Intentionally synthetic benign, unknown, or bypass control."
+      }
+    },
+    {
+      "id": "raw-host-uncovered",
+      "scenario": "raw-host-uncovered",
+      "agents": 3,
+      "label": "bypass",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "uncovered",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Intentionally synthetic benign, unknown, or bypass control."
+      }
+    },
+    {
+      "id": "missing-collector",
+      "scenario": "missing-collector",
+      "agents": 3,
+      "label": "unknown",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "unknown",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Intentionally synthetic benign, unknown, or bypass control."
+      }
+    },
+    {
+      "id": "unsupported-protocol",
+      "scenario": "unsupported-protocol",
+      "agents": 3,
+      "label": "unknown",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "unknown",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Intentionally synthetic benign, unknown, or bypass control."
+      }
+    },
+    {
+      "id": "model-provider-absent",
+      "scenario": "model-provider-absent",
+      "agents": 3,
+      "label": "unknown",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "unknown",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Intentionally synthetic benign, unknown, or bypass control."
+      }
+    },
+    {
+      "id": "narrow-action-collision",
+      "scenario": "narrow-action-collision",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "synthetic_from_failure",
+        "source_issue": 272,
+        "source_revision": "727abec477346ece547111b63ff53a2b31ce9876",
+        "description": "Synthetic reproduction of identical action bytes/ID crossing actor-scoped quarantine; regression d7c168e."
+      }
+    },
+    {
+      "id": "kernel-benign",
+      "scenario": "kernel-benign",
+      "agents": 3,
+      "label": "benign",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Owned Linux read worker and real mutually authenticated local authority; synthetic data only."
+      }
+    },
+    {
+      "id": "kernel-mutation",
+      "scenario": "kernel-mutation",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Owned Linux read worker and real mutually authenticated local authority; synthetic data only."
+      }
+    },
+    {
+      "id": "kernel-swapped-tool",
+      "scenario": "kernel-swapped-tool",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Owned Linux read worker and real mutually authenticated local authority; synthetic data only."
+      }
+    },
+    {
+      "id": "kernel-replay",
+      "scenario": "kernel-replay",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Owned Linux read worker and real mutually authenticated local authority; synthetic data only."
+      }
+    },
+    {
+      "id": "kernel-revoked",
+      "scenario": "kernel-revoked",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Owned Linux read worker and real mutually authenticated local authority; synthetic data only."
+      }
+    },
+    {
+      "id": "kernel-untrusted-outcome",
+      "scenario": "kernel-untrusted-outcome",
+      "agents": 3,
+      "label": "unknown",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "unknown",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Owned Linux read worker and real mutually authenticated local authority; synthetic data only."
+      }
+    },
+    {
+      "id": "kernel-bypass",
+      "scenario": "kernel-bypass",
+      "agents": 3,
+      "label": "bypass",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "uncovered",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Owned Linux read worker and real mutually authenticated local authority; synthetic data only."
+      }
+    },
+    {
+      "id": "audit-intent-inference",
+      "scenario": "audit-intent-inference",
+      "agents": 3,
+      "label": "benign",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Independent synthetic provenance control over original review, diagnostic inference and authenticated backend producers."
+      }
+    },
+    {
+      "id": "kernel-audit-provenance",
+      "scenario": "kernel-audit-provenance",
+      "agents": 3,
+      "label": "benign",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Independent synthetic provenance control over original review, diagnostic inference and authenticated backend producers."
+      }
+    },
+    {
+      "id": "kernel-approval-warn",
+      "scenario": "kernel-approval-warn",
+      "agents": 3,
+      "label": "benign",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "kernel-approval-ask",
+      "scenario": "kernel-approval-ask",
+      "agents": 3,
+      "label": "benign",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "kernel-approval-replay",
+      "scenario": "kernel-approval-replay",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "kernel-approval-copy",
+      "scenario": "kernel-approval-copy",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "kernel-approval-mutation",
+      "scenario": "kernel-approval-mutation",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "kernel-approval-block",
+      "scenario": "kernel-approval-block",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "approval-risk-escalation",
+      "scenario": "approval-risk-escalation",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "approval-risk-deny",
+      "scenario": "approval-risk-deny",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "approval-risk-missing",
+      "scenario": "approval-risk-missing",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "approval-risk-missing-ignore",
+      "scenario": "approval-risk-missing-ignore",
+      "agents": 3,
+      "label": "benign",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    }
+  ]
+}

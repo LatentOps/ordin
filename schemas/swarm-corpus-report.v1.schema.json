@@ -1,0 +1,491 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-corpus-report.v1.schema.json",
+  "title": "swarm_corpus_report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "corpus_version",
+    "revision",
+    "manifest_sha256",
+    "implementation_sha256",
+    "seed",
+    "result_sha256",
+    "environment",
+    "scope",
+    "metrics",
+    "scenario_latency_ms",
+    "revocation_check_latency_ms",
+    "results",
+    "errors",
+    "ok",
+    "limitations",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_corpus_report.v1"
+    },
+    "corpus_version": {
+      "const": "1.0.0"
+    },
+    "revision": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "implementation_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "result_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordin",
+        "python",
+        "platform"
+      ],
+      "properties": {
+        "ordin": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "python": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "platform": {
+          "type": "string",
+          "maxLength": 512
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cases",
+        "kernel_requested",
+        "captured_runtime_cases",
+        "human_reviewed_runtime_cases",
+        "labels",
+        "lanes",
+        "evaluated",
+        "critical_cases",
+        "critical_not_run",
+        "provenance",
+        "critical_not_evaluated",
+        "optional_risk_available"
+      ],
+      "properties": {
+        "cases": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "kernel_requested": {
+          "type": "boolean"
+        },
+        "captured_runtime_cases": {
+          "const": 0
+        },
+        "human_reviewed_runtime_cases": {
+          "const": 0
+        },
+        "labels": {
+          "type": "object",
+          "maxProperties": 16,
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          }
+        },
+        "lanes": {
+          "type": "object",
+          "maxProperties": 16,
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          }
+        },
+        "evaluated": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "critical_cases": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "critical_not_run": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "provenance": {
+          "type": "object",
+          "maxProperties": 16,
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 128
+          }
+        },
+        "critical_not_evaluated": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "optional_risk_available": {
+          "type": "boolean"
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "critical_misses",
+        "false_allows",
+        "false_blocks",
+        "unnecessary_approvals",
+        "unknowns",
+        "uncovered_paths",
+        "invariant_failures",
+        "authenticated_kernel_completions",
+        "owned_callback_completions",
+        "kernel_not_run",
+        "optional_not_evaluated"
+      ],
+      "properties": {
+        "critical_misses": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "false_allows": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "false_blocks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "unnecessary_approvals": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "unknowns": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "uncovered_paths": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "invariant_failures": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "authenticated_kernel_completions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "owned_callback_completions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "kernel_not_run": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "optional_not_evaluated": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        }
+      }
+    },
+    "scenario_latency_ms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "samples",
+        "p50",
+        "p95",
+        "p99"
+      ],
+      "properties": {
+        "samples": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "p50": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p95": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p99": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "revocation_check_latency_ms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "samples",
+        "p50",
+        "p95",
+        "p99"
+      ],
+      "properties": {
+        "samples": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100000
+        },
+        "p50": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p95": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p99": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "lane",
+          "status",
+          "expected",
+          "actual",
+          "matched",
+          "checks",
+          "backend_facts"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "lane": {
+            "enum": [
+              "stateful",
+              "kernel"
+            ]
+          },
+          "status": {
+            "enum": [
+              "evaluated",
+              "not_run",
+              "not_evaluated"
+            ]
+          },
+          "label": {
+            "enum": [
+              "adversarial",
+              "benign",
+              "unknown",
+              "bypass"
+            ]
+          },
+          "expected": {
+            "enum": [
+              "execute",
+              "deny",
+              "unknown",
+              "uncovered"
+            ]
+          },
+          "actual": {
+            "enum": [
+              "execute",
+              "deny",
+              "unknown",
+              "uncovered"
+            ]
+          },
+          "matched": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "checks": {
+            "type": "object",
+            "maxProperties": 64,
+            "additionalProperties": {
+              "type": "boolean"
+            }
+          },
+          "core_intent": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "additionalProperties": true,
+                "required": [
+                  "decision",
+                  "disposition",
+                  "effects"
+                ],
+                "properties": {
+                  "decision": {
+                    "enum": [
+                      "allow",
+                      "warn",
+                      "ask",
+                      "block"
+                    ]
+                  },
+                  "disposition": {
+                    "enum": [
+                      "execute",
+                      "escalate",
+                      "deny"
+                    ]
+                  },
+                  "effects": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 128
+                    },
+                    "minItems": 0,
+                    "maxItems": 128
+                  }
+                }
+              }
+            ]
+          },
+          "model_inference": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "status",
+              "evidence_authority"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "maxLength": 32
+              },
+              "evidence_authority": {
+                "const": false
+              }
+            }
+          },
+          "backend_facts": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "outcome",
+              "physical_enforcement",
+              "authenticated_observations"
+            ],
+            "properties": {
+              "outcome": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "physical_enforcement": {
+                "type": "boolean"
+              },
+              "authenticated_observations": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 128
+              }
+            }
+          },
+          "facts": {
+            "type": "object",
+            "maxProperties": 64
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 128
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 256
+      },
+      "minItems": 0,
+      "maxItems": 256
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 1024
+      },
+      "minItems": 0,
+      "maxItems": 32
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}
