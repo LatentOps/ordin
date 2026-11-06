@@ -21,6 +21,10 @@ in-flight issuer/credential operation. A request can therefore return while
 cleanup is pending. There is a finite incident history and at most one cleanup
 worker per admitted incident; reaching capacity never reopens a route.
 
+Credential revocation closes the registered local route and releases its vault
+reference. It does not rotate the upstream provider's secret or promise erasure
+of Python memory or already-started private transport requests.
+
 The status report separates canceled, completed, unable-to-stop and unknown
 backend results from durable reservation outcomes. It includes notification
 completion and proof gaps, hashes instead of action/credential contents, and a
@@ -45,6 +49,13 @@ do not prove successful exploitation. Broad task/swarm/tenant containment always
 requires the protected operator. Changed evidence invalidates an unused automatic
 signal. Source truncation and unknown prehistory cannot establish a benign state.
 
+`incident_temporal_policy()` returns the five finite cascading templates.
+`cascade_incident_rules(("incident_repeated_denials",), max_affected=1)` explicitly
+selects one narrow automatic response for `IncidentPolicy`; an empty selection
+keeps automation disabled. Configure the original temporal engine and flow
+before registering the coordinator scope. Relay and delegation rules retain
+their actual lineage/original-grant requirements.
+
 Recovery requires completed notifications, original reconciled backend outcomes,
 a current operator approval and a strictly newer owner fence or policy epoch.
 `approve_resume` creates a short-lived original receipt bound to that exact
@@ -53,6 +64,12 @@ which verifies outside DB/control locks then rechecks the durable state before
 commit. Unknown in-flight outcomes, stale approvals and copied JSON cannot clear
 a fence. A true process restart cannot restore lost original backend evidence
 from a report and remains closed until actual reconciliation is available.
+
+`reconcile_job` passes an original known broker outcome to the coordinator and
+retains all existing budget holds. A multi-scope recovery approval binds every
+affected registered scope to its own fresh owner/policy fence. Member recovery
+completes before the encompassing realm barrier can clear; a lost group
+acknowledgement cannot be replaced with a caller assertion that recovery worked.
 
 Resuming the coordinator scope does not restore old grants, TLS channels,
 registry contexts, reservations or execution tickets. Workloads require fresh

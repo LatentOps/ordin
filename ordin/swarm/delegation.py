@@ -336,11 +336,11 @@ class SwarmDelegationService:
             self._policy_runtime, self._policy_facts_provider = runtime, facts_provider
 
     def _policy_barrier(self):
-        return (
-            self._policy_runtime.execution_barrier
-            if self._policy_runtime is not None
-            else nullcontext()
-        )
+        if self._policy_runtime is not None:
+            return self._policy_runtime.execution_barrier
+        if self._containment is not None:
+            return self._containment._execution_barrier(self)
+        return nullcontext()
 
     def _policy_projection(
         self,

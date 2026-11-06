@@ -183,6 +183,22 @@ class SwarmContainmentController:
         if operator is not self._operator or self._policy.digest != self._policy_digest:
             raise ValueError("original operator and unchanged incident policy required")
 
+    def _execution_barrier(self, native):
+        """Keep admission locks before DB/issuer/broker locks on every bound route.
+
+        Containment itself never takes this barrier: an in-flight callback must
+        not delay publishing its durable fence or requesting an owned stop.
+        """
+        from .registry import InMemoryAgentRegistry
+
+        matches = [scope for scope in self._coordinator._scopes.values() if scope.native is native]
+        if len(matches) != 1:
+            raise ValueError("original unique native containment route required")
+        registry = matches[0].authenticator._registry
+        if type(registry) is not InMemoryAgentRegistry:
+            raise ValueError("original containment registry required")
+        return registry._policy_execution_barrier
+
     def temporal_signal(self, engine, context, source, action, *, parent_event_ids, uses=()):
         """Compute a configured finding from the original engine, never accept one as JSON.
 

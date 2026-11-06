@@ -162,7 +162,11 @@ class SwarmExecutionBroker:
         )
 
     def _barrier(self):
-        return self._execution_lock if self._runtime is None else self._runtime.execution_barrier
+        if self._runtime is not None:
+            return self._runtime.execution_barrier
+        if self._service._containment is not None:
+            return self._service._policy_barrier()
+        return self._execution_lock
 
     @property
     def factory_configuration_digest(self) -> str:

@@ -943,7 +943,8 @@ class SwarmCoordinator:
             raise ValueError("exact host-correlated action required")
         captured = ActionEnvelope.from_dict(action.as_dict())
         action_hash = digest(captured.as_dict())
-        with self.store.transaction() as transaction:
+        scope = self._scope(handle)
+        with self._containment_barrier(scope), self.store.transaction() as transaction:
             scope, state, enrollment, subject, lease = self._lease(
                 transaction, handle, channel, lease_id
             )
@@ -1104,6 +1105,17 @@ class SwarmCoordinator:
         return None, None, review.admission_id, original.action
 
     @staticmethod
+    def _containment_barrier(scope):
+        # Native review/commit may query this same DB when containment is
+        # enabled. Take its admission barrier before DB and issuer locks on
+        # every preparation route; the incident control path never takes it.
+        return (
+            scope.native._policy_barrier()
+            if scope.native._containment is not None
+            else nullcontext()
+        )
+
+    @staticmethod
     def _cancel_prepared(scope, channel, prepared):
         try:
             if prepared.broker is not None:
@@ -1206,7 +1218,7 @@ class SwarmCoordinator:
             else nullcontext()
         )
         try:
-            with guard, self.store.transaction() as transaction:
+            with self._containment_barrier(scope), guard, self.store.transaction() as transaction:
                 scope, state, enrollment, subject, lease = self._lease(
                     transaction, handle, channel, lease_id
                 )
@@ -1385,7 +1397,8 @@ class SwarmCoordinator:
         self, handle: CoordinatorScope, broker_channel: AuthorityChannel, reservation_id: str
     ) -> CoordinatorRecord:
         """Durably consume before any broker effect. ACK loss is never retried."""
-        with self.store.transaction() as transaction:
+        scope = self._scope(handle)
+        with self._containment_barrier(scope), self.store.transaction() as transaction:
             scope, state, reservation = self._broker_reservation(
                 transaction, handle, broker_channel, reservation_id, statuses={"reserved"}
             )

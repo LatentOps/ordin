@@ -534,6 +534,56 @@ def test_lost_fence_ack_never_leaves_cached_native_admission_open(tmp_path, monk
             assert transaction.scope(data["scope"].scope_key)["revocation_epoch"] == 1
 
 
+def test_native_review_and_coordinator_prepare_do_not_invert_db_and_issuer_locks(
+    tmp_path, monkeypatch
+):
+    with configured(tmp_path, limit=4) as data:
+        controller(data)
+        coordinator, scope = data["coordinator"], data["scope"]
+        proposed = action("coordinator-race")
+        evaluated = coordinator.evaluate(
+            scope,
+            data["channels"]["child"],
+            data["leases"]["child"].reference,
+            data["references"]["child"],
+            proposed,
+            idempotency_key="race-evaluate",
+        )
+        in_transaction, release = Event(), Event()
+        original = coordinator._prepare
+
+        def preparing(*args, **kwargs):
+            in_transaction.set()
+            assert release.wait(5)
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(coordinator, "_prepare", preparing)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            reserve = pool.submit(
+                coordinator.reserve,
+                scope,
+                data["channels"]["child"],
+                data["leases"]["child"].reference,
+                evaluated.reference,
+                proposed,
+                idempotency_key="race-reserve",
+            )
+            assert in_transaction.wait(5)
+            review = pool.submit(
+                data["native"].review,
+                data["channels"]["child"],
+                data["references"]["child"],
+                action("native-race"),
+            )
+            # Let the direct route attempt admission while preparation owns DB
+            # authority. It must wait before owning the issuer, not while
+            # holding the issuer and waiting for this DB transaction to finish.
+            time.sleep(0.05)
+            release.set()
+            assert reserve.result(15).status == "reserved"
+            assert review.result(15).disposition == "execute"
+
+
 def test_scoped_credential_route_is_revoked_without_exposing_private_bytes(tmp_path):
     from ordin import Ordin
     from ordin.assurance import RestSemantics
