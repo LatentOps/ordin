@@ -32,6 +32,8 @@ def main():
             if archive.read(source.relative_to(package).as_posix()) != source.read_bytes():
                 raise ValueError("adapter wheel differs from current source")
     with zipfile.ZipFile(core) as archive:
+        if archive.read("ordin/schema.py") != (ROOT / "ordin/schema.py").read_bytes():
+            raise ValueError("core schema loader wheel differs from current source")
         for source in (ROOT / "ordin/resources/schemas").glob("swarm-framework-*.json"):
             if archive.read(source.relative_to(ROOT).as_posix()) != source.read_bytes():
                 raise ValueError("framework schema wheel differs from current source")

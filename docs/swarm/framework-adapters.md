@@ -197,3 +197,8 @@ plugin autoload and runtime network access, and runs real two-agent workflows
 plus forged/replayed/mutated/concurrent/error/unsupported-path controls. Wheel
 smoke covers the optional adapter package and its base install without model
 or framework dependencies.
+
+Runtime schema loading uses the resources owned by the installed Ordin package.
+A sibling `site-packages/schemas` directory installed by another SDK cannot
+shadow these validators. Checkout source schemas remain part of the explicit
+source/package parity gate.
