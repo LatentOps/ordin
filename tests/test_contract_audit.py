@@ -437,6 +437,9 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     from tests.swarm_coordinator_contract_samples import coordinator_contract_samples
 
     samples.update(coordinator_contract_samples())
+    from ordin.swarm.incident import IncidentReceipt
+
+    samples["swarm_incident"] = IncidentReceipt("a" * 32, "b" * 64, 1, "c" * 64, "pause").as_dict()
     assert set(samples) == set(SCHEMA_FILES)
     for name, payload in samples.items():
         assert not validate_named_schema(name, payload), name
@@ -561,6 +564,7 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
         "swarm_artifact",
         "swarm_artifact_diagnostics",
         "swarm_coordinator_record",
+        "swarm_incident",
         "swarm_coordinator_fence",
         "swarm_coordinator_dispatch",
         "swarm_coordinator_status",

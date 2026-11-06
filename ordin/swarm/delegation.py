@@ -290,6 +290,7 @@ class SwarmDelegationService:
         self._generation = 0
         self._available = True
         self._policy_runtime: Any = None
+        self._containment: Any = None
         self._policy_facts_provider: Any = None
         self._audit: list[dict[str, Any]] = []
         self._audit_limit = max_admissions * 3 + issuer.limits.maximum_grants * 3
@@ -299,6 +300,18 @@ class SwarmDelegationService:
     def _operator_check(self, operator: object) -> None:
         if operator is not self._operator:
             raise ValueError("protected authority operator capability required")
+
+    def bind_containment(self, controller, *, operator: object) -> None:
+        from .containment import SwarmContainmentController
+
+        self._operator_check(operator)
+        if type(controller) is not SwarmContainmentController or not any(
+            scope.native is self for scope in controller._coordinator._scopes.values()
+        ):
+            raise ValueError("original scope-bound containment controller required")
+        if self._containment is not None and self._containment is not controller:
+            raise ValueError("containment controller already bound")
+        self._containment = controller
 
     def bind_policy_runtime(self, runtime, *, operator: object, facts_provider=None) -> None:
         """Protected policy composition; never accept runtime/facts from wire JSON."""
@@ -323,11 +336,11 @@ class SwarmDelegationService:
             self._policy_runtime, self._policy_facts_provider = runtime, facts_provider
 
     def _policy_barrier(self):
-        return (
-            self._policy_runtime.execution_barrier
-            if self._policy_runtime is not None
-            else nullcontext()
-        )
+        if self._policy_runtime is not None:
+            return self._policy_runtime.execution_barrier
+        if self._containment is not None:
+            return self._containment._execution_barrier(self)
+        return nullcontext()
 
     def _policy_projection(
         self,
@@ -714,6 +727,8 @@ class SwarmDelegationService:
             if subject.source is None:
                 raise ValueError("workload host source unavailable")
             captured = ActionEnvelope.from_dict(action.as_dict())
+            if self._containment is not None:
+                self._containment.require_current(subject.context, captured)
             context = subject.source.context(credential_uses=credential_uses)
             decision = row.gate.evaluate_action(captured, host_context=context)
             final, reasons, policy_binding = self._policy_projection(
@@ -832,6 +847,8 @@ class SwarmDelegationService:
             try:
                 row, subject = self._grant(admission.owner_channel, admission.grant_ref)
                 captured = ActionEnvelope.from_dict(admission.action.as_dict())
+                if self._containment is not None:
+                    self._containment.require_current(subject.context, captured)
                 if self._policy_runtime is not None:
                     policy_guard.enter_context(
                         self._policy_runtime.execution_guard(subject.context, broker=policy_broker)

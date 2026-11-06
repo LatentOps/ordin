@@ -52,6 +52,14 @@ if TYPE_CHECKING:
     from .temporal import SwarmTemporalEngine
 
 
+def _action_fence_key(action_digest: str, actor_digest: str | None = None) -> str:
+    return (
+        action_digest
+        if actor_digest is None
+        else digest(["ordin.swarm.actor_action_fence.v1", actor_digest, action_digest])
+    )
+
+
 @dataclass(frozen=True, eq=False, slots=True)
 class CoordinatorControlSource:
     source_id: str
@@ -943,7 +951,8 @@ class SwarmCoordinator:
             raise ValueError("exact host-correlated action required")
         captured = ActionEnvelope.from_dict(action.as_dict())
         action_hash = digest(captured.as_dict())
-        with self.store.transaction() as transaction:
+        scope = self._scope(handle)
+        with self._containment_barrier(scope), self.store.transaction() as transaction:
             scope, state, enrollment, subject, lease = self._lease(
                 transaction, handle, channel, lease_id
             )
@@ -1104,6 +1113,17 @@ class SwarmCoordinator:
         return None, None, review.admission_id, original.action
 
     @staticmethod
+    def _containment_barrier(scope):
+        # Native review/commit may query this same DB when containment is
+        # enabled. Take its admission barrier before DB and issuer locks on
+        # every preparation route; the incident control path never takes it.
+        return (
+            scope.native._policy_barrier()
+            if scope.native._containment is not None
+            else nullcontext()
+        )
+
+    @staticmethod
     def _cancel_prepared(scope, channel, prepared):
         try:
             if prepared.broker is not None:
@@ -1206,7 +1226,7 @@ class SwarmCoordinator:
             else nullcontext()
         )
         try:
-            with guard, self.store.transaction() as transaction:
+            with self._containment_barrier(scope), guard, self.store.transaction() as transaction:
                 scope, state, enrollment, subject, lease = self._lease(
                     transaction, handle, channel, lease_id
                 )
@@ -1311,7 +1331,11 @@ class SwarmCoordinator:
                     raise
                 reservation["status"] = "reserved"
                 reservation["action_digest"] = staged[1].action_digest
-                if reservation["action_digest"] in state["blocked_actions"]:
+                if (
+                    reservation["action_digest"] in state["blocked_actions"]
+                    or _action_fence_key(reservation["action_digest"], subject)
+                    in state["blocked_actions"]
+                ):
                     self._release(transaction, state, reservation, "denied")
                     self._cancel_prepared(scope, channel, staged[1])
                     staged = None
@@ -1385,7 +1409,8 @@ class SwarmCoordinator:
         self, handle: CoordinatorScope, broker_channel: AuthorityChannel, reservation_id: str
     ) -> CoordinatorRecord:
         """Durably consume before any broker effect. ACK loss is never retried."""
-        with self.store.transaction() as transaction:
+        scope = self._scope(handle)
+        with self._containment_barrier(scope), self.store.transaction() as transaction:
             scope, state, reservation = self._broker_reservation(
                 transaction, handle, broker_channel, reservation_id, statuses={"reserved"}
             )
@@ -1700,7 +1725,7 @@ class SwarmCoordinator:
                 "execution_authority": False,
             }
 
-    def _fence_state(self, transaction, state, kind, target):
+    def _fence_state(self, transaction, state, kind, target, actor_digest=None):
         epoch = counter(state["revocation_epoch"] + 1, "revocation epoch")
         targets = {
             key
@@ -1731,14 +1756,20 @@ class SwarmCoordinator:
                 grant["status"] = "revoked"
         affected = []
         for reference, row in state["reservations"].items():
-            if row["subject"] in targets or kind == "action" and row["action_digest"] == target:
+            if row["subject"] in targets or (
+                kind == "action"
+                and row["action_digest"] == target
+                and (actor_digest is None or row["subject"] == actor_digest)
+            ):
                 affected.append(reference)
                 if row["status"] in {"preparing", "reserved"}:
                     self._release(transaction, state, row, "canceled")
                 elif row["status"] == "forwarding":
                     row["status"] = "uncertain"
-        if kind == "action" and target not in state["blocked_actions"]:
-            state["blocked_actions"].append(target)
+        if kind == "action":
+            blocked = _action_fence_key(target, actor_digest)
+            if blocked not in state["blocked_actions"]:
+                state["blocked_actions"].append(blocked)
         intent = {
             "kind": kind,
             "target_digest": target,
@@ -1748,6 +1779,8 @@ class SwarmCoordinator:
             "owner_fence": state["owner"]["fence"],
             "reconciled": False,
         }
+        if actor_digest is not None:
+            intent["actor_digest"] = actor_digest
         state["fences"][str(epoch)] = intent
         state["revocation_epoch"] = epoch
         transaction.append(
@@ -1767,6 +1800,7 @@ class SwarmCoordinator:
         kind: str,
         subject_digest: str | None = None,
         expected_epoch: int | None = None,
+        actor_digest: str | None = None,
     ) -> CoordinatorFenceReceipt:
         self._control_check(control)
         scope = self._scope(handle)
@@ -1783,6 +1817,10 @@ class SwarmCoordinator:
             if subject_digest is None:
                 raise ValueError("exact coordinator fence target required")
             _hex(subject_digest, "coordinator fence target")
+        if actor_digest is not None:
+            if kind != "action":
+                raise ValueError("actor-specific target applies only to an action fence")
+            _hex(actor_digest, "coordinator action actor")
         with self.store.transaction() as transaction:
             primary = transaction.scope(handle.scope_key)
             transaction.verify_journal_head(handle.scope_key)
@@ -1822,7 +1860,9 @@ class SwarmCoordinator:
                     == (digest(scope.tenant_id), digest(scope.swarm_id))
                 )
                 if selected:
-                    epoch, _ = self._fence_state(transaction, state, kind, subject_digest)
+                    epoch, _ = self._fence_state(
+                        transaction, state, kind, subject_digest, actor_digest
+                    )
                     members[key] = epoch
             intent = primary["fences"][str(primary["revocation_epoch"])]
             intent["members"] = members
@@ -2080,8 +2120,10 @@ class SwarmCoordinator:
                 row = state["subjects"][subject]
                 row["revoked"], row["lease_expires_at"] = False, 0
                 row["generation"] = counter(row["generation"] + 1, "recovered workload generation")
-            if intent["kind"] == "action" and intent["target_digest"] in state["blocked_actions"]:
-                state["blocked_actions"].remove(intent["target_digest"])
+            if intent["kind"] == "action":
+                blocked = _action_fence_key(intent["target_digest"], intent.get("actor_digest"))
+                if blocked in state["blocked_actions"]:
+                    state["blocked_actions"].remove(blocked)
             intent["reconciled"] = True
             intent["reconciliation_digest"] = digest([receipt.intent_digest, policy, owner])
             transaction.append(

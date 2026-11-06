@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.latentops.dev/schemas/swarm-incident.v1.schema.json",
+  "title": "Protected swarm incident report (data only)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "incident_id",
+    "scope_digest",
+    "revocation_epoch",
+    "intent_digest",
+    "operation",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_incident.v1"
+    },
+    "incident_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "scope_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "revocation_epoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "intent_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "operation": {
+      "enum": [
+        "pause",
+        "revoke",
+        "quarantine"
+      ]
+    },
+    "execution_authority": {
+      "const": false
+    },
+    "affected_agents": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4096
+    },
+    "backend_outcomes": {
+      "type": "array",
+      "maxItems": 16384,
+      "items": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "canceled",
+              "completed",
+              "unable_to_stop",
+              "unknown"
+            ]
+          }
+        }
+      }
+    },
+    "durable_outcomes": {
+      "type": "array",
+      "maxItems": 16384,
+      "items": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "canceled",
+              "completed",
+              "unable_to_stop",
+              "unknown"
+            ]
+          }
+        }
+      }
+    },
+    "notifications_complete": {
+      "type": "boolean"
+    },
+    "proof_gaps": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "maxLength": 128
+      },
+      "uniqueItems": true
+    },
+    "coordinator_online": {
+      "type": "boolean"
+    },
+    "resumed": {
+      "type": "boolean"
+    },
+    "previous_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "chain_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "unmediated_paths": {
+      "const": "uncovered"
+    },
+    "completed_effects_undone": {
+      "const": false
+    }
+  }
+}

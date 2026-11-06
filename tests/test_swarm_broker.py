@@ -43,6 +43,7 @@ def fixture(
     physical=False,
     metric="output_bytes",
     shared_clock=None,
+    executor_timeout_ms=3000,
 ):
     clock = [100]
     clock_fn = shared_clock or (lambda: clock[0])
@@ -164,7 +165,9 @@ def fixture(
         install = Path(
             stack.enter_context(tempfile.TemporaryDirectory(prefix="ordin-broker-executor-"))
         ).resolve()
-        backend = LinuxFileReadBackend(workspace, ("data.txt",), install, operator=operator)
+        backend = LinuxFileReadBackend(
+            workspace, ("data.txt",), install, operator=operator, timeout_ms=executor_timeout_ms
+        )
         stack.callback(backend.close)
         broker = SwarmExecutionBroker(
             service, broker_channel, gate, ledger, backend, operator=operator
