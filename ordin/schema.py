@@ -61,6 +61,9 @@ SCHEMA_FILES = {
     "audit_checkpoint": "audit-checkpoint.v1.schema.json",
     "trace_checkpoint": "trace-checkpoint.v1.schema.json",
     "swarm_incident": "swarm-incident.v1.schema.json",
+    "swarm_corpus": "swarm-corpus.v1.schema.json",
+    "swarm_corpus_report": "swarm-corpus-report.v1.schema.json",
+    "swarm_overhead_report": "swarm-overhead-report.v1.schema.json",
     "swarm_framework_fixture": "swarm-framework-fixture.v1.schema.json",
     "swarm_framework_preparation": "swarm-framework-preparation.v1.schema.json",
     "swarm_framework_result": "swarm-framework-result.v1.schema.json",
@@ -567,8 +570,13 @@ def resource_parity_errors() -> list[str]:
         SOURCE_DATA_DIR,
         PACKAGE_DATA_DIR,
         "resource",
-        ignored_package_roots={"schemas"},
+        ignored_package_roots={"schemas", "swarm"},
     )
+    corpus_source = ROOT / "benchmarks" / "swarm" / "v1"
+    if corpus_source.exists():
+        errors.extend(
+            _compare_json_tree(corpus_source, PACKAGE_DATA_DIR / "swarm" / "v1", "swarm corpus")
+        )
     if SOURCE_SCHEMA_DIR.exists() and PACKAGE_SCHEMA_DIR.exists():
         errors.extend(
             _compare_json_tree(

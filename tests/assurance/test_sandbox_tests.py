@@ -93,7 +93,11 @@ def setup(tmp_path, monkeypatch):
             # Original and candidate are sibling owned fixtures. Exclude their
             # common parent on every platform, including an external basetemp.
             (tmp_path.resolve(), Path(__file__).resolve().parents[2]),
-            timeout_ms=1000,
+            # These cases assert sandbox semantics rather than startup speed.
+            # Loaded Windows CI can spend over a second starting the base
+            # interpreter. Dedicated 300 ms timeout/fault controls below keep
+            # their strict deadlines; production defaults are unchanged.
+            timeout_ms=5000,
         )
 
         def consent(runtime=runtime, program=program, suite=suite, lifetime=120):
