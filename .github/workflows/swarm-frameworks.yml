@@ -12,13 +12,21 @@ permissions:
 
 jobs:
   installed-sdk:
-    name: Installed adapter wheel (${{ matrix.framework }})
+    name: ${{ matrix.name }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        framework: [base, langgraph, crewai, autogen]
+        include:
+          - framework: base
+            name: Installed adapter wheel (base)
+          - framework: langgraph
+            name: Installed adapter wheel (langgraph)
+          - framework: autogen
+            name: Installed adapter wheel (autogen)
+          - framework: crewai-quarantine
+            name: CrewAI security quarantine
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

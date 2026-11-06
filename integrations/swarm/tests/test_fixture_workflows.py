@@ -5,7 +5,7 @@ import pytest
 from test_framework_conformance import require_sdk
 
 
-@pytest.mark.parametrize("framework", ["custom", "langgraph", "crewai", "autogen"])
+@pytest.mark.parametrize("framework", ["custom", "langgraph", "autogen"])
 def test_pinned_two_agent_fixture_private_lineage_and_child_denial(framework):
     if framework != "custom":
         require_sdk(framework)

@@ -17,7 +17,6 @@ from packaging.version import Version
 
 ROOTS = {
     "langgraph": ("langgraph==1.2.20", "langgraph-prebuilt==1.1.1", "langchain-core==1.7.6"),
-    "crewai": ("crewai==1.15.35", "crewai-core==1.15.35"),
     "autogen": ("autogen-core==0.7.5",),
 }
 

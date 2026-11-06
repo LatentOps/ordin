@@ -10,7 +10,7 @@ import pytest
 
 
 def require_sdk(framework):
-    module = {"langgraph": "langgraph", "crewai": "crewai", "autogen": "autogen_core"}[framework]
+    module = {"langgraph": "langgraph", "autogen": "autogen_core"}[framework]
     if os.environ.get("ORDIN_REQUIRED_FRAMEWORK") == framework:
         return importlib.import_module(module)
     return pytest.importorskip(module)
@@ -187,129 +187,6 @@ def test_real_langgraph_two_agent_workflow_benign_read_and_cross_agent_egress_de
         adapter.status()["connected"] and not adapter.status()["physical_enforcement"]
         for adapter in adapters
     )
-
-
-def test_real_crewai_two_agent_local_llm_hooks_and_exact_task_identity(tmp_path):
-    require_sdk("crewai")
-    from crewai import Agent, Task, Crew, BaseLLM
-    from crewai.tools import tool as crew_tool
-    from ordin_swarm.adapters.crewai import CrewAIAdapter
-
-    class FiniteLocalLLM(BaseLLM):
-        def __init__(self, responses):
-            super().__init__(model="ordin-local-finite-fixture", temperature=0)
-            self.responses = iter(responses)
-
-        def call(self, messages, tools=None, callbacks=None, available_functions=None, **kwargs):
-            return next(self.responses)
-
-        def supports_function_calling(self):
-            return False
-
-        def get_context_window_size(self):
-            return 8192
-
-    target = tmp_path / "secret.txt"
-    secret = "SYNTHETIC_PRIVATE_FRAMEWORK_VALUE"
-    agents = [
-        Agent(
-            role="reader",
-            goal="read fixture",
-            backstory="local fixture",
-            cache=False,
-            allow_delegation=False,
-            max_iter=4,
-            max_retry_limit=0,
-            llm=FiniteLocalLLM(
-                [
-                    "Thought: read.\nAction: read_file\nAction Input: "
-                    + json.dumps({"path": str(target)}),
-                    "Thought: done.\nFinal Answer: " + secret,
-                ]
-            ),
-        ),
-        Agent(
-            role="consumer",
-            goal="process fixture",
-            backstory="local fixture",
-            cache=False,
-            allow_delegation=False,
-            max_iter=4,
-            max_retry_limit=0,
-            llm=FiniteLocalLLM(
-                [
-                    "Thought: upload.\nAction: upload\nAction Input: "
-                    + json.dumps({"value": secret}),
-                    "Thought: stopped.\nFinal Answer: blocked",
-                ]
-            ),
-        ),
-    ]
-    tasks = [
-        Task(
-            description="Read the local fixture", expected_output="fixture content", agent=agents[0]
-        ),
-        Task(
-            description="Process the prior result",
-            expected_output="blocked upload",
-            agent=agents[1],
-        ),
-    ]
-    tasks[1].context = [tasks[0]]
-    sdk, operator, sessions, events, target = host(agents, "crewai", tmp_path)
-    uploads = []
-
-    def read_file(path: str) -> str:
-        """Read the exact local fixture file."""
-        return Path(path).read_text()
-
-    def upload(value: str) -> str:
-        """Send data to the fixture external sink."""
-        uploads.append(value)
-        return "sent"
-
-    tools = [
-        crew_tool("read_file")(read_file),
-        crew_tool("upload")(upload),
-    ]
-    adapters = [CrewAIAdapter(sdk, session, operator=operator) for session in sessions]
-    hook_diagnostics = []
-    for index, adapter in enumerate(adapters):
-        original = adapter._before_hook
-
-        def observed(context, index=index, adapter=adapter, original=original):
-            row = {
-                "agent": context.agent is agents[index],
-                "task": context.task is tasks[index],
-                "original_tool_known": id(getattr(context.tool, "_original_tool", None))
-                in adapter._records,
-                "same_tool_list": adapter.agent.tools is adapter._wrapped,
-            }
-            row["blocked"] = original(context)
-            hook_diagnostics.append(row)
-            return row["blocked"]
-
-        adapter._before_hook = observed
-    try:
-        for adapter, agent, task, tool in zip(adapters, agents, tasks, tools):
-            adapter.install(agent, task, [tool])
-        result = Crew(
-            agents=agents, tasks=tasks, cache=False, memory=False, verbose=False
-        ).kickoff()
-        assert "blocked" in result.raw and not uploads
-        records = events.snapshot()
-        assert any(
-            v.event.event_kind == "completed" and v.event.identity.agent_id == "agent0"
-            for v in records
-        ), hook_diagnostics
-        assert any(
-            v.event.event_kind == "denied" and v.event.identity.agent_id == "agent1"
-            for v in records
-        )
-        assert all(adapter.status()["connected"] for adapter in adapters)
-    finally:
-        for adapter in adapters:
-            adapter.close()
 
 
 def test_real_archived_autogen_two_native_agents_scoped_tool_messages_and_replay(tmp_path):

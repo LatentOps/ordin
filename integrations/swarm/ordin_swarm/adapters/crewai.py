@@ -30,6 +30,7 @@ class CrewAIAdapter:
         self._installing = False
 
     def install(self, agent, task, tools, *, action_builders=None):
+        require_version("crewai")
         from crewai import Agent, Task
         from crewai.tools import BaseTool
         from crewai.tools.base_tool import Tool
@@ -131,6 +132,7 @@ class CrewAIAdapter:
         return tuple(self._wrapped)
 
     def _before(self, context):
+        require_version("crewai")
         from crewai.hooks import ToolCallHookContext
 
         if type(context) is not ToolCallHookContext:
@@ -181,6 +183,9 @@ class CrewAIAdapter:
         return None
 
     def status(self):
+        report = coverage("crewai")
+        if report["availability"] == "security_blocked":
+            return report
         from crewai.hooks import get_before_tool_call_hooks, get_after_tool_call_hooks
 
         connected = (
@@ -200,6 +205,7 @@ class CrewAIAdapter:
         return coverage("crewai", installed=self.agent is not None, connected=connected)
 
     def close(self):
+        require_version("crewai")
         from crewai.hooks import unregister_before_tool_call_hook, unregister_after_tool_call_hook
 
         self._closed = True

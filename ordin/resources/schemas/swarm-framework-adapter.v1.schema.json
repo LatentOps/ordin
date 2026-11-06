@@ -117,6 +117,45 @@
     },
     "execution_authority": {
       "const": false
+    },
+    "availability": {
+      "enum": [
+        "enabled",
+        "security_blocked"
+      ]
     }
-  }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "availability": {
+          "const": "enabled"
+        }
+      }
+    },
+    {
+      "properties": {
+        "compatible": {
+          "const": false
+        },
+        "installed": {
+          "const": false
+        },
+        "connected": {
+          "const": false
+        },
+        "covered": {
+          "maxItems": 0
+        },
+        "availability": {
+          "const": "security_blocked"
+        }
+      },
+      "type": "object",
+      "required": [
+        "availability"
+      ]
+    }
+  ]
 }
