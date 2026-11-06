@@ -538,3 +538,60 @@ def test_scored_unknown_does_not_satisfy_required_risk_policy(on_missing, expect
         evaluate(SwarmGate(data[1], risk_scorer=data[0]), data, action, receipt).disposition
         == expected
     )
+
+
+def test_mutated_original_ticket_is_rejected_and_cannot_point_at_another_job():
+    data = configured(enabled=True)
+    ticket = data[0].submit(data[2], ActionEnvelope.shell("git status"), inputs("benign"))
+    object.__setattr__(ticket, "ticket_id", "f" * 32)
+    with pytest.raises(ValueError, match="mutated"):
+        data[0].poll(ticket)
+
+
+def test_concurrent_calibration_publication_cannot_exceed_history_capacity(monkeypatch):
+    import ordin.swarm.risk_signals as risk_module
+    from threading import Barrier
+
+    original = risk_module.SwarmRiskCalibrationReport
+    barrier = Barrier(17)
+
+    def report(*args, **kwargs):
+        barrier.wait(timeout=10)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(risk_module, "SwarmRiskCalibrationReport", report)
+    data = configured(enabled=True, max_jobs=512)
+
+    def calibrate(_):
+        try:
+            return data[0].calibrate(
+                corpus(),
+                budget=SwarmRiskBudget(1000),
+                context=data[2],
+                action=ActionEnvelope.shell("git status"),
+            )
+        except ValueError as error:
+            assert "history capacity" in str(error)
+            return None
+
+    with ThreadPoolExecutor(max_workers=17) as pool:
+        completed = list(pool.map(calibrate, range(17)))
+    assert len(data[0]._reports) == sum(value is not None for value in completed) == 16
+
+
+def test_one_scorer_does_not_link_identical_private_input_across_host_contexts():
+    data = configured(enabled=True)
+    scorer, registry, context, *_ = data
+    other_adapter = object()
+    other_channel = registry.bind_channel(other_adapter, runtime_id="another-runtime")
+    other = registry.enroll(
+        other_channel,
+        other_adapter,
+        agent_id="another-agent",
+        session_id="another-session",
+        coverage=CoverageManifest("intercept"),
+    )
+    action = ActionEnvelope.shell("git status")
+    first = score(scorer, context, action, "same private synthetic text")
+    second = score(scorer, other, action, "same private synthetic text")
+    assert first.input_digest != second.input_digest

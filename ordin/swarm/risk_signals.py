@@ -453,6 +453,7 @@ class _Job:
     reserved_cost: int = 0
     receipt: SwarmRiskReceipt | None = None
     provider_call: Any = field(default=None, repr=False)
+    ticket_id: str = ""
 
 
 class SwarmRiskScorer:
@@ -636,8 +637,14 @@ class SwarmRiskScorer:
         # Retain a protected value snapshot; provider/caller objects are not the
         # authoritative deadline or reservation after admission.
         budget = SwarmRiskBudget(budget.time_ms, budget.cost_micros)
+        context_digest = digest(context.as_dict())
+        pointer_key = hmac.new(
+            self._pointer_key,
+            b"ordin.swarm.risk.context.v1\0" + context_digest.encode("ascii"),
+            hashlib.sha256,
+        ).digest()
         redacted = build_swarm_risk_context(
-            inputs, include_redacted_excerpt=self._excerpt, _pointer_key=self._pointer_key
+            inputs, include_redacted_excerpt=self._excerpt, _pointer_key=pointer_key
         )
         with self._condition:
             self._configuration()
@@ -646,7 +653,7 @@ class SwarmRiskScorer:
                 raise ValueError("risk bounded job history capacity reached")
             ticket = SwarmRiskTicket(uuid4().hex)
             job = _Job(
-                digest(context.as_dict()),
+                context_digest,
                 digest(action.as_dict()),
                 redacted,
                 budget,
@@ -655,6 +662,7 @@ class SwarmRiskScorer:
             )
             self._jobs[ticket] = job
             job.provider_call = self._provider_call
+            job.ticket_id = ticket.ticket_id
             self._latest[(job.context_digest, job.action_digest)] = job
             if (
                 len(self._active) >= self._pending_limit
@@ -721,6 +729,8 @@ class SwarmRiskScorer:
             if type(ticket) is not SwarmRiskTicket or ticket not in self._jobs:
                 raise ValueError("original risk shadow ticket required")
             job = self._jobs[ticket]
+            if ticket.ticket_id != job.ticket_id:
+                raise ValueError("mutated risk shadow ticket")
             remaining = job.budget.time_ms / 1000 - (time.monotonic() - job.started)
             if job.receipt is None and wait_ms and remaining > 0:
                 self._condition.wait_for(
@@ -920,6 +930,52 @@ class SwarmRiskScorer:
             self._promotion = None
             self._generation += 1
             self._condition.notify_all()
+
+    def record_diagnostic(
+        self,
+        receipt,
+        context,
+        action,
+        *,
+        source,
+        channel,
+        adapter,
+        operator: object,
+        severity: str = "unknown",
+    ) -> None:
+        """Explicitly queue original inference as a #275 diagnostic, never host evidence.
+
+        This performs no collection or scoring. The caller checks the source's
+        flush/checkpoint when durable diagnostic acknowledgement is needed.
+        """
+        if not self.enabled:
+            return
+        from .diagnostics import SwarmAuditSource
+
+        if operator is not self._operator or type(source) is not SwarmAuditSource:
+            raise ValueError("original scoped risk diagnostic source and operator required")
+        source._check(operator)
+        native_scope = source._coordinator._scope(source._scope)
+        if (
+            type(context) is not SwarmContext
+            or (
+                context.identity.tenant_id,
+                context.identity.swarm_id,
+                context.identity.task_id,
+            )
+            != native_scope.authenticator._scope
+        ):
+            raise ValueError("risk diagnostic belongs to another task scope")
+        source._registry.authenticate(context, channel, adapter)
+        if not self.verify(receipt, context, action):
+            raise ValueError("original current scoped risk receipt required")
+        source.record_risk(
+            severity=severity if receipt.signal is not None else "unknown",
+            confidence=receipt.signal.confidence if receipt.signal is not None else 0.0,
+            model_ref="risk-" + digest(receipt.as_dict()),
+            action_ref=receipt.action_digest,
+            operator=operator,
+        )
 
     def status(self):
         with self._condition:

@@ -32,7 +32,7 @@ receipt = scorer.poll(ticket)  # None while shadow work is pending
 ```
 
 Default provider input contains fixed feature names and opaque evidence pointers,
-with no prompt or payload text. Pointers use a private per-scorer HMAC key; the
+with no prompt or payload text. Pointers use a private per-scorer/context HMAC key; the
 provider cannot use a public plain-content hash as a prompt guessing oracle.
 The context carries no workload identity, host evidence or review authority.
 The caller retains ownership of its original input; Ordin retains bounded
@@ -156,9 +156,31 @@ HMAC, rather than a public hash of raw case text; repeated datasets across score
 instances cannot be linked through that field. The explicit offline artifact may
 identify its published synthetic corpus separately.
 
+The artifact identifies the evaluator's packaged source-file hash and explicit
+synthetic corpus-file hash. Those identify this local experiment, not arbitrary
+provider code, weights, remote services or human review. Worker elapsed time and
+complete calibration-method wall time are separate metrics. Neither includes
+external model/network latency in these local-rule fixtures.
+
 Context, signal, receipt and calibration schemas have source/package parity.
 `as_dict()`, `binding_digest`, decision `risk_receipt_digest` and `status()` are
 redacted audit/evaluation integration hooks. Durable audit/evaluation consumers
 must preserve `evidence_class: behavioral_inference` and the separate performance
-and accuracy metrics. No future audit-service or evaluation-runner integration is
-claimed here. Unmediated execution paths remain outside this optional review.
+and accuracy metrics. The explicit operator diagnostic bridge and optional corpus
+controls preserve those distinctions. Unmediated execution paths remain outside
+this optional review.
+
+## Explicit diagnostic recording
+
+With the final operator audit API installed, a protected host may call
+`scorer.record_diagnostic(receipt, context, action, source=original_audit_source,
+channel=original_registry_channel, adapter=original_adapter,
+operator=installation_capability, severity="high")`. It verifies the original
+current receipt and actual task-scoped registry context, then queues a
+`risk_signal` with `diagnostic` provenance through `record_risk`. It performs no
+collection or scoring and never records a host observation or completion.
+`source.flush` and an explicit checkpoint are required when the caller needs
+durable diagnostic acknowledgement. A disabled scorer touches no scope or sink.
+The dependency direction is risk-to-audit; the audit API does not import this
+optional plugin. The #276 corpus keeps its complete case inventory and reports
+optional risk cases separately from deterministic authorization and performance.
