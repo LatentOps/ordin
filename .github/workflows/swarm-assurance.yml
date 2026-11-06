@@ -37,5 +37,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: swarm-assurance-${{ matrix.os }}-${{ github.sha }}
-          path: ${{ runner.temp }}/swarm-assurance/evidence/*.json
+          path: |
+            ${{ runner.temp }}/swarm-assurance/evidence/*.json
+            ${{ runner.temp }}/swarm-assurance/wheels/*.whl
           if-no-files-found: warn

@@ -3,6 +3,8 @@
 import subprocess
 import io
 import tarfile
+import os
+from pathlib import Path
 import zipfile
 
 import pytest
@@ -13,6 +15,7 @@ from scripts.check_swarm_release import (
     validate_build_metadata,
     verify_wheels,
     extract_test_fixtures,
+    git_environment,
 )
 
 
@@ -125,6 +128,19 @@ def test_core_wheel_cannot_add_a_mandatory_service_or_model_dependency(tmp_path)
     root, directory = wheels(tmp_path, forbidden_dependency=True)
     with pytest.raises(ValueError, match="mandatory"):
         verify_wheels(root, directory)
+
+
+def test_sanitized_child_environment_preserves_system_home_but_not_provider_secrets(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "SYNTHETIC_NOT_A_REAL_CREDENTIAL")
+    original = Path.home()
+    settings = git_environment()
+    assert "OPENAI_API_KEY" not in settings and "PYTHONPATH" not in settings
+    with monkeypatch.context() as patch:
+        for name in tuple(os.environ):
+            patch.delenv(name, raising=False)
+        for name, value in settings.items():
+            patch.setenv(name, value)
+        assert Path.home() == original
 
 
 def test_ignored_package_source_cannot_enter_a_release(tmp_path):

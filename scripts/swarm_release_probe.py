@@ -92,7 +92,7 @@ def core_compatibility():
     return {
         "schema_version": "ordin.swarm_release_check.v1",
         "id": "core_compatibility",
-        "passed": 6,
+        "passed": 7,
         "failed": 0,
         "skipped": 0,
         "source_overlay": False,

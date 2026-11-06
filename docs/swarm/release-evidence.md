@@ -18,7 +18,9 @@ python scripts/check_swarm_release.py --revision <exact-40-character-commit> --w
 
 The workspace must be new and outside the source checkout. It contains an
 isolated wheel environment and `evidence/release-manifest.json` plus bounded JSON
-artifacts. The explicit flag authorizes only the owned synthetic fixtures.
+artifacts and the exact built wheels. The CI artifact retains both reports and
+wheels so their recorded SHA-256 values can be checked later. This is CI artifact
+retention, not a public package release. The explicit flag authorizes only the owned synthetic fixtures.
 The separate Linux helper must verify original bounded-worker execution; an
 unsupported Linux backend fails the required Linux lane. Windows runs its real
 unsupported control and retains the Linux worker as unsupported. The Windows

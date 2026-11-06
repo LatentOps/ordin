@@ -48,6 +48,12 @@ def git_environment():
             "LANG",
             "LC_ALL",
             "SYSTEMDRIVE",
+            "HOME",
+            "USERPROFILE",
+            "HOMEDRIVE",
+            "HOMEPATH",
+            "APPDATA",
+            "LOCALAPPDATA",
         }
     }
     return {
