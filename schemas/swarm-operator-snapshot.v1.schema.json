@@ -125,6 +125,8 @@
           "phase": {
             "enum": [
               "active",
+              "paused",
+              "ended",
               "retired",
               "failed",
               "exited",
@@ -230,7 +232,10 @@
                 "route_inventory_missing",
                 "no_current_runtime_attestation",
                 "source_unavailable",
-                "offline_report_not_live_verification"
+                "offline_report_not_live_verification",
+                "protected_causal_source_unconfigured",
+                "protected_causal_source_unavailable",
+                "protected_causal_history_incomplete"
               ]
             }
           }
@@ -311,7 +316,8 @@
               "evidence": {
                 "enum": [
                   "reported",
-                  "diagnostic"
+                  "diagnostic",
+                  "observed"
                 ]
               }
             }
@@ -323,7 +329,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "maxProperties": 3,
+            "maxProperties": 4,
             "required": [
               "from_ref",
               "to_ref",
@@ -347,13 +353,97 @@
                   "known",
                   "missing_parent"
                 ]
+              },
+              "kind": {
+                "enum": [
+                  "artifact_written/read",
+                  "delegated_to",
+                  "depends_on",
+                  "hypothesized_influence",
+                  "message_sent/received",
+                  "observed_data_flow"
+                ]
               }
             }
           }
         },
         "paths": {
           "type": "array",
-          "maxItems": 0
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "maxProperties": 9,
+            "required": [
+              "event_refs",
+              "edge_kinds",
+              "action_ref",
+              "risk",
+              "disposition",
+              "evidence",
+              "claim",
+              "successful_exploitation",
+              "execution_authority"
+            ],
+            "properties": {
+              "event_refs": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 69,
+                  "maxLength": 69,
+                  "pattern": "^hmac:[a-f0-9]{64}$"
+                },
+                "minItems": 2
+              },
+              "edge_kinds": {
+                "type": "array",
+                "maxItems": 63,
+                "items": {
+                  "enum": [
+                    "artifact_written/read",
+                    "depends_on",
+                    "message_sent/received",
+                    "observed_data_flow"
+                  ]
+                }
+              },
+              "action_ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "risk": {
+                "enum": [
+                  "unknown",
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ]
+              },
+              "disposition": {
+                "enum": [
+                  "escalate",
+                  "deny"
+                ]
+              },
+              "evidence": {
+                "const": "intent"
+              },
+              "claim": {
+                "const": "causal_review_candidate"
+              },
+              "successful_exploitation": {
+                "const": "unknown"
+              },
+              "execution_authority": {
+                "const": false
+              }
+            }
+          }
         },
         "successful_exploitation": {
           "const": "unknown"
@@ -463,7 +553,7 @@
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "maxProperties": 3,
+              "maxProperties": 4,
               "required": [
                 "kind",
                 "resource_ref",
@@ -488,6 +578,16 @@
                 },
                 "claim": {
                   "const": "declared_boundary"
+                },
+                "operation": {
+                  "enum": [
+                    "read",
+                    "write",
+                    "read_write",
+                    "connect",
+                    "call",
+                    "unknown"
+                  ]
                 }
               }
             }
@@ -705,7 +805,10 @@
                 "route_inventory_missing",
                 "no_current_runtime_attestation",
                 "source_unavailable",
-                "offline_report_not_live_verification"
+                "offline_report_not_live_verification",
+                "protected_causal_source_unconfigured",
+                "protected_causal_source_unavailable",
+                "protected_causal_history_incomplete"
               ]
             }
           },
@@ -764,7 +867,8 @@
               "risk_signal",
               "retention",
               "legacy_review",
-              "legacy_observation"
+              "legacy_observation",
+              "message"
             ]
           },
           "state": {
@@ -796,7 +900,7 @@
           "refs": {
             "type": "object",
             "additionalProperties": false,
-            "maxProperties": 14,
+            "maxProperties": 15,
             "required": [],
             "properties": {
               "actor": {
@@ -878,6 +982,12 @@
                 "pattern": "^hmac:[a-f0-9]{64}$"
               },
               "operator": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "tool": {
                 "type": "string",
                 "minLength": 69,
                 "maxLength": 69,
@@ -1163,6 +1273,25 @@
                 ]
               }
             }
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "message"
+              },
+              "evidence": {
+                "enum": [
+                  "reported",
+                  "diagnostic"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "forwarded",
+                  "completed"
+                ]
+              }
+            }
           }
         ]
       }
@@ -1231,7 +1360,10 @@
           "route_inventory_missing",
           "no_current_runtime_attestation",
           "source_unavailable",
-          "offline_report_not_live_verification"
+          "offline_report_not_live_verification",
+          "protected_causal_source_unconfigured",
+          "protected_causal_source_unavailable",
+          "protected_causal_history_incomplete"
         ]
       }
     },

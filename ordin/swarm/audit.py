@@ -31,6 +31,7 @@ KINDS = frozenset(
         "retention",
         "legacy_review",
         "legacy_observation",
+        "message",
     }
 )
 EVIDENCE = frozenset({"intent", "reported", "observed", "unknown", "diagnostic"})
@@ -178,6 +179,9 @@ def verify_swarm_audit(
             else:
                 status = "matches_supplied_anchor"
         gaps = ["audit.owner_can_rewrite_unanchored_history"]
+        capture = bundle.get("capture_status")
+        if capture is not None and (not capture["flushed"] or capture["dropped_events"]):
+            gaps.append("audit.capture_incomplete")
         if first > 1:
             gaps.append("audit.retained_prefix_unavailable")
         return SwarmAuditVerification(

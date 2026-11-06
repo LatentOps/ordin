@@ -90,6 +90,8 @@
                 "phase": {
                   "enum": [
                     "active",
+                    "paused",
+                    "ended",
                     "retired",
                     "failed",
                     "exited",
@@ -132,7 +134,10 @@
                 "route_inventory_missing",
                 "no_current_runtime_attestation",
                 "source_unavailable",
-                "offline_report_not_live_verification"
+                "offline_report_not_live_verification",
+                "protected_causal_source_unconfigured",
+                "protected_causal_source_unavailable",
+                "protected_causal_history_incomplete"
               ]
             }
           }

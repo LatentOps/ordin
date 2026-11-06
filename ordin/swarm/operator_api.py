@@ -100,7 +100,7 @@ class SwarmOperatorAPI:
             or service.coordinator is not source._coordinator
             or service.scope is not source._scope
         ):
-            return []
+            return [], False
         queue = service.snapshot(channel, task_id=self._task(source))
         result = []
         for entry in [*queue["requests"], *queue["recoveries"]][:128]:
@@ -125,7 +125,7 @@ class SwarmOperatorAPI:
                     "execution_authority": False,
                 }
             )
-        return result
+        return result, len(queue["requests"]) + len(queue["recoveries"]) > 128
 
     @staticmethod
     def _task(source):
@@ -181,7 +181,11 @@ class SwarmOperatorAPI:
                 raise ValueError("operator.query_shape")
             snapshot = source.snapshot(operator=self._operator)
             self._require(channel, source, "observe")
-            snapshot["approvals"] = self._approval_rows(channel, source)
+            snapshot["approvals"], approvals_cut = self._approval_rows(channel, source)
+            if approvals_cut:
+                snapshot["proof_gaps"] = sorted(
+                    set(snapshot["proof_gaps"]) | {"projection_truncated"}
+                )
             if operation in {"status", "list"}:
                 return snapshot
             if operation == "explain":
@@ -213,8 +217,27 @@ class SwarmOperatorAPI:
             self._require(channel, source, "export")
             if arguments:
                 raise ValueError("operator.raw_export_forbidden")
-            source.flush(operator=self._operator)
+            flushed = source.flush(operator=self._operator)
             bundle = source.journal.export(operator=self._operator)
+            bundle["capture_status"] = {
+                "flushed": flushed,
+                "dropped_events": source._dropped,
+                "complete_history": False,
+                "export_window_truncated": False,
+            }
+            # A bounded transport window is an anchored suffix, never a claim
+            # that omitted capture or earlier history was clean.
+            while len(encode(bundle, 8 * MAX_FRAME).encode()) > MAX_FRAME - 4096:
+                rows = bundle["events"]
+                if len(rows) <= 1:
+                    raise ValueError("operator.export_frame_limit")
+                bundle["events"] = rows[len(rows) // 2 :]
+                first = bundle["events"][0]
+                bundle["first_sequence"], bundle["base_hash"] = (
+                    first["sequence"],
+                    first["previous_hash"],
+                )
+                bundle["capture_status"]["export_window_truncated"] = True
             self._require(channel, source, "export")
             return bundle
         if operation in {"pause", "revoke"}:
@@ -293,7 +316,11 @@ class SwarmOperatorAPI:
         # Only a committed original governance service may fulfill obligations.
         from .approval_service import SwarmApprovalService
 
-        if type(self._governance) is not SwarmApprovalService:
+        if (
+            type(self._governance) is not SwarmApprovalService
+            or self._governance.coordinator is not source._coordinator
+            or self._governance.scope is not source._scope
+        ):
             raise ValueError("operator.original_governance_required")
         snapshot = self._governance.snapshot(channel, task_id=self._task(source))
         candidates = [

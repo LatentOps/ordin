@@ -81,13 +81,35 @@ def export_swarm_spans(bundle: dict[str, Any], exporter, *, maximum_spans: int =
     try:
         from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider, SpanLimits
-        from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter
+        from opentelemetry.sdk.trace.export import (
+            SimpleSpanProcessor,
+            SpanExporter,
+            SpanExportResult,
+        )
         from opentelemetry.sdk.trace.sampling import ALWAYS_ON
         from opentelemetry.metrics import NoOpMeterProvider
     except ImportError:
         raise ValueError("optional OpenTelemetry SDK is not installed") from None
     if not isinstance(exporter, SpanExporter):
         raise ValueError("explicit original OpenTelemetry SpanExporter required")
+
+    class CheckedExporter(SpanExporter):
+        failed = False
+
+        def export(self, spans):
+            try:
+                result = exporter.export(spans)
+                if result is not SpanExportResult.SUCCESS:
+                    self.failed = True
+                return result
+            except Exception:
+                self.failed = True
+                return SpanExportResult.FAILURE
+
+        def shutdown(self):
+            exporter.shutdown()
+
+    checked = CheckedExporter()
     provider = TracerProvider(
         resource=Resource(
             {"service.name": "ordin-local-swarm", "ordin.privacy": "tenant_keyed_hmac_metadata"}
@@ -98,7 +120,7 @@ def export_swarm_spans(bundle: dict[str, Any], exporter, *, maximum_spans: int =
             max_attributes=32, max_attribute_length=128, max_events=0, max_links=0
         ),
     )
-    provider.add_span_processor(SimpleSpanProcessor(exporter, meter_provider=NoOpMeterProvider()))
+    provider.add_span_processor(SimpleSpanProcessor(checked, meter_provider=NoOpMeterProvider()))
     tracer = provider.get_tracer("ordin.swarm.diagnostics", __version__)
     try:
         for event in events:
@@ -120,7 +142,46 @@ def export_swarm_spans(bundle: dict[str, Any], exporter, *, maximum_spans: int =
                 "ordin.swarm." + event["kind"], start_time=start, attributes=attributes
             )
             span.end(end_time=start)
-        provider.force_flush(timeout_millis=1000)
+        if not provider.force_flush(timeout_millis=1000):
+            checked.failed = True
     finally:
         provider.shutdown()
+    if checked.failed:
+        raise ValueError("explicit telemetry exporter did not confirm export")
     return len(events)
+
+
+def export_swarm_span_json(bundle: dict[str, Any], *, maximum_spans: int = 256) -> dict[str, Any]:
+    """Bounded local JSON captured through the optional real SDK, without a network sink."""
+    try:
+        from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+    except ImportError:
+        raise ValueError("optional OpenTelemetry SDK is not installed") from None
+
+    class LocalExporter(SpanExporter):
+        def __init__(self):
+            self.spans = []
+
+        def export(self, spans):
+            for span in spans:
+                self.spans.append(
+                    {
+                        "name": span.name,
+                        "trace_id": format(span.context.trace_id, "032x"),
+                        "span_id": format(span.context.span_id, "016x"),
+                        "start_time_unix_nano": span.start_time,
+                        "end_time_unix_nano": span.end_time,
+                        "attributes": dict(span.attributes),
+                        "resource": dict(span.resource.attributes),
+                    }
+                )
+            return SpanExportResult.SUCCESS
+
+    exporter = LocalExporter()
+    export_swarm_spans(bundle, exporter, maximum_spans=maximum_spans)
+    return {
+        "schema_version": "ordin.swarm_otel_export.v1",
+        "spans": exporter.spans,
+        "diagnostic_only": True,
+        "execution_authority": False,
+    }

@@ -594,6 +594,8 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
         "swarm_operator_request",
         "swarm_operator_response",
         "swarm_operator_unconfigured",
+        "swarm_otel_export",
+        "swarm_ocsf_export",
         "audit_checkpoint",
         "trace_checkpoint",
         "swarm_artifact",

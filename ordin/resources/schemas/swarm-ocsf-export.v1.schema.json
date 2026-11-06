@@ -1,0 +1,380 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-ocsf-export.v1.schema.json",
+  "title": "swarm_ocsf_export",
+  "description": "Privacy-default diagnostic data; never identity, permission or runtime authority. External anchor trust is independent of local history ownership.",
+  "type": "object",
+  "additionalProperties": false,
+  "maxProperties": 4,
+  "required": [
+    "schema_version",
+    "findings",
+    "diagnostic_only",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_ocsf_export.v1"
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "maxProperties": 12,
+        "required": [
+          "category_uid",
+          "class_uid",
+          "activity_id",
+          "type_uid",
+          "severity_id",
+          "time",
+          "status_id",
+          "is_alert",
+          "message",
+          "metadata",
+          "finding_info",
+          "unmapped"
+        ],
+        "properties": {
+          "category_uid": {
+            "const": 2
+          },
+          "class_uid": {
+            "const": 2004
+          },
+          "activity_id": {
+            "const": 1
+          },
+          "type_uid": {
+            "const": 200401
+          },
+          "severity_id": {
+            "enum": [
+              0,
+              2,
+              3,
+              4,
+              5
+            ]
+          },
+          "time": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "status_id": {
+            "const": 1
+          },
+          "is_alert": {
+            "const": true
+          },
+          "message": {
+            "const": "Ordin swarm diagnostic finding"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": false,
+            "maxProperties": 6,
+            "required": [
+              "version",
+              "uid",
+              "product",
+              "profiles",
+              "event_code",
+              "original_event_uid"
+            ],
+            "properties": {
+              "version": {
+                "const": "1.8.0"
+              },
+              "uid": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "product": {
+                "type": "object",
+                "additionalProperties": false,
+                "maxProperties": 3,
+                "required": [
+                  "name",
+                  "vendor_name",
+                  "version"
+                ],
+                "properties": {
+                  "name": {
+                    "const": "Ordin"
+                  },
+                  "vendor_name": {
+                    "const": "LatentOps"
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                }
+              },
+              "profiles": {
+                "type": "array",
+                "items": {
+                  "const": "security_control"
+                },
+                "minItems": 1,
+                "maxItems": 1
+              },
+              "event_code": {
+                "enum": [
+                  "swarm_admission",
+                  "swarm_broker_result",
+                  "swarm_decision",
+                  "swarm_incident",
+                  "swarm_legacy_observation",
+                  "swarm_legacy_review",
+                  "swarm_message",
+                  "swarm_retention",
+                  "swarm_risk_signal"
+                ]
+              },
+              "original_event_uid": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          },
+          "finding_info": {
+            "type": "object",
+            "additionalProperties": false,
+            "maxProperties": 4,
+            "required": [
+              "uid",
+              "title",
+              "types",
+              "created_time"
+            ],
+            "properties": {
+              "uid": {
+                "type": "string",
+                "minLength": 64,
+                "maxLength": 64,
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "title": {
+                "const": "Ordin swarm diagnostic finding"
+              },
+              "types": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "admission",
+                    "broker_result",
+                    "decision",
+                    "incident",
+                    "legacy_observation",
+                    "legacy_review",
+                    "message",
+                    "retention",
+                    "risk_signal"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 1
+              },
+              "created_time": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            }
+          },
+          "unmapped": {
+            "type": "object",
+            "additionalProperties": false,
+            "maxProperties": 1,
+            "required": [
+              "ordin"
+            ],
+            "properties": {
+              "ordin": {
+                "type": "object",
+                "additionalProperties": false,
+                "maxProperties": 7,
+                "required": [
+                  "tenant_ref",
+                  "scope_ref",
+                  "evidence",
+                  "state",
+                  "refs",
+                  "diagnostic_only",
+                  "execution_authority"
+                ],
+                "properties": {
+                  "tenant_ref": {
+                    "type": "string",
+                    "minLength": 69,
+                    "maxLength": 69,
+                    "pattern": "^hmac:[a-f0-9]{64}$"
+                  },
+                  "scope_ref": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "evidence": {
+                    "enum": [
+                      "diagnostic",
+                      "intent",
+                      "observed",
+                      "reported",
+                      "unknown"
+                    ]
+                  },
+                  "state": {
+                    "enum": [
+                      "canceled",
+                      "completed",
+                      "denied",
+                      "forwarded",
+                      "paused",
+                      "quarantined",
+                      "reserved",
+                      "resumed",
+                      "reviewed",
+                      "revoked",
+                      "risk_reported",
+                      "swept",
+                      "unknown"
+                    ]
+                  },
+                  "refs": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "maxProperties": 15,
+                    "required": [],
+                    "properties": {
+                      "actor": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "task": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "session": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "swarm": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "scope": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "policy": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "resource": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "route": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "message": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "incident": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "source": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "proof": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "operator": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      },
+                      "tool": {
+                        "type": "string",
+                        "minLength": 69,
+                        "maxLength": 69,
+                        "pattern": "^hmac:[a-f0-9]{64}$"
+                      }
+                    }
+                  },
+                  "diagnostic_only": {
+                    "const": true
+                  },
+                  "execution_authority": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "diagnostic_only": {
+      "const": true
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

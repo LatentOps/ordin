@@ -7,7 +7,7 @@ from queue import Empty, Full, Queue
 from threading import RLock, Thread
 import time
 import sqlite3
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from ordin._runtime_json import digest
 
@@ -16,6 +16,9 @@ from .coordinator import CoordinatorScope, SwarmCoordinator
 from .models import identifier
 from .coordinator_store import decode, encode
 from .registry import InMemoryAgentRegistry
+
+if TYPE_CHECKING:
+    from .causal_graph import SwarmCausalGraph
 
 
 class SwarmAuditSource:
@@ -65,7 +68,8 @@ class SwarmAuditSource:
         self._coordinator: SwarmCoordinator = coordinator
         self._scope: CoordinatorScope = scope
         self._control = control
-        self._operator, self._containment = operator, containment
+        self._operator: object = operator
+        self._containment = containment
         self._registry: InMemoryAgentRegistry = native.authenticator._registry
         self._tenant, self._swarm, self._task = (
             native.tenant_id,
@@ -75,6 +79,7 @@ class SwarmAuditSource:
         self._seen: OrderedDict[str, None] = OrderedDict()
         self._fault, self._lock = False, RLock()
         self._closed, self._dropped = False, 0
+        self._causal_graph: SwarmCausalGraph | None = None
         self._queue: Queue[Any] = Queue(maxsize=min(journal.policy.maximum_events, 256))
         self._worker = Thread(target=self._write_loop, name="ordin-private-audit", daemon=True)
         self._worker.start()
@@ -96,6 +101,8 @@ class SwarmAuditSource:
                 return
             try:
                 refs = {**refs, "scope": self._scope.scope_key}
+                if self._task is not None:
+                    refs["task"] = self._task
                 data = decode(
                     encode(
                         {
@@ -139,7 +146,7 @@ class SwarmAuditSource:
         deadline = time.monotonic() + timeout
         while self._queue.unfinished_tasks and time.monotonic() < deadline:
             time.sleep(0.005)
-        return not self._fault and not self._queue.unfinished_tasks
+        return not self._closed and not self._fault and not self._queue.unfinished_tasks
 
     def close(self, *, operator: object) -> bool:
         self._check(operator)
@@ -155,6 +162,19 @@ class SwarmAuditSource:
     @staticmethod
     def _risk(value):
         return value if value in {"unknown", "low", "medium", "high", "critical"} else "unknown"
+
+    @staticmethod
+    def _tool_metadata(action, adapter):
+        return {
+            "kind": action.kind,
+            "operation": action.operation,
+            "adapter": adapter,
+            "identifiers": {
+                name: action.parameters[name]
+                for name in ("runtime", "server", "tool", "method")
+                if name in action.parameters and type(action.parameters[name]) is str
+            },
+        }
 
     def record_decision(self, gate, context, decision):
         from .gate import SwarmGate, SwarmDecision
@@ -183,6 +203,7 @@ class SwarmAuditSource:
             "session": context.identity.session_id,
             "action": decision.action_digest,
             "policy": decision.policy_digest,
+            "tool": self._tool_metadata(decision.review.action, decision.review.adapter),
         }
         if self._task:
             refs["task"] = self._task
@@ -290,6 +311,10 @@ class SwarmAuditSource:
                 "action": result.action_digest,
                 "proof": result.authorization_digest,
                 "policy": original.scope.plan.policy_digest,
+                "session": context.identity.session_id,
+                "tool": self._tool_metadata(
+                    original.scope.action, original.scope.decision.review.adapter
+                ),
             },
             facts={
                 "physical_enforcement": observed,
@@ -348,6 +373,61 @@ class SwarmAuditSource:
     def actor_ref(self, agent_id):
         return self.journal.redactor.ref("actor", digest([self._tenant, self._swarm, agent_id]))
 
+    def bind_causal_graph(self, graph, *, operator: object):
+        """Opt in to an original, current protected graph, never a supplied JSON graph."""
+        from .causal_graph import SwarmCausalGraph
+
+        self._check(operator)
+        if (
+            type(graph) is not SwarmCausalGraph
+            or graph._ingestor._registry is not self._registry
+            or (
+                graph._context.identity.tenant_id,
+                graph._context.identity.swarm_id,
+                graph._context.identity.task_id,
+            )
+            != (self._tenant, self._swarm, self._task)
+        ):
+            raise ValueError("original task-scoped causal graph required")
+        graph.build()
+        with self._lock:
+            if self._causal_graph is not None and self._causal_graph is not graph:
+                raise ValueError("causal source already bound")
+            graph._ingestor.bind_audit(self, operator=operator)
+            self._causal_graph = graph
+
+    def record_ingested(self, ingestor, record):
+        """Capture message metadata only after the original ingest commit."""
+        from .ingest import SwarmEventIngestor, JournalRecord
+
+        if (
+            type(ingestor) is not SwarmEventIngestor
+            or ingestor._registry is not self._registry
+            or type(record) is not JournalRecord
+            or ingestor._records.get(record.event.event_id) is not record
+            or record.digest != record.event.digest
+        ):
+            raise ValueError("original committed message event required")
+        event = record.event
+        if event.identity.task_id != self._task or event.event_kind not in {
+            "message_sent",
+            "message_received",
+        }:
+            return
+        self._append(
+            digest(["message", record.digest]),
+            kind="message",
+            state="forwarded" if event.event_kind == "message_sent" else "completed",
+            evidence="reported" if event.evidence_class == "host_authenticated" else "diagnostic",
+            refs={
+                "actor": digest([self._tenant, self._swarm, event.identity.agent_id]),
+                "session": event.identity.session_id,
+                "message": event.event_id,
+                "source": event.source_id,
+            },
+            facts={"proof_gaps": ["unmediated_paths_uncovered", "prehistory_unknown"]},
+        )
+
     def import_trace(self, path, *, operator: object, maximum_events: int = 256):
         from ordin.trace_capture import read_capture
 
@@ -377,20 +457,24 @@ class SwarmAuditSource:
         return len(records[-maximum_events:])
 
     def import_audit(self, path, *, operator: object, maximum_events: int = 256):
-        from ordin.audit import verify_audit_jsonl, MAX_AUDIT_LINE_BYTES
+        from ordin.audit import MAX_AUDIT_LINE_BYTES, MAX_AUDIT_BYTES
         from ordin._audit_storage import load_audit_line
         from pathlib import Path
 
         self._check(operator)
-        if (
-            type(maximum_events) is not int
-            or not 1 <= maximum_events <= 4096
-            or not verify_audit_jsonl(path, require_hash_chain=True).ok
-        ):
+        if type(maximum_events) is not int or not 1 <= maximum_events <= 4096:
             raise ValueError("valid bounded legacy audit required")
         from collections import deque
 
-        with Path(path).open("rb") as stream:
+        import io
+
+        # Verify and parse one bounded immutable snapshot; no reopen race can
+        # substitute an unverified history after validation.
+        with Path(path).open("rb") as original:
+            snapshot = original.read(MAX_AUDIT_BYTES + 1)
+        if len(snapshot) > MAX_AUDIT_BYTES:
+            raise ValueError("valid bounded legacy audit required")
+        with io.BytesIO(snapshot) as stream:
             records = deque(
                 (
                     load_audit_line(raw)
@@ -398,6 +482,28 @@ class SwarmAuditSource:
                 ),
                 maxlen=maximum_events,
             )
+        from ordin.audit import _event_hash
+        from ordin.schema import validate_named_schema
+
+        previous = None
+        for raw in snapshot.splitlines(keepends=True):
+            row = load_audit_line(raw)
+            if (
+                len(raw) > MAX_AUDIT_LINE_BYTES
+                or not raw.endswith(b"\n")
+                or validate_named_schema("audit_event", row)
+                or row.get("previous_hash") != previous
+                or row.get("event_hash") != _event_hash(row)
+                or not row.get("event_hash")
+            ):
+                raise ValueError("valid bounded legacy audit required")
+            provenance = row.get("provenance")
+            if isinstance(provenance, dict) and (
+                row.get("decision") != provenance.get("final_decision")
+                or row.get("risk") != provenance.get("final_risk")
+            ):
+                raise ValueError("valid bounded legacy audit required")
+            previous = row["event_hash"]
         for row in records:
             self._append(
                 digest(["legacy_audit", row]),
@@ -431,7 +537,13 @@ class SwarmAuditSource:
     def _permissions(self):
         native = self._coordinator._scope(self._scope).native
         with native._lock:
-            entries = tuple(native._grants.items())
+            entries = tuple(
+                (reference, row)
+                for reference, row in native._grants.items()
+                if (context := native.authenticator._enrollments[row.enrollment_id].context)
+                is not None
+                and context.identity.task_id == self._task
+            )
         result = []
         truncated = len(entries) > 64
         for reference, row in entries[:64]:
@@ -448,6 +560,7 @@ class SwarmAuditSource:
                             "kind": kind,
                             "resource_ref": self.journal.redactor.ref("resource", value),
                             "claim": "declared_boundary",
+                            "operation": self._permission_operation(kind, value),
                         }
                     )
             for kind in ("requests", "network_grants", "rest_requests"):
@@ -457,6 +570,7 @@ class SwarmAuditSource:
                             "kind": "request",
                             "resource_ref": self.journal.redactor.ref("resource", value),
                             "claim": "declared_boundary",
+                            "operation": "unknown",
                         }
                     )
             truncated = truncated or len(domains) > 16
@@ -473,12 +587,153 @@ class SwarmAuditSource:
             )
         return result, truncated
 
+    @staticmethod
+    def _permission_operation(kind, value):
+        if type(value) is not dict:
+            return "unknown"
+        selected = value.get("operation", value.get("access", "unknown"))
+        return (
+            selected
+            if selected in {"read", "write", "read_write", "connect", "call"}
+            else "unknown"
+        )
+
+    def _protected_graph(self, metric_events, gaps):
+        graph = self._causal_graph
+        if graph is None:
+            gaps.append("protected_causal_source_unconfigured")
+            return None
+        redactor = self.journal.redactor
+        try:
+            with graph._ingestor._lock:
+                view = graph.build()
+                selected = {
+                    row["event_id"]: graph._ingestor._records[row["event_id"]].event
+                    for row in view.nodes
+                    if graph._ingestor._records[row["event_id"]].event.identity.task_id
+                    == self._task
+                }
+            if view.proof_gaps or view.truncated:
+                gaps.append("protected_causal_history_incomplete")
+            if view.truncated or len(view.nodes) > 256 or len(view.edges) > 1024:
+                gaps.append("projection_truncated")
+            selected = dict(list(selected.items())[:256])
+            nodes = [
+                {
+                    "event_ref": redactor.ref("event", key),
+                    "actor_ref": self.actor_ref(event.identity.agent_id),
+                    "kind": event.event_kind,
+                    "action_ref": redactor.ref("action", event.action_digest)
+                    if event.action_digest
+                    else None,
+                    "evidence": "observed"
+                    if event.evidence_class in {"backend_observed", "backend_enforced"}
+                    else "reported"
+                    if event.evidence_class == "host_authenticated"
+                    else "diagnostic",
+                }
+                for key, event in selected.items()
+            ]
+            edges = []
+            parents: dict[str, list[tuple[str, str]]] = {}
+            for edge in view.edges[:1024]:
+                source, target = edge["source_id"], edge["target_id"]
+                if source not in selected or target not in selected:
+                    if source in selected or target in selected:
+                        gaps.append("protected_causal_history_incomplete")
+                    continue
+                edges.append(
+                    {
+                        "from_ref": redactor.ref("event", source),
+                        "to_ref": redactor.ref("event", target),
+                        "state": "known",
+                        "kind": edge["kind"],
+                    }
+                )
+                # Control ancestry and model hypotheses are never data flow.
+                if edge["kind"] not in {"hypothesized_influence", "delegated_to"} and all(
+                    selected[key].evidence_class != "caller_asserted" for key in (source, target)
+                ):
+                    parents.setdefault(target, []).append((source, edge["kind"]))
+            reviews = {
+                (
+                    row["refs"].get("actor"),
+                    row["refs"].get("session"),
+                    row["refs"].get("action"),
+                    row["facts"].get("policy_epoch"),
+                ): row
+                for row in metric_events
+                if row["kind"] == "decision"
+                and row["evidence"] == "intent"
+                and row["facts"].get("disposition") in {"escalate", "deny"}
+            }
+            paths: list[dict[str, Any]] = []
+            for key, event in selected.items():
+                if event.event_kind != "reviewed" or event.evidence_class != "host_authenticated":
+                    continue
+                action_ref = redactor.ref("action", event.action_digest)
+                review = reviews.get(
+                    (
+                        self.actor_ref(event.identity.agent_id),
+                        redactor.ref("session", event.identity.session_id),
+                        action_ref,
+                        event.identity.policy_epoch,
+                    )
+                )
+                if review is None:
+                    continue
+                # Enumerate a bounded number of explicit ancestor chains. A
+                # candidate ends at reviewed intent, not successful exploitation.
+                pending: list[tuple[list[str], list[str]]] = [([key], [])]
+                while pending and len(paths) < 32:
+                    chain, kinds = pending.pop()
+                    prior = parents.get(chain[0], ())
+                    if not prior or len(chain) >= 64:
+                        if len(chain) > 1:
+                            paths.append(
+                                {
+                                    "event_refs": [redactor.ref("event", item) for item in chain],
+                                    "edge_kinds": kinds,
+                                    "action_ref": action_ref,
+                                    "risk": review["facts"]["risk"],
+                                    "disposition": review["facts"]["disposition"],
+                                    "evidence": "intent",
+                                    "claim": "causal_review_candidate",
+                                    "successful_exploitation": "unknown",
+                                    "execution_authority": False,
+                                }
+                            )
+                        if prior:
+                            gaps.append("projection_truncated")
+                        continue
+                    for parent, kind in prior[:8]:
+                        if parent not in chain:
+                            pending.append(([parent, *chain], [kind, *kinds]))
+                    if len(pending) > 64:
+                        pending = pending[-64:]
+                        gaps.append("projection_truncated")
+                if pending:
+                    gaps.append("projection_truncated")
+            return {
+                "nodes": nodes,
+                "edges": edges,
+                "paths": paths,
+                "successful_exploitation": "unknown",
+            }
+        except (ValueError, OSError, RuntimeError, KeyError):
+            gaps.append("protected_causal_source_unavailable")
+            return {"nodes": [], "edges": [], "paths": [], "successful_exploitation": "unknown"}
+
     def _incidents(self, state):
         result = []
+        truncated = False
         controller = self._containment
         if controller is not None:
             with controller._lock:
                 entries = tuple(controller._incidents.values())
+                truncated = len(entries) > 128 or any(
+                    len(item.controls) > 128 for item in entries[-128:]
+                )
                 copies = [
                     (
                         item.receipt,
@@ -489,9 +744,9 @@ class SwarmAuditSource:
                         tuple(item.errors),
                         item.chain_digest,
                     )
-                    for item in entries
+                    for item in entries[-128:]
                 ]
-            for receipt, controls, affected, done, resumed, errors, chain in copies[:128]:
+            for receipt, controls, affected, done, resumed, errors, chain in copies:
                 outcomes = []
                 for job, control in controls[:128]:
                     broker, authorization = job
@@ -518,6 +773,7 @@ class SwarmAuditSource:
                     }
                 )
         if state is not None:
+            truncated = truncated or len(state["fences"]) > 128
             for epoch, intent in sorted(state["fences"].items(), key=lambda item: int(item[0]))[
                 -128:
             ]:
@@ -540,7 +796,7 @@ class SwarmAuditSource:
                             "execution_authority": False,
                         }
                     )
-        return result[-128:]
+        return result[-128:], truncated or len(result) > 128
 
     def snapshot(self, *, operator: object):
         self._check(operator)
@@ -565,10 +821,17 @@ class SwarmAuditSource:
                 transaction.verify_journal_head(self._scope.scope_key)
                 state, now = decode(encode(original)), transaction.now
                 rows = transaction.connection.execute(
-                    "SELECT DISTINCT b.* FROM coordinator_buckets b JOIN coordinator_items i ON i.bucket=b.bucket WHERE i.scope_key=?",
+                    "SELECT DISTINCT b.bucket FROM coordinator_buckets b JOIN coordinator_items i ON i.bucket=b.bucket WHERE i.scope_key=? LIMIT 257",
                     (self._scope.scope_key,),
                 ).fetchall()
+                from .coordinator import _bucket
+
+                if len(rows) > 256:
+                    gaps.append("projection_truncated")
                 for row in rows[:256]:
+                    row = _bucket(transaction.connection, row["bucket"])
+                    if row is None or row["tenant_digest"] != digest(self._tenant):
+                        raise ValueError("invalid diagnostic budget scope")
                     budgets.append(
                         {
                             "bucket_ref": redactor.ref("budget", row["bucket"]),
@@ -581,7 +844,7 @@ class SwarmAuditSource:
                             "physical_enforcement": False,
                         }
                     )
-        except (ValueError, OSError, RuntimeError):
+        except (ValueError, OSError, RuntimeError, sqlite3.Error):
             state, budgets, now = None, [], None
             gaps.append("coordinator_unavailable")
         agents, coverage = [], []
@@ -595,7 +858,7 @@ class SwarmAuditSource:
                 else "stale"
                 if now - heartbeat >= timeout
                 else phase
-                if phase in {"active", "retired", "failed", "exited"}
+                if phase in {"active", "paused", "ended", "retired", "failed", "exited"}
                 else "unknown"
             )
             contained = (
@@ -701,9 +964,10 @@ class SwarmAuditSource:
         except (ValueError, OSError, RuntimeError):
             bundle, timeline = None, []
             gaps.append("capture_unavailable")
-        if self._fault:
+        if self._fault or self._closed:
             gaps.append("capture_unavailable")
         metric_events = bundle["events"] if bundle else []
+        protected_graph = self._protected_graph(metric_events, gaps)
         metrics = {
             "intent_reviews": sum(row["kind"] == "decision" for row in metric_events),
             "observed_completions": sum(
@@ -740,8 +1004,12 @@ class SwarmAuditSource:
             ],
         }
         permissions, permission_cut = self._permissions()
+        incidents, incident_cut = self._incidents(state)
         if (
             permission_cut
+            or incident_cut
+            or len(hosts) > 256
+            or len(metric_events) > 20
             or len(coverage) > 512
             or len(edges) > 1024
             or state is not None
@@ -763,7 +1031,8 @@ class SwarmAuditSource:
             "verified_live_source": True,
             "agents": agents,
             "coverage": coverage[:512],
-            "graph": {
+            "graph": protected_graph
+            or {
                 "nodes": nodes,
                 "edges": edges[:1024],
                 "paths": [],
@@ -772,7 +1041,7 @@ class SwarmAuditSource:
             "budgets": budgets,
             "permissions": permissions,
             "policy": policy,
-            "incidents": self._incidents(state),
+            "incidents": incidents,
             "approvals": [],
             "timeline": timeline,
             "metrics": metrics,

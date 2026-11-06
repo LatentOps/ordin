@@ -17,7 +17,14 @@ from tests.test_swarm_delegation import fingerprint, tls_pair
 
 @contextmanager
 def configured(
-    tmp_path, *, decision="warn", quorum=False, policy=None, initialize=True, hard_limit=None
+    tmp_path,
+    *,
+    decision="warn",
+    quorum=False,
+    policy=None,
+    initialize=True,
+    hard_limit=None,
+    operator_roles=("approve", "observe", "break_glass", "recover"),
 ):
     now = [100.0]
     store = SQLiteCoordinatorStore(tmp_path / "authority.db", create=True, clock=lambda: now[0])
@@ -66,14 +73,14 @@ def configured(
         directory = SwarmOperatorDirectory(
             native.authenticator,
             operator=operator,
-            roles=("approve", "observe", "break_glass", "recover"),
+            roles=operator_roles,
         )
         humans = {}
         for principal, credential in (("alice", "grandchild"), ("bob", "sibling")):
             directory.enroll(
                 principal_id=principal,
                 certificate_digest=fingerprint(credential),
-                roles=("approve", "observe", "break_glass", "recover"),
+                roles=operator_roles,
                 task_ids=("task",),
                 operator=operator,
             )

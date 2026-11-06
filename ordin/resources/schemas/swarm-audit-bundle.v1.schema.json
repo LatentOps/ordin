@@ -5,7 +5,7 @@
   "description": "Privacy-default diagnostic data; never identity, permission or runtime authority. External anchor trust is independent of local history ownership.",
   "type": "object",
   "additionalProperties": false,
-  "maxProperties": 11,
+  "maxProperties": 12,
   "required": [
     "schema_version",
     "tenant_ref",
@@ -113,7 +113,8 @@
               "risk_signal",
               "retention",
               "legacy_review",
-              "legacy_observation"
+              "legacy_observation",
+              "message"
             ]
           },
           "state": {
@@ -145,7 +146,7 @@
           "refs": {
             "type": "object",
             "additionalProperties": false,
-            "maxProperties": 14,
+            "maxProperties": 15,
             "required": [],
             "properties": {
               "actor": {
@@ -227,6 +228,12 @@
                 "pattern": "^hmac:[a-f0-9]{64}$"
               },
               "operator": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "tool": {
                 "type": "string",
                 "minLength": 69,
                 "maxLength": 69,
@@ -512,6 +519,25 @@
                 ]
               }
             }
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "message"
+              },
+              "evidence": {
+                "enum": [
+                  "reported",
+                  "diagnostic"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "forwarded",
+                  "completed"
+                ]
+              }
+            }
           }
         ]
       }
@@ -521,6 +547,32 @@
     },
     "execution_authority": {
       "const": false
+    },
+    "capture_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 4,
+      "required": [
+        "flushed",
+        "dropped_events",
+        "complete_history"
+      ],
+      "properties": {
+        "flushed": {
+          "type": "boolean"
+        },
+        "dropped_events": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "complete_history": {
+          "const": false
+        },
+        "export_window_truncated": {
+          "type": "boolean"
+        }
+      }
     }
   }
 }

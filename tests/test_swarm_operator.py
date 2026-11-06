@@ -8,7 +8,7 @@ import pytest
 
 from ordin import ActionEnvelope, AgentGate
 from ordin.schema import validate_named_schema
-from ordin.swarm.audit import SwarmAuditJournal
+from ordin.swarm.audit import SwarmAuditJournal, SwarmAuditPolicy
 from ordin.swarm.diagnostics import SwarmAuditSource
 from ordin.swarm.gate import SwarmGate
 from ordin.swarm.incident import IncidentPolicy, IncidentSignalSource, SwarmContainmentController
@@ -20,8 +20,14 @@ from tests.test_swarm_delegation import server_context, tls_pair, fingerprint
 
 
 @contextmanager
-def operator_fixture(tmp_path, *, roles=("observe", "export", "pause", "revoke", "retain")):
-    with configured(tmp_path) as data:
+def operator_fixture(
+    tmp_path,
+    *,
+    roles=("observe", "export", "pause", "revoke", "retain"),
+    audit_policy=None,
+    tenant="tenant",
+):
+    with configured(tmp_path, tenant=tenant) as data:
         operator = data["operator"]
         signals = IncidentSignalSource(operator=operator)
         controller = SwarmContainmentController(
@@ -35,9 +41,10 @@ def operator_fixture(tmp_path, *, roles=("observe", "export", "pause", "revoke",
         journal = SwarmAuditJournal(
             tmp_path / "audit.db",
             key=b"P" * 32,
-            tenant_id="tenant",
+            tenant_id=tenant,
             operator=operator,
             clock=data["clock"],
+            policy=audit_policy or SwarmAuditPolicy(),
             create=True,
         )
         source = SwarmAuditSource(
@@ -145,6 +152,7 @@ def test_authenticated_pause_publishes_actor_fence_without_permissions(tmp_path)
             row for row in status["agents"] if row["actor_ref"] == source.actor_ref("child")
         )
         assert actor["containment"] == "permission_fenced"
+        assert actor["phase"] == "paused"
         assert status["incidents"][0]["operation"] == "pause"
 
 

@@ -74,9 +74,12 @@ def main(argv=None):
     parser.add_argument("--idempotency-key")
     parser.add_argument("--maximum-resources", type=int, default=256)
     parser.add_argument("--output")
+    parser.add_argument("--format", choices=("audit", "ocsf", "otel"), default="audit")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     try:
+        if args.format != "audit" and args.command != "export":
+            raise ValueError("operator.export_format_only")
         if args.command == "audit":
             if args.audit_action != "verify" or not args.report:
                 raise ValueError("operator.audit_input_required")
@@ -84,6 +87,10 @@ def main(argv=None):
                 _load(args.report, 8 * 1024 * 1024),
                 _load(args.checkpoint) if args.checkpoint else None,
             ).as_dict()
+        elif args.report and args.command == "export":
+            result = _load(args.report, 8 * 1024 * 1024)
+            if not verify_swarm_audit(result).valid:
+                raise ValueError("operator.audit_bundle_required")
         elif args.report:
             if args.command not in {
                 "list",
@@ -161,6 +168,19 @@ def main(argv=None):
                     result = SwarmOperatorClient(connection).request(
                         operation, scope_ref=args.scope_ref, **arguments
                     )
+        if args.command == "export" and args.format != "audit":
+            from .telemetry import export_swarm_ocsf, export_swarm_span_json
+
+            result = (
+                export_swarm_span_json(result)
+                if args.format == "otel"
+                else {
+                    "schema_version": "ordin.swarm_ocsf_export.v1",
+                    "findings": export_swarm_ocsf(result),
+                    "diagnostic_only": True,
+                    "execution_authority": False,
+                }
+            )
         if args.command == "dashboard":
             if not args.output:
                 raise ValueError("operator.dashboard_output_required")

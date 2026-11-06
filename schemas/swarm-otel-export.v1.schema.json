@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-otel-export.v1.schema.json",
+  "title": "swarm_otel_export",
+  "description": "Privacy-default diagnostic data; never identity, permission or runtime authority. External anchor trust is independent of local history ownership.",
+  "type": "object",
+  "additionalProperties": false,
+  "maxProperties": 4,
+  "required": [
+    "schema_version",
+    "spans",
+    "diagnostic_only",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_otel_export.v1"
+    },
+    "spans": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "maxProperties": 7,
+        "required": [
+          "name",
+          "trace_id",
+          "span_id",
+          "start_time_unix_nano",
+          "end_time_unix_nano",
+          "attributes",
+          "resource"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "ordin.swarm.admission",
+              "ordin.swarm.broker_result",
+              "ordin.swarm.decision",
+              "ordin.swarm.incident",
+              "ordin.swarm.legacy_observation",
+              "ordin.swarm.legacy_review",
+              "ordin.swarm.message",
+              "ordin.swarm.retention",
+              "ordin.swarm.risk_signal"
+            ]
+          },
+          "trace_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$",
+            "minLength": 32,
+            "maxLength": 32
+          },
+          "span_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{16}$",
+            "minLength": 16,
+            "maxLength": 16
+          },
+          "start_time_unix_nano": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "end_time_unix_nano": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": false,
+            "maxProperties": 22,
+            "required": [
+              "ordin.tenant.ref",
+              "ordin.evidence",
+              "ordin.state",
+              "ordin.execution_authority",
+              "ordin.diagnostic_only",
+              "ordin.time_supported",
+              "ordin.capture_instant"
+            ],
+            "properties": {
+              "ordin.tenant.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.evidence": {
+                "enum": [
+                  "diagnostic",
+                  "intent",
+                  "observed",
+                  "reported",
+                  "unknown"
+                ]
+              },
+              "ordin.state": {
+                "enum": [
+                  "canceled",
+                  "completed",
+                  "denied",
+                  "forwarded",
+                  "paused",
+                  "quarantined",
+                  "reserved",
+                  "resumed",
+                  "reviewed",
+                  "revoked",
+                  "risk_reported",
+                  "swept",
+                  "unknown"
+                ]
+              },
+              "ordin.execution_authority": {
+                "const": false
+              },
+              "ordin.diagnostic_only": {
+                "const": true
+              },
+              "ordin.time_supported": {
+                "type": "boolean"
+              },
+              "ordin.capture_instant": {
+                "const": true
+              },
+              "ordin.actor.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.task.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.action.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.session.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.swarm.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.scope.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.policy.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.resource.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.route.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.message.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.incident.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.source.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.proof.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.operator.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "ordin.tool.ref": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              }
+            }
+          },
+          "resource": {
+            "type": "object",
+            "additionalProperties": false,
+            "maxProperties": 2,
+            "required": [
+              "service.name",
+              "ordin.privacy"
+            ],
+            "properties": {
+              "service.name": {
+                "const": "ordin-local-swarm"
+              },
+              "ordin.privacy": {
+                "const": "tenant_keyed_hmac_metadata"
+              }
+            }
+          }
+        }
+      }
+    },
+    "diagnostic_only": {
+      "const": true
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

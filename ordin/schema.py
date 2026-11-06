@@ -56,6 +56,8 @@ SCHEMA_FILES = {
     "swarm_operator_request": "swarm-operator-request.v1.schema.json",
     "swarm_operator_response": "swarm-operator-response.v1.schema.json",
     "swarm_operator_unconfigured": "swarm-operator-unconfigured.v1.schema.json",
+    "swarm_otel_export": "swarm-otel-export.v1.schema.json",
+    "swarm_ocsf_export": "swarm-ocsf-export.v1.schema.json",
     "audit_checkpoint": "audit-checkpoint.v1.schema.json",
     "trace_checkpoint": "trace-checkpoint.v1.schema.json",
     "swarm_incident": "swarm-incident.v1.schema.json",

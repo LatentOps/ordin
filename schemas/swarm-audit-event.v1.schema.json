@@ -42,7 +42,8 @@
         "risk_signal",
         "retention",
         "legacy_review",
-        "legacy_observation"
+        "legacy_observation",
+        "message"
       ]
     },
     "state": {
@@ -74,7 +75,7 @@
     "refs": {
       "type": "object",
       "additionalProperties": false,
-      "maxProperties": 14,
+      "maxProperties": 15,
       "required": [],
       "properties": {
         "actor": {
@@ -156,6 +157,12 @@
           "pattern": "^hmac:[a-f0-9]{64}$"
         },
         "operator": {
+          "type": "string",
+          "minLength": 69,
+          "maxLength": 69,
+          "pattern": "^hmac:[a-f0-9]{64}$"
+        },
+        "tool": {
           "type": "string",
           "minLength": 69,
           "maxLength": 69,
@@ -438,6 +445,25 @@
             "completed",
             "denied",
             "unknown"
+          ]
+        }
+      }
+    },
+    {
+      "properties": {
+        "kind": {
+          "const": "message"
+        },
+        "evidence": {
+          "enum": [
+            "reported",
+            "diagnostic"
+          ]
+        },
+        "state": {
+          "enum": [
+            "forwarded",
+            "completed"
           ]
         }
       }

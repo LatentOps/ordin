@@ -82,6 +82,18 @@ def operator_contract_samples():
         "execution_authority": False,
     }
     return {
+        "swarm_otel_export": {
+            "schema_version": "ordin.swarm_otel_export.v1",
+            "spans": [],
+            "diagnostic_only": True,
+            "execution_authority": False,
+        },
+        "swarm_ocsf_export": {
+            "schema_version": "ordin.swarm_ocsf_export.v1",
+            "findings": [],
+            "diagnostic_only": True,
+            "execution_authority": False,
+        },
         "audit_checkpoint": {
             "schema_version": "ordin.audit_checkpoint.v1",
             "event_count": 1,

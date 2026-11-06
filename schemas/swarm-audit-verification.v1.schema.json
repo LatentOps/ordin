@@ -52,9 +52,13 @@
       "type": "array",
       "maxItems": 8,
       "items": {
-        "type": "string",
-        "maxLength": 128,
-        "pattern": "^audit[.][a-z_]+$"
+        "enum": [
+          "audit.owner_can_rewrite_unanchored_history",
+          "audit.retained_prefix_unavailable",
+          "audit.checkpoint_outside_retention",
+          "audit.invalid_or_corrupt_export",
+          "audit.capture_incomplete"
+        ]
       }
     },
     "owner_rewrite_possible": {

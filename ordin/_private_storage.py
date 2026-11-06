@@ -24,7 +24,9 @@ _APPLICATION_IDS = {
 @contextmanager
 def private_database(
     path: str | Path,
-    kind: Literal["session", "trace", "runtime", "swarm_budget", "swarm_coordinator", "swarm_audit"],
+    kind: Literal[
+        "session", "trace", "runtime", "swarm_budget", "swarm_coordinator", "swarm_audit"
+    ],
     *,
     readonly: bool = False,
     create: bool = True,

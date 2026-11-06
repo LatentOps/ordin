@@ -74,7 +74,8 @@
               "risk_signal",
               "retention",
               "legacy_review",
-              "legacy_observation"
+              "legacy_observation",
+              "message"
             ]
           },
           "state": {
@@ -106,7 +107,7 @@
           "refs": {
             "type": "object",
             "additionalProperties": false,
-            "maxProperties": 14,
+            "maxProperties": 15,
             "required": [],
             "properties": {
               "actor": {
@@ -188,6 +189,12 @@
                 "pattern": "^hmac:[a-f0-9]{64}$"
               },
               "operator": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "tool": {
                 "type": "string",
                 "minLength": 69,
                 "maxLength": 69,
@@ -473,6 +480,25 @@
                 ]
               }
             }
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "message"
+              },
+              "evidence": {
+                "enum": [
+                  "reported",
+                  "diagnostic"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "forwarded",
+                  "completed"
+                ]
+              }
+            }
           }
         ]
       }
@@ -494,7 +520,10 @@
           "route_inventory_missing",
           "no_current_runtime_attestation",
           "source_unavailable",
-          "offline_report_not_live_verification"
+          "offline_report_not_live_verification",
+          "protected_causal_source_unconfigured",
+          "protected_causal_source_unavailable",
+          "protected_causal_history_incomplete"
         ]
       }
     },
