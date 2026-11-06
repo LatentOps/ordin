@@ -162,6 +162,10 @@ def test_two_distinct_humans_are_required_and_copies_mutations_and_expiry_fail_c
     with configured(tmp_path, quorum=True) as data:
         service, _, _, channel, lease, grant, action, humans, now, _ = data
         request = service.request(channel, lease, grant, action, idempotency_key="quorum")
+        with pytest.raises(ValueError):
+            service.resolve(
+                channel, request.request_id, "approve", idempotency_key="workload-self-approval"
+            )
         first = service.resolve(
             humans["alice"], request.request_id, "approve", idempotency_key="first"
         )
@@ -178,6 +182,27 @@ def test_two_distinct_humans_are_required_and_copies_mutations_and_expiry_fail_c
             service.prepare(copy(receipt), channel, lease, action)
         with pytest.raises(ValueError):
             service.prepare(receipt, channel, lease, replace(action, action_id="mutated"))
+        with pytest.raises(ValueError):
+            service.prepare(
+                receipt,
+                channel,
+                lease,
+                replace(
+                    action,
+                    parameters={
+                        **action.parameters,
+                        "arguments": {"path": "/another-exact-action"},
+                    },
+                ),
+            )
+        foreign_channel = next(
+            handle
+            for handle, row in service.directory.authenticator._channels.items()
+            if row.enrollment.context is not None
+            and row.enrollment.context.identity.agent_id == "parent"
+        )
+        with pytest.raises(ValueError):
+            service.prepare(receipt, foreign_channel, lease, action)
         now[0] += 11
         with pytest.raises(ValueError):
             service.prepare(receipt, channel, lease, action)
