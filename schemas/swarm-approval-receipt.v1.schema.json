@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.latentops.dev/schemas/swarm-approval-receipt.v1.schema.json",
+  "title": "Swarm Approval Receipt (data only)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_approval_receipt.v1"
+    },
+    "receipt_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "request_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "binding_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "expires_at": {
+      "type": "number",
+      "minimum": 0
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "approved",
+        "held",
+        "consumed",
+        "completed",
+        "uncertain",
+        "denied",
+        "canceled",
+        "expired"
+      ]
+    },
+    "execution_authority": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "request_id",
+    "request_digest",
+    "binding_digest",
+    "expires_at",
+    "status",
+    "execution_authority"
+  ],
+  "maxProperties": 8
+}

@@ -529,9 +529,22 @@ class LinuxFileReadBackend:
             )
 
     def _target(self, action: ActionEnvelope, plan: EnforcementPlan) -> str:
+        return self.validate_action_requirements(action, plan.contract)
+
+    def validate_action_requirements(
+        self, action: ActionEnvelope, contract: RuntimeCapabilityContract
+    ) -> str:
+        """Pure exact route/argument check, including an as-yet unfulfilled approval."""
+        if (
+            type(contract) is not RuntimeCapabilityContract
+            or contract.unknowns
+            or contract.decision == "block"
+            or len(contract.filesystem) != 1
+        ):
+            raise ValueError("complete known owned read requirements required")
         if (
             type(action) is not ActionEnvelope
-            or digest(action.as_dict()) != plan.contract.action_digest
+            or digest(action.as_dict()) != contract.action_digest
             or action.kind != "tool"
             or action.operation != "call"
             or set(action.parameters) != {"runtime", "tool", "arguments"}
@@ -548,11 +561,25 @@ class LinuxFileReadBackend:
         path = arguments[self.path_argument]
         if (
             type(path) is not str
-            or path != plan.contract.filesystem[0].path
+            or path != contract.filesystem[0].path
             or path not in {str(self.workspace / name) for name in self.allowed_files}
         ):
             raise ValueError("executor target changed")
         return Path(path).name
+
+    def _require_approval_job(self, plan, job):
+        lease = plan.contract._approval_lease
+        if lease is not None:
+            from ordin.approval import ApprovalExecutionLease, ApprovalSource
+
+            if (
+                type(lease) is not ApprovalExecutionLease
+                or type(lease._source) is not ApprovalSource
+                or not lease._source.verify_execution(lease, self, job)
+            ):
+                raise ValueError(
+                    "original consumed approval lease for this exact owned job required"
+                )
 
     def execute(
         self,
@@ -565,6 +592,7 @@ class LinuxFileReadBackend:
     ) -> ExecutorOutcome:
         if operator is not self._operator or type(source) is not RuntimeEvidenceSource:
             raise ValueError("protected executor owner and original reporting source required")
+        self._require_approval_job(plan, job)
         with self._lock:
             if len(self._outcomes) >= self._limit:
                 raise ValueError("executor outcome capacity reached")
@@ -635,6 +663,7 @@ class LinuxFileReadBackend:
                 )
                 if job_state.cancel.is_set():
                     return emit(plan, "canceled", "broker.executor_canceled_before_start")
+                self._require_approval_job(plan, job)
                 process = subprocess.Popen(
                     [str(self._executable), "-I", "-S", "-B", "-u", str(self.worker)],
                     cwd=self.cwd,

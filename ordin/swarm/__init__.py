@@ -1,6 +1,16 @@
 """Explicit, local host enrollment. Importing this package starts no services."""
 
 from .identity import HostChannel
+from .approval import (
+    SwarmApprovalBinding,
+    SwarmApprovalPolicy,
+    SwarmApprovalReceipt,
+    SwarmApprovalRequest,
+    SwarmRecoveryApproval,
+    SwarmRecoveryRequest,
+)
+from .approval_service import SwarmApprovalBootstrap, SwarmApprovalService
+from .operator_auth import HumanOperator, HumanOperatorChannel, SwarmOperatorDirectory
 from .incident import (
     IncidentPolicy,
     IncidentRule,
@@ -161,6 +171,17 @@ from .temporal import (
 )
 
 __all__ = [
+    "SwarmApprovalBinding",
+    "SwarmApprovalPolicy",
+    "SwarmApprovalReceipt",
+    "SwarmApprovalRequest",
+    "SwarmRecoveryApproval",
+    "SwarmRecoveryRequest",
+    "SwarmApprovalBootstrap",
+    "SwarmApprovalService",
+    "HumanOperator",
+    "HumanOperatorChannel",
+    "SwarmOperatorDirectory",
     "ArtifactBlobStore",
     "FilesystemArtifactStore",
     "MemoryArtifactStore",

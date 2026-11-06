@@ -22,6 +22,10 @@ def _unique(pairs):
 
 def main(argv: Sequence[str] | None = None) -> int:
     raw_args = list(sys.argv[1:] if argv is None else argv)
+    if raw_args and raw_args[0] == "approval":
+        from .approval_cli import main as approval_main
+
+        return approval_main(raw_args[1:])
     if raw_args and raw_args[0] == "policy":
         from .policy_cli import main as policy_main
 
@@ -38,6 +42,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("policy", help="Validate, explain, diff and simulate explicit policy data")
     commands.add_parser("temporal", help="Validate an explicit bounded swarm temporal policy")
+    commands.add_parser(
+        "approval", help="Governance policy validation and protected operator commands"
+    )
     attach = commands.add_parser(
         "attach", help="Preview required host routing; live attach uses the protected SDK"
     )

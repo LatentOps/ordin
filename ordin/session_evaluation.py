@@ -9,6 +9,7 @@ from typing import Any, Mapping
 
 from .action import ActionEnvelope, ActionHistory
 from .agent import AgentDecision, AgentGate
+from .approval import ApprovalSatisfaction, ApprovalScope, ApprovalExecutionLease
 from .api import Ordin
 from .claude_code import ClaudeCodeIntegration, claude_code_tool_semantics
 from .codex import CodexIntegration
@@ -33,6 +34,9 @@ class _TimedGate(AgentGate):
         contract_check: MCPContractCheck | None = None,
         runtime_observations: RuntimeObservationHistory | Mapping[str, Any] | None = None,
         runtime_binding: RuntimeReviewBinding | None = None,
+        approval_satisfaction: ApprovalSatisfaction | None = None,
+        approval_scope: ApprovalScope | None = None,
+        approval_execution_lease: ApprovalExecutionLease | None = None,
     ) -> AgentDecision:
         start = perf_counter_ns()
         decision = super().evaluate_action(
@@ -42,6 +46,9 @@ class _TimedGate(AgentGate):
             contract_check=contract_check,
             runtime_observations=runtime_observations,
             runtime_binding=runtime_binding,
+            approval_satisfaction=approval_satisfaction,
+            approval_scope=approval_scope,
+            approval_execution_lease=approval_execution_lease,
         )
         self.samples.append(perf_counter_ns() - start)
         self.decisions.append(decision)

@@ -268,6 +268,12 @@
       "type": "string",
       "maxLength": 64,
       "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "approval_satisfaction_digest": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$"
     }
   }
 }

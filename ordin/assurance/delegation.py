@@ -385,6 +385,37 @@ class DelegationLimits:
                 raise ValueError("invalid bounded delegation quota")
 
 
+def _verify_operation_authority(contract, authority: DelegationAuthority):
+    """Shared complete operation containment; approval never changes these rights."""
+    if not isinstance(authority, DelegationAuthority):
+        raise ValueError("original typed operation authority required")
+    if isinstance(contract, RestRequestContract):
+        return verify_rest_request_authority(
+            contract,
+            RestRequestBoundary(
+                _network_boundary(authority, contract.capability.network), authority.rest_requests
+            ),
+        )
+    if isinstance(contract, RuntimeRequestContractV2) and contract.requests:
+        return verify_assurance_request_authority(
+            contract,
+            RuntimeRequestBoundaryV2(
+                authority.capability, authority.requests, authority.network_grants
+            ),
+        )
+    cap = contract.capability if isinstance(contract, RuntimeRequestContractV2) else contract
+    networks = list(authority.capability.network)
+    for candidate in cap.network:
+        networks.extend(
+            NetworkCapability(
+                candidate.host, grant.port, grant.protocol, grant.access, grant.methods, grant.paths
+            )
+            for grant in authority.network_grants
+            if grant.port == candidate.port and host_matches(grant.host_pattern, candidate.host)
+        )
+    return verify_assurance_capability(cap, replace(authority.capability, network=tuple(networks)))
+
+
 class DelegationIssuer:
     """Protected host service; callers supply actual operator/task maxima.
 
@@ -708,41 +739,7 @@ class DelegationIssuer:
         contract: RuntimeCapabilityContract | RuntimeRequestContractV2 | RestRequestContract,
         handle: IssuedDelegation,
     ):
-        if isinstance(contract, RestRequestContract):
-            return verify_rest_request_authority(
-                contract,
-                RestRequestBoundary(
-                    _network_boundary(handle.authority, contract.capability.network),
-                    handle.authority.rest_requests,
-                ),
-            )
-        if isinstance(contract, RuntimeRequestContractV2) and contract.requests:
-            return verify_assurance_request_authority(
-                contract,
-                RuntimeRequestBoundaryV2(
-                    handle.authority.capability,
-                    handle.authority.requests,
-                    handle.authority.network_grants,
-                ),
-            )
-        cap = contract.capability if isinstance(contract, RuntimeRequestContractV2) else contract
-        networks = list(handle.authority.capability.network)
-        for candidate in cap.network:
-            networks.extend(
-                NetworkCapability(
-                    candidate.host,
-                    grant.port,
-                    grant.protocol,
-                    grant.access,
-                    grant.methods,
-                    grant.paths,
-                )
-                for grant in handle.authority.network_grants
-                if grant.port == candidate.port and host_matches(grant.host_pattern, candidate.host)
-            )
-        return verify_assurance_capability(
-            cap, replace(handle.authority.capability, network=tuple(networks))
-        )
+        return _verify_operation_authority(contract, handle.authority)
 
     def _reserve_operation(
         self,

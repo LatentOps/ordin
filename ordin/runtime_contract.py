@@ -150,6 +150,7 @@ class RuntimeCapabilityContract:
     unknowns: tuple[CapabilityUnknown, ...] = ()
     source: Mapping[str, Any] = field(default_factory=dict)
     contract_id: str = ""
+    _approval_lease: Any = field(default=None, repr=False, compare=False, kw_only=True)
 
     def __post_init__(self) -> None:
         for name, model in (
@@ -167,6 +168,17 @@ class RuntimeCapabilityContract:
         if not isinstance(self.source, Mapping):
             raise ValueError("runtime contract source must be an object")
         object.__setattr__(self, "source", freeze(self.source))
+        if self._approval_lease is not None:
+            from .approval import ApprovalExecutionLease, ApprovalSource
+
+            if (
+                type(self._approval_lease) is not ApprovalExecutionLease
+                or type(self._approval_lease._source) is not ApprovalSource
+                or not self._approval_lease._source.witnessed(
+                    self._approval_lease, self.approval_base_digest
+                )
+            ):
+                raise ValueError("original approval lease for these exact requirements required")
         expected = "rc:" + digest(self._material())
         if self.contract_id and self.contract_id != expected:
             raise ValueError("runtime contract identity does not match its content")
@@ -175,20 +187,35 @@ class RuntimeCapabilityContract:
 
     @property
     def grant_state(self) -> str:
+        base = self._base_grant_state()
+        if base == "requires_approval" and self._approval_lease is not None:
+            from .approval import ApprovalExecutionLease, ApprovalSource
+
+            if (
+                type(self._approval_lease) is ApprovalExecutionLease
+                and type(self._approval_lease._source) is ApprovalSource
+                and self._approval_lease._source.witnessed(
+                    self._approval_lease, self.approval_base_digest
+                )
+            ):
+                return "eligible"
+        return base
+
+    def _base_grant_state(self) -> str:
         if self.decision == "block" or self.unknowns:
             return "diagnostic"
         if self.decision in {"ask", "warn"}:
             return "requires_approval"
         return "eligible"
 
-    def _material(self) -> dict[str, Any]:
-        return {
+    def _material(self, *, approval: bool = True) -> dict[str, Any]:
+        result = {
             "schema_version": RUNTIME_CAPABILITY_SCHEMA_VERSION,
             "action_id": self.action_id,
             "action_digest": self.action_digest,
             "decision": self.decision,
             "risk": self.risk,
-            "grant_state": self.grant_state,
+            "grant_state": self.grant_state if approval else self._base_grant_state(),
             "filesystem": [v.as_dict() for v in self.filesystem],
             "network": [v.as_dict() for v in self.network],
             "tools": [v.as_dict() for v in self.tools],
@@ -198,6 +225,14 @@ class RuntimeCapabilityContract:
             "unknowns": [v.as_dict() for v in self.unknowns],
             "source": thaw(self.source),
         }
+        if approval and self._approval_lease is not None:
+            result["approval_execution_lease_digest"] = self._approval_lease.digest
+        return result
+
+    @property
+    def approval_base_digest(self) -> str:
+        material = self._material(approval=False)
+        return digest({**material, "contract_id": "rc:" + digest(material)})
 
     def as_dict(self) -> dict[str, Any]:
         return {**self._material(), "contract_id": self.contract_id}
@@ -209,6 +244,8 @@ class RuntimeCapabilityContract:
     @classmethod
     def from_dict(cls, payload: Mapping[str, Any]) -> RuntimeCapabilityContract:
         validate("runtime_capability", payload)
+        if "approval_execution_lease_digest" in payload:
+            raise ValueError("JSON cannot restore the original approval execution lease")
         result = cls(
             action_id=payload["action_id"],
             action_digest=payload["action_digest"],
@@ -295,7 +332,9 @@ def _literal_http_request(review: ActionReview) -> tuple[str, str] | None:
     return method, urls[0]
 
 
-def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilityContract:
+def derive_runtime_capability_contract(
+    review: ActionReview, *, approval_execution_lease=None
+) -> RuntimeCapabilityContract:
     """Derive only from supplied reviewed evidence; never execute or inspect a host."""
     if not isinstance(review, ActionReview):
         raise ValueError("runtime derivation requires an ActionReview")
@@ -636,4 +675,5 @@ def derive_runtime_capability_contract(review: ActionReview) -> RuntimeCapabilit
             "effects": sorted(effects),
             "provenance_digest": review.provenance.digest if review.provenance else None,
         },
+        _approval_lease=approval_execution_lease,
     )

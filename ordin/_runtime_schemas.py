@@ -112,6 +112,8 @@ CAPABILITY = obj(
         "source": SOURCE,
     }
 )
+CAPABILITY["properties"]["approval_execution_lease_digest"] = DIGEST
+
 SCHEMAS = {
     "runtime_capability": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",

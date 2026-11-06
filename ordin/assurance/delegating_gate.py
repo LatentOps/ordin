@@ -46,6 +46,7 @@ class DelegatedDecision:
     _history: ActionHistory = field(repr=False, compare=False)
     _ticket: str | None = field(default=None, repr=False, compare=False)
     _seal: _DelegatedSeal | None = field(default=None, repr=False, compare=False)
+    _approval_satisfaction: Any = field(default=None, repr=False, compare=False, kw_only=True)
 
     def __post_init__(self) -> None:
         if (
@@ -59,7 +60,7 @@ class DelegatedDecision:
             raise ValueError("delegated decision requires a current gate-issued seal")
 
     def as_dict(self) -> dict:
-        return {
+        packet = {
             "schema_version": "ordin.assurance_delegated_decision.v1",
             "disposition": self.disposition,
             "baseline_disposition": self.assurance.disposition,
@@ -71,6 +72,9 @@ class DelegatedDecision:
             "verification": self.verification.as_dict() if self.verification else None,
             "reason_codes": list(self.reason_codes),
         }
+        if self._approval_satisfaction is not None:
+            packet["approval_satisfaction_digest"] = self._approval_satisfaction.digest
+        return packet
 
     @property
     def review(self) -> ActionReview:
@@ -85,7 +89,32 @@ class DelegatedDecision:
 
     @property
     def may_execute(self) -> bool:
-        return self.disposition == "execute"
+        return self.disposition == "execute" or self.approval_fulfilled
+
+    @property
+    def approval_fulfilled(self) -> bool:
+        return (
+            self.disposition != "deny"
+            and self._approval_satisfaction is not None
+            and self._approval_satisfaction is self.assurance._approval_satisfaction
+            and self.assurance.approval_fulfilled
+        )
+
+    @property
+    def approval_execution_lease(self):
+        return self.assurance.approval_execution_lease if self.approval_fulfilled else None
+
+    @property
+    def execution_eligibility(self) -> str:
+        return (
+            "approved"
+            if self.approval_fulfilled
+            else "eligible"
+            if self.disposition == "execute"
+            else "denied"
+            if self.disposition == "deny"
+            else "approval_required"
+        )
 
     @property
     def denied(self) -> bool:
@@ -93,7 +122,7 @@ class DelegatedDecision:
 
     @property
     def requires_approval(self) -> bool:
-        return self.disposition == "escalate"
+        return self.disposition == "escalate" and not self.approval_fulfilled
 
     @classmethod
     def from_dict(cls, payload: Mapping) -> DelegatedDecision:
@@ -107,7 +136,21 @@ class _ChildSessionGate(AgentGate):
     def evaluate_action(self, action, **kwargs) -> AgentDecision:
         decision = self.owner._review(action, **kwargs)
         self.owner._captured.append(decision)
-        return AgentDecision(decision.disposition, decision.assurance.review)
+        baseline = decision.assurance.baseline
+        return AgentDecision(
+            decision.disposition,
+            decision.assurance.review,
+            _approval_satisfaction=baseline._approval_satisfaction
+            if decision.approval_fulfilled
+            else None,
+            _approval_scope=baseline._approval_scope if decision.approval_fulfilled else None,
+            _approval_configuration=baseline._approval_configuration
+            if decision.approval_fulfilled
+            else None,
+            _approval_execution_lease=baseline._approval_execution_lease
+            if decision.approval_fulfilled
+            else None,
+        )
 
 
 class DelegatingAssuranceGate:
@@ -142,6 +185,7 @@ class DelegatingAssuranceGate:
         self._captured: list[DelegatedDecision] = []
         self._issued_inputs: dict[str, tuple[DelegatedDecision, dict[str, Any]]] = {}
         self._next_context: AssuranceHostContext | None = None
+        self._next_approval_options: dict[str, Any] = {}
         self._lock = threading.RLock()
         session_identity = identity or SessionIdentity(
             "ordin-assurance-child", grant.record.grant_id
@@ -160,6 +204,10 @@ class DelegatingAssuranceGate:
         _host_context: AssuranceHostContext | None = None,
         **kwargs,
     ) -> DelegatedDecision:
+        for name, value in self._next_approval_options.items():
+            if name in kwargs and kwargs[name] is not value:
+                raise ValueError("approval inputs changed during delegated review")
+        kwargs = {**kwargs, **self._next_approval_options}
         assurance = _assurance if _assurance is not None else self.assurance
         context = _host_context or self._next_context or self.source.context(history=history)
         if context.source.key != self.source.key:
@@ -169,6 +217,7 @@ class DelegatingAssuranceGate:
         )
         assert isinstance(underlying.review, ActionReview)
         final = underlying.disposition
+        approval_blocked = underlying.denied
         reasons = []
         verified = None
         contract: (
@@ -180,7 +229,9 @@ class DelegatingAssuranceGate:
         else:
             try:
                 self.issuer.require_current(self.grant, self.source)
-                capability = derive_runtime_capability_contract(underlying.review)
+                capability = derive_runtime_capability_contract(
+                    underlying.review, approval_execution_lease=underlying.approval_execution_lease
+                )
                 credentials = tuple(
                     CredentialBinding(use.binding, use.host, use.port)
                     for use in context.credential_uses
@@ -259,6 +310,7 @@ class DelegatingAssuranceGate:
                     )
                     final = underlying.disposition
                 if not checked.ok:
+                    approval_blocked = True
                     final = (
                         "deny"
                         if checked.result == "exceeds_boundary"
@@ -268,12 +320,19 @@ class DelegatingAssuranceGate:
                     )
                     reasons.append("delegation.operation_" + checked.result)
                 if self.grant.authority.requires_approval and not any(
-                    a.action_digest == underlying.action_digest for a in context.approvals
+                    a.action_digest == underlying.action_digest and a.current
+                    for a in context.approvals
                 ):
+                    approval_blocked = True
                     if final == "execute":
                         final = "escalate"
                     reasons.append("delegation.grant_approval_required")
-                if final == "execute":
+                if (
+                    final == "execute"
+                    or underlying.approval_fulfilled
+                    and not approval_blocked
+                    and final != "deny"
+                ):
                     if _reserve:
                         ticket = self.issuer._reserve_operation(
                             self.grant, self.source, underlying.action_digest, contract
@@ -281,6 +340,7 @@ class DelegatingAssuranceGate:
                     else:
                         self.issuer._preview_operation(self.grant, self.source, contract)
             except ValueError:
+                approval_blocked = True
                 final = "deny"
                 reasons.append("delegation.current_grant_or_quota_invalid")
         values: dict[str, Any] = dict(
@@ -295,6 +355,9 @@ class DelegatingAssuranceGate:
             _context=context,
             _history=history,
             _ticket=ticket,
+            _approval_satisfaction=underlying._approval_satisfaction
+            if underlying.approval_fulfilled and not approval_blocked and final != "deny"
+            else None,
         )
         preview = object.__new__(DelegatedDecision)
         for key, value in values.items():
@@ -366,6 +429,9 @@ class DelegatingAssuranceGate:
         *,
         host_context: AssuranceHostContext | None = None,
         contract_check=None,
+        approval_satisfaction=None,
+        approval_scope=None,
+        approval_execution_lease=None,
     ) -> DelegatedDecision:
         """Read-only review: no audit emission, session append, ticket or credential."""
         if not isinstance(action, ActionEnvelope):
@@ -384,6 +450,18 @@ class DelegatingAssuranceGate:
                 ordin=replace(self.assurance.ordin, audit=None),
             )
             assurance = replace(self.assurance, baseline_gate=baseline)
+            approval_options = (
+                {
+                    "approval_satisfaction": approval_satisfaction,
+                    "approval_scope": approval_scope,
+                    "approval_execution_lease": approval_execution_lease,
+                }
+                if any(
+                    value is not None
+                    for value in (approval_satisfaction, approval_scope, approval_execution_lease)
+                )
+                else {}
+            )
             return self._review(
                 proposed,
                 history=history,
@@ -391,6 +469,7 @@ class DelegatingAssuranceGate:
                 _reserve=False,
                 _assurance=assurance,
                 _host_context=host_context,
+                **approval_options,
                 **extra,
             )
 
@@ -400,6 +479,9 @@ class DelegatingAssuranceGate:
         *,
         host_context: AssuranceHostContext | None = None,
         contract_check=None,
+        approval_satisfaction=None,
+        approval_scope=None,
+        approval_execution_lease=None,
     ) -> DelegatedDecision:
         if not isinstance(action, ActionEnvelope):
             raise ValueError("delegated review requires a normalized typed action")
@@ -410,6 +492,18 @@ class DelegatingAssuranceGate:
             raise ValueError("agent JSON cannot supply a child host context")
         with self._lock:
             self._next_context = host_context
+            self._next_approval_options = (
+                {
+                    "approval_satisfaction": approval_satisfaction,
+                    "approval_scope": approval_scope,
+                    "approval_execution_lease": approval_execution_lease,
+                }
+                if any(
+                    value is not None
+                    for value in (approval_satisfaction, approval_scope, approval_execution_lease)
+                )
+                else {}
+            )
             try:
                 self._session.evaluate(
                     action, contract_check=contract_check, approval_supported=False
@@ -417,6 +511,7 @@ class DelegatingAssuranceGate:
                 return self._captured.pop()
             finally:
                 self._next_context = None
+                self._next_approval_options = {}
 
     def is_original_decision(self, decision: DelegatedDecision, action: ActionEnvelope) -> bool:
         """Protected composition of an existing reservation without a second review."""

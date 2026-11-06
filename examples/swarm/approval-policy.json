@@ -1,0 +1,18 @@
+{
+  "schema_version": "ordin.swarm_approval_policy.v1",
+  "policy_id": "local-human-review",
+  "revision": 1,
+  "required_roles": ["approve"],
+  "two_person_effects": ["filesystem.write", "filesystem.delete"],
+  "high_risk_quorum": 2,
+  "lifetime": 30,
+  "maximum_lifetime": 300,
+  "max_requests": 512,
+  "break_glass": false,
+  "break_glass_roles": ["break_glass"],
+  "break_glass_quorum": 2,
+  "break_glass_lifetime": 30,
+  "recovery_roles": ["recover"],
+  "recovery_quorum": 2,
+  "execution_authority": false
+}

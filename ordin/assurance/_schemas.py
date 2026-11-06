@@ -638,6 +638,9 @@ ASSURANCE_DECISION = artifact(
     reason_codes=array(ID, 256),
     evidence_digest=DIGEST,
 )
+ASSURANCE_DECISION["properties"]["approval_satisfaction_digest"] = DIGEST
+ASSURANCE_DECISION["maxProperties"] += 1
+
 INSTRUCTION_ORIGIN = artifact(
     "assurance_instruction_origin",
     origin_id=ID,
@@ -712,6 +715,9 @@ DELEGATED_DECISION = artifact(
     verification=nullable(DELEGATION_VERIFICATION),
     reason_codes=array(ID, 64),
 )
+DELEGATED_DECISION["properties"]["approval_satisfaction_digest"] = DIGEST
+DELEGATED_DECISION["maxProperties"] += 1
+
 IMPORTED_LOCATION = obj(
     path=text(1024),
     start_line={"type": "integer", "minimum": 1, "maximum": 1_000_000_000},

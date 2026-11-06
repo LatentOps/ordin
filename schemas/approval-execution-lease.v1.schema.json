@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.latentops.dev/schemas/approval-execution-lease.v1.schema.json",
+  "title": "Approval Execution Lease (data only)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "ordin.approval_execution_lease.v1"
+    },
+    "lease_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "satisfaction_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "base_contract_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "scope_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "expires_at": {
+      "type": "number",
+      "minimum": 0
+    },
+    "execution_authority": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "lease_id",
+    "satisfaction_digest",
+    "base_contract_digest",
+    "scope_digest",
+    "expires_at",
+    "execution_authority"
+  ],
+  "maxProperties": 7
+}

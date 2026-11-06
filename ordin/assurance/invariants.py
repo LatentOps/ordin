@@ -235,6 +235,7 @@ def evaluate_approved_invariants(
                     receipt
                     for receipt in host_context.approvals
                     if receipt.action_digest == action_hash
+                    and receipt.current
                     and receipt.profile_digest == policy_hash
                     and receipt.contract_id in {None, current_contract.contract_id}
                 ),

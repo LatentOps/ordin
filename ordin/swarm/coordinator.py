@@ -574,7 +574,9 @@ class SwarmCoordinator:
             digest(["task", scope.tenant_id, scope.swarm_id, scope.authenticator._scope[2]]),
         )
 
-    def _owner(self, transaction, handle, *, allow_incomplete=False, allow_contained=False):
+    def _owner(
+        self, transaction, handle, *, allow_incomplete=False, allow_contained=False, expire=True
+    ):
         if not self._available:
             raise CoordinatorUnavailable("coordinator requires online recovery")
         scope = self._scope(handle)
@@ -608,7 +610,8 @@ class SwarmCoordinator:
         if not allow_incomplete:
             self._check_artifacts(scope, state)
             self._check_temporal(scope, state)
-        self._expire(transaction, state)
+        if expire:
+            self._expire(transaction, state)
         return scope, state
 
     @staticmethod
@@ -944,6 +947,7 @@ class SwarmCoordinator:
         action: ActionEnvelope,
         *,
         idempotency_key: str,
+        governance_context=None,
     ) -> CoordinatorRecord:
         """Non-authorizing preview; reserve/dispatch recheck original live authority."""
         identifier(idempotency_key, "idempotency_key")
@@ -986,8 +990,16 @@ class SwarmCoordinator:
             original, native_subject = scope.native._grant(channel, native_reference)
             if native_subject.context is not enrollment.context or native_subject.source is None:
                 raise CoordinatorRejected("coordinator.native_scope_changed")
+            preview_context = native_subject.source.context()
+            approval_options = {}
+            if scope.native._governance is not None:
+                preview_context, approval_options = scope.native._governance.native_options(
+                    governance_context, channel, native_reference, captured, preview_context
+                )
+            elif governance_context is not None:
+                raise CoordinatorRejected("coordinator.unconfigured_governance")
             preview = original.gate.preview_action(
-                captured, host_context=native_subject.source.context()
+                captured, host_context=preview_context, **approval_options
             )
             reference = uuid4().hex + uuid4().hex
             expires = min(lease["lease_expires_at"], transaction.now + scope.native._lifetime)
@@ -1079,11 +1091,17 @@ class SwarmCoordinator:
         }
         return tuple(BudgetCost(metric, amount) for metric, amount in values.items())
 
-    def _prepare(self, scope, channel, native_reference, action, key):
+    def _prepare(self, scope, channel, native_reference, action, key, governance_context=None):
         enrollment = scope.authenticator.require(channel, role="workload")
         broker = scope.brokers.get(enrollment.host_id)
         if broker is not None:
-            result = broker.prepare(channel, native_reference, action, idempotency_key=key)
+            result = broker.prepare(
+                channel,
+                native_reference,
+                action,
+                idempotency_key=key,
+                governance_context=governance_context,
+            )
             if result.authorization is None:
                 raise CoordinatorRejected("coordinator.broker_preparation_restricted")
             try:
@@ -1099,6 +1117,8 @@ class SwarmCoordinator:
             return broker, result.authorization, None, original.action
         if scope.runtime is not None:
             raise CoordinatorRejected("coordinator.current_policy_broker_required")
+        if governance_context is not None:
+            raise CoordinatorRejected("coordinator.governance_requires_owned_broker")
         review = scope.native.review(channel, native_reference, action)
         if review.admission_id is None or review.disposition != "execute":
             raise CoordinatorRejected("coordinator.native_review_restricted")
@@ -1209,6 +1229,7 @@ class SwarmCoordinator:
         action: ActionEnvelope,
         *,
         idempotency_key: str,
+        governance_context=None,
     ) -> CoordinatorRecord:
         identifier(idempotency_key, "idempotency_key")
         _hex(evaluation_id, "coordinator evaluation reference")
@@ -1293,7 +1314,12 @@ class SwarmCoordinator:
                 }
                 try:
                     broker, authorization, native_id, canonical = self._prepare(
-                        scope, channel, evaluation["grant_reference"], captured, reference
+                        scope,
+                        channel,
+                        evaluation["grant_reference"],
+                        captured,
+                        reference,
+                        governance_context,
                     )
                     staged = (
                         reference,
@@ -1431,6 +1457,14 @@ class SwarmCoordinator:
                 or digest(original.context.as_dict()) != reservation["context_digest"]
             ):
                 raise CoordinatorRejected("coordinator.prepared_scope_changed")
+            if prepared.broker is not None and prepared.broker._governance is not None:
+                prepared.broker._governance.consume_in_transaction(
+                    transaction,
+                    prepared.broker._governance_contexts.get(prepared.authorization),
+                    prepared.broker,
+                    prepared.authorization,
+                    reservation_id,
+                )
             reservation["status"] = "forwarding"
             transaction.append(
                 handle.scope_key,

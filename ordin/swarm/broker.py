@@ -142,6 +142,8 @@ class SwarmExecutionBroker:
             cost_provider,
         )
         self._runtime, self._limit = policy_runtime, max_authorizations
+        self._governance = None
+        self._governance_contexts: dict[BrokerAuthorization, Any] = {}
         self._registry = global_gate._registry
         self._nonce = uuid4().hex
         self._execution_lock = RLock()
@@ -178,6 +180,27 @@ class SwarmExecutionBroker:
             ]
         )
 
+    def bind_governance(self, governance, *, operator: object):
+        from .approval_service import SwarmApprovalService
+
+        if (
+            operator is not self._operator
+            or type(governance) is not SwarmApprovalService
+            or governance.coordinator._scope(governance.scope).brokers.get(
+                self._service.authenticator.require(self._broker_channel, role="broker").host_id
+            )
+            is not self
+        ):
+            raise ValueError("original same-scope broker governance control required")
+        with self._barrier(), self._execution_lock:
+            if self._governance is governance:
+                return
+            if self._pending or self._governance is not None:
+                raise ValueError(
+                    "governance requires no pending broker work and one original controller"
+                )
+            self._governance = governance
+
     @property
     def configuration_digest(self) -> str:
         return digest(
@@ -199,7 +222,9 @@ class SwarmExecutionBroker:
         return self._pending[authorization]
 
     def _contract(self, scope: BrokerAdmissionScope, review):
-        capability = derive_runtime_capability_contract(review)
+        capability = derive_runtime_capability_contract(
+            review, approval_execution_lease=scope.delegated_decision.approval_execution_lease
+        )
         credentials = tuple(
             CredentialBinding(v.binding, v.host, v.port)
             for v in scope.review_context.credential_uses
@@ -407,7 +432,7 @@ class SwarmExecutionBroker:
             facts=facts,
             delegation_gate=scope.delegating_gate,
         )
-        if result.disposition != "execute":
+        if not result.may_execute:
             raise ValueError("current compiled policy restricts broker execution")
         return snapshot
 
@@ -420,6 +445,7 @@ class SwarmExecutionBroker:
         idempotency_key: str,
         event_source=None,
         gateway_binding: BrokerGatewayBinding | None = None,
+        governance_context=None,
     ) -> BrokerPreparation:
         if type(action) is not ActionEnvelope:
             raise ValueError("typed exact broker action required")
@@ -461,10 +487,21 @@ class SwarmExecutionBroker:
                 )
                 grant.gate.bind_runtime_source(source)
             with self._barrier(), self._guard(context), self._execution_lock:
-                reviewed = self._service.review(workload_channel, grant_ref, reviewed_action)
+                if self._governance is not None:
+                    self._governance.require_preparation(
+                        governance_context, self, workload_channel, grant_ref, reviewed_action
+                    )
+                elif governance_context is not None:
+                    raise ValueError("unconfigured governance context")
+                reviewed = self._service.review(
+                    workload_channel,
+                    grant_ref,
+                    reviewed_action,
+                    governance_context=governance_context,
+                )
                 admission_id = reviewed.admission_id
                 canonical_digest = reviewed.action_digest
-                if reviewed.disposition != "execute" or admission_id is None:
+                if not reviewed.may_execute or admission_id is None:
                     return BrokerPreparation(
                         reviewed.disposition,
                         reviewed.reason_codes or ("broker.delegation_refused",),
@@ -554,6 +591,10 @@ class SwarmExecutionBroker:
                     raise ValueError("broker delegation changed during preparation")
                 authorization = BrokerAuthorization(uuid4().hex)
                 owned_job = self._executor.create_job(compiled.plan, operator=self._operator)
+                if self._governance is not None:
+                    self._governance.bind_owned_job(
+                        governance_context, self, self._executor, owned_job
+                    )
                 prepared = BrokerAuthorizationScope(
                     scope.action,
                     scope.context,
@@ -586,8 +627,10 @@ class SwarmExecutionBroker:
                     if len(self._pending) >= self._limit:
                         raise ValueError("broker authorization capacity reached")
                     self._pending[authorization] = row
+                    if self._governance is not None:
+                        self._governance_contexts[authorization] = governance_context
                 return BrokerPreparation(
-                    "execute",
+                    decision.disposition,
                     (),
                     canonical_digest,
                     caller_digest,
@@ -721,6 +764,13 @@ class SwarmExecutionBroker:
                     )
                     with self._state_lock:
                         row.state, row.forwarded = "forwarding", True
+                    if self._governance is not None:
+                        self._governance.begin_owned_effect(
+                            self._governance_contexts.get(authorization),
+                            self,
+                            self._executor,
+                            row.owned_job,
+                        )
                     return self._executor.execute(
                         row.scope.plan,
                         bound,

@@ -1,0 +1,399 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.latentops.dev/schemas/swarm-approval-queue.v1.schema.json",
+  "title": "Swarm Approval Queue (data only)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_approval_queue.v1"
+    },
+    "scope_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "policy_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "owner_fence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "requests": {
+      "type": "array",
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schema_version": {
+                "const": "ordin.swarm_approval_request.v1"
+              },
+              "request_id": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{32}$"
+              },
+              "binding": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "scope_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "principal_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "session_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "context_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "action_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "review_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "gate_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "policy_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "delegation_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "budget_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "capabilities_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "operator_maximum_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "directory_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "policy_epoch": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9223372036854775807
+                  },
+                  "revocation_epoch": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9223372036854775807
+                  },
+                  "owner_fence": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9223372036854775807
+                  }
+                },
+                "required": [
+                  "scope_digest",
+                  "principal_digest",
+                  "session_digest",
+                  "context_digest",
+                  "action_digest",
+                  "review_digest",
+                  "gate_digest",
+                  "policy_digest",
+                  "evidence_digest",
+                  "delegation_digest",
+                  "budget_digest",
+                  "capabilities_digest",
+                  "operator_maximum_digest",
+                  "directory_digest",
+                  "policy_epoch",
+                  "revocation_epoch",
+                  "owner_fence"
+                ],
+                "maxProperties": 17
+              },
+              "binding_digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "approval_policy_digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "disposition": {
+                "enum": [
+                  "execute",
+                  "escalate",
+                  "deny"
+                ]
+              },
+              "risk": {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "critical",
+                  "unknown"
+                ]
+              },
+              "effects": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "maxLength": 128
+                }
+              },
+              "required_roles": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 16,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]*$"
+                }
+              },
+              "quorum": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8
+              },
+              "expires_at": {
+                "type": "number",
+                "minimum": 0
+              },
+              "mode": {
+                "enum": [
+                  "standard",
+                  "break_glass"
+                ]
+              },
+              "reason_code": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "incident_response",
+                      "safety_recovery",
+                      "availability",
+                      "data_preservation"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "execution_authority": {
+                "const": false
+              }
+            },
+            "required": [
+              "schema_version",
+              "request_id",
+              "binding",
+              "binding_digest",
+              "approval_policy_digest",
+              "disposition",
+              "risk",
+              "effects",
+              "required_roles",
+              "quorum",
+              "expires_at",
+              "mode",
+              "reason_code",
+              "execution_authority"
+            ],
+            "maxProperties": 14
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "held",
+              "consumed",
+              "completed",
+              "uncertain",
+              "denied",
+              "canceled",
+              "expired"
+            ]
+          },
+          "vote_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 16
+          }
+        },
+        "required": [
+          "request",
+          "status",
+          "vote_count"
+        ],
+        "maxProperties": 3
+      }
+    },
+    "recoveries": {
+      "type": "array",
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schema_version": {
+                "const": "ordin.swarm_recovery_request.v1"
+              },
+              "request_id": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{32}$"
+              },
+              "binding_digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "incident_digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "scope_digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "policy_epoch": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9223372036854775807
+              },
+              "revocation_epoch": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9223372036854775807
+              },
+              "owner_fence": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9223372036854775807
+              },
+              "required_roles": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 16,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]*$"
+                }
+              },
+              "quorum": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 8
+              },
+              "expires_at": {
+                "type": "number",
+                "minimum": 0
+              },
+              "reason_code": {
+                "enum": [
+                  "incident_response",
+                  "safety_recovery",
+                  "availability",
+                  "data_preservation"
+                ]
+              },
+              "execution_authority": {
+                "const": false
+              }
+            },
+            "required": [
+              "schema_version",
+              "request_id",
+              "binding_digest",
+              "incident_digest",
+              "scope_digest",
+              "policy_epoch",
+              "revocation_epoch",
+              "owner_fence",
+              "required_roles",
+              "quorum",
+              "expires_at",
+              "reason_code",
+              "execution_authority"
+            ],
+            "maxProperties": 13
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "held",
+              "consumed",
+              "completed",
+              "uncertain",
+              "denied",
+              "canceled",
+              "expired"
+            ]
+          },
+          "vote_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 16
+          }
+        },
+        "required": [
+          "request",
+          "status",
+          "vote_count"
+        ],
+        "maxProperties": 3
+      }
+    },
+    "execution_authority": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "scope_digest",
+    "policy_epoch",
+    "owner_fence",
+    "requests",
+    "recoveries",
+    "execution_authority"
+  ],
+  "maxProperties": 7
+}

@@ -1032,9 +1032,32 @@ class SwarmPolicyRuntime:
                 ):
                     return SwarmPolicyResult("deny", ("policy.facts_unverified",), ())
                 review: ActionReview = baseline.review
-                return self._active.evaluate(
+                projection = self._active.evaluate(
                     context, action, review, baseline.disposition, facts=facts, checks=checks
                 )
+                proof = getattr(baseline, "_approval_satisfaction", None)
+                if proof is not None and baseline.approval_fulfilled:
+                    from ordin.approval import ApprovalSatisfaction, ApprovalSource
+
+                    if (
+                        type(proof) is not ApprovalSatisfaction
+                        or type(proof._source) is not ApprovalSource
+                    ):
+                        return SwarmPolicyResult("deny", ("policy.human_approval_unverified",), ())
+                    scope = proof._source.scope_for(proof)
+                    if (
+                        scope.context_digest != digest(context.as_dict())
+                        or scope.policy_epoch != self._epoch
+                        or scope.policy_digest != self.selection_digest
+                    ):
+                        return SwarmPolicyResult(
+                            "deny", ("policy.human_approval_scope_changed",), ()
+                        )
+                    if projection._constraints_disposition == "execute":
+                        projection = replace(
+                            projection, _approval_satisfaction=proof, _approval_baseline=baseline
+                        )
+                return projection
             except ValueError:
                 return SwarmPolicyResult("deny", ("policy.current_scope_unverified",), ())
 

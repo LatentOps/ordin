@@ -97,6 +97,11 @@ class RemoteDelegation:
 class RemoteReview:
     admission_id: str | None = field(repr=False)
     disposition: str
+
+    @property
+    def may_execute(self) -> bool:
+        return self.admission_id is not None
+
     action_digest: str
     grant_digest: str
     issuer_generation: int
@@ -240,6 +245,7 @@ class _Admission:
     ancestry_digest: str
     state: str = "pending"
     policy_binding: str | None = None
+    governance_context: Any = None
 
 
 class SwarmDelegationService:
@@ -292,6 +298,7 @@ class SwarmDelegationService:
         self._policy_runtime: Any = None
         self._containment: Any = None
         self._policy_facts_provider: Any = None
+        self._governance: Any = None
         self._audit: list[dict[str, Any]] = []
         self._audit_limit = max_admissions * 3 + issuer.limits.maximum_grants * 3
         self._audit_full = False
@@ -312,6 +319,24 @@ class SwarmDelegationService:
         if self._containment is not None and self._containment is not controller:
             raise ValueError("containment controller already bound")
         self._containment = controller
+
+    def bind_governance(self, governance, *, operator: object) -> None:
+        self._operator_check(operator)
+        from .approval_service import SwarmApprovalService
+
+        if (
+            type(governance) is not SwarmApprovalService
+            or governance.coordinator._scope(governance.scope).native is not self
+        ):
+            raise ValueError("original same-scope governance controller required")
+        with self._policy_barrier(), self._lock, self.issuer._lock:
+            if self._governance is governance:
+                return
+            if self._pending or self._governance is not None:
+                raise ValueError(
+                    "governance binding requires no pending work and one original controller"
+                )
+            self._governance = governance
 
     def bind_policy_runtime(self, runtime, *, operator: object, facts_provider=None) -> None:
         """Protected policy composition; never accept runtime/facts from wire JSON."""
@@ -350,7 +375,7 @@ class SwarmDelegationService:
         decision: DelegatedDecision,
     ):
         if self._policy_runtime is None:
-            return decision.disposition, decision.reason_codes, None
+            return decision.disposition, decision.reason_codes, None, decision.may_execute
         if subject.context is None:
             raise ValueError("original policy workload context unavailable")
         facts = (
@@ -365,6 +390,7 @@ class SwarmDelegationService:
             result.disposition,
             tuple(dict.fromkeys(decision.reason_codes + result.reason_codes)),
             self._policy_runtime.binding_digest,
+            result.may_execute,
         )
 
     def _online(self) -> None:
@@ -716,10 +742,16 @@ class SwarmDelegationService:
         action: ActionEnvelope,
         *,
         credential_uses: tuple = (),
+        governance_context=None,
     ) -> RemoteReview:
         if type(action) is not ActionEnvelope or type(credential_uses) is not tuple:
             raise ValueError("typed exact action and protected credential receipts required")
         with self._policy_barrier(), self._lock, self.issuer._lock:
+            if (
+                self.assurance.baseline_gate.approval_source is not None
+                and self._governance is None
+            ):
+                raise ValueError("configured human governance installation is not acknowledged")
             row, subject = self._grant(channel, reference)
             self._expire_admissions()
             if len(self._admissions) >= self._limit:
@@ -730,11 +762,18 @@ class SwarmDelegationService:
             if self._containment is not None:
                 self._containment.require_current(subject.context, captured)
             context = subject.source.context(credential_uses=credential_uses)
-            decision = row.gate.evaluate_action(captured, host_context=context)
-            final, reasons, policy_binding = self._policy_projection(
+            approval_options = {}
+            if self._governance is not None:
+                context, approval_options = self._governance.native_options(
+                    governance_context, channel, reference, captured, context
+                )
+            elif governance_context is not None:
+                raise ValueError("unconfigured governance context")
+            decision = row.gate.evaluate_action(captured, host_context=context, **approval_options)
+            final, reasons, policy_binding, eligible = self._policy_projection(
                 row, subject, captured, decision
             )
-            if final != "execute" and decision._ticket:
+            if not eligible and decision._ticket:
                 self.issuer.cancel_operation(decision._ticket)
             try:
                 ancestry = self._ancestry_digest(row)
@@ -744,7 +783,7 @@ class SwarmDelegationService:
                 raise
             admission = None
             expires = min(row.handle.record.expires_at, self.issuer._now() + self._lifetime)
-            if final == "execute":
+            if eligible:
                 admission = secrets.token_hex(32)
                 issued = _Admission(
                     admission,
@@ -759,6 +798,7 @@ class SwarmDelegationService:
                 )
                 self._admissions[admission] = self._pending[admission] = issued
                 issued.policy_binding = policy_binding
+                issued.governance_context = governance_context
             self._audit_event(
                 "action_reviewed",
                 admission or secrets.token_hex(32),
@@ -836,6 +876,11 @@ class SwarmDelegationService:
             raise ValueError("exact action and protected broker forwarder required")
         with self._policy_barrier(), self._lock, self.issuer._lock, ExitStack() as policy_guard:
             self._online()
+            if (
+                self.assurance.baseline_gate.approval_source is not None
+                and self._governance is None
+            ):
+                raise ValueError("configured human governance installation is not acknowledged")
             broker = self.authenticator.require(broker_channel, role="broker")
             admission = self._admissions.get(admission_id)
             if admission is None or admission.state != "pending":
@@ -849,14 +894,18 @@ class SwarmDelegationService:
                 captured = ActionEnvelope.from_dict(admission.action.as_dict())
                 if self._containment is not None:
                     self._containment.require_current(subject.context, captured)
+                if self._governance is not None:
+                    self._governance.require_native_dispatch(
+                        admission.governance_context, subject.context, captured, policy_broker
+                    )
                 if self._policy_runtime is not None:
                     policy_guard.enter_context(
                         self._policy_runtime.execution_guard(subject.context, broker=policy_broker)
                     )
-                final, _, policy_binding = self._policy_projection(
+                final, _, policy_binding, eligible = self._policy_projection(
                     row, subject, captured, admission.decision
                 )
-                if final != "execute" or policy_binding != admission.policy_binding:
+                if not eligible or policy_binding != admission.policy_binding:
                     raise ValueError("current policy admission refused")
                 if (
                     broker.host_id != subject.host_id

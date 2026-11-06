@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.latentops.dev/schemas/swarm-approval-resolution.v1.schema.json",
+  "title": "Swarm Approval Resolution (data only)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_approval_resolution.v1"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "approved",
+        "held",
+        "consumed",
+        "completed",
+        "uncertain",
+        "denied",
+        "canceled",
+        "expired"
+      ]
+    },
+    "votes": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 16
+    },
+    "quorum": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8
+    },
+    "execution_authority": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "status",
+    "votes",
+    "quorum",
+    "execution_authority"
+  ],
+  "maxProperties": 6
+}
