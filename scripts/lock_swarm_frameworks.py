@@ -25,7 +25,7 @@ def closure(framework):
     environment = cast(dict[str, str], dict(default_environment()))
     if environment["python_version"] != "3.12" or environment["sys_platform"] != "linux":
         raise ValueError("generate locks in the tested Linux Python 3.12 environment")
-    pending = [Requirement(v) for v in (*ROOTS[framework], "pydantic==2.12.5", "pytest==9.2.0")]
+    pending = [Requirement(v) for v in (*ROOTS[framework], "pydantic==2.14.2", "pytest==9.2.0")]
     selected: dict[str, str] = {}
     extras: dict[str, set[str]] = {}
     while pending:

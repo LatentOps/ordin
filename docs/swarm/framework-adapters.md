@@ -29,7 +29,7 @@ upstream support. The public contracts researched for these adapters are
 [AutoGen intervention handlers](https://microsoft.github.io/autogen/stable/user-guide/core-user-guide/cookbook/tool-use-with-intervention.html).
 The version matrix and quarantine were checked on 2026-11-06.
 The optional extras also pin the common native argument parser to
-`pydantic==2.12.5`. CI uses separate hash-locked dependency closures under
+`pydantic==2.14.2`. CI uses separate hash-locked dependency closures under
 `requirements/swarm-*.txt`, generated from the tested Linux Python 3.12
 environment with `scripts/lock_swarm_frameworks.py` and primary PyPI hashes.
 

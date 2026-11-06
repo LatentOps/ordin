@@ -14,9 +14,9 @@ entries, and never grants execution authority.
 | Custom SDK | This release's bundled custom-runtime adapter | Offline two-agent private handoff, allowed callback, denied egress/child callbacks, separate observe/shadow review comparison |
 | Owned Linux worker | Recorded Linux x86-64 kernel with required backend support | Original broker result from a fresh finite read worker; replay/epoch controls and raw parent bypass reported separately |
 | Windows host | Recorded Windows release-gate image | Actual unsupported-Linux-worker control plus reviews, mediation and validation; no whole-process or host confinement claim |
-| LangGraph | Exactly 1.2.20, prebuilt 1.1.1, langchain-core 1.7.6, Pydantic 2.12.5 | Dedicated installed framework workflow and immutable lock; not locally rerun by this collector |
+| LangGraph | Exactly 1.2.20, prebuilt 1.1.1, langchain-core 1.7.6, Pydantic 2.14.2 | Dedicated installed framework workflow and immutable lock; not locally rerun by this collector |
 | CrewAI | Security blocked; historical 1.15.35/core 1.15.35 tuple is unavailable | No active SDK extra or lock. The mandatory `CrewAI security quarantine` job verifies refusal before SDK import; positive SDK conformance remains not-evaluated |
-| Legacy AutoGen | Archived AutoGen Core 0.7.5, Pydantic 2.12.5 | Legacy compatibility fixture only; no upstream maintenance or future-version guarantee |
+| Legacy AutoGen | Archived AutoGen Core 0.7.5, Pydantic 2.14.2 | Legacy compatibility fixture only; no upstream maintenance or future-version guarantee |
 | Coordinator restart/epochs | This release's real mTLS protocol over owned SQLite development fixtures | Takeover, retained uncertain holds, stale epochs and authenticated host scopes; no PostgreSQL consensus claim |
 | PostgreSQL | Exact driver lock and owned-cluster gate at the same source commit | Separate coordinator workflow; not-evaluated in a local release collection until that actual gate runs |
 | Optional OpenShell | Exact supported compiler/runtime/prover combination tested by its own gate | Not-evaluated when not configured; no automatic runtime/prover install or inferred confinement |
