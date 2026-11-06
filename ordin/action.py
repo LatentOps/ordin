@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import re
 import math
-from ._catalog_snapshot import snapshot_review
+from ._catalog_snapshot import snapshot_review, _current as _catalog_snapshot_current
+import json
 from ._rest_semantics import RestSemantics, prepare_rest
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
@@ -818,11 +819,20 @@ def _temporal_evidence_for_action(
     runtime_observations: "tuple[RuntimeObservation, ...]" = (),
     tool_semantics: "ToolSemanticsRegistry | CompiledToolSemanticsRegistry | None" = None,
     rest_semantics: RestSemantics | None = None,
+    command_evidence: dict[tuple[str, str], TemporalActionEvidence] | None = None,
 ) -> TemporalActionEvidence:
     if action.kind == "shell" and action.operation == "execute":
         command = action.parameters.get("command")
         if isinstance(command, str) and command.strip():
-            evidence = temporal_evidence_for_command(command, context=action.context)
+            key = (
+                command,
+                json.dumps(action.context.as_dict() if action.context else None, sort_keys=True),
+            )
+            evidence = command_evidence.get(key) if command_evidence is not None else None
+            if evidence is None:
+                evidence = temporal_evidence_for_command(command, context=action.context)
+                if command_evidence is not None:
+                    command_evidence[key] = evidence
             signals = set(evidence.signals)
         else:
             signals = set()
@@ -976,6 +986,14 @@ def review_action(
     else:
         raise ValueError("temporal_policy must be a temporal policy set, compiled policy, or null")
 
+    # Repeated shell/context pairs have identical predicted temporal evidence
+    # within this one synchronous catalog snapshot. Keep immutable predictions
+    # only; join each action's observations separately below. This dictionary
+    # never survives the review, and the outer snapshot still verifies every
+    # catalog byte, selection and configuration before publishing the result.
+    command_evidence: dict[tuple[str, str], TemporalActionEvidence] | None = (
+        {} if _catalog_snapshot_current() is not None else None
+    )
     prior = tuple(
         _temporal_evidence_for_action(
             item,
@@ -983,6 +1001,7 @@ def review_action(
             runtime_observations=runtime_map.get(item.action_id, ()) if item.action_id else (),
             tool_semantics=tool_semantics,
             rest_semantics=rest_semantics,
+            command_evidence=command_evidence,
         )
         for item in history.actions
     )
@@ -991,6 +1010,7 @@ def review_action(
         review=base,
         tool_semantics=tool_semantics,
         rest_semantics=rest_semantics,
+        command_evidence=command_evidence,
     )
     if runtime_map:
         from .runtime_reasoning import current_runtime_signals
