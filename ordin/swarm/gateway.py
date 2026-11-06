@@ -41,7 +41,7 @@ class GatewayAuthorization:
     disposition: str
     action_id: str
     action_digest: str
-    decision: SwarmDecision
+    decision: SwarmDecision | None
     ticket: ForwardTicket | None = None
     budget_reservation_id: str | None = None
     budget_reason_code: str | None = None
@@ -83,6 +83,8 @@ class _Actor:
     active_route: str | None = None
     assessment_provider: Any = None
     closed: bool = False
+    broker: Any = None
+    broker_binding: Any = None
     lock: Any = field(default_factory=RLock)
 
 
@@ -144,6 +146,7 @@ class _Pending:
     expires_at: float
     route: str
     budget_ticket: BudgetTicket | None = None
+    broker_authorization: Any = None
 
 
 class SwarmToolGateway:
@@ -251,6 +254,39 @@ class SwarmToolGateway:
             actor.gate._registry.authenticate(actor.context, actor.channel, actor.adapter)
         return actor
 
+    def bind_broker_agent(self, broker, binding, *, routes: frozenset[str]) -> GatewayAgent:
+        """Opt-in delegated route through the original enforcing broker only."""
+        from .broker import SwarmExecutionBroker
+
+        if (
+            type(broker) is not SwarmExecutionBroker
+            or type(routes) is not frozenset
+            or not routes <= ROUTES
+        ):
+            raise ValueError("original enforcing broker and bounded routes required")
+        _, _, context, channel, adapter = broker.gateway_scope(binding)
+        if self._budget is not None and self._budget is not broker._budget:
+            raise ValueError("gateway and broker cannot use different budget ledgers")
+        if broker._gate._events is not self._events:
+            raise ValueError("gateway and broker must share protected event evidence")
+        with self._lock:
+            if len(self._actors) >= self._limit or any(
+                a.context is context for a in self._actors.values()
+            ):
+                raise ValueError("gateway enrollment capacity or duplicate context")
+            source = (
+                self._events.bind_source(
+                    context, channel, adapter, source_id="gateway-" + uuid4().hex
+                )
+                if self._events
+                else None
+            )
+            actor = _Actor(context, channel, adapter, broker._gate, routes, False, source)
+            actor.broker, actor.broker_binding = broker, binding
+            handle = GatewayAgent(uuid4().hex)
+            self._actors[handle] = actor
+            return handle
+
     def review_gate(self, handle: GatewayAgent) -> AgentGate:
         """Host adapter hook; returned gate retains actor/session binding."""
         actor = self._actor(handle)
@@ -264,6 +300,8 @@ class SwarmToolGateway:
             actor = self._actor(handle, authenticate=False)
             actor.closed = True
             for pending in self._pending.values():
+                if pending.actor is handle and pending.broker_authorization is not None:
+                    actor.broker.request_stop(pending.broker_authorization)
                 if (
                     pending.actor is handle
                     and pending.budget_ticket is not None
@@ -291,6 +329,10 @@ class SwarmToolGateway:
         actor = self._actor(handle)
         if route not in ROUTES:
             raise ValueError("unknown forwarding route")
+        if actor.broker is not None:
+            if assessments:
+                raise ValueError("broker facts require its protected assessment provider")
+            return self._prepare_broker(handle, actor, action, route, budget_idempotency_key)
         normalized = ActionEnvelope.from_dict(
             action.as_dict() if isinstance(action, ActionEnvelope) else action
         )
@@ -384,6 +426,56 @@ class SwarmToolGateway:
                 budget_reason,
             )
 
+    def _prepare_broker(self, handle, actor, action, route, idempotency_key):
+        if idempotency_key is None or route not in actor.routes or actor.journal_gap:
+            raise ValueError("mediated broker route and idempotency key required")
+        original = ActionEnvelope.from_dict(
+            action.as_dict() if isinstance(action, ActionEnvelope) else action
+        )
+        with self._operation_lock, actor.lock:
+            if actor.active is not None or actor.closed:
+                raise ValueError("broker gateway actor unavailable or already active")
+            channel, grant, *_ = actor.broker.gateway_scope(actor.broker_binding)
+            prepared = actor.broker.prepare(
+                channel,
+                grant,
+                original,
+                idempotency_key=idempotency_key,
+                event_source=actor.event_source,
+                gateway_binding=actor.broker_binding,
+            )
+            ticket = None
+            action_id = original.action_id or "unassigned"
+            reservation = None
+            if prepared.authorization is not None:
+                scope = actor.broker.authorization_scope(prepared.authorization)
+                action_id = scope.action.action_id
+                with self._lock:
+                    if len(self._pending) >= self._pending_limit:
+                        actor.broker.cancel(prepared.authorization)
+                        raise ValueError("gateway forwarding capacity reached")
+                    ticket = ForwardTicket(uuid4().hex)
+                    self._pending[ticket] = _Pending(
+                        handle,
+                        scope.action,
+                        scope.decision,
+                        {},
+                        "",
+                        self._now() + self._lifetime,
+                        route,
+                        broker_authorization=prepared.authorization,
+                    )
+                    actor.active = ticket
+                reservation = scope.budget_ticket.reservation_id
+            return GatewayAuthorization(
+                prepared.disposition,
+                action_id,
+                prepared.action_digest or digest(original.as_dict()),
+                prepared.decision,
+                ticket,
+                reservation,
+            )
+
     def cancel(self, handle: GatewayAgent, ticket: ForwardTicket) -> None:
         """Cancel only a not-yet-forwarded host attempt; no execution occurs."""
         actor = self._actor(handle, authenticate=False)
@@ -393,6 +485,10 @@ class SwarmToolGateway:
                 raise ValueError("unknown, foreign or consumed forwarding ticket")
             del self._pending[ticket]
             actor.active = None
+            if pending.broker_authorization is not None:
+                actor.broker.cancel(pending.broker_authorization)
+                self._journal(actor, pending, "canceled", forwarded=False)
+                return
             if pending.budget_ticket is not None and self._budget is not None:
                 self._budget.cancel(pending.budget_ticket)
             self._journal(actor, pending, "canceled", forwarded=False)
@@ -401,11 +497,15 @@ class SwarmToolGateway:
         self,
         handle: GatewayAgent,
         ticket: ForwardTicket,
-        executor: Callable[[ActionEnvelope], Any],
+        executor: Callable[[ActionEnvelope], Any] | None = None,
         *,
         action: ActionEnvelope | None = None,
     ) -> GatewayResult:
         actor = self._actor(handle, authenticate=False)
+        if actor.broker is not None:
+            if executor is not None:
+                raise ValueError("delegated broker route cannot execute a supplied callback")
+            return self._forward_broker(handle, actor, ticket, action)
         if not callable(executor):
             raise ValueError("forwarding requires an explicit host executor")
         with self._operation_lock, actor.lock:
@@ -494,6 +594,35 @@ class SwarmToolGateway:
                         self._budget.cancel(pending.budget_ticket)
                     except ValueError:
                         actor.journal_gap = True
+                actor.active = None
+
+    def _forward_broker(self, handle, actor, ticket, action):
+        with self._operation_lock, actor.lock:
+            with self._lock:
+                pending = self._pending.get(ticket) if type(ticket) is ForwardTicket else None
+                if (
+                    pending is None
+                    or pending.actor is not handle
+                    or pending.broker_authorization is None
+                ):
+                    raise ValueError("original broker gateway ticket required")
+                del self._pending[ticket]
+            try:
+                if actor.closed or actor.active is not ticket or self._now() >= pending.expires_at:
+                    actor.broker.cancel(pending.broker_authorization)
+                    raise ValueError("broker gateway ticket fenced or expired")
+                actor.broker.gateway_scope(actor.broker_binding)
+                result = actor.broker.dispatch(pending.broker_authorization, action=action)
+                if not actor.broker.verify_result(result, pending.broker_authorization):
+                    raise ValueError("original authenticated broker outcome required")
+                self._journal(actor, pending, result.status, forwarded=result.forwarded)
+                return GatewayResult(
+                    pending.action.action_id or "unassigned",
+                    result.status,
+                    result.value,
+                    actor.journal_gap,
+                )
+            finally:
                 actor.active = None
 
     def _journal(

@@ -29,6 +29,11 @@ KNOWN_TEMPLATE_FIELDS = {
 SCHEMA_FILES = {
     "swarm_artifact": "swarm-artifact.v1.schema.json",
     "swarm_artifact_diagnostics": "swarm-artifact-diagnostics.v1.schema.json",
+    "swarm_broker_preparation": "swarm-broker-preparation.v1.schema.json",
+    "swarm_broker_scope": "swarm-broker-scope.v1.schema.json",
+    "swarm_broker_result": "swarm-broker-result.v1.schema.json",
+    "swarm_broker_control": "swarm-broker-control.v1.schema.json",
+    "swarm_executor_outcome": "swarm-executor-outcome.v1.schema.json",
     "swarm_temporal_validation": "swarm-temporal-validation.v1.schema.json",
     "swarm_temporal_policy_set": "swarm-temporal-policy-set.v1.schema.json",
     "swarm_temporal_evaluation": "swarm-temporal-evaluation.v1.schema.json",

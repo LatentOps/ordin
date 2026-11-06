@@ -29,6 +29,8 @@ from ordin.assurance import (
 )
 from ordin.assurance.delegating_gate import DelegatedDecision
 from ordin.schema import validate_named_schema
+from ordin import AgentGate
+from ordin.session import IntegrationSession
 
 from .events import _hex
 from .models import identifier
@@ -171,6 +173,14 @@ class BrokerAdmissionScope:
     @property
     def review_history(self):
         return self.delegated_decision._history
+
+    @property
+    def review_options(self):
+        return {
+            "host_context": self.review_context,
+            "history": self.review_history,
+            **self.delegating_gate.original_review_inputs(self.delegated_decision),
+        }
 
     def as_dict(self) -> dict[str, Any]:
         return _checked(
@@ -410,6 +420,21 @@ class SwarmDelegationService:
             digest(self.issuer._issuer_key),
         )
 
+    def _planned_identity(self, enrollment: WorkloadEnrollment):
+        identity = enrollment.runtime_identity
+        if identity is not None:
+            if (
+                enrollment.source is None
+                or IntegrationSession(
+                    identity, AgentGate(self.assurance.ordin)
+                ).runtime_session_digest
+                != enrollment.source.session_digest
+            ):
+                raise ValueError(
+                    "workload planned runtime session differs from its original host source"
+                )
+        return identity
+
     def publish_root(
         self, enrollment_id: str, root: IssuedDelegation, *, operator: object
     ) -> RemoteDelegation:
@@ -431,7 +456,13 @@ class SwarmDelegationService:
             if existing:
                 return self._metadata(existing, self._grants[existing])
             reference = secrets.token_hex(32)
-            gate = DelegatingAssuranceGate(self.assurance, self.issuer, root, subject.source)
+            gate = DelegatingAssuranceGate(
+                self.assurance,
+                self.issuer,
+                root,
+                subject.source,
+                identity=self._planned_identity(subject),
+            )
             row = _Grant(enrollment_id, root, gate, None)
             self._grants[reference], self._grant_ids[root.record.grant_id] = row, reference
             self._audit_event("root_published", reference, authority_digest=root.authority.digest)
@@ -488,6 +519,7 @@ class SwarmDelegationService:
                 self.issuer.require_current(row.handle, target.source)
                 return self._metadata(reference, row)
             now = self.issuer._now()
+            identity = self._planned_identity(target)
             handle = self.issuer.issue_child(
                 parent.handle,
                 target.source,
@@ -497,7 +529,9 @@ class SwarmDelegationService:
                 maximum_delegation_depth=maximum_depth,
             )
             reference = secrets.token_hex(32)
-            gate = DelegatingAssuranceGate(self.assurance, self.issuer, handle, target.source)
+            gate = DelegatingAssuranceGate(
+                self.assurance, self.issuer, handle, target.source, identity=identity
+            )
             row = _Grant(target_enrollment, handle, gate, parent_ref)
             self._grants[reference], self._grant_ids[handle.record.grant_id] = row, reference
             self._requests[key] = (material, reference)

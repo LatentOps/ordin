@@ -140,6 +140,7 @@ class DelegatingAssuranceGate:
         issuer.require_current(grant, source)
         self.assurance, self.issuer, self.grant, self.source = assurance, issuer, grant, source
         self._captured: list[DelegatedDecision] = []
+        self._issued_inputs: dict[str, tuple[DelegatedDecision, dict[str, Any]]] = {}
         self._next_context: AssuranceHostContext | None = None
         self._lock = threading.RLock()
         session_identity = identity or SessionIdentity(
@@ -298,9 +299,49 @@ class DelegatingAssuranceGate:
         preview = object.__new__(DelegatedDecision)
         for key, value in values.items():
             object.__setattr__(preview, key, value)
-        return DelegatedDecision(
+        decision = DelegatedDecision(
             **values, _seal=_DelegatedSeal(self.issuer._issuer_key, preview.digest)
         )
+        if ticket is not None:
+            with self.issuer._lock:
+                self._issued_inputs = {
+                    key: value
+                    for key, value in self._issued_inputs.items()
+                    if key in self.issuer._pending
+                }
+                self._issued_inputs[ticket] = (decision, dict(kwargs))
+        return decision
+
+    def original_review_inputs(self, decision: DelegatedDecision) -> dict[str, Any]:
+        """Exact original protected inputs for a still-pending original decision.
+
+        This does not append history, reserve again or accept an arbitrary
+        retained decision. Used by a broker composing fresh global checks.
+        """
+        with self.issuer._lock:
+            record = (
+                self._issued_inputs.get(decision._ticket)
+                if isinstance(decision, DelegatedDecision) and decision._ticket
+                else None
+            )
+            expected = (
+                (
+                    self.grant.record.grant_id,
+                    decision.action_digest,
+                    decision.contract_digest,
+                    self.issuer._generation,
+                )
+                if record
+                else None
+            )
+            if (
+                record is None
+                or record[0] is not decision
+                or self.issuer._pending.get(decision._ticket or "") != expected
+                or not self.binding_matches(decision, decision.assurance.review.action)
+            ):
+                raise ValueError("original current delegated review inputs unavailable")
+            return dict(record[1])
 
     @property
     def preview_binding_digest(self) -> str:
