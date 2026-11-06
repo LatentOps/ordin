@@ -17,13 +17,14 @@ _APPLICATION_IDS = {
     "runtime": 0x4F524452,
     "swarm_budget": 0x4F524442,
     "swarm_coordinator": 0x4F524443,
+    "swarm_audit": 0x4F524441,
 }
 
 
 @contextmanager
 def private_database(
     path: str | Path,
-    kind: Literal["session", "trace", "runtime", "swarm_budget", "swarm_coordinator"],
+    kind: Literal["session", "trace", "runtime", "swarm_budget", "swarm_coordinator", "swarm_audit"],
     *,
     readonly: bool = False,
     create: bool = True,

@@ -668,6 +668,70 @@ class SwarmArtifactGateway:
         with self._lock:
             return tuple({**row, "labels": list(row["labels"])} for row in self._audit)
 
+    def sweep(
+        self,
+        *,
+        operator: object,
+        tenant_id: str,
+        swarm_id: str,
+        task_id: str | None,
+        maximum_resources: int = 256,
+    ) -> dict[str, Any]:
+        """Authenticated expiry cleanup retaining labels/version tombstones."""
+        if (
+            operator is not self._operator
+            or type(maximum_resources) is not int
+            or not 1 <= maximum_resources <= 4096
+        ):
+            raise ValueError("protected bounded artifact retention operator required")
+        identifier(tenant_id, "tenant_id")
+        identifier(swarm_id, "swarm_id")
+        if task_id is not None:
+            identifier(task_id, "task_id")
+        with self._lock, self._flow._lock, self._graph._lock, self._ingest._lock:
+            if self._fault:
+                raise ValueError("artifact state requires reconciliation")
+            selected = [
+                (address, resource)
+                for address, resource in self._resources.items()
+                if (address.tenant_id, address.swarm_id, resource.owner.identity.task_id)
+                == (tenant_id, swarm_id, task_id)
+            ]
+            selected.sort(key=lambda pair: digest(pair[0].as_dict()))
+            now, removed = self._now(), 0
+            try:
+                for _, resource in selected[:maximum_resources]:
+                    before = len(resource.versions)
+                    self._purge(resource)
+                    removed += before - len(resource.versions)
+                expired = [
+                    grant
+                    for grant, row in self._grants.items()
+                    if row.expires_at <= now
+                    and (row.address.tenant_id, row.address.swarm_id) == (tenant_id, swarm_id)
+                    and self._resources[row.address].owner.identity.task_id == task_id
+                ]
+                for grant in expired:
+                    del self._grants[grant]
+            except (ValueError, OSError, RuntimeError, KeyError):
+                self._fault = True
+                raise ValueError("artifact retention incomplete; reconciliation required") from None
+            return {
+                "schema_version": "ordin.swarm_artifact_retention.v1",
+                "resources_scanned": min(len(selected), maximum_resources),
+                "versions_removed": removed,
+                "grants_removed": len(expired),
+                "tombstones_retained": sum(resource.deleted for _, resource in selected),
+                "remaining_eligible_resources": sum(
+                    any(record.metadata.expires_at <= now for record in resource.versions.values())
+                    for _, resource in selected
+                ),
+                "labels_preserved": True,
+                "high_water_preserved": True,
+                "raw_backing_access": "uncovered",
+                "execution_authority": False,
+            }
+
     def diagnostics(self) -> dict[str, Any]:
         with self._lock:
             return {

@@ -386,6 +386,7 @@ class SwarmCoordinator:
         self._settlements = settlements
         self._scopes: dict[CoordinatorScope, _Scope] = {}
         self._prepared: dict[str, _Prepared] = {}
+        self._audit_sources: dict[CoordinatorScope, Any] = {}
         self._retired_prepared: dict[str, _Prepared] = {}
         self._fence_receipts: dict[CoordinatorFenceReceipt, str] = {}
         self._recovery_verifiers: dict[CoordinatorScope, Any] = {}
@@ -400,6 +401,29 @@ class SwarmCoordinator:
     def _control_check(self, source):
         if source is not self._control:
             raise ValueError("original coordinator server control source required")
+
+    def bind_audit(
+        self, handle: CoordinatorScope, source, *, control: CoordinatorControlSource
+    ) -> None:
+        from .diagnostics import SwarmAuditSource
+
+        self._control_check(control)
+        self._scope(handle)
+        if (
+            type(source) is not SwarmAuditSource
+            or source._coordinator is not self
+            or source._scope is not handle
+        ):
+            raise ValueError("original coordinator audit binding required")
+        self._audit_sources[handle] = source
+
+    def _emit_audit(self, handle, record):
+        source = self._audit_sources.get(handle)
+        if source is not None:
+            try:
+                source.record_coordinator(self, handle, record)
+            except (ValueError, OSError, RuntimeError):
+                source._fault = True
 
     def _scope(self, handle: CoordinatorScope) -> _Scope:
         if type(handle) is not CoordinatorScope or handle not in self._scopes:
@@ -1044,6 +1068,7 @@ class SwarmCoordinator:
             )
             if digest(action.as_dict()) != action_hash:
                 raise ValueError("action changed during coordinator evaluation")
+        self._emit_audit(handle, result)
         return result
 
     @staticmethod
@@ -1402,6 +1427,7 @@ class SwarmCoordinator:
         if staged is not None:
             with self._lock:
                 self._prepared[staged[0]] = staged[1]
+        self._emit_audit(handle, result)
         return result
 
     def _broker_reservation(self, transaction, handle, channel, reference, *, statuses):
@@ -1483,6 +1509,7 @@ class SwarmCoordinator:
                 "forwarding",
                 reservation["action_digest"],
             )
+        self._emit_audit(handle, result)
         return result
 
     def cancel(
@@ -1535,7 +1562,7 @@ class SwarmCoordinator:
                 {"action_digest": reservation["action_digest"]},
                 maximum=self._limit,
             )
-            return self._record(
+            result = self._record(
                 "dispatch",
                 reservation_id,
                 handle,
@@ -1545,6 +1572,8 @@ class SwarmCoordinator:
                 "uncertain",
                 reservation["action_digest"],
             )
+        self._emit_audit(handle, result)
+        return result
 
     def commit(
         self, handle: CoordinatorScope, broker_channel: AuthorityChannel, reservation_id: str
@@ -1602,6 +1631,7 @@ class SwarmCoordinator:
                 reservation["action_digest"],
             )
         self._prepared.pop(reservation_id, None)
+        self._emit_audit(handle, result)
         return result
 
     def guarded_dispatch(
@@ -2612,3 +2642,48 @@ class SwarmCoordinator:
                 transaction, handle, channel, lease_id, allow_incomplete=True
             )
             return self._status(transaction, handle, state)
+
+    def artifact_sweep(
+        self,
+        handle: CoordinatorScope,
+        *,
+        control: CoordinatorControlSource,
+        maximum_resources: int = 256,
+    ) -> dict[str, Any]:
+        self._control_check(control)
+        if type(maximum_resources) is not int or not 1 <= maximum_resources <= 4096:
+            raise ValueError("bounded artifact retention batch required")
+        scope = self._scope(handle)
+        gateway = scope.artifacts
+        if gateway is None or scope.authenticator._scope is None:
+            raise CoordinatorRejected("coordinator.managed_artifact_gateway_required")
+        reference = uuid4().hex
+        with self.store.transaction() as transaction:
+            _, state = self._owner(transaction, handle)
+            state["artifact_pending"].append(reference)
+            transaction.append(
+                handle.scope_key, "artifact_sweep_intent", reference, {}, maximum=self._limit
+            )
+        result = gateway.sweep(
+            operator=self._operator,
+            tenant_id=scope.tenant_id,
+            swarm_id=scope.swarm_id,
+            task_id=scope.authenticator._scope[2],
+            maximum_resources=maximum_resources,
+        )
+        with self.store.transaction() as transaction:
+            _, state = self._owner(transaction, handle, allow_incomplete=True)
+            self._check_artifacts(scope, state, deleting=True)
+            state["artifact_floors"] = self._artifact_snapshot(scope)
+            state["artifact_pending"].remove(reference)
+            transaction.append(
+                handle.scope_key,
+                "artifact_sweep_completed",
+                reference,
+                {
+                    "versions_removed": result["versions_removed"],
+                    "tombstones_retained": result["tombstones_retained"],
+                },
+                maximum=self._limit,
+            )
+        return result

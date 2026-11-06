@@ -170,6 +170,16 @@ from .temporal import (
     load_swarm_temporal_policy,
 )
 
+from .audit import (
+    SwarmAuditJournal,
+    SwarmAuditPolicy,
+    SwarmAuditVerification,
+    TenantRedactor,
+    verify_swarm_audit,
+)
+from .diagnostics import SwarmAuditSource
+from .operator_api import SwarmOperatorAPI, SwarmOperatorClient
+
 __all__ = [
     "SwarmApprovalBinding",
     "SwarmApprovalPolicy",
@@ -182,6 +192,14 @@ __all__ = [
     "HumanOperator",
     "HumanOperatorChannel",
     "SwarmOperatorDirectory",
+    "SwarmAuditJournal",
+    "SwarmAuditPolicy",
+    "SwarmAuditVerification",
+    "TenantRedactor",
+    "verify_swarm_audit",
+    "SwarmAuditSource",
+    "SwarmOperatorAPI",
+    "SwarmOperatorClient",
     "ArtifactBlobStore",
     "FilesystemArtifactStore",
     "MemoryArtifactStore",

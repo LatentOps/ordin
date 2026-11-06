@@ -154,7 +154,20 @@ class SwarmExecutionBroker:
         self._proofs: dict[BrokerActivationProof, _Activation] = {}
         self._budget_proofs: dict[BrokerBudgetProof, tuple] = {}
         self._gateway_bindings: dict[BrokerGatewayBinding, tuple] = {}
+        self._audit_source: Any = None
         budget.bind_executor(self, operator=operator)
+
+    def bind_audit(self, source, *, operator: object) -> None:
+        from .diagnostics import SwarmAuditSource
+
+        if (
+            type(source) is not SwarmAuditSource
+            or operator is not self._operator
+            or source._operator is not operator
+            or source._coordinator._scope(source._scope).native is not self._service
+        ):
+            raise ValueError("original scoped audit source required")
+        self._audit_source = source
 
     def _guard(self, context: SwarmContext):
         return (
@@ -682,6 +695,11 @@ class SwarmExecutionBroker:
         with self._state_lock:
             row.state, row.result = status, result
             self._results[result] = (authorization, digest(result.as_dict()))
+        if self._audit_source is not None:
+            try:
+                self._audit_source.record_broker(self, authorization, result)
+            except (ValueError, OSError, RuntimeError):
+                self._audit_source._fault = True
         return result
 
     def verify_result(self, result: BrokerResult, authorization: BrokerAuthorization) -> bool:

@@ -294,6 +294,20 @@ class SwarmGate:
         self._policy_runtime = policy_runtime
         self._key = object()
         self._lock = RLock()
+        self._audit_sources: dict[str | None, Any] = {}
+
+    def bind_audit(self, source, *, operator: object) -> None:
+        from .diagnostics import SwarmAuditSource
+
+        if (
+            type(source) is not SwarmAuditSource
+            or source._operator is not operator
+            or source._registry is not self._registry
+            or len(self._audit_sources) >= 64
+            and source._task not in self._audit_sources
+        ):
+            raise ValueError("original bounded scoped audit source required")
+        self._audit_sources[source._task] = source
 
     @property
     def policy_digest(self) -> str:
@@ -610,7 +624,7 @@ class SwarmGate:
             preview = object.__new__(SwarmDecision)
             for key, value in values.items():
                 object.__setattr__(preview, key, value)
-            return SwarmDecision(
+            decision = SwarmDecision(
                 **values,
                 _seal=_DecisionSeal(
                     self._key,
@@ -618,6 +632,13 @@ class SwarmGate:
                     digest(underlying.review.as_dict()),
                 ),
             )
+            source = self._audit_sources.get(context.identity.task_id)
+            if source is not None:
+                try:
+                    source.record_decision(self, context, decision)
+                except (ValueError, OSError, RuntimeError):
+                    source._fault = True
+            return decision
 
     def binding_matches(
         self,
