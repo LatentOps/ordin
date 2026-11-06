@@ -27,6 +27,16 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "swarm_approval_policy": "swarm-approval-policy.v1.schema.json",
+    "swarm_approval": "swarm-approval.v1.schema.json",
+    "swarm_recovery_request": "swarm-recovery-request.v1.schema.json",
+    "swarm_approval_receipt": "swarm-approval-receipt.v1.schema.json",
+    "swarm_approval_resolution": "swarm-approval-resolution.v1.schema.json",
+    "swarm_approval_queue": "swarm-approval-queue.v1.schema.json",
+    "swarm_approval_audit": "swarm-approval-audit.v1.schema.json",
+    "approval_scope": "approval-scope.v1.schema.json",
+    "approval_satisfaction": "approval-satisfaction.v1.schema.json",
+    "approval_execution_lease": "approval-execution-lease.v1.schema.json",
     "swarm_artifact": "swarm-artifact.v1.schema.json",
     "swarm_artifact_diagnostics": "swarm-artifact-diagnostics.v1.schema.json",
     "swarm_incident": "swarm-incident.v1.schema.json",

@@ -2,7 +2,7 @@
   "$id": "https://latentops.space/ordin/schemas/assurance-decision.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "maxProperties": 14,
+  "maxProperties": 15,
   "properties": {
     "action_digest": {
       "maxLength": 64,
@@ -409,6 +409,12 @@
     "schema_version": {
       "const": "ordin.assurance_decision.v1",
       "type": "string"
+    },
+    "approval_satisfaction_digest": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$"
     }
   },
   "required": [

@@ -34,6 +34,8 @@ BaseGate = AgentGate | AssuranceGate | DelegatingAssuranceGate
 
 
 def _options_digest(options: Mapping[str, Any]) -> str:
+    from ordin.approval import ApprovalSatisfaction, ApprovalScope, ApprovalExecutionLease
+
     allowed = {
         "host_context",
         "history",
@@ -41,6 +43,9 @@ def _options_digest(options: Mapping[str, Any]) -> str:
         "contract_check",
         "runtime_observations",
         "runtime_binding",
+        "approval_satisfaction",
+        "approval_scope",
+        "approval_execution_lease",
     }
     if set(options) - allowed:
         raise ValueError("unsupported swarm baseline options")
@@ -52,6 +57,9 @@ def _options_digest(options: Mapping[str, Any]) -> str:
         MCPContractCheck,
         RuntimeObservationHistory,
         RuntimeReviewBinding,
+        ApprovalSatisfaction,
+        ApprovalScope,
+        ApprovalExecutionLease,
     )
     for key, value in options.items():
         if value is None:
@@ -93,6 +101,7 @@ class SwarmDecision:
     _policy_facts: SwarmPolicyFacts | None = field(
         default=None, repr=False, compare=False, kw_only=True
     )
+    _approval_satisfaction: Any = field(default=None, repr=False, compare=False, kw_only=True)
 
     def __post_init__(self) -> None:
         if type(self.disposition) is not str or self.disposition not in DISPOSITIONS:
@@ -167,7 +176,33 @@ class SwarmDecision:
     @property
     def may_execute(self) -> bool:
         """A review disposition only; no ticket or execution side effect."""
-        return self.disposition == "execute"
+        return self.disposition == "execute" or self.approval_fulfilled
+
+    @property
+    def approval_fulfilled(self) -> bool:
+        return (
+            self.disposition != "deny"
+            and self._approval_satisfaction is not None
+            and self._approval_satisfaction
+            is getattr(self.baseline, "_approval_satisfaction", None)
+            and self.baseline.approval_fulfilled
+        )
+
+    @property
+    def approval_execution_lease(self):
+        return self.baseline.approval_execution_lease if self.approval_fulfilled else None
+
+    @property
+    def execution_eligibility(self) -> str:
+        return (
+            "approved"
+            if self.approval_fulfilled
+            else "eligible"
+            if self.disposition == "execute"
+            else "denied"
+            if self.disposition == "deny"
+            else "approval_required"
+        )
 
     @property
     def denied(self) -> bool:
@@ -175,7 +210,7 @@ class SwarmDecision:
 
     @property
     def requires_approval(self) -> bool:
-        return self.disposition == "escalate"
+        return self.disposition == "escalate" and not self.approval_fulfilled
 
     def as_dict(self) -> dict[str, Any]:
         result = {
@@ -199,6 +234,8 @@ class SwarmDecision:
         }
         if self._policy_facts is not None:
             result["policy_facts_digest"] = self._policy_facts.digest
+        if self._approval_satisfaction is not None:
+            result["approval_satisfaction_digest"] = self._approval_satisfaction.digest
         return result
 
     @classmethod
@@ -398,6 +435,20 @@ class SwarmGate:
             if not isinstance(underlying.review, ActionReview):
                 raise ValueError("swarm baseline did not produce a generic action review")
             final = underlying.disposition
+            approval_blocked = not identity_valid or underlying.review.decision == "block"
+            proof = getattr(underlying, "_approval_satisfaction", None)
+            if proof is not None and underlying.approval_fulfilled:
+                try:
+                    scope = proof._source.scope_for(proof)
+                    if (
+                        scope.context_digest != context_hash
+                        or scope.policy_epoch != context.identity.policy_epoch
+                    ):
+                        raise ValueError("human approval belongs to another current workload")
+                except (ValueError, TypeError, AttributeError):
+                    approval_blocked = True
+                    final = "deny"
+                    reasons.append("swarm.human_approval_scope_unverified")
             if not identity_valid or underlying.review.decision == "block":
                 final = "deny"
             elif underlying.review.decision in {"warn", "ask"} and final == "execute":
@@ -417,6 +468,8 @@ class SwarmGate:
                         )
                     ):
                         matched.append(rule.rule_id)
+                        if rule.disposition != "execute":
+                            approval_blocked = True
                         final = max((final, rule.disposition), key=DISPOSITIONS.__getitem__)
                 if matched:
                     reasons.append("swarm.policy_constraints")
@@ -451,9 +504,11 @@ class SwarmGate:
                     status = checks.get(check, "unknown")
                     checks[check] = status
                     if status == "violated":
+                        approval_blocked = True
                         final = "deny"
                         reasons.append("swarm.mandatory_check_violated")
                     elif status != "satisfied":
+                        approval_blocked = True
                         final = max(
                             (final, policy.unknown_disposition), key=DISPOSITIONS.__getitem__
                         )
@@ -471,6 +526,8 @@ class SwarmGate:
                     if type(self._baseline) is DelegatingAssuranceGate
                     else None,
                 )
+                if not projection.may_execute:
+                    approval_blocked = True
                 final = max((final, projection.disposition), key=DISPOSITIONS.__getitem__)
                 reasons.extend(projection.reason_codes)
                 matched.extend(projection.matched_rules)
@@ -546,6 +603,9 @@ class SwarmGate:
                 check_results=tuple(sorted(checks.items())),
                 _assessments=tuple(valid_assessments),
                 _policy_facts=valid_policy_facts,
+                _approval_satisfaction=proof
+                if underlying.approval_fulfilled and not approval_blocked and final != "deny"
+                else None,
             )
             preview = object.__new__(SwarmDecision)
             for key, value in values.items():
@@ -581,6 +641,17 @@ class SwarmGate:
             normalized = ActionEnvelope.from_dict(
                 action.as_dict() if isinstance(action, ActionEnvelope) else action
             )
+            if decision._approval_satisfaction is not None:
+                if not decision.approval_fulfilled:
+                    return False
+                scope = decision._approval_satisfaction._source.scope_for(
+                    decision._approval_satisfaction
+                )
+                if (
+                    scope.context_digest != digest(context.as_dict())
+                    or scope.policy_epoch != context.identity.policy_epoch
+                ):
+                    return False
             for assessment in decision._assessments:
                 if self._assessment_source is None or not self._assessment_source.verify(
                     assessment,

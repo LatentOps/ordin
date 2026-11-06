@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.latentops.dev/schemas/swarm-approval-policy.v1.schema.json",
+  "title": "Swarm Approval Policy (data only)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_approval_policy.v1"
+    },
+    "policy_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]*$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "required_roles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]*$"
+      }
+    },
+    "two_person_effects": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 128
+      }
+    },
+    "high_risk_quorum": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 8
+    },
+    "lifetime": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 300
+    },
+    "maximum_lifetime": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 300
+    },
+    "max_requests": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1024
+    },
+    "break_glass": {
+      "type": "boolean"
+    },
+    "break_glass_roles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]*$"
+      }
+    },
+    "break_glass_quorum": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 8
+    },
+    "break_glass_lifetime": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 60
+    },
+    "recovery_roles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]*$"
+      }
+    },
+    "recovery_quorum": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 8
+    },
+    "execution_authority": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "policy_id"
+  ],
+  "maxProperties": 16
+}

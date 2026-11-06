@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.latentops.dev/schemas/swarm-approval-audit.v1.schema.json",
+  "title": "Swarm Approval Audit (data only)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_approval_audit.v1"
+    },
+    "scope_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "journal_head": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "records": {
+      "type": "array",
+      "maxItems": 1024,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "kind": {
+            "enum": [
+              "action",
+              "recovery"
+            ]
+          },
+          "binding_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "held",
+              "consumed",
+              "completed",
+              "uncertain",
+              "denied",
+              "canceled",
+              "expired"
+            ]
+          },
+          "expires_at": {
+            "type": "number",
+            "minimum": 0
+          },
+          "votes": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "actor_digest": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "choice": {
+                  "enum": [
+                    "approve",
+                    "deny"
+                  ]
+                }
+              },
+              "required": [
+                "actor_digest",
+                "choice"
+              ],
+              "maxProperties": 2
+            }
+          }
+        },
+        "required": [
+          "request_id",
+          "kind",
+          "binding_digest",
+          "status",
+          "expires_at",
+          "votes"
+        ],
+        "maxProperties": 6
+      }
+    },
+    "execution_authority": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "scope_digest",
+    "journal_head",
+    "records",
+    "execution_authority"
+  ],
+  "maxProperties": 5
+}

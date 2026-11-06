@@ -123,6 +123,11 @@ The future gate takes the strongest requirement under
 `warn` nor `ask` is automatic approval. Human approval must be action-bound and
 must not override a core `block` through this composition.
 
+The opt-in [human governance service](approval.md) preserves the original warning
+and separately represents fulfillment of its operator-review obligation. Its
+actual owned-job execution lease cannot satisfy independent policy restrictions
+or mandatory unknowns.
+
 ## State, bounds and deployment
 
 The local host is the default authority. The

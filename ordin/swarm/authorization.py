@@ -58,6 +58,14 @@ class BrokerPreparation:
     authorization: BrokerAuthorization | None = field(default=None, repr=False)
     decision: SwarmDecision | None = field(default=None, repr=False)
 
+    @property
+    def may_execute(self) -> bool:
+        return (
+            self.authorization is not None
+            and self.decision is not None
+            and self.decision.may_execute
+        )
+
     def as_dict(self) -> dict[str, Any]:
         return _checked(
             {

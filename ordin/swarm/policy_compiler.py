@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 import json
 from pathlib import Path
 from typing import Any
@@ -135,9 +135,27 @@ class SwarmPolicyResult:
     reason_codes: tuple[str, ...]
     matched_rules: tuple[str, ...]
     check_results: tuple[tuple[str, str], ...] = ()
+    _constraints_disposition: str = field(default="deny", repr=False, compare=False, kw_only=True)
+    _approval_satisfaction: Any = field(default=None, repr=False, compare=False, kw_only=True)
+    _approval_baseline: Any = field(default=None, repr=False, compare=False, kw_only=True)
+
+    @property
+    def approval_fulfilled(self) -> bool:
+        return (
+            self.disposition != "deny"
+            and self._constraints_disposition == "execute"
+            and self._approval_satisfaction is not None
+            and self._approval_satisfaction
+            is getattr(self._approval_baseline, "_approval_satisfaction", None)
+            and self._approval_baseline.approval_fulfilled
+        )
+
+    @property
+    def may_execute(self) -> bool:
+        return self.disposition == "execute" or self.approval_fulfilled
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        packet = {
             "disposition": self.disposition,
             "reason_codes": list(self.reason_codes),
             "matched_rules": list(self.matched_rules),
@@ -146,6 +164,9 @@ class SwarmPolicyResult:
             ],
             "execution_authority": False,
         }
+        if self._approval_satisfaction is not None:
+            packet["approval_satisfaction_digest"] = self._approval_satisfaction.digest
+        return packet
 
 
 def _stronger(*values: str) -> str:
@@ -367,27 +388,28 @@ class CompiledSwarmPolicy:
             if matches
             else self.policy.default_disposition
         )
+        constraints = requested
         final = _stronger(baseline_disposition, requested)
         if review.decision == "block":
-            final = "deny"
+            final = constraints = "deny"
         elif review.decision in {"warn", "ask"}:
             final = _stronger(final, "escalate")
         permissions = self.permissions
         if permissions.action_kinds is not None and action.kind not in permissions.action_kinds:
-            final = "deny"
+            final = constraints = "deny"
             reasons.append("policy.action_kind_outside_maximum")
         if permissions.effects is not None and not set(review.effects) <= set(permissions.effects):
-            final = "deny"
+            final = constraints = "deny"
             reasons.append("policy.effect_not_allowed")
         if permissions.resources is not None and not {
             (v.type, v.value) for v in review.resources
         } <= {(v.type, v.value) for v in permissions.resources}:
-            final = "deny"
+            final = constraints = "deny"
             reasons.append("policy.resource_not_allowed")
         if action.kind in {"tool", "mcp"} and permissions.tools is not None:
             tool = _action_identity(action)
             if tool is None or tool not in {(v.kind, v.scope, v.name) for v in permissions.tools}:
-                final = "deny"
+                final = constraints = "deny"
                 reasons.append("policy.tool_not_allowed")
         unknown = unknown_rules
         if permissions.destinations is not None:
@@ -398,7 +420,7 @@ class CompiledSwarmPolicy:
                 unknown = True
                 reasons.append("policy.destination_unknown")
             elif not actual <= set(permissions.destinations):
-                final = "deny"
+                final = constraints = "deny"
                 reasons.append("policy.destination_not_allowed")
         for allowed, name in (
             (permissions.data_labels, "data_labels"),
@@ -410,7 +432,7 @@ class CompiledSwarmPolicy:
                     unknown = True
                     reasons.append("policy.protected_fact_missing")
                 elif not set(fact_values).difference({"unclassified"}) <= set(allowed):
-                    final = "deny"
+                    final = constraints = "deny"
                     reasons.append("policy.protected_value_not_allowed")
         if (
             facts is not None
@@ -432,19 +454,21 @@ class CompiledSwarmPolicy:
         for check in self.required_checks:
             status = statuses.setdefault(check, "unknown")
             if status == "violated":
-                final = "deny"
+                final = constraints = "deny"
                 reasons.append("policy.mandatory_check_violated")
             elif status != "satisfied":
                 unknown = True
                 reasons.append("policy.mandatory_check_unknown")
         if unknown:
             final = _stronger(final, self.policy.unknown_disposition)
+            constraints = _stronger(constraints, self.policy.unknown_disposition)
             reasons.append("policy.required_fact_unknown")
         return SwarmPolicyResult(
             final,
             tuple(dict.fromkeys(reasons)),
             tuple(v.rule_id for v in matches),
             tuple(sorted((key, statuses[key]) for key in self.required_checks)),
+            _constraints_disposition=constraints,
         )
 
 

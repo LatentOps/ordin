@@ -595,6 +595,10 @@ class SwarmToolGateway:
                     raise ValueError("changed forwarding session")
                 if self._now() >= pending.expires_at:
                     raise ValueError("expired forwarding ticket")
+                if pending.decision.approval_fulfilled:
+                    raise ValueError(
+                        "human-approved execution requires its original owned broker job"
+                    )
                 selected = action if action is not None else pending.action
                 if digest(selected.as_dict()) != pending.decision.action_digest:
                     raise ValueError("forwarding action changed")

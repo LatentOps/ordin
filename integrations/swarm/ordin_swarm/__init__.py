@@ -1,6 +1,20 @@
 """Optional host integration entry points; import starts no transports."""
 
 from .mcp_adapter import SwarmMCPAdapter
+from .approval_service import (
+    SwarmApprovalBootstrap,
+    SwarmApprovalService,
+    SwarmApprovalPolicy,
+    SwarmApprovalBinding,
+    SwarmApprovalRequest,
+    SwarmApprovalReceipt,
+    SwarmRecoveryRequest,
+    SwarmRecoveryApproval,
+    SwarmApprovalOperatorSession,
+    HumanOperator,
+    HumanOperatorChannel,
+    SwarmOperatorDirectory,
+)
 from .containment import (
     IncidentPolicy,
     IncidentRule,
@@ -44,6 +58,18 @@ from .artifact_gateway import (
 )
 
 __all__ = [
+    "SwarmApprovalBootstrap",
+    "SwarmApprovalService",
+    "SwarmApprovalPolicy",
+    "SwarmApprovalBinding",
+    "SwarmApprovalRequest",
+    "SwarmApprovalReceipt",
+    "SwarmRecoveryRequest",
+    "SwarmRecoveryApproval",
+    "SwarmApprovalOperatorSession",
+    "HumanOperator",
+    "HumanOperatorChannel",
+    "SwarmOperatorDirectory",
     "SwarmArtifactGateway",
     "WorkspaceArtifactAdapter",
     "SharedMemoryAdapter",

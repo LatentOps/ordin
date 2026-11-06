@@ -125,6 +125,9 @@ def configuration_digest(gate: AgentGate) -> str:
         configuration["runtime_requirements"] = ordin.runtime_requirements.as_dict()
     if ordin.rest_semantics is not None:
         configuration["rest_semantics"] = ordin.rest_semantics.as_dict()
+    approval_source = getattr(gate, "approval_source", None)
+    if approval_source is not None:
+        configuration["approval_source"] = approval_source.binding_digest
     extension = getattr(gate, "session_configuration_binding", None)
     if extension is not None:
         # Optional host-owned gate composition must not restore history across
@@ -458,7 +461,10 @@ class IntegrationSession:
             self._bounded(snapshot)
             if self._runtime_active:
                 assert isinstance(decision.review, ActionReview)
-                contract = derive_runtime_capability_contract(decision.review)
+                contract = derive_runtime_capability_contract(
+                    decision.review,
+                    approval_execution_lease=decision.approval_execution_lease,
+                )
                 contracts = tuple(
                     c for c in self._runtime_history.contracts if c.action_id in ids
                 ) + (contract,)

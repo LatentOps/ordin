@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.latentops.dev/schemas/swarm-recovery-request.v1.schema.json",
+  "title": "Swarm Recovery Request (data only)",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_recovery_request.v1"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "binding_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "incident_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "scope_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "policy_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "revocation_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "owner_fence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "required_roles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]*$"
+      }
+    },
+    "quorum": {
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 8
+    },
+    "expires_at": {
+      "type": "number",
+      "minimum": 0
+    },
+    "reason_code": {
+      "enum": [
+        "incident_response",
+        "safety_recovery",
+        "availability",
+        "data_preservation"
+      ]
+    },
+    "execution_authority": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "binding_digest",
+    "incident_digest",
+    "scope_digest",
+    "policy_epoch",
+    "revocation_epoch",
+    "owner_fence",
+    "required_roles",
+    "quorum",
+    "expires_at",
+    "reason_code",
+    "execution_authority"
+  ],
+  "maxProperties": 13
+}

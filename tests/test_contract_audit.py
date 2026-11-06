@@ -440,6 +440,9 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     from ordin.swarm.incident import IncidentReceipt
 
     samples["swarm_incident"] = IncidentReceipt("a" * 32, "b" * 64, 1, "c" * 64, "pause").as_dict()
+    from tests.swarm_approval_contract_samples import approval_contract_samples
+
+    samples.update(approval_contract_samples())
     assert set(samples) == set(SCHEMA_FILES)
     for name, payload in samples.items():
         assert not validate_named_schema(name, payload), name
@@ -561,6 +564,16 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
+        "swarm_approval_policy",
+        "swarm_approval",
+        "swarm_recovery_request",
+        "swarm_approval_receipt",
+        "swarm_approval_resolution",
+        "swarm_approval_queue",
+        "swarm_approval_audit",
+        "approval_scope",
+        "approval_satisfaction",
+        "approval_execution_lease",
         "swarm_artifact",
         "swarm_artifact_diagnostics",
         "swarm_coordinator_record",

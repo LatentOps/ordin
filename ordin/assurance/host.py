@@ -40,6 +40,7 @@ class HostApproval(JsonRecord):
     _authority: _ReceiptAuthority | None = field(
         default=None, repr=False, compare=False, kw_only=True
     )
+    _governance_satisfaction: Any = field(default=None, repr=False, compare=False, kw_only=True)
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -49,6 +50,26 @@ class HostApproval(JsonRecord):
             or (self._authority.payload_digest != self.digest)
         ):
             raise ValueError("approval requires a protected host channel")
+        if self._governance_satisfaction is not None:
+            from ordin.approval import ApprovalSatisfaction, ApprovalSource
+
+            proof = self._governance_satisfaction
+            if (
+                type(proof) is not ApprovalSatisfaction
+                or type(proof._source) is not ApprovalSource
+                or not proof._source.host_receipt_current(self, proof)
+            ):
+                raise ValueError(
+                    "human approval is stale, copied or outside its current governance scope"
+                )
+
+    @property
+    def current(self) -> bool:
+        try:
+            self.__post_init__()
+            return True
+        except (ValueError, TypeError, AttributeError):
+            return False
 
 
 @dataclass(frozen=True)

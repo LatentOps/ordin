@@ -44,6 +44,7 @@ def fixture(
     metric="output_bytes",
     shared_clock=None,
     executor_timeout_ms=3000,
+    approval_decision=None,
 ):
     clock = [100]
     clock_fn = shared_clock or (lambda: clock[0])
@@ -69,6 +70,23 @@ def fixture(
         ),
     )
     core = Ordin(tool_semantics=semantics)
+    if approval_decision is not None:
+        from ordin.action_policy import ActionPolicySet, ActionPolicyRule, ActionPolicyCondition
+
+        core = Ordin(
+            tool_semantics=semantics,
+            action_policy=ActionPolicySet(
+                "human-review",
+                "1",
+                (
+                    ActionPolicyRule(
+                        "read-approval",
+                        approval_decision,
+                        ActionPolicyCondition(effects_any=("filesystem.read",)),
+                    ),
+                ),
+            ),
+        )
     profile = approve(selected(tmp_path, config_profile()))
     identities = {
         name: SessionIdentity("owned-" + name, "session-" + name) for name in ("parent", "child")
@@ -96,7 +114,17 @@ def fixture(
     registry = InMemoryAgentRegistry("tenant", "swarm", clock=clock_fn)
     tls = server_context()
     auth = WorkloadAuthenticator(registry, tls, operator=operator, clock=clock_fn)
-    assurance = AssuranceGate(AgentGate(core), profile)
+    bootstrap = None
+    if approval_decision is not None:
+        from ordin.swarm.approval_service import SwarmApprovalBootstrap
+
+        bootstrap = SwarmApprovalBootstrap(
+            registry, tuple(sources.values()), profile, rights, operator=operator, clock=clock_fn
+        )
+    assurance = AssuranceGate(
+        AgentGate(core, approval_source=bootstrap.authority if bootstrap is not None else None),
+        profile,
+    )
     service = SwarmDelegationService(issuer, assurance, auth, operator=operator)
     contexts, rchannels, adapters, enrollments, channels, sockets = {}, {}, {}, {}, {}, {}
     with ExitStack() as stack:
@@ -175,7 +203,7 @@ def fixture(
         action = ToolCallAdapter("fixture").adapt(
             "read_file", {"path": logical_path}, action_id="broker-read"
         )
-        yield (
+        values = (
             broker,
             service,
             ledger,
@@ -192,6 +220,7 @@ def fixture(
             target,
             registry,
         )
+        yield values + (bootstrap,) if bootstrap is not None else values
 
 
 def require_kernel():
