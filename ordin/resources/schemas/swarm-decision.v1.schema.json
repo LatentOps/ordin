@@ -263,6 +263,11 @@
           }
         }
       }
+    },
+    "policy_facts_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
     }
   }
 }

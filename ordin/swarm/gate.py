@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from threading import RLock
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from ordin.action import ActionEnvelope, ActionHistory, ActionReview
 from ordin.agent import AgentDecision, AgentGate
@@ -24,6 +24,10 @@ from .ingest import HostEventSource, SwarmEventIngestor
 from .models import SwarmContext, SwarmIdentity, identifier
 from .policy import DISPOSITIONS, SwarmPolicy
 from .registry import AgentRegistry
+
+if TYPE_CHECKING:
+    from .policy_runtime import SwarmPolicyRuntime
+    from .policy_facts import SwarmPolicyFacts
 
 BaseDecision = AgentDecision | AssuranceDecision | DelegatedDecision
 BaseGate = AgentGate | AssuranceGate | DelegatingAssuranceGate
@@ -85,6 +89,9 @@ class SwarmDecision:
     _seal: _DecisionSeal | None = field(default=None, repr=False, compare=False, kw_only=True)
     _assessments: tuple[SwarmAssessment, ...] = field(
         default=(), repr=False, compare=False, kw_only=True
+    )
+    _policy_facts: SwarmPolicyFacts | None = field(
+        default=None, repr=False, compare=False, kw_only=True
     )
 
     def __post_init__(self) -> None:
@@ -171,7 +178,7 @@ class SwarmDecision:
         return self.disposition == "escalate"
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "schema_version": "ordin.swarm_decision.v1",
             "disposition": self.disposition,
             "baseline_disposition": self.baseline.disposition,
@@ -190,6 +197,9 @@ class SwarmDecision:
                 {"check_id": key, "status": status} for key, status in self.check_results
             ],
         }
+        if self._policy_facts is not None:
+            result["policy_facts_digest"] = self._policy_facts.digest
+        return result
 
     @classmethod
     def from_dict(cls, value):
@@ -206,6 +216,7 @@ class SwarmGate:
         assessment_source: SwarmAssessmentSource | None = None,
         events: SwarmEventIngestor | None = None,
         delegation_context: SwarmContext | None = None,
+        policy_runtime: SwarmPolicyRuntime | None = None,
     ) -> None:
         selected = baseline if baseline is not None else AgentGate()
         if type(selected) not in {AgentGate, AssuranceGate, DelegatingAssuranceGate}:
@@ -218,6 +229,15 @@ class SwarmGate:
             raise ValueError("swarm assessments require an operator-owned source")
         if events is not None and type(events) is not SwarmEventIngestor:
             raise ValueError("swarm evidence requires an authenticated event ingestor")
+        if policy_runtime is not None:
+            from .policy_runtime import SwarmPolicyRuntime
+
+            if (
+                type(policy_runtime) is not SwarmPolicyRuntime
+                or policy_runtime._registry is not registry
+            ):
+                raise ValueError("compiled policy requires its original protected registry runtime")
+            policy_runtime.register_gate(policy)
         if isinstance(selected, DelegatingAssuranceGate):
             if type(delegation_context) is not SwarmContext:
                 raise ValueError("delegation requires an explicit host principal/session binding")
@@ -234,12 +254,18 @@ class SwarmGate:
         )
         self._registry, self._baseline, self._policy = registry, selected, policy
         self._assessment_source, self._events = assessment_source, events
+        self._policy_runtime = policy_runtime
         self._key = object()
         self._lock = RLock()
 
     @property
     def policy_digest(self) -> str:
-        return self._policy.digest if self._policy else digest({"swarm_policy": None})
+        legacy = self._policy.digest if self._policy else digest({"swarm_policy": None})
+        return (
+            legacy
+            if self._policy_runtime is None
+            else digest([legacy, self._policy_runtime.binding_digest])
+        )
 
     @property
     def configuration_digest(self) -> str:
@@ -257,18 +283,17 @@ class SwarmGate:
                 }
             )
         )
-        return digest(
-            {
-                "baseline": base_digest,
-                "kind": type(baseline).__name__,
-                "policy": self.policy_digest,
-                "assessment_source": self._assessment_source.binding_digest
-                if self._assessment_source
-                else None,
-                "events_configured": self._events is not None,
-                "delegation_context": self._delegation_context_digest,
-            }
-        )
+        payload = {
+            "baseline": base_digest,
+            "kind": type(baseline).__name__,
+            "policy": self.policy_digest,
+            "assessment_source": self._assessment_source.binding_digest
+            if self._assessment_source
+            else None,
+            "events_configured": self._events is not None,
+            "delegation_context": self._delegation_context_digest,
+        }
+        return digest(payload)
 
     def evidence_snapshot_digest(
         self,
@@ -289,16 +314,17 @@ class SwarmGate:
             if type(self._baseline) is DelegatingAssuranceGate
             else None
         )
-        return digest(
-            {
-                "events": events,
-                "delegation": delegation,
-                "review_inputs": _options_digest(baseline_options),
-                "assessment_source": self._assessment_source.binding_digest
-                if self._assessment_source
-                else None,
-            }
-        )
+        payload = {
+            "events": events,
+            "delegation": delegation,
+            "review_inputs": _options_digest(baseline_options),
+            "assessment_source": self._assessment_source.binding_digest
+            if self._assessment_source
+            else None,
+        }
+        if self._policy_runtime is not None:
+            payload["compiled_policy_evidence"] = self._policy_runtime.evidence_digest(context)
+        return digest(payload)
 
     def _review(self, action: ActionEnvelope, kwargs: dict[str, Any]) -> BaseDecision:
         baseline = self._baseline
@@ -327,6 +353,8 @@ class SwarmGate:
         adapter: object,
         event_source: HostEventSource | None = None,
         assessments: tuple[SwarmAssessment, ...] = (),
+        policy_facts: SwarmPolicyFacts | None = None,
+        delegated_baseline: DelegatedDecision | None = None,
         **baseline_options: Any,
     ) -> SwarmDecision:
         """Evaluate only: caller separately owns approval, reservation and execution."""
@@ -357,7 +385,16 @@ class SwarmGate:
                 identity_valid = False
                 initial_snapshot = digest({"swarm_snapshot": "unverified"})
                 reasons.append("swarm.identity_or_evidence_unverified")
-            underlying = self._review(normalized, dict(baseline_options))
+            if delegated_baseline is None:
+                underlying = self._review(normalized, dict(baseline_options))
+            else:
+                if (
+                    type(self._baseline) is not DelegatingAssuranceGate
+                    or type(delegated_baseline) is not DelegatedDecision
+                    or not self._baseline.is_original_decision(delegated_baseline, normalized)
+                ):
+                    raise ValueError("original current delegated baseline from this gate required")
+                underlying = delegated_baseline
             if not isinstance(underlying.review, ActionReview):
                 raise ValueError("swarm baseline did not produce a generic action review")
             final = underlying.disposition
@@ -385,6 +422,7 @@ class SwarmGate:
                     reasons.append("swarm.policy_constraints")
             checks = {}
             valid_assessments = []
+            valid_policy_facts = None
             for assessment in assessments:
                 if self._assessment_source is None or not self._assessment_source.verify(
                     assessment,
@@ -396,7 +434,10 @@ class SwarmGate:
                     final = "deny"
                     reasons.append("swarm.assessment_unverified")
                     continue
-                if policy is None or assessment.check_id not in policy.required_checks:
+                allowed_checks = set(policy.required_checks if policy else ()) | set(
+                    self._policy_runtime.required_checks if self._policy_runtime else ()
+                )
+                if assessment.check_id not in allowed_checks:
                     final = "deny"
                     reasons.append("swarm.assessment_unexpected")
                     continue
@@ -417,6 +458,38 @@ class SwarmGate:
                             (final, policy.unknown_disposition), key=DISPOSITIONS.__getitem__
                         )
                         reasons.append("swarm.mandatory_check_unknown")
+            if self._policy_runtime is not None:
+                projection = self._policy_runtime._evaluate(
+                    context,
+                    normalized,
+                    underlying,
+                    facts=policy_facts,
+                    policy_digest=self.policy_digest,
+                    snapshot_digest=initial_snapshot,
+                    checks=checks,
+                    delegation_gate=self._baseline
+                    if type(self._baseline) is DelegatingAssuranceGate
+                    else None,
+                )
+                final = max((final, projection.disposition), key=DISPOSITIONS.__getitem__)
+                reasons.extend(projection.reason_codes)
+                matched.extend(projection.matched_rules)
+                checks.update(projection.check_results)
+                if policy_facts is not None:
+                    if self._policy_runtime.facts_source.verify(
+                        policy_facts,
+                        context,
+                        normalized,
+                        policy_digest=self.policy_digest,
+                        snapshot_digest=initial_snapshot,
+                    ):
+                        valid_policy_facts = policy_facts
+                    else:
+                        final = "deny"
+                        reasons.append("policy.facts_changed")
+            elif policy_facts is not None:
+                final = "deny"
+                reasons.append("policy.unexpected_facts")
             try:
                 current_action = action.as_dict() if isinstance(action, ActionEnvelope) else action
                 if digest(ActionEnvelope.from_dict(current_action).as_dict()) != action_hash:
@@ -445,6 +518,19 @@ class SwarmGate:
                 ):
                     final = "deny"
                     reasons.append("swarm.assessment_changed")
+            if (
+                valid_policy_facts is not None
+                and self._policy_runtime is not None
+                and not self._policy_runtime.facts_source.verify(
+                    valid_policy_facts,
+                    context,
+                    normalized,
+                    policy_digest=self.policy_digest,
+                    snapshot_digest=initial_snapshot,
+                )
+            ):
+                final = "deny"
+                reasons.append("policy.facts_changed")
             values: dict[str, Any] = dict(
                 baseline=underlying,
                 disposition=final,
@@ -459,6 +545,7 @@ class SwarmGate:
                 matched_rules=tuple(matched),
                 check_results=tuple(sorted(checks.items())),
                 _assessments=tuple(valid_assessments),
+                _policy_facts=valid_policy_facts,
             )
             preview = object.__new__(SwarmDecision)
             for key, value in values.items():
@@ -499,6 +586,15 @@ class SwarmGate:
                     assessment,
                     action_digest=decision.action_digest,
                     context_digest=decision.context_digest,
+                    policy_digest=decision.policy_digest,
+                    snapshot_digest=decision.evidence_snapshot_digest,
+                ):
+                    return False
+            if decision._policy_facts is not None:
+                if self._policy_runtime is None or not self._policy_runtime.facts_source.verify(
+                    decision._policy_facts,
+                    context,
+                    normalized,
                     policy_digest=decision.policy_digest,
                     snapshot_digest=decision.evidence_snapshot_digest,
                 ):

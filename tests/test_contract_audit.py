@@ -391,6 +391,49 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     from tests.swarm_broker_contract_samples import broker_contract_samples
 
     samples.update(broker_contract_samples())
+    from ordin.swarm import (
+        SwarmPolicySet,
+        SwarmPolicyPermissions,
+        SwarmPolicyMaximum,
+        compile_swarm_policy_set,
+        SwarmPolicySimulation,
+        SwarmPolicyActivation,
+        diff_swarm_policies,
+    )
+
+    declarative = SwarmPolicySet(
+        "contract-policy", 1, "tenant", "swarm", default_disposition="execute"
+    )
+    maximum = SwarmPolicyMaximum("tenant", "swarm", SwarmPolicyPermissions(action_kinds=("shell",)))
+    plan = compile_swarm_policy_set(declarative, maximum)
+    samples["swarm_policy_set"] = declarative.as_dict()
+    samples["swarm_policy_maximum"] = maximum.as_dict()
+    samples["swarm_policy_compilation"] = plan.as_dict()
+    samples["swarm_policy_simulation"] = SwarmPolicySimulation(
+        "contract", plan.digest, "a" * 64, "b" * 64, (("benign", "execute", "execute", "benign"),)
+    ).as_dict()
+    samples["swarm_policy_activation"] = SwarmPolicyActivation(
+        declarative.digest,
+        plan.digest,
+        1,
+        "active_requires_reenrollment",
+        ("policy.old_authorizations_fenced",),
+    ).as_dict()
+    samples["swarm_policy_diff"] = diff_swarm_policies(
+        declarative, replace(declarative, revision=2)
+    )
+    samples["swarm_policy_validation"] = {
+        "schema_version": "ordin.swarm_policy_validation.v1",
+        "valid": True,
+        "policy_digest": declarative.digest,
+        "scope_digest": "a" * 64,
+        "maximum_checked": True,
+        "compilation_digest": plan.digest,
+        "explanation": None,
+        "live_capabilities_verified": False,
+        "deployment_authorized": False,
+        "execution_authority": False,
+    }
     assert set(samples) == set(SCHEMA_FILES)
     for name, payload in samples.items():
         assert not validate_named_schema(name, payload), name
@@ -519,6 +562,13 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
         "swarm_broker_result",
         "swarm_broker_control",
         "swarm_executor_outcome",
+        "swarm_policy_set",
+        "swarm_policy_maximum",
+        "swarm_policy_compilation",
+        "swarm_policy_simulation",
+        "swarm_policy_activation",
+        "swarm_policy_diff",
+        "swarm_policy_validation",
         "swarm_temporal_policy_set",
         "swarm_temporal_evaluation",
         "swarm_temporal_validation",

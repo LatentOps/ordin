@@ -183,6 +183,43 @@ class SwarmSourceFlow:
         self._incarnation = uuid4().hex
         self._lock = RLock()
 
+    @property
+    def binding_digest(self) -> str:
+        """Read-only current protected lineage, configuration and lifecycle binding."""
+        with self._lock, self._graph._lock, self._graph._ingestor._lock:
+            view = self._graph.build()
+            actors = []
+            for source, actor in self._actors.items():
+                try:
+                    self._actor(source)
+                    state = "current"
+                except ValueError:
+                    state = "unavailable"
+                actors.append([digest(actor.context.as_dict()), actor.host.key, state])
+            return digest(
+                [
+                    self._incarnation,
+                    self._limit,
+                    self._max_depth,
+                    sorted((key, repr(value)) for key, value in self._sinks.items()),
+                    sorted(
+                        digest(
+                            [
+                                self._digest(row),
+                                [parent.lineage_id for parent in row.parents],
+                                row.established,
+                                row.complete,
+                                self._depths.get(row.handle),
+                            ]
+                        )
+                        for row in self._records.values()
+                    ),
+                    self._audit,
+                    sorted(actors),
+                    view.as_dict(),
+                ]
+            )
+
     def bind_actor(
         self, source: HostEventSource, context: SwarmContext, host: HostEvidenceSource
     ) -> None:

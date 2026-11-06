@@ -1,0 +1,882 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-policy-validation.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "valid",
+    "policy_digest",
+    "scope_digest",
+    "maximum_checked",
+    "compilation_digest",
+    "explanation",
+    "live_capabilities_verified",
+    "deployment_authorized",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_policy_validation.v1"
+    },
+    "valid": {
+      "const": true
+    },
+    "policy_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "scope_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "maximum_checked": {
+      "type": "boolean"
+    },
+    "compilation_digest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "explanation": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "policy_id",
+            "revision",
+            "tenant_id",
+            "swarm_id",
+            "permissions",
+            "rules",
+            "default_disposition",
+            "unknown_disposition",
+            "required_checks",
+            "required_capabilities",
+            "budgets",
+            "delegation_maximum_digest",
+            "enforcement_scope"
+          ],
+          "properties": {
+            "schema_version": {
+              "const": "ordin.swarm_policy_set.v1"
+            },
+            "policy_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9223372036854775807
+            },
+            "tenant_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+            },
+            "swarm_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+            },
+            "permissions": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {
+                "action_kinds": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "maxItems": 64,
+                      "uniqueItems": true,
+                      "items": {
+                        "enum": [
+                          "database",
+                          "file",
+                          "mcp",
+                          "network",
+                          "shell",
+                          "tool"
+                        ]
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "effects": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "maxItems": 64,
+                      "uniqueItems": true,
+                      "items": {
+                        "enum": [
+                          "code.execute",
+                          "code.remote_execute",
+                          "confirmation.bypass",
+                          "container.create",
+                          "container.delete",
+                          "container.prune",
+                          "container.read",
+                          "database.delete",
+                          "database.read",
+                          "database.write",
+                          "filesystem.delete",
+                          "filesystem.metadata_read",
+                          "filesystem.ownership_change",
+                          "filesystem.permission_change",
+                          "filesystem.read",
+                          "filesystem.recursive_delete",
+                          "filesystem.recursive_ownership_change",
+                          "filesystem.recursive_permission_change",
+                          "filesystem.write",
+                          "git.history_rewrite",
+                          "git.local_write",
+                          "git.read",
+                          "git.remote_write",
+                          "identity.permission_change",
+                          "infrastructure.delete",
+                          "infrastructure.read",
+                          "infrastructure.write",
+                          "network.connect",
+                          "network.download",
+                          "network.upload",
+                          "package.install",
+                          "package.read",
+                          "package.remove",
+                          "privilege.escalate",
+                          "process.signal",
+                          "remote.execute",
+                          "secret.read",
+                          "secret.write",
+                          "service.control",
+                          "service.read",
+                          "system.configuration_write",
+                          "system.device_write",
+                          "system.power_change"
+                        ]
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "tools": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "maxItems": 64,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind",
+                          "scope",
+                          "name"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "tool",
+                              "mcp"
+                            ]
+                          },
+                          "scope": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128,
+                            "anyOf": [
+                              {
+                                "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^*\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                              },
+                              {
+                                "pattern": "^[^*?\\[\\]\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                              }
+                            ]
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128,
+                            "anyOf": [
+                              {
+                                "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^*\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                              },
+                              {
+                                "pattern": "^[^*?\\[\\]\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "resources": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "maxItems": 64,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "type",
+                          "value"
+                        ],
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 128,
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                          },
+                          "value": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 512,
+                            "anyOf": [
+                              {
+                                "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^*\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                              },
+                              {
+                                "pattern": "^[^*?\\[\\]\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "destinations": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "maxItems": 64,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 512,
+                        "anyOf": [
+                          {
+                            "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^*\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                          },
+                          {
+                            "pattern": "^[^*?\\[\\]\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "data_labels": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "maxItems": 64,
+                      "uniqueItems": true,
+                      "items": {
+                        "enum": [
+                          "public",
+                          "secret",
+                          "pii",
+                          "private_code"
+                        ]
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "message_classes": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "maxItems": 64,
+                      "uniqueItems": true,
+                      "items": {
+                        "enum": [
+                          "data",
+                          "task_handoff",
+                          "tool_result"
+                        ]
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            },
+            "rules": {
+              "type": "array",
+              "maxItems": 128,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "rule_id",
+                  "disposition",
+                  "match"
+                ],
+                "properties": {
+                  "rule_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                  },
+                  "disposition": {
+                    "enum": [
+                      "execute",
+                      "escalate",
+                      "deny"
+                    ]
+                  },
+                  "match": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [],
+                    "properties": {
+                      "tenant_ids": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                        }
+                      },
+                      "swarm_ids": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                        }
+                      },
+                      "task_ids": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                        }
+                      },
+                      "agent_ids": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                        }
+                      },
+                      "role_ids": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                        }
+                      },
+                      "operations": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                        }
+                      },
+                      "temporal_categories_any": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128,
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                        }
+                      },
+                      "action_kinds": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "enum": [
+                            "database",
+                            "file",
+                            "mcp",
+                            "network",
+                            "shell",
+                            "tool"
+                          ]
+                        }
+                      },
+                      "effects_any": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "enum": [
+                            "code.execute",
+                            "code.remote_execute",
+                            "confirmation.bypass",
+                            "container.create",
+                            "container.delete",
+                            "container.prune",
+                            "container.read",
+                            "database.delete",
+                            "database.read",
+                            "database.write",
+                            "filesystem.delete",
+                            "filesystem.metadata_read",
+                            "filesystem.ownership_change",
+                            "filesystem.permission_change",
+                            "filesystem.read",
+                            "filesystem.recursive_delete",
+                            "filesystem.recursive_ownership_change",
+                            "filesystem.recursive_permission_change",
+                            "filesystem.write",
+                            "git.history_rewrite",
+                            "git.local_write",
+                            "git.read",
+                            "git.remote_write",
+                            "identity.permission_change",
+                            "infrastructure.delete",
+                            "infrastructure.read",
+                            "infrastructure.write",
+                            "network.connect",
+                            "network.download",
+                            "network.upload",
+                            "package.install",
+                            "package.read",
+                            "package.remove",
+                            "privilege.escalate",
+                            "process.signal",
+                            "remote.execute",
+                            "secret.read",
+                            "secret.write",
+                            "service.control",
+                            "service.read",
+                            "system.configuration_write",
+                            "system.device_write",
+                            "system.power_change"
+                          ]
+                        }
+                      },
+                      "effects_all": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "enum": [
+                            "code.execute",
+                            "code.remote_execute",
+                            "confirmation.bypass",
+                            "container.create",
+                            "container.delete",
+                            "container.prune",
+                            "container.read",
+                            "database.delete",
+                            "database.read",
+                            "database.write",
+                            "filesystem.delete",
+                            "filesystem.metadata_read",
+                            "filesystem.ownership_change",
+                            "filesystem.permission_change",
+                            "filesystem.read",
+                            "filesystem.recursive_delete",
+                            "filesystem.recursive_ownership_change",
+                            "filesystem.recursive_permission_change",
+                            "filesystem.write",
+                            "git.history_rewrite",
+                            "git.local_write",
+                            "git.read",
+                            "git.remote_write",
+                            "identity.permission_change",
+                            "infrastructure.delete",
+                            "infrastructure.read",
+                            "infrastructure.write",
+                            "network.connect",
+                            "network.download",
+                            "network.upload",
+                            "package.install",
+                            "package.read",
+                            "package.remove",
+                            "privilege.escalate",
+                            "process.signal",
+                            "remote.execute",
+                            "secret.read",
+                            "secret.write",
+                            "service.control",
+                            "service.read",
+                            "system.configuration_write",
+                            "system.device_write",
+                            "system.power_change"
+                          ]
+                        }
+                      },
+                      "tools_any": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "scope",
+                            "name"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "enum": [
+                                "tool",
+                                "mcp"
+                              ]
+                            },
+                            "scope": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128,
+                              "anyOf": [
+                                {
+                                  "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^*\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                                },
+                                {
+                                  "pattern": "^[^*?\\[\\]\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                                }
+                              ]
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128,
+                              "anyOf": [
+                                {
+                                  "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^*\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                                },
+                                {
+                                  "pattern": "^[^*?\\[\\]\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      "resources_any": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "type",
+                            "value"
+                          ],
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128,
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                            },
+                            "value": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 512,
+                              "anyOf": [
+                                {
+                                  "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^*\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                                },
+                                {
+                                  "pattern": "^[^*?\\[\\]\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      "destinations_any": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 512,
+                          "anyOf": [
+                            {
+                              "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^*\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                            },
+                            {
+                              "pattern": "^[^*?\\[\\]\\x00-\\x1f\\x7f]+(?![\\s\\S])"
+                            }
+                          ]
+                        }
+                      },
+                      "data_labels_any": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "enum": [
+                            "public",
+                            "secret",
+                            "pii",
+                            "private_code",
+                            "unclassified"
+                          ]
+                        }
+                      },
+                      "message_classes_any": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "enum": [
+                            "data",
+                            "task_handoff",
+                            "tool_result"
+                          ]
+                        }
+                      },
+                      "budgets": {
+                        "type": "array",
+                        "maxItems": 32,
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "scope",
+                            "metric",
+                            "remaining_lte"
+                          ],
+                          "properties": {
+                            "scope": {
+                              "enum": [
+                                "tenant",
+                                "swarm",
+                                "task",
+                                "agent"
+                              ]
+                            },
+                            "metric": {
+                              "enum": [
+                                "child_spawns",
+                                "concurrency",
+                                "destructive_actions",
+                                "dollar_micros",
+                                "external_operations",
+                                "output_bytes",
+                                "processes",
+                                "requests",
+                                "tokens",
+                                "tool_calls"
+                              ]
+                            },
+                            "remaining_lte": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 1000000000000000
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "default_disposition": {
+              "enum": [
+                "execute",
+                "escalate",
+                "deny"
+              ]
+            },
+            "unknown_disposition": {
+              "enum": [
+                "escalate",
+                "deny"
+              ]
+            },
+            "required_checks": {
+              "type": "array",
+              "maxItems": 64,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+              }
+            },
+            "required_capabilities": {
+              "type": "array",
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "broker.enforce",
+                  "budget.admission",
+                  "delegation.online",
+                  "filesystem.enforce",
+                  "identity",
+                  "process.enforce",
+                  "protected_facts",
+                  "source_flow",
+                  "temporal"
+                ]
+              }
+            },
+            "budgets": {
+              "type": "array",
+              "maxItems": 64,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "scope",
+                  "metric",
+                  "maximum",
+                  "subject"
+                ],
+                "properties": {
+                  "scope": {
+                    "enum": [
+                      "tenant",
+                      "swarm",
+                      "task",
+                      "agent"
+                    ]
+                  },
+                  "metric": {
+                    "enum": [
+                      "child_spawns",
+                      "concurrency",
+                      "destructive_actions",
+                      "dollar_micros",
+                      "external_operations",
+                      "output_bytes",
+                      "processes",
+                      "requests",
+                      "tokens",
+                      "tool_calls"
+                    ]
+                  },
+                  "maximum": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000000000
+                  },
+                  "subject": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "delegation_maximum_digest": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64,
+                  "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "enforcement_scope": {
+              "enum": [
+                "review_only",
+                "broker_owned_fresh_worker_route",
+                "all_agent_paths"
+              ]
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "live_capabilities_verified": {
+      "const": false
+    },
+    "deployment_authorized": {
+      "const": false
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

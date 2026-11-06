@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-policy-simulation.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "compilation_digest",
+    "base_binding_digest",
+    "cases_digest",
+    "outcomes",
+    "relaxations",
+    "benign_restricted",
+    "unsafe_executable",
+    "structural_relaxation",
+    "evidence_class",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_policy_simulation.v1"
+    },
+    "compilation_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "base_binding_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "cases_digest": {
+      "type": "string",
+      "maxLength": 64,
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "outcomes": {
+      "type": "array",
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "before",
+          "after",
+          "expected"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+          },
+          "before": {
+            "enum": [
+              "execute",
+              "escalate",
+              "deny"
+            ]
+          },
+          "after": {
+            "enum": [
+              "execute",
+              "escalate",
+              "deny"
+            ]
+          },
+          "expected": {
+            "enum": [
+              "benign",
+              "unsafe",
+              "unspecified"
+            ]
+          }
+        }
+      }
+    },
+    "relaxations": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "benign_restricted": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "unsafe_executable": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 256
+    },
+    "structural_relaxation": {
+      "type": "boolean"
+    },
+    "evidence_class": {
+      "const": "offline_simulation"
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

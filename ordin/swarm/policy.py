@@ -87,3 +87,18 @@ class SwarmPolicy:
     def digest(self) -> str:
         self.__post_init__()
         return digest(self.as_dict())
+
+
+# The legacy host-programmatic policy remains unchanged. The new data document
+# has its own exact schema and still needs a protected approved runtime to deploy.
+from .policy_set import (  # noqa: E402
+    SwarmPolicySet,
+    SwarmPolicyRule,
+    SwarmPolicySelector,
+    SwarmPolicyPermissions,
+    SwarmPolicyTool,
+    SwarmPolicyResource,
+    SwarmBudgetConstraint,
+    SwarmBudgetCondition,
+    load_swarm_policy_set,
+)
