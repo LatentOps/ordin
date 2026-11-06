@@ -33,6 +33,20 @@ The optional extras also pin the common native argument parser to
 `requirements/swarm-*.txt`, generated from the tested Linux Python 3.12
 environment with `scripts/lock_swarm_frameworks.py` and primary PyPI hashes.
 
+### AutoGen legacy dependency boundary
+
+AutoGen Core 0.7.5's [published dependency metadata](https://pypi.org/pypi/autogen-core/0.7.5/json)
+requires `protobuf~=5.29.3`; the tested lock retains 5.29.6. Protobuf 7.x does not
+satisfy that requirement. The optional extra and lock generator state the same
+constraint explicitly, without bypassing dependency resolution.
+
+Protobuf Python 5.x [ended upstream support on 31 March 2026](https://protobuf.dev/support/version-support/#python).
+This AutoGen path is retained as opt-in archived compatibility. Its installed
+fixture and hash pins do not establish upstream maintenance, a patched dependency
+closure, or security clearance. Core, custom and LangGraph paths do not require
+this AutoGen dependency. The release manifest's dependency security clearance
+remains `not_established`.
+
 ### CrewAI dependency quarantine
 
 The CrewAI 1.15.35 runtime requires ChromaDB 1.5.9. At the review date the
