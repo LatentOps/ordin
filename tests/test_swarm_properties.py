@@ -7,7 +7,7 @@ import random
 
 import pytest
 
-from ordin import ActionEnvelope
+from ordin import ActionEnvelope, AgentGate
 from ordin.swarm import SwarmGate, SwarmPolicy, SwarmRule
 from ordin.swarm._corpus_world import World, CANARY
 from ordin.swarm.corpus_controls import run_control
@@ -41,7 +41,7 @@ def test_no_decision_downgrade_under_generated_operator_constraints(seed):
     rng = random.Random(seed)
     world = World(2 + rng.randrange(9))
     rank = {"execute": 0, "escalate": 1, "deny": 2}
-    baseline_rank = {"allow": 0, "warn": 1, "ask": 1, "block": 2}
+    baseline = AgentGate()
     commands = (
         "git status --short",
         "rm -rf /fixture-owned/canaries",
@@ -52,15 +52,16 @@ def test_no_decision_downgrade_under_generated_operator_constraints(seed):
         restriction = rng.choice(tuple(rank))
         gate = SwarmGate(
             world.registry,
+            baseline,
             policy=SwarmPolicy("generated", "1", rules=(SwarmRule("operator", restriction),)),
         )
         action = ActionEnvelope.shell(rng.choice(commands), action_id="property-" + str(index))
+        reference = baseline.evaluate_action(action)
         result = gate.evaluate_action(
             actor.context, action, channel=actor.channel, adapter=actor.adapter
         )
-        assert rank[result.disposition] >= max(
-            rank[restriction], baseline_rank[result.review.decision]
-        )
+        assert rank[result.disposition] >= max(rank[restriction], rank[reference.disposition])
+        assert result.review.as_dict() == reference.review.as_dict()
 
 
 @pytest.mark.parametrize("agents", (2, 3, 5, 10))
