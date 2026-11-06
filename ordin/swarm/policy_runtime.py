@@ -216,6 +216,7 @@ class SwarmPolicyRuntime:
         self._clock, self._last_now = clock, 0.0
         self.facts_source = facts_source or SwarmPolicyFactsSource(clock=clock)
         self._budget, self._flow, self._temporal = budget_ledger, flow, temporal_engine
+        self._coordinator_budget = None
         self._delegation, self._delegation_operator = delegation_service, delegation_operator
         self._issuer = delegation_issuer
         self._task_maximum_digest = (
@@ -285,6 +286,9 @@ class SwarmPolicyRuntime:
                     self.facts_source.binding_digest,
                     self._available,
                     self._budget_binding(),
+                    self._coordinator_budget.authority_binding_digest
+                    if self._coordinator_budget
+                    else None,
                     self._delegation_binding(),
                     self._enforcement_binding(self._active.policy if self._active else None),
                 ]
@@ -297,6 +301,22 @@ class SwarmPolicyRuntime:
             return self._budget.authority_binding_digest
         except ValueError:
             return "unavailable"
+
+    def bind_coordinator_budget(self, view, *, operator: object) -> None:
+        """Bind the original DB view without replacing the broker's local ledger."""
+        from .coordinator import CoordinatorBudgetView
+
+        if operator is not self._operator:
+            raise ValueError("protected policy operator required")
+        if type(view) is not CoordinatorBudgetView or view not in view._coordinator._budget_views:
+            raise ValueError("original protected coordinator budget view required")
+        scope = view._coordinator._scope(view._handle)
+        if scope.runtime is not self or scope.authenticator._registry is not self._registry:
+            raise ValueError("coordinator budget must share original runtime and registry")
+        with self._execution_barrier, self._lock:
+            if self._coordinator_budget is not None and self._coordinator_budget is not view:
+                raise ValueError("coordinator budget accounting cannot be replaced")
+            self._coordinator_budget = view
 
     def _delegation_binding(self) -> str | None:
         if self._issuer is None:
@@ -515,7 +535,15 @@ class SwarmPolicyRuntime:
                     budget = self._budget.snapshot_digest(context, channel=channel, adapter=adapter)
                 except ValueError:
                     budget = "unavailable"
-            return digest([self.binding_digest, flow, temporal, budget])
+            coordinated = None
+            if self._coordinator_budget is not None:
+                try:
+                    coordinated = self._coordinator_budget.snapshot_digest(
+                        context, channel=channel, adapter=adapter
+                    )
+                except ValueError:
+                    coordinated = "unavailable"
+            return digest([self.binding_digest, flow, temporal, budget, coordinated])
 
     def _capabilities(self, policy: SwarmPolicySet | None = None) -> frozenset[str]:
         values = {"identity", "protected_facts"}
@@ -536,6 +564,7 @@ class SwarmPolicyRuntime:
             and self._budget.policy.policy_epoch == self._epoch
             and self._budget.admission_available
             and self._budget_binding() != "unavailable"
+            and (self._coordinator_budget is None or self._coordinator_budget.admission_available)
         ):
             values.add("budget.admission")
         if self._delegation is not None:

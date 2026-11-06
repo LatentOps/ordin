@@ -1,0 +1,1909 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-coordinator-request.v1.schema.json",
+  "title": "swarm_coordinator_request",
+  "description": "Bounded data-only optional coordinator metadata. JSON never authenticates a producer or restores live authority.",
+  "$comment": "Transport canonical JSON is bounded to 65536 UTF-8 bytes, depth 32. Durable projections are bounded to 8MiB and never restore original grants/receipts. Runtime checks enforce exact channel, lease, epoch and scope bindings.",
+  "type": "object",
+  "additionalProperties": false,
+  "maxProperties": 3,
+  "required": [
+    "schema_version",
+    "operation",
+    "arguments"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_coordinator_request.v1"
+    },
+    "operation": {
+      "enum": [
+        "admit",
+        "renew",
+        "policy",
+        "producer",
+        "status",
+        "budget",
+        "revoke_lease",
+        "bind_grant",
+        "evaluate",
+        "reserve",
+        "cancel",
+        "event",
+        "forward",
+        "commit",
+        "uncertain",
+        "dispatch"
+      ]
+    },
+    "arguments": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 4,
+          "required": [
+            "lease",
+            "grant",
+            "action",
+            "idempotency_key"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "grant": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "action": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "$id": "https://latentops.dev/schemas/ordin/action-envelope.v1.schema.json",
+              "title": "Ordin Action Envelope v1",
+              "type": "object",
+              "required": [
+                "schema_version",
+                "action_id",
+                "kind",
+                "operation",
+                "parameters",
+                "intent",
+                "context"
+              ],
+              "properties": {
+                "schema_version": {
+                  "const": "ordin.action_envelope.v1"
+                },
+                "action_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "kind": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "operation": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "parameters": {
+                  "type": "object",
+                  "maxProperties": 128,
+                  "additionalProperties": true
+                },
+                "intent": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "context": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "cwd": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "shell": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "euid": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "interactive": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "repo_root": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "agent": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 2,
+          "required": [
+            "lease",
+            "grant"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "grant": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 1,
+          "required": [
+            "reservation"
+          ],
+          "properties": {
+            "reservation": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 2,
+          "required": [
+            "lease",
+            "reservation"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "reservation": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 4,
+          "required": [
+            "lease",
+            "evaluation",
+            "action",
+            "idempotency_key"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "evaluation": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "action": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "$id": "https://latentops.dev/schemas/ordin/action-envelope.v1.schema.json",
+              "title": "Ordin Action Envelope v1",
+              "type": "object",
+              "required": [
+                "schema_version",
+                "action_id",
+                "kind",
+                "operation",
+                "parameters",
+                "intent",
+                "context"
+              ],
+              "properties": {
+                "schema_version": {
+                  "const": "ordin.action_envelope.v1"
+                },
+                "action_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "kind": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "operation": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "parameters": {
+                  "type": "object",
+                  "maxProperties": 128,
+                  "additionalProperties": true
+                },
+                "intent": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "context": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "cwd": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "shell": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "euid": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "interactive": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "repo_root": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "agent": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 2,
+          "required": [
+            "lease",
+            "event"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "event": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "$id": "https://latentops.dev/schemas/ordin/swarm-event.v1.schema.json",
+              "title": "Ordin Swarm Event v1",
+              "description": "Redacted event data; a hash or evidence label does not authenticate a sender.",
+              "$comment": "Runtime validation also rejects cross-scope/self parent references, requires the review ID among parents, and caps canonical UTF-8 JSON at 65536 bytes. Trusted ingestion separately verifies sender, current identity and receipt authority.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schema_version",
+                "event_id",
+                "event_kind",
+                "registry_id",
+                "identity",
+                "source_id",
+                "source_sequence",
+                "timestamp",
+                "evidence_class",
+                "confidence",
+                "action_id",
+                "action_digest",
+                "review_event_id",
+                "parent_event_ids",
+                "resource_digests",
+                "observation_digest",
+                "observed_outcome"
+              ],
+              "properties": {
+                "schema_version": {
+                  "const": "ordin.swarm_event.v1"
+                },
+                "event_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                },
+                "event_kind": {
+                  "enum": [
+                    "artifact_read",
+                    "artifact_write",
+                    "canceled",
+                    "committed",
+                    "completed",
+                    "delegated",
+                    "denied",
+                    "failed",
+                    "forwarded",
+                    "message_received",
+                    "message_sent",
+                    "observed",
+                    "proposed",
+                    "reserved",
+                    "reviewed",
+                    "revoked"
+                  ]
+                },
+                "registry_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                },
+                "identity": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "tenant_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "swarm_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "agent_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "runtime_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "session_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "generation": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9223372036854775807
+                    },
+                    "policy_epoch": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9223372036854775807
+                    },
+                    "parent_agent_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "task_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "delegation_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "parent_generation": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 1,
+                      "maximum": 9223372036854775807
+                    }
+                  },
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "parent_agent_id": {
+                          "type": "null"
+                        },
+                        "parent_generation": {
+                          "type": "null"
+                        },
+                        "delegation_id": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    {
+                      "properties": {
+                        "parent_agent_id": {
+                          "type": "string"
+                        },
+                        "parent_generation": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
+                    }
+                  ],
+                  "required": [
+                    "tenant_id",
+                    "swarm_id",
+                    "agent_id",
+                    "runtime_id",
+                    "session_id",
+                    "generation",
+                    "policy_epoch",
+                    "parent_agent_id",
+                    "task_id",
+                    "delegation_id",
+                    "parent_generation"
+                  ]
+                },
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                },
+                "source_sequence": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "timestamp": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1e+18
+                },
+                "evidence_class": {
+                  "enum": [
+                    "caller_asserted",
+                    "host_authenticated",
+                    "backend_observed",
+                    "backend_enforced"
+                  ]
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "action_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[^\\x00-\\x1f]+(?![\\s\\S])"
+                },
+                "action_digest": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 64,
+                  "maxLength": 64,
+                  "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                },
+                "review_event_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                },
+                "parent_event_ids": {
+                  "type": "array",
+                  "maxItems": 8,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "tenant_id",
+                      "swarm_id",
+                      "event_id"
+                    ],
+                    "properties": {
+                      "tenant_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                      },
+                      "swarm_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                      },
+                      "event_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                      }
+                    }
+                  }
+                },
+                "resource_digests": {
+                  "type": "array",
+                  "maxItems": 64,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 64,
+                    "maxLength": 64,
+                    "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                  }
+                },
+                "observation_digest": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 64,
+                  "maxLength": 64,
+                  "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                },
+                "observed_outcome": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    null,
+                    "allowed",
+                    "denied",
+                    "failed",
+                    "completed",
+                    "unknown"
+                  ]
+                }
+              },
+              "oneOf": [
+                {
+                  "properties": {
+                    "event_kind": {
+                      "enum": [
+                        "canceled",
+                        "committed",
+                        "completed",
+                        "denied",
+                        "failed",
+                        "forwarded",
+                        "observed",
+                        "reserved"
+                      ]
+                    },
+                    "action_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[^\\x00-\\x1f]+(?![\\s\\S])"
+                    },
+                    "action_digest": {
+                      "type": "string",
+                      "minLength": 64,
+                      "maxLength": 64,
+                      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                    },
+                    "review_event_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "parent_event_ids": {
+                      "minItems": 1
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "event_kind": {
+                      "enum": [
+                        "proposed",
+                        "reviewed"
+                      ]
+                    },
+                    "action_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[^\\x00-\\x1f]+(?![\\s\\S])"
+                    },
+                    "action_digest": {
+                      "type": "string",
+                      "minLength": 64,
+                      "maxLength": 64,
+                      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                    },
+                    "review_event_id": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "event_kind": {
+                      "enum": [
+                        "artifact_read",
+                        "artifact_write",
+                        "delegated",
+                        "message_received",
+                        "message_sent",
+                        "revoked"
+                      ]
+                    },
+                    "review_event_id": {
+                      "type": "null"
+                    }
+                  },
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "action_id": {
+                          "type": "null"
+                        },
+                        "action_digest": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    {
+                      "properties": {
+                        "action_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128,
+                          "pattern": "^[^\\x00-\\x1f]+(?![\\s\\S])"
+                        },
+                        "action_digest": {
+                          "type": "string",
+                          "minLength": 64,
+                          "maxLength": 64,
+                          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "anyOf": [
+                {
+                  "properties": {
+                    "evidence_class": {
+                      "enum": [
+                        "backend_observed",
+                        "backend_enforced"
+                      ]
+                    },
+                    "event_kind": {
+                      "const": "observed"
+                    },
+                    "observation_digest": {
+                      "type": "string",
+                      "minLength": 64,
+                      "maxLength": 64,
+                      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                    },
+                    "observed_outcome": {
+                      "type": "string"
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "evidence_class": {
+                      "enum": [
+                        "caller_asserted",
+                        "host_authenticated"
+                      ]
+                    },
+                    "observation_digest": {
+                      "type": "null"
+                    },
+                    "observed_outcome": {
+                      "type": "null"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 1,
+          "required": [
+            "lease"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 0,
+          "required": [],
+          "properties": {}
+        }
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "operation": {
+          "const": "admit"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 0,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "renew"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 0,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "policy"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 1,
+          "required": [
+            "lease"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "producer"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 1,
+          "required": [
+            "lease"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "status"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 1,
+          "required": [
+            "lease"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "budget"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 1,
+          "required": [
+            "lease"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "revoke_lease"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 1,
+          "required": [
+            "lease"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "bind_grant"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 2,
+          "required": [
+            "lease",
+            "grant"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "grant": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "evaluate"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 4,
+          "required": [
+            "lease",
+            "grant",
+            "action",
+            "idempotency_key"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "grant": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "action": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "$id": "https://latentops.dev/schemas/ordin/action-envelope.v1.schema.json",
+              "title": "Ordin Action Envelope v1",
+              "type": "object",
+              "required": [
+                "schema_version",
+                "action_id",
+                "kind",
+                "operation",
+                "parameters",
+                "intent",
+                "context"
+              ],
+              "properties": {
+                "schema_version": {
+                  "const": "ordin.action_envelope.v1"
+                },
+                "action_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "kind": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "operation": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "parameters": {
+                  "type": "object",
+                  "maxProperties": 128,
+                  "additionalProperties": true
+                },
+                "intent": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "context": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "cwd": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "shell": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "euid": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "interactive": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "repo_root": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "agent": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "reserve"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 4,
+          "required": [
+            "lease",
+            "evaluation",
+            "action",
+            "idempotency_key"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "evaluation": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "action": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "$id": "https://latentops.dev/schemas/ordin/action-envelope.v1.schema.json",
+              "title": "Ordin Action Envelope v1",
+              "type": "object",
+              "required": [
+                "schema_version",
+                "action_id",
+                "kind",
+                "operation",
+                "parameters",
+                "intent",
+                "context"
+              ],
+              "properties": {
+                "schema_version": {
+                  "const": "ordin.action_envelope.v1"
+                },
+                "action_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "kind": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "operation": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[a-z][a-z0-9_.-]*$"
+                },
+                "parameters": {
+                  "type": "object",
+                  "maxProperties": 128,
+                  "additionalProperties": true
+                },
+                "intent": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "context": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "cwd": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "shell": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "euid": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0
+                    },
+                    "interactive": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "repo_root": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "agent": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "idempotency_key": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "cancel"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 2,
+          "required": [
+            "lease",
+            "reservation"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "reservation": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "event"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 2,
+          "required": [
+            "lease",
+            "event"
+          ],
+          "properties": {
+            "lease": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "event": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "$id": "https://latentops.dev/schemas/ordin/swarm-event.v1.schema.json",
+              "title": "Ordin Swarm Event v1",
+              "description": "Redacted event data; a hash or evidence label does not authenticate a sender.",
+              "$comment": "Runtime validation also rejects cross-scope/self parent references, requires the review ID among parents, and caps canonical UTF-8 JSON at 65536 bytes. Trusted ingestion separately verifies sender, current identity and receipt authority.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "schema_version",
+                "event_id",
+                "event_kind",
+                "registry_id",
+                "identity",
+                "source_id",
+                "source_sequence",
+                "timestamp",
+                "evidence_class",
+                "confidence",
+                "action_id",
+                "action_digest",
+                "review_event_id",
+                "parent_event_ids",
+                "resource_digests",
+                "observation_digest",
+                "observed_outcome"
+              ],
+              "properties": {
+                "schema_version": {
+                  "const": "ordin.swarm_event.v1"
+                },
+                "event_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                },
+                "event_kind": {
+                  "enum": [
+                    "artifact_read",
+                    "artifact_write",
+                    "canceled",
+                    "committed",
+                    "completed",
+                    "delegated",
+                    "denied",
+                    "failed",
+                    "forwarded",
+                    "message_received",
+                    "message_sent",
+                    "observed",
+                    "proposed",
+                    "reserved",
+                    "reviewed",
+                    "revoked"
+                  ]
+                },
+                "registry_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                },
+                "identity": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "tenant_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "swarm_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "agent_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "runtime_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "session_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "generation": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9223372036854775807
+                    },
+                    "policy_epoch": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9223372036854775807
+                    },
+                    "parent_agent_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "task_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "delegation_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "parent_generation": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 1,
+                      "maximum": 9223372036854775807
+                    }
+                  },
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "parent_agent_id": {
+                          "type": "null"
+                        },
+                        "parent_generation": {
+                          "type": "null"
+                        },
+                        "delegation_id": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    {
+                      "properties": {
+                        "parent_agent_id": {
+                          "type": "string"
+                        },
+                        "parent_generation": {
+                          "type": "integer",
+                          "minimum": 1
+                        }
+                      }
+                    }
+                  ],
+                  "required": [
+                    "tenant_id",
+                    "swarm_id",
+                    "agent_id",
+                    "runtime_id",
+                    "session_id",
+                    "generation",
+                    "policy_epoch",
+                    "parent_agent_id",
+                    "task_id",
+                    "delegation_id",
+                    "parent_generation"
+                  ]
+                },
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                },
+                "source_sequence": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9223372036854775807
+                },
+                "timestamp": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1e+18
+                },
+                "evidence_class": {
+                  "enum": [
+                    "caller_asserted",
+                    "host_authenticated",
+                    "backend_observed",
+                    "backend_enforced"
+                  ]
+                },
+                "confidence": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "action_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[^\\x00-\\x1f]+(?![\\s\\S])"
+                },
+                "action_digest": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 64,
+                  "maxLength": 64,
+                  "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                },
+                "review_event_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                },
+                "parent_event_ids": {
+                  "type": "array",
+                  "maxItems": 8,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "tenant_id",
+                      "swarm_id",
+                      "event_id"
+                    ],
+                    "properties": {
+                      "tenant_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                      },
+                      "swarm_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                      },
+                      "event_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                      }
+                    }
+                  }
+                },
+                "resource_digests": {
+                  "type": "array",
+                  "maxItems": 64,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "minLength": 64,
+                    "maxLength": 64,
+                    "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                  }
+                },
+                "observation_digest": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 64,
+                  "maxLength": 64,
+                  "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                },
+                "observed_outcome": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    null,
+                    "allowed",
+                    "denied",
+                    "failed",
+                    "completed",
+                    "unknown"
+                  ]
+                }
+              },
+              "oneOf": [
+                {
+                  "properties": {
+                    "event_kind": {
+                      "enum": [
+                        "canceled",
+                        "committed",
+                        "completed",
+                        "denied",
+                        "failed",
+                        "forwarded",
+                        "observed",
+                        "reserved"
+                      ]
+                    },
+                    "action_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[^\\x00-\\x1f]+(?![\\s\\S])"
+                    },
+                    "action_digest": {
+                      "type": "string",
+                      "minLength": 64,
+                      "maxLength": 64,
+                      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                    },
+                    "review_event_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:@-]{0,127}(?![\\s\\S])"
+                    },
+                    "parent_event_ids": {
+                      "minItems": 1
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "event_kind": {
+                      "enum": [
+                        "proposed",
+                        "reviewed"
+                      ]
+                    },
+                    "action_id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128,
+                      "pattern": "^[^\\x00-\\x1f]+(?![\\s\\S])"
+                    },
+                    "action_digest": {
+                      "type": "string",
+                      "minLength": 64,
+                      "maxLength": 64,
+                      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                    },
+                    "review_event_id": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "event_kind": {
+                      "enum": [
+                        "artifact_read",
+                        "artifact_write",
+                        "delegated",
+                        "message_received",
+                        "message_sent",
+                        "revoked"
+                      ]
+                    },
+                    "review_event_id": {
+                      "type": "null"
+                    }
+                  },
+                  "oneOf": [
+                    {
+                      "properties": {
+                        "action_id": {
+                          "type": "null"
+                        },
+                        "action_digest": {
+                          "type": "null"
+                        }
+                      }
+                    },
+                    {
+                      "properties": {
+                        "action_id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128,
+                          "pattern": "^[^\\x00-\\x1f]+(?![\\s\\S])"
+                        },
+                        "action_digest": {
+                          "type": "string",
+                          "minLength": 64,
+                          "maxLength": 64,
+                          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "anyOf": [
+                {
+                  "properties": {
+                    "evidence_class": {
+                      "enum": [
+                        "backend_observed",
+                        "backend_enforced"
+                      ]
+                    },
+                    "event_kind": {
+                      "const": "observed"
+                    },
+                    "observation_digest": {
+                      "type": "string",
+                      "minLength": 64,
+                      "maxLength": 64,
+                      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                    },
+                    "observed_outcome": {
+                      "type": "string"
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "evidence_class": {
+                      "enum": [
+                        "caller_asserted",
+                        "host_authenticated"
+                      ]
+                    },
+                    "observation_digest": {
+                      "type": "null"
+                    },
+                    "observed_outcome": {
+                      "type": "null"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "forward"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 1,
+          "required": [
+            "reservation"
+          ],
+          "properties": {
+            "reservation": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "commit"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 1,
+          "required": [
+            "reservation"
+          ],
+          "properties": {
+            "reservation": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "uncertain"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 1,
+          "required": [
+            "reservation"
+          ],
+          "properties": {
+            "reservation": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "operation": {
+          "const": "dispatch"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": false,
+          "maxProperties": 1,
+          "required": [
+            "reservation"
+          ],
+          "properties": {
+            "reservation": {
+              "type": "string",
+              "minLength": 64,
+              "maxLength": 64,
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

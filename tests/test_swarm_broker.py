@@ -35,8 +35,17 @@ from tests.test_swarm_linux_executor import supported
 
 
 @contextmanager
-def fixture(tmp_path, *, global_policy=None, mediated=True, physical=False, metric="output_bytes"):
+def fixture(
+    tmp_path,
+    *,
+    global_policy=None,
+    mediated=True,
+    physical=False,
+    metric="output_bytes",
+    shared_clock=None,
+):
     clock = [100]
+    clock_fn = shared_clock or (lambda: clock[0])
     operator = object()
     workspace = (tmp_path / "workspace").resolve()
     workspace.mkdir(mode=0o700)
@@ -81,11 +90,11 @@ def fixture(tmp_path, *, global_policy=None, mediated=True, physical=False, metr
             tools=(ToolCapability("fixture", None, "read_file"),),
         )
     )
-    issuer = DelegationIssuer(sources["parent"], profile, rights, rights, clock=lambda: clock[0])
-    root = issuer.authorize_root(rights, grant_id="root", expires_at=200)
-    registry = InMemoryAgentRegistry("tenant", "swarm", clock=lambda: clock[0])
+    issuer = DelegationIssuer(sources["parent"], profile, rights, rights, clock=clock_fn)
+    root = issuer.authorize_root(rights, grant_id="root", expires_at=clock_fn() + 100)
+    registry = InMemoryAgentRegistry("tenant", "swarm", clock=clock_fn)
     tls = server_context()
-    auth = WorkloadAuthenticator(registry, tls, operator=operator, clock=lambda: clock[0])
+    auth = WorkloadAuthenticator(registry, tls, operator=operator, clock=clock_fn)
     assurance = AssuranceGate(AgentGate(core), profile)
     service = SwarmDelegationService(issuer, assurance, auth, operator=operator)
     contexts, rchannels, adapters, enrollments, channels, sockets = {}, {}, {}, {}, {}, {}
@@ -148,7 +157,7 @@ def fixture(tmp_path, *, global_policy=None, mediated=True, physical=False, metr
                 require_physical_enforcement=physical,
             ),
             store=InMemoryBudgetStore(),
-            clock=lambda: clock[0],
+            clock=clock_fn,
             operator=operator,
         )
         gate = SwarmGate(registry, assurance, policy=global_policy)

@@ -211,7 +211,7 @@ def test_serialized_factory_identifier_is_not_original_even_when_all_fields_matc
 
 
 @contextmanager
-def current_policy_broker(data, selected):
+def current_policy_broker(data, selected, *, shared_clock=None):
     """Activate, then actually re-enroll fresh epoch sources over real TLS channels."""
     from ordin.assurance import DelegationIssuer
     from ordin.swarm.delegation import SwarmDelegationService
@@ -220,6 +220,7 @@ def current_policy_broker(data, selected):
 
     old_broker, old_service, old_budget, backend = data[:4]
     clock, operator, rights, registry = data[10], data[11], data[12], data[14]
+    clock_fn = shared_clock or (lambda: clock[0])
     old_enrollments = {
         row.context.identity.agent_id: row
         for row in old_service.authenticator._enrollments.values()
@@ -236,7 +237,7 @@ def current_policy_broker(data, selected):
         registry,
         maximum,
         operator=operator,
-        clock=lambda: clock[0],
+        clock=clock_fn,
         budget_ledger=old_budget,
         delegation_service=old_service,
         delegation_operator=operator,
@@ -258,11 +259,11 @@ def current_policy_broker(data, selected):
         )
         sources[name] = replace(row.source, epoch=1)
     issuer = DelegationIssuer(
-        sources["parent"], old_service.issuer.profile, rights, rights, clock=lambda: clock[0]
+        sources["parent"], old_service.issuer.profile, rights, rights, clock=clock_fn
     )
-    root = issuer.authorize_root(rights, grant_id="fresh-root", expires_at=200)
+    root = issuer.authorize_root(rights, grant_id="fresh-root", expires_at=clock_fn() + 100)
     tls = server_context()
-    auth = WorkloadAuthenticator(registry, tls, operator=operator, clock=lambda: clock[0])
+    auth = WorkloadAuthenticator(registry, tls, operator=operator, clock=clock_fn)
     service = SwarmDelegationService(issuer, old_service.assurance, auth, operator=operator)
     with ExitStack() as stack:
         enrollments, sockets = {}, {}
