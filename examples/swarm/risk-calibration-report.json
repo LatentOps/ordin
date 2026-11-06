@@ -1,9 +1,9 @@
 {
   "report": {
     "schema_version": "ordin.swarm_risk_calibration.v1",
-    "report_id": "ef91c25a67044b8cafff4990071c5d8c",
-    "provider_binding": "fcf99a36ba9fe989761ced6d131cf4c1240aa369fe3fa7c5e0d0dfaa8df84355",
-    "dataset_digest": "620af194242306c71266d93b9e660bcc1f4b20c168005cc51bc8bdad3c921b84",
+    "report_id": "7873249370324706a2704c6c7d711625",
+    "provider_binding": "858c3cf018767421cca8dbf6282ac17448ecb57a178b4bbab9e8289adedc2df6",
+    "dataset_digest": "e801de5600b74b1088aed072e82915056f3408c772c5fcded96bdaae551bb87a",
     "dataset_digest_kind": "private_scorer_hmac",
     "cases": 16,
     "true_positive": 6,
@@ -14,8 +14,8 @@
     "failures": 0,
     "false_positive_rate": 0.25,
     "false_negative_rate": 0.25,
-    "mean_elapsed_ms": 0.5619918750019437,
-    "maximum_elapsed_ms": 1.1021290000030604,
+    "mean_elapsed_ms": 8.376368749850371,
+    "maximum_elapsed_ms": 51.30259999714326,
     "confidence_brier_score": 0.23,
     "mean_uncertainty": 0.45,
     "class_confusion": [
@@ -82,13 +82,13 @@
     "execution_authority": false
   },
   "provider_id": "local-fixed-rules-v1",
-  "python": "3.12.3",
-  "platform": "Linux",
+  "python": "3.13.12",
+  "platform": "Windows",
   "authorization_suite_included": false,
   "promotion_configured": false,
   "performance": {
-    "calibration_method_wall_ms": 18.842418,
-    "per_case_method_wall_ms": 1.177651125,
+    "calibration_method_wall_ms": 209.7712,
+    "per_case_method_wall_ms": 13.1107,
     "scope": "validation_capture_worker_scheduling_and_reporting",
     "file_read_provider_setup_and_network_included": false,
     "active_workers_after": 0,
@@ -98,7 +98,7 @@
   "provenance": {
     "provider_scope": "packaged_local_rules_only",
     "source_module": "ordin.swarm.risk_signals",
-    "source_file_sha256": "071737233f283ddeec0d9f979ce8c905230bf4fba9df80a44d83e3650fb0dfb5",
+    "source_file_sha256": "8a0df279c5c2c5840640ae47c663b6914ef2f96c646a74fa140952a0101cee10",
     "explicit_synthetic_corpus_file_sha256": "aefaa11238c177cf9df975f68ca93cd3a36f9ac82eb421d4fe3e46d89e6a353e",
     "runtime_dataset_digest": "private_scorer_hmac",
     "calibration_relationship": "caller_declared_synthetic_held_out_cases_not_training_attestation",

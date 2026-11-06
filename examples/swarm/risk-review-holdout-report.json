@@ -1,9 +1,9 @@
 {
   "report": {
     "schema_version": "ordin.swarm_risk_calibration.v1",
-    "report_id": "adfd3c5c6eba4c5097cddc7f9d3339c0",
-    "provider_binding": "b07b1ac7e25432faf29d8bf1999f8796cd8c9d2442186b4620c070d028e7b323",
-    "dataset_digest": "f724d5e39bb6e79e68c1974b42873a0a8685d2e764f06a2897afe870de9802ab",
+    "report_id": "706ba28bdba048109bd34775e2148d55",
+    "provider_binding": "a697c058428c47f2d7ed6e2d53234afa8faca078f0c1284924f218fd756d606f",
+    "dataset_digest": "34bb54002e2eda9175180476ab843f43d3f2bcc3d7dd05c7a675f73b53e5b646",
     "dataset_digest_kind": "private_scorer_hmac",
     "cases": 16,
     "true_positive": 6,
@@ -14,8 +14,8 @@
     "failures": 0,
     "false_positive_rate": 0.375,
     "false_negative_rate": 0.25,
-    "mean_elapsed_ms": 0.9275195000011394,
-    "maximum_elapsed_ms": 1.6553020000031893,
+    "mean_elapsed_ms": 1.4453124977080734,
+    "maximum_elapsed_ms": 3.771699994103983,
     "confidence_brier_score": 0.236875,
     "mean_uncertainty": 0.44375000000000003,
     "class_confusion": [
@@ -87,13 +87,13 @@
     "execution_authority": false
   },
   "provider_id": "local-fixed-rules-v1",
-  "python": "3.12.3",
-  "platform": "Linux",
+  "python": "3.13.12",
+  "platform": "Windows",
   "authorization_suite_included": false,
   "promotion_configured": false,
   "performance": {
-    "calibration_method_wall_ms": 31.587772,
-    "per_case_method_wall_ms": 1.97423575,
+    "calibration_method_wall_ms": 53.4673,
+    "per_case_method_wall_ms": 3.34170625,
     "scope": "validation_capture_worker_scheduling_and_reporting",
     "file_read_provider_setup_and_network_included": false,
     "active_workers_after": 0,
@@ -103,7 +103,7 @@
   "provenance": {
     "provider_scope": "packaged_local_rules_only",
     "source_module": "ordin.swarm.risk_signals",
-    "source_file_sha256": "071737233f283ddeec0d9f979ce8c905230bf4fba9df80a44d83e3650fb0dfb5",
+    "source_file_sha256": "8a0df279c5c2c5840640ae47c663b6914ef2f96c646a74fa140952a0101cee10",
     "explicit_synthetic_corpus_file_sha256": "2aeb66c01f2c5f7a50ad253bd6819e3f4968fda1a2d642ef0ba0af6662a8e7c6",
     "runtime_dataset_digest": "private_scorer_hmac",
     "calibration_relationship": "caller_declared_synthetic_held_out_cases_not_training_attestation",
