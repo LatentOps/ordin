@@ -1,6 +1,16 @@
 """Optional host integration entry points; import starts no transports."""
 
 from .mcp_adapter import SwarmMCPAdapter
+from .containment import (
+    IncidentPolicy,
+    IncidentRule,
+    IncidentScope,
+    IncidentSignal,
+    IncidentSignalSource,
+    IncidentReceipt,
+    IncidentResumeReceipt,
+    SwarmContainmentController,
+)
 from .coordinator import SwarmCoordinator, CoordinatorClock, CoordinatorEndpoint, CoordinatorClient
 from .store_postgres import PostgresCoordinatorStore
 from .store_sqlite import SQLiteCoordinatorStore
@@ -38,6 +48,14 @@ __all__ = [
     "WorkspaceArtifactAdapter",
     "SharedMemoryAdapter",
     "VectorPointArtifactAdapter",
+    "IncidentPolicy",
+    "IncidentRule",
+    "IncidentScope",
+    "IncidentSignal",
+    "IncidentSignalSource",
+    "IncidentReceipt",
+    "IncidentResumeReceipt",
+    "SwarmContainmentController",
     "SwarmCoordinator",
     "CoordinatorClock",
     "CoordinatorEndpoint",

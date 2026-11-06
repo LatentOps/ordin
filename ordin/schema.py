@@ -29,6 +29,7 @@ KNOWN_TEMPLATE_FIELDS = {
 SCHEMA_FILES = {
     "swarm_artifact": "swarm-artifact.v1.schema.json",
     "swarm_artifact_diagnostics": "swarm-artifact-diagnostics.v1.schema.json",
+    "swarm_incident": "swarm-incident.v1.schema.json",
     "swarm_coordinator_record": "swarm-coordinator-record.v1.schema.json",
     "swarm_coordinator_fence": "swarm-coordinator-fence.v1.schema.json",
     "swarm_coordinator_dispatch": "swarm-coordinator-dispatch.v1.schema.json",

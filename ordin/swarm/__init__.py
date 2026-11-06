@@ -1,6 +1,16 @@
 """Explicit, local host enrollment. Importing this package starts no services."""
 
 from .identity import HostChannel
+from .incident import (
+    IncidentPolicy,
+    IncidentRule,
+    IncidentScope,
+    IncidentSignal,
+    IncidentSignalSource,
+    IncidentReceipt,
+    IncidentResumeReceipt,
+    SwarmContainmentController,
+)
 from .coordinator import (
     SwarmCoordinator,
     CoordinatorBudgetView,
@@ -173,6 +183,14 @@ __all__ = [
     "SwarmTemporalRule",
     "default_swarm_temporal_policy",
     "load_swarm_temporal_policy",
+    "IncidentPolicy",
+    "IncidentRule",
+    "IncidentScope",
+    "IncidentSignal",
+    "IncidentSignalSource",
+    "IncidentReceipt",
+    "IncidentResumeReceipt",
+    "SwarmContainmentController",
     "SwarmCoordinator",
     "CoordinatorBudgetView",
     "CoordinatorControlSource",
