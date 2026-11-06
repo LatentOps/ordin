@@ -17,7 +17,7 @@ from packaging.version import Version
 
 ROOTS = {
     "langgraph": ("langgraph==1.2.20", "langgraph-prebuilt==1.1.1", "langchain-core==1.7.6"),
-    "autogen": ("autogen-core==0.7.5",),
+    "autogen": ("autogen-core==0.7.5", "protobuf~=5.29.3"),
 }
 
 
