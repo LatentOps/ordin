@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import math
-from ._catalog_snapshot import snapshot_review, _current as _catalog_snapshot_current
+from ._catalog_snapshot import snapshot_review, prediction_reuse_allowed
 import json
 from ._rest_semantics import RestSemantics, prepare_rest
 from dataclasses import dataclass, field, replace
@@ -828,10 +828,14 @@ def _temporal_evidence_for_action(
                 command,
                 json.dumps(action.context.as_dict() if action.context else None, sort_keys=True),
             )
-            evidence = command_evidence.get(key) if command_evidence is not None else None
+            evidence = (
+                command_evidence.get(key)
+                if command_evidence is not None and prediction_reuse_allowed()
+                else None
+            )
             if evidence is None:
                 evidence = temporal_evidence_for_command(command, context=action.context)
-                if command_evidence is not None:
+                if command_evidence is not None and prediction_reuse_allowed():
                     command_evidence[key] = evidence
             signals = set(evidence.signals)
         else:
@@ -987,12 +991,13 @@ def review_action(
         raise ValueError("temporal_policy must be a temporal policy set, compiled policy, or null")
 
     # Repeated shell/context pairs have identical predicted temporal evidence
-    # within this one synchronous catalog snapshot. Keep immutable predictions
+    # within this one fully tracked synchronous catalog snapshot. Keep immutable predictions
     # only; join each action's observations separately below. This dictionary
-    # never survives the review, and the outer snapshot still verifies every
+    # never survives the review. Any catalog tracking limit disables reuse for
+    # the rest of the review; the outer snapshot still verifies every retained
     # catalog byte, selection and configuration before publishing the result.
     command_evidence: dict[tuple[str, str], TemporalActionEvidence] | None = (
-        {} if _catalog_snapshot_current() is not None else None
+        {} if prediction_reuse_allowed() else None
     )
     prior = tuple(
         _temporal_evidence_for_action(
