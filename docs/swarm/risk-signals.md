@@ -118,6 +118,8 @@ Every new capture for the same action/context invalidates its previous receipt,
 including a new timeout or exhausted-budget capture. Cached benign inference
 cannot silently stand in for newly captured suspicious input. Traffic that the
 protected collector never captures remains outside this guarantee.
+If the job history is full, a rejected capture also invalidates the previous
+receipt for that action/context without allocating another job or worker.
 
 Provider identifiers are host-declared labels. Arbitrary external provider code,
 weights, network behavior and billing are not attested by this optional module.

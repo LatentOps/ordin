@@ -649,12 +649,17 @@ class SwarmRiskScorer:
         with self._condition:
             self._configuration()
             self._now()
+            action_digest = digest(action.as_dict())
             if len(self._jobs) >= self._job_limit:
+                # A rejected fresh capture must not leave an older benign
+                # inference current for this action. Dropping the existing
+                # index needs no extra history capacity or worker admission.
+                self._latest.pop((context_digest, action_digest), None)
                 raise ValueError("risk bounded job history capacity reached")
             ticket = SwarmRiskTicket(uuid4().hex)
             job = _Job(
                 context_digest,
-                digest(action.as_dict()),
+                action_digest,
                 redacted,
                 budget,
                 time.monotonic(),
