@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-coordinator-response.v1.schema.json",
+  "title": "swarm_coordinator_response",
+  "description": "Bounded data-only optional coordinator metadata. JSON never authenticates a producer or restores live authority.",
+  "$comment": "Transport canonical JSON is bounded to 65536 UTF-8 bytes, depth 32. Durable projections are bounded to 8MiB and never restore original grants/receipts. Runtime checks enforce exact channel, lease, epoch and scope bindings.",
+  "type": "object",
+  "additionalProperties": false,
+  "maxProperties": 5,
+  "required": [
+    "schema_version",
+    "status",
+    "result",
+    "reason_code",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_coordinator_response.v1"
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "denied"
+      ]
+    },
+    "result": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "maxProperties": 64
+        }
+      ]
+    },
+    "reason_code": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

@@ -1,6 +1,23 @@
 """Explicit, local host enrollment. Importing this package starts no services."""
 
 from .identity import HostChannel
+from .coordinator import (
+    SwarmCoordinator,
+    CoordinatorBudgetView,
+    CoordinatorControlSource,
+    CoordinatorScope,
+    CoordinatorFenceReceipt,
+    CoordinatorRecord,
+    CoordinatorDispatch,
+)
+from .coordinator_store import (
+    CoordinatorClock,
+    CoordinatorRejected,
+    CoordinatorUnavailable,
+    SQLiteCoordinatorStore,
+    PostgresCoordinatorStore,
+)
+from .coordinator_rpc import CoordinatorEndpoint, CoordinatorClient
 from .models import CoverageEntry, CoverageManifest, SwarmContext, SwarmIdentity
 from .registry import AgentRegistry, InMemoryAgentRegistry
 from .events import EventRef, SwarmEvent
@@ -156,6 +173,20 @@ __all__ = [
     "SwarmTemporalRule",
     "default_swarm_temporal_policy",
     "load_swarm_temporal_policy",
+    "SwarmCoordinator",
+    "CoordinatorBudgetView",
+    "CoordinatorControlSource",
+    "CoordinatorScope",
+    "CoordinatorFenceReceipt",
+    "CoordinatorRecord",
+    "CoordinatorDispatch",
+    "CoordinatorClock",
+    "CoordinatorRejected",
+    "CoordinatorUnavailable",
+    "SQLiteCoordinatorStore",
+    "PostgresCoordinatorStore",
+    "CoordinatorEndpoint",
+    "CoordinatorClient",
     "SwarmExecutionBroker",
     "BrokerActivationProof",
     "BrokerAuthorization",

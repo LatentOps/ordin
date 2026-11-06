@@ -267,6 +267,54 @@ class _Bucket:
         return min(v.maximum for v in self.limits)
 
 
+def _select_budget_buckets(
+    policy: BudgetPolicy, context: SwarmContext, scopes: dict[str, tuple[str, ...]]
+) -> list[_Bucket]:
+    """Shared pure selector used by local and durable coordinator accounting."""
+    result: dict[str, list[BudgetLimit]] = {}
+    for limit in policy.limits:
+        if limit.scope == "task" and not scopes["task"]:
+            raise BudgetError("budget.missing_task_identity")
+        for subject in scopes[limit.scope]:
+            if limit.subject is not None and limit.subject != subject:
+                continue
+            identity = context.identity
+            parts = ["ordin.swarm.budget.bucket.v1", limit.scope, limit.metric, identity.tenant_id]
+            if limit.scope != "tenant":
+                parts.append(identity.swarm_id)
+            if limit.scope in {"agent", "task"}:
+                parts.append(subject)
+            result.setdefault(digest(parts), []).append(limit)
+    if not result or len(result) > 128:
+        raise BudgetError("budget.missing_or_oversized_scope")
+    return [_Bucket(key, tuple(limits)) for key, limits in result.items()]
+
+
+def _resolve_budget_costs(
+    buckets: list[_Bucket], costs: tuple[BudgetCost, ...], effects: tuple[str, ...]
+) -> tuple[dict[str, int | None], dict[str, int | None]]:
+    """Resolve unknown bounds once; never treat omitted cost as zero."""
+    values = _costs(costs)
+    for metric in ("requests", "concurrency"):
+        value = values.get(metric)
+        values[metric] = 1 if value is None else max(1, value)
+    resolved = dict(values)
+    for metric in {bucket.limits[0].metric for bucket in buckets}:
+        if resolved.get(metric) is None:
+            selected_limits = [
+                limit for bucket in buckets for limit in bucket.limits if limit.metric == metric
+            ]
+            if any(
+                limit.unknown_ceiling is None
+                or limit.unknown_effects
+                and not set(limit.unknown_effects).intersection(effects)
+                for limit in selected_limits
+            ):
+                raise BudgetError("budget.unknown_cost")
+            resolved[metric] = max(limit.unknown_ceiling or 0 for limit in selected_limits)
+    return values, resolved
+
+
 class BudgetLedger:
     def __init__(
         self,
@@ -405,28 +453,7 @@ class BudgetLedger:
             }
 
     def _buckets(self, context: SwarmContext, scopes: dict[str, tuple[str, ...]]) -> list[_Bucket]:
-        result: dict[str, list[BudgetLimit]] = {}
-        for limit in self.policy.limits:
-            if limit.scope == "task" and not scopes["task"]:
-                raise BudgetError("budget.missing_task_identity")
-            for subject in scopes[limit.scope]:
-                if limit.subject is not None and limit.subject != subject:
-                    continue
-                identity = context.identity
-                parts = [
-                    "ordin.swarm.budget.bucket.v1",
-                    limit.scope,
-                    limit.metric,
-                    identity.tenant_id,
-                ]
-                if limit.scope != "tenant":
-                    parts.append(identity.swarm_id)
-                if limit.scope in {"agent", "task"}:
-                    parts.append(subject)
-                result.setdefault(digest(parts), []).append(limit)
-        if not result or len(result) > 128:
-            raise BudgetError("budget.missing_or_oversized_scope")
-        return [_Bucket(key, tuple(limits)) for key, limits in result.items()]
+        return _select_budget_buckets(self.policy, context, scopes)
 
     @staticmethod
     def _release(connection: sqlite3.Connection, reservation_id: str, status: str) -> None:
@@ -486,28 +513,9 @@ class BudgetLedger:
             raise ValueError("bounded protected action effects required")
         for effect in effects:
             identifier(effect, "effect")
-        values = _costs(costs)
-        # A reservation always covers at least one possible forwarding call.
-        # These local counts cannot be reduced by provider/model cost fields.
-        for metric in ("requests", "concurrency"):
-            value = values.get(metric)
-            values[metric] = 1 if value is None else max(1, value)
         scopes = self._scopes(context, channel, adapter)
         buckets = self._buckets(context, scopes)
-        resolved = dict(values)
-        for metric in {bucket.limits[0].metric for bucket in buckets}:
-            if resolved.get(metric) is None:
-                selected_limits = [
-                    limit for bucket in buckets for limit in bucket.limits if limit.metric == metric
-                ]
-                if any(
-                    limit.unknown_ceiling is None
-                    or limit.unknown_effects
-                    and not set(limit.unknown_effects).intersection(effects)
-                    for limit in selected_limits
-                ):
-                    raise BudgetError("budget.unknown_cost")
-                resolved[metric] = max(limit.unknown_ceiling or 0 for limit in selected_limits)
+        values, resolved = _resolve_budget_costs(buckets, costs, effects)
         physical_costs = tuple(
             BudgetCost(metric, resolved[metric])
             for metric in sorted({bucket.limits[0].metric for bucket in buckets})

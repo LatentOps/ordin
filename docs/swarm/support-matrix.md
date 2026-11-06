@@ -30,6 +30,7 @@ it must never silently become observe-only while retaining an enforcement label.
 
 | Runtime/integration | Current supported boundary | Planned opt-in swarm work and limitations |
 | --- | --- | --- |
+| [Durable coordinator](coordinator.md) | Optional PostgreSQL authority, actual mTLS scoped clients, atomic shared accounting, DB leases/fences, redacted causal checkpoints and conservative restart/recovery | SQLite is single-host/dev; no offline permits, active-active consensus, JSON restoration, physical billing cap or unmediated-path coverage |
 | [Local identity registry](identity.md) | Host-bound identity, heartbeat/lifecycle, bounded manifests and local generation/epoch fencing | No action execution, distributed state or physical-enforcement receipt; unlisted routes remain unknown |
 | [Local event substrate](events.md) | Protected sender/receipt checks, bounded append-only fixture journal, exact review correlation and explicit sequence/causal gaps | No execution authorization, automatic historical trust restoration or concrete multihost durable backend |
 | [Swarm decision composition](gate.md) | Monotonic pure baseline/Assurance/delegation review, protected global-check receipts and exact snapshot binding | No reservation, execution, automatic human approval or physical containment; missing mandatory checks remain conservative |
