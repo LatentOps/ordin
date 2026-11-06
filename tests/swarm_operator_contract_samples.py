@@ -68,6 +68,7 @@ def operator_contract_samples():
         "prehistory": "unknown",
         "execution_authority": False,
     }
+    snapshot["approvals"] = []
     retention = {
         "schema_version": "ordin.swarm_artifact_retention.v1",
         "resources_scanned": 1,
@@ -81,6 +82,28 @@ def operator_contract_samples():
         "execution_authority": False,
     }
     return {
+        "audit_checkpoint": {
+            "schema_version": "ordin.audit_checkpoint.v1",
+            "event_count": 1,
+            "tail_hash": sha,
+            "owner_rewrite_possible": True,
+            "execution_authority": False,
+        },
+        "trace_checkpoint": {
+            "schema_version": "ordin.trace_checkpoint.v1",
+            "event_count": 1,
+            "capture_digest": sha,
+            "owner_rewrite_possible": True,
+            "execution_authority": False,
+        },
+        "swarm_operator_unconfigured": {
+            "schema_version": "ordin.swarm_operator_unconfigured.v1",
+            "configured": False,
+            "verified_live_source": False,
+            "coverage": "unknown",
+            "prehistory": "unknown",
+            "execution_authority": False,
+        },
         "swarm_audit_event": event,
         "swarm_audit_bundle": bundle,
         "swarm_audit_checkpoint": {

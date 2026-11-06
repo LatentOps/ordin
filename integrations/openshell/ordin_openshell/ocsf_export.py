@@ -17,6 +17,15 @@ from ordin.runtime_boundary import CapabilityVerificationResult
 from ordin.runtime_requests import RequestVerificationResult
 
 OCSF_VERSION = "1.8.0"
+
+
+def export_swarm_findings(bundle, *, maximum_events=256):
+    """Explicit privacy-preserving swarm diagnostics; never enforcement evidence."""
+    from ordin.swarm.telemetry import export_swarm_ocsf
+
+    return export_swarm_ocsf(bundle, maximum_events=maximum_events)
+
+
 TITLES = {
     "decision_block": "Ordin blocked a reviewed action",
     "security_policy_approval": "Ordin security policy requires approval",

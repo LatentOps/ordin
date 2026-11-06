@@ -5,7 +5,7 @@
   "description": "Privacy-default diagnostic data; never identity, permission or runtime authority. External anchor trust is independent of local history ownership.",
   "type": "object",
   "additionalProperties": false,
-  "maxProperties": 20,
+  "maxProperties": 21,
   "required": [
     "schema_version",
     "tenant_ref",
@@ -26,7 +26,8 @@
     "proof_gaps",
     "unmediated_paths",
     "prehistory",
-    "execution_authority"
+    "execution_authority",
+    "approvals"
   ],
   "properties": {
     "schema_version": {
@@ -228,7 +229,8 @@
                 "policy_snapshot_stale",
                 "route_inventory_missing",
                 "no_current_runtime_attestation",
-                "source_unavailable"
+                "source_unavailable",
+                "offline_report_not_live_verification"
               ]
             }
           }
@@ -702,7 +704,8 @@
                 "policy_snapshot_stale",
                 "route_inventory_missing",
                 "no_current_runtime_attestation",
-                "source_unavailable"
+                "source_unavailable",
+                "offline_report_not_live_verification"
               ]
             }
           },
@@ -1227,7 +1230,8 @@
           "policy_snapshot_stale",
           "route_inventory_missing",
           "no_current_runtime_attestation",
-          "source_unavailable"
+          "source_unavailable",
+          "offline_report_not_live_verification"
         ]
       }
     },
@@ -1239,6 +1243,108 @@
     },
     "execution_authority": {
       "const": false
+    },
+    "approvals": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "maxProperties": 10,
+        "required": [
+          "request_ref",
+          "action_ref",
+          "mode",
+          "disposition",
+          "risk",
+          "quorum",
+          "vote_count",
+          "status",
+          "required_role_refs",
+          "execution_authority"
+        ],
+        "properties": {
+          "request_ref": {
+            "type": "string",
+            "minLength": 69,
+            "maxLength": 69,
+            "pattern": "^hmac:[a-f0-9]{64}$"
+          },
+          "action_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "enum": [
+              "standard",
+              "break_glass",
+              "recovery"
+            ]
+          },
+          "disposition": {
+            "enum": [
+              "execute",
+              "escalate",
+              "deny"
+            ]
+          },
+          "risk": {
+            "enum": [
+              "unknown",
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "quorum": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "vote_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "approved",
+              "denied",
+              "expired",
+              "stale",
+              "canceled",
+              "consumed",
+              "uncertain",
+              "completed",
+              "held"
+            ]
+          },
+          "required_role_refs": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "minLength": 69,
+              "maxLength": 69,
+              "pattern": "^hmac:[a-f0-9]{64}$"
+            }
+          },
+          "execution_authority": {
+            "const": false
+          }
+        }
+      }
     }
   }
 }

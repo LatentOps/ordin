@@ -348,6 +348,70 @@ class SwarmAuditSource:
     def actor_ref(self, agent_id):
         return self.journal.redactor.ref("actor", digest([self._tenant, self._swarm, agent_id]))
 
+    def import_trace(self, path, *, operator: object, maximum_events: int = 256):
+        from ordin.trace_capture import read_capture
+
+        self._check(operator)
+        if type(maximum_events) is not int or not 1 <= maximum_events <= 4096:
+            raise ValueError("bounded trace import required")
+        records = read_capture(path, include_raw=False)["events"]
+        for row in records[-maximum_events:]:
+            if row["event"] not in {"review", "observation"}:
+                continue
+            review = row["event"] == "review"
+            self._append(
+                digest(["legacy_trace", row]),
+                kind="legacy_review" if review else "legacy_observation",
+                state="denied"
+                if review and row["disposition"] == "deny"
+                else "reviewed"
+                if review
+                else "unknown",
+                evidence="diagnostic",
+                refs={"action": row["action_key"], "session": row["session_key"]},
+                facts={
+                    "risk": self._risk(row.get("risk", "unknown")),
+                    "proof_gaps": ["diagnostic_not_runtime_evidence", "observation_unverified"],
+                },
+            )
+        return len(records[-maximum_events:])
+
+    def import_audit(self, path, *, operator: object, maximum_events: int = 256):
+        from ordin.audit import verify_audit_jsonl, MAX_AUDIT_LINE_BYTES
+        from ordin._audit_storage import load_audit_line
+        from pathlib import Path
+
+        self._check(operator)
+        if (
+            type(maximum_events) is not int
+            or not 1 <= maximum_events <= 4096
+            or not verify_audit_jsonl(path, require_hash_chain=True).ok
+        ):
+            raise ValueError("valid bounded legacy audit required")
+        from collections import deque
+
+        with Path(path).open("rb") as stream:
+            records = deque(
+                (
+                    load_audit_line(raw)
+                    for raw in iter(lambda: stream.readline(MAX_AUDIT_LINE_BYTES + 1), b"")
+                ),
+                maxlen=maximum_events,
+            )
+        for row in records:
+            self._append(
+                digest(["legacy_audit", row]),
+                kind="legacy_review",
+                state="denied" if row["decision"] == "block" else "reviewed",
+                evidence="diagnostic",
+                refs={"action": row["action_digest"]},
+                facts={
+                    "risk": self._risk(row["risk"]),
+                    "proof_gaps": ["diagnostic_not_runtime_evidence"],
+                },
+            )
+        return len(records)
+
     def _check(self, operator):
         if operator is not self._operator:
             raise ValueError("original diagnostic operator required")
@@ -709,6 +773,7 @@ class SwarmAuditSource:
             "permissions": permissions,
             "policy": policy,
             "incidents": self._incidents(state),
+            "approvals": [],
             "timeline": timeline,
             "metrics": metrics,
             "proof_gaps": sorted(set(gaps)),

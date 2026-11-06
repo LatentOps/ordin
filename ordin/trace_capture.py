@@ -385,3 +385,27 @@ def read_capture(path: str | Path, *, include_raw: bool = False) -> dict[str, An
                 event.pop("raw_action", None)
             records.append({"sequence": seq, "session_key": session, "action_key": action, **event})
     return {"mode": mode[0], "unsafe_to_share": mode[0] == "raw_local", "events": records}
+
+
+def trace_tail_checkpoint(path: str | Path) -> dict[str, Any]:
+    """Anchor an exact bounded capture; it never makes caller observations trusted."""
+    capture = read_capture(path, include_raw=False)
+    return {
+        "schema_version": "ordin.trace_checkpoint.v1",
+        "event_count": len(capture["events"]),
+        "capture_digest": digest(capture),
+        "owner_rewrite_possible": True,
+        "execution_authority": False,
+    }
+
+
+def verify_trace_checkpoint(path: str | Path, checkpoint: Mapping[str, Any]) -> bool:
+    try:
+        from .schema import validate_named_schema
+
+        return (
+            not validate_named_schema("trace_checkpoint", dict(checkpoint))
+            and trace_tail_checkpoint(path) == checkpoint
+        )
+    except (ValueError, OSError, TypeError, sqlite3.Error):
+        return False

@@ -26,7 +26,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         from .approval_cli import main as approval_main
 
         return approval_main(raw_args[1:])
-    if raw_args and raw_args[0] == "policy":
+    if (
+        raw_args
+        and raw_args[0] == "policy"
+        and len(raw_args) > 1
+        and raw_args[1] in {"validate", "explain", "diff", "simulate"}
+    ):
         from .policy_cli import main as policy_main
 
         return policy_main(raw_args[1:])
@@ -35,6 +40,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         from .temporal_cli import main as temporal_main
 
         return temporal_main(raw[1:])
+    if raw:
+        from .operator_cli import COMMANDS, _load, main as operator_main
+
+        legacy_attach = False
+        if raw[0] == "status" and "--report" in raw:
+            try:
+                path = raw[raw.index("--report") + 1]
+                legacy_attach = _load(path).get("schema_version") == "ordin.swarm_attach_status.v1"
+            except (ValueError, OSError, IndexError):
+                legacy_attach = True
+        if raw[0] in COMMANDS and not legacy_attach:
+            return operator_main(raw)
     parser = argparse.ArgumentParser(
         prog="ordin swarm",
         description="Plan host attach and inspect explicit offline coverage reports.",

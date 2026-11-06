@@ -79,6 +79,53 @@ class SwarmOperatorAPI:
                 raise ValueError("duplicate operator scope")
             self._sources[reference] = source
         self.directory, self._operator, self._governance = directory, operator, governance
+        if governance is not None:
+            from .approval_service import SwarmApprovalService
+
+            if (
+                type(governance) is not SwarmApprovalService
+                or governance.directory is not directory
+                or not any(
+                    governance.coordinator is source._coordinator
+                    and governance.scope is source._scope
+                    for source in sources
+                )
+            ):
+                raise ValueError("original scoped governance service required")
+
+    def _approval_rows(self, channel, source):
+        service = self._governance
+        if (
+            service is None
+            or service.coordinator is not source._coordinator
+            or service.scope is not source._scope
+        ):
+            return []
+        queue = service.snapshot(channel, task_id=self._task(source))
+        result = []
+        for entry in [*queue["requests"], *queue["recoveries"]][:128]:
+            request = entry["request"]
+            binding = request.get("binding", {})
+            result.append(
+                {
+                    "request_ref": source.journal.redactor.ref("approval", request["request_id"]),
+                    "action_ref": source.journal.redactor.ref("action", binding["action_digest"])
+                    if binding.get("action_digest")
+                    else None,
+                    "mode": request.get("mode", "recovery"),
+                    "disposition": request.get("disposition", "escalate"),
+                    "risk": request.get("risk", "unknown"),
+                    "quorum": request["quorum"],
+                    "vote_count": entry["vote_count"],
+                    "status": entry["status"],
+                    "required_role_refs": [
+                        source.journal.redactor.ref("role", role)
+                        for role in request["required_roles"]
+                    ],
+                    "execution_authority": False,
+                }
+            )
+        return result
 
     @staticmethod
     def _task(source):
@@ -134,6 +181,7 @@ class SwarmOperatorAPI:
                 raise ValueError("operator.query_shape")
             snapshot = source.snapshot(operator=self._operator)
             self._require(channel, source, "observe")
+            snapshot["approvals"] = self._approval_rows(channel, source)
             if operation in {"status", "list"}:
                 return snapshot
             if operation == "explain":
@@ -249,15 +297,19 @@ class SwarmOperatorAPI:
             raise ValueError("operator.original_governance_required")
         snapshot = self._governance.snapshot(channel, task_id=self._task(source))
         candidates = [
-            row["request"]["request_id"]
-            for row in snapshot["requests"]
+            (
+                row["request"]["request_id"],
+                row["request"] in [entry["request"] for entry in snapshot["recoveries"]],
+            )
+            for row in [*snapshot["requests"], *snapshot["recoveries"]]
             if source.journal.redactor.ref("approval", row["request"]["request_id"])
             == arguments["request_ref"]
         ]
         if len(candidates) != 1:
             raise ValueError("operator.current_approval_reference_required")
-        result = self._governance.resolve(
-            channel, candidates[0], operation, idempotency_key=arguments["idempotency_key"]
+        method = self._governance.resolve_recovery if candidates[0][1] else self._governance.resolve
+        result = method(
+            channel, candidates[0][0], operation, idempotency_key=arguments["idempotency_key"]
         )
         return {
             "schema_version": "ordin.swarm_operator_control.v1",

@@ -249,7 +249,8 @@
                     "policy_snapshot_stale",
                     "route_inventory_missing",
                     "no_current_runtime_attestation",
-                    "source_unavailable"
+                    "source_unavailable",
+                    "offline_report_not_live_verification"
                   ]
                 }
               },
@@ -458,7 +459,8 @@
                     "policy_snapshot_stale",
                     "route_inventory_missing",
                     "no_current_runtime_attestation",
-                    "source_unavailable"
+                    "source_unavailable",
+                    "offline_report_not_live_verification"
                   ]
                 }
               }
@@ -483,7 +485,8 @@
           "policy_snapshot_stale",
           "route_inventory_missing",
           "no_current_runtime_attestation",
-          "source_unavailable"
+          "source_unavailable",
+          "offline_report_not_live_verification"
         ]
       }
     },
