@@ -274,6 +274,10 @@
       "minLength": 1,
       "maxLength": 64,
       "pattern": "^[a-f0-9]{64}$"
+    },
+    "risk_receipt_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     }
   }
 }
