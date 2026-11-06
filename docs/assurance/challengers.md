@@ -205,7 +205,7 @@ scanner or proposed-action execution. The built-wheel audit runs this example
 under its existing network/process denial spies.
 
 Explicit finite SMT challenges are available through the optional development
-extra `.[assurance-dev]`, pinned to Z3 5.1.0.0. Ordinary imports and default
+extra `.[assurance-dev]`, pinned to Z3 5.3.3.0. Ordinary imports and default
 reviews never load Z3. Missing solver installations produce a validated
 `unavailable`/`inconclusive` record. The implementation uses the
 [official Z3 Python API](https://z3prover.github.io/api/html/z3py_8py_source.html).

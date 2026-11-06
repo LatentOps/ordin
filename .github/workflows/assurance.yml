@@ -134,7 +134,7 @@ jobs:
       - name: Verify installed minimum acceptance fixtures
         if: matrix.integration == 'decision_models'
         run: |
-          python -m pip install 'z3-solver==5.1.0.0'
+          python -m pip install 'z3-solver==5.3.3.0'
           python scripts/check_assurance_wheel.py --wheel .assurance-work/ci-core-dist/*.whl --venv .assurance-work/ci-acceptance-smoke --report .assurance-work/ci-acceptance-wheel.json
           python -I scripts/run_assurance_acceptance.py --revision "$GITHUB_SHA" --wheel-check .assurance-work/ci-acceptance-wheel.json --output .assurance-work/ci-acceptance
 
