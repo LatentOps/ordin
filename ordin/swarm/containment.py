@@ -14,7 +14,7 @@ from uuid import uuid4
 from ordin._runtime_json import digest
 
 from .broker import SwarmExecutionBroker
-from .coordinator import SwarmCoordinator, CoordinatorScope
+from .coordinator import SwarmCoordinator, CoordinatorScope, _action_fence_key
 from .credential_broker import SwarmCredentialBroker, CredentialRoute
 from .models import SwarmContext
 from .coordinator_store import _active_transaction, CoordinatorRejected
@@ -163,10 +163,12 @@ class SwarmContainmentController:
         def check(transaction):
             _, state = self._coordinator._owner(transaction, handle)
             row = state["subjects"].get(subject)
+            action_hash = digest(action.as_dict())
             if (
                 row is None
                 or row["revoked"]
-                or digest(action.as_dict()) in state["blocked_actions"]
+                or action_hash in state["blocked_actions"]
+                or _action_fence_key(action_hash, subject) in state["blocked_actions"]
             ):
                 raise CoordinatorRejected("containment.current_route_fenced")
 
@@ -359,7 +361,13 @@ class SwarmContainmentController:
         )
         try:
             fence = self._coordinator.record_fence(
-                self._scope, control=self._control, kind=kind, subject_digest=subject
+                self._scope,
+                control=self._control,
+                kind=kind,
+                subject_digest=subject,
+                actor_digest=digest([selected.tenant_id, selected.swarm_id, selected.agent_id])
+                if kind == "action"
+                else None,
             )
         except (ValueError, CoordinatorUnavailable, OSError):
             # Commit acknowledgement may have been lost. Never infer an open
