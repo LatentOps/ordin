@@ -166,6 +166,37 @@ def validate_build_metadata(root):
         raise ValueError("the core release gate requires no mandatory external dependency")
 
 
+def copy_build_source(root: Path, destination: Path):
+    """Keep ignored build outputs and bytecode out of the wheel producer inputs."""
+    destination.mkdir(mode=0o700)
+    total = count = 0
+    source_root = root.resolve(strict=True)
+    for name in git(root, "ls-files", "-z").decode().split("\0"):
+        if not name:
+            continue
+        relative = Path(name)
+        if relative.is_absolute() or relative.drive or ".." in relative.parts:
+            raise ValueError("build source contains an unowned path")
+        source = root / relative
+        if (
+            source.is_symlink()
+            or not source.is_file()
+            or not source.resolve(strict=True).is_relative_to(source_root)
+            or source.stat().st_size > 2097152
+        ):
+            raise ValueError("build source contains an unsupported entry")
+        raw = source.read_bytes()
+        count += 1
+        total += len(raw)
+        if count > 4096 or len(raw) > 2097152 or total > 67108864:
+            raise ValueError("build source inventory exceeds its bound")
+        target = destination / relative
+        target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        with target.open("xb") as stream:
+            stream.write(raw)
+    return destination
+
+
 def extract_test_fixtures(raw: bytes, destination: Path):
     if len(raw) > 67108864:
         raise ValueError("fixture archive exceeds its bound")
@@ -313,6 +344,7 @@ def main():
     evidence, wheels, temporary = (workspace / name for name in ("evidence", "wheels", "tmp"))
     for directory in (evidence, wheels, temporary):
         directory.mkdir(mode=0o700)
+    build_source = copy_build_source(ROOT, workspace / "build-source")
     fixture_root = workspace / "fixtures"
     fixture_record = extract_test_fixtures(
         git(ROOT, "archive", "--format=tar", args.revision, "--", "tests"), fixture_root
@@ -368,8 +400,8 @@ def main():
             "--no-build-isolation",
             "--wheel-dir",
             str(wheels),
-            str(ROOT),
-            str(ROOT / "integrations/swarm"),
+            str(build_source),
+            str(build_source / "integrations/swarm"),
         ]
     )
     wheel_records = verify_wheels(ROOT, wheels)

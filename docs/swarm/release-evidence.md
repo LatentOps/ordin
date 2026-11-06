@@ -5,6 +5,10 @@ clean exact commit, rejects unversioned package inputs and executable repository
 content filters, verifies every package source/resource byte in the wheels, and
 records wheel SHA-256, commit/tree identity, immutable lock hashes, dependency
 declarations, environment, report hashes and expected/observed boundaries.
+Wheel production uses a fresh private copy of versioned checkout bytes, so
+ignored build outputs and compiled bytecode from earlier checks cannot enter
+the build. The wheel inventory still rejects unexpected payloads and compares
+every package and resource byte with the original verified checkout.
 Core-only compatibility is checked before the optional swarm wheel or test
 tooling is installed. No hosted model, user prompt, credential or production
 target is required. Test effects and public synthetic TLS keys stay inside the

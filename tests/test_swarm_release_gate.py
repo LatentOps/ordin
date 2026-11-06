@@ -16,6 +16,7 @@ from scripts.check_swarm_release import (
     verify_wheels,
     extract_test_fixtures,
     git_environment,
+    copy_build_source,
 )
 
 
@@ -94,6 +95,21 @@ def test_repository_setup_hooks_are_rejected_without_import(tmp_path):
     with pytest.raises(ValueError, match="build hooks"):
         validate_build_metadata(root)
     assert not marker.exists()
+
+
+def test_build_source_preserves_tracked_bytes_and_excludes_ignored_outputs(tmp_path):
+    root, revision = repository(tmp_path)
+    for name in ("build/lib/ordin/stale.py", "ordin/__pycache__/__init__.cpython-312.pyc"):
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"synthetic untracked build output")
+    copied = copy_build_source(root, tmp_path / "private-build-source")
+    assert (copied / "ordin/__init__.py").read_bytes() == (root / "ordin/__init__.py").read_bytes()
+    assert (copied / "pyproject.toml").read_bytes() == (root / "pyproject.toml").read_bytes()
+    assert not (copied / "build").exists()
+    assert not (copied / "ordin/__pycache__").exists()
+    assert not (copied / ".git").exists()
+    assert git(root, "rev-parse", "HEAD") == revision
 
 
 def wheels(tmp_path, *, forbidden_dependency=False):
