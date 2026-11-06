@@ -356,7 +356,7 @@ class SwarmGate:
             "events_configured": self._events is not None,
             "delegation_context": self._delegation_context_digest,
         }
-        if self._risk_scorer is not None:
+        if self._risk_scorer is not None and self._risk_scorer.enabled:
             payload["risk_scorer"] = self._risk_scorer.binding_digest
         return digest(payload)
 
@@ -577,7 +577,7 @@ class SwarmGate:
             elif policy_facts is not None:
                 final = "deny"
                 reasons.append("policy.unexpected_facts")
-            if self._risk_scorer is not None:
+            if self._risk_scorer is not None and self._risk_scorer.enabled:
                 risk_disposition, risk_reasons = self._risk_scorer.project(
                     risk_receipt, context, normalized
                 )

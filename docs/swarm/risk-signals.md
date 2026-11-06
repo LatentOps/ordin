@@ -37,6 +37,8 @@ provider cannot use a public plain-content hash as a prompt guessing oracle.
 The context carries no workload identity, host evidence or review authority.
 The caller retains ownership of its original input; Ordin retains bounded
 features and inference receipts.
+Providers receive detached context and budget values. Mutating those values
+cannot rewrite the retained evidence pointers, deadline or full cost reservation.
 
 `include_redacted_excerpt=True` is a separate explicit opt-in. It passes at most
 256 normalized characters per input after bounded token/email redaction. This
@@ -104,6 +106,11 @@ uncertainty thresholds, and explicit `on_missing=ignore|escalate|deny`. The defa
 missing/failure behavior preserves the core result. Even a scored `none` or
 forged `approved` cannot turn a mandatory unknown, escalation or block into
 execution. Promotion changes fence existing scorer bindings and old receipts.
+An explicit `unknown`, or a selected positive prediction outside the configured
+confidence/uncertainty thresholds, follows the missing-result policy. A required
+inconclusive inference cannot borrow an original core human approval. Promotion
+policy values are copied before retention; changing the caller's policy object
+does not change the configured restriction.
 Receipts are original-object, action/context/configuration bound and expire after
 30 seconds on the protected scorer clock. JSON and copied receipts are inference
 data only. A decision receipt remains a review result, never an execution permit.
@@ -143,6 +150,11 @@ prevention. Exact class confusion, failures, dataset digest, provider binding,
 platform and timing are retained in the artifact; no customer prompts are used.
 The report does not enable promotion. An original report from a different scorer
 process cannot approve a live scorer.
+Calibration uses a separate synthetic action identity and does not replace the
+latest evidence on a live action. Its `dataset_digest` is a private per-scorer
+HMAC, rather than a public hash of raw case text; repeated datasets across scorer
+instances cannot be linked through that field. The explicit offline artifact may
+identify its published synthetic corpus separately.
 
 Context, signal, receipt and calibration schemas have source/package parity.
 `as_dict()`, `binding_digest`, decision `risk_receipt_digest` and `status()` are

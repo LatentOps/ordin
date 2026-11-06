@@ -102,7 +102,7 @@ def evaluate(gate, data, action=None, receipt=None):
     )
 
 
-def test_disabled_default_collects_nothing_calls_nothing_and_preserves_baseline():
+def test_disabled_default_collects_nothing_calls_nothing_and_preserves_baseline(monkeypatch):
     class Unexpected:
         @property
         def score(self):
@@ -113,10 +113,12 @@ def test_disabled_default_collects_nothing_calls_nothing_and_preserves_baseline(
     assert scorer.submit(context, None, object()) is None
     assert scorer.poll(None) is None
     baseline, optional = SwarmGate(registry), SwarmGate(registry, risk_scorer=scorer)
+    import ordin.swarm.risk_signals as risk_module
+
+    monkeypatch.setattr(risk_module, "digest", lambda *_: pytest.fail("disabled risk hashing"))
     for action in (ActionEnvelope.shell("git status"), ActionEnvelope.shell("rm -rf /")):
         assert (
-            evaluate(baseline, data, action).disposition
-            == evaluate(optional, data, action).disposition
+            evaluate(baseline, data, action).as_dict() == evaluate(optional, data, action).as_dict()
         )
     assert scorer.status()["retained_jobs"] == scorer.status()["reserved_cost_micros"] == 0
 
@@ -298,7 +300,7 @@ def test_uncertainty_and_explicit_missing_signal_policy_cannot_weaken_core():
     gate = SwarmGate(data[1], risk_scorer=data[0])
     assert evaluate(gate, data, action).denied
     receipt = score(data[0], data[2], action)
-    assert evaluate(gate, data, action, receipt).may_execute
+    assert evaluate(gate, data, action, receipt).denied
     assert evaluate(gate, data, ActionEnvelope.shell("rm -rf /"), receipt).denied
     assert evaluate(gate, data, action, receipt.as_dict()).denied
 
@@ -428,3 +430,111 @@ def test_original_operator_can_disable_promotion_without_resetting_budgets_or_hi
     assert evaluate(gate, data, action, receipt).may_execute
     assert scorer.status()["retained_jobs"] == before["retained_jobs"]
     assert scorer.status()["reserved_cost_micros"] == before["reserved_cost_micros"]
+
+
+def test_provider_cannot_rewrite_the_protected_time_and_cost_budget():
+    class Mutating:
+        def score(self, context, budget):
+            object.__setattr__(budget, "time_ms", 1000)
+            object.__setattr__(budget, "cost_micros", 0)
+            return LocalSwarmRiskRules().score(context, budget)
+
+    data = configured(Mutating(), enabled=True, total_cost_micros=7)
+    scorer, _, context, *_ = data
+    original = SwarmRiskBudget(50, 7)
+    ticket = scorer.submit(
+        context, ActionEnvelope.shell("git status"), inputs("benign"), budget=original
+    )
+    receipt = scorer.poll(ticket, wait_ms=1000)
+    assert (
+        receipt is not None and receipt.status in {"failed", "timeout"} and receipt.signal is None
+    )
+    assert original == receipt.budget == SwarmRiskBudget(50, 7)
+    assert scorer.status()["reserved_cost_micros"] == 7
+
+
+def test_provider_cannot_replace_original_evidence_pointers_with_its_own_claim():
+    class Mutating:
+        def score(self, context, budget):
+            object.__setattr__(context.evidence[0], "pointer", "a" * 64)
+            return SwarmRiskSignal("prompt_injection", ("a" * 64,), 1.0, 0.0, 0, budget)
+
+    data = configured(Mutating(), enabled=True)
+    receipt = score(data[0], data[2], ActionEnvelope.shell("git status"))
+    assert receipt.status == "failed" and receipt.signal is None
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (("_provider", LocalSwarmRiskRules()), ("_cost_limit", 100), ("_clock", lambda: 100)),
+)
+def test_changed_protected_scorer_configuration_invalidates_old_receipts(field, value):
+    data = configured(enabled=True)
+    action = ActionEnvelope.shell("git status")
+    receipt = score(data[0], data[2], action)
+    setattr(data[0], field, value)
+    assert not data[0].verify(receipt, data[2], action)
+    with pytest.raises(ValueError, match="configuration"):
+        data[0].submit(data[2], action, inputs("benign"))
+
+
+def test_operator_policy_is_detached_before_retaining_it():
+    data = configured(enabled=True)
+    scorer, _, context, *_ = data
+    action = ActionEnvelope.shell("git status")
+    report = scorer.calibrate(
+        corpus(), budget=SwarmRiskBudget(1000), context=context, action=action
+    )
+    policy = SwarmRiskPromotionPolicy(SIGNAL_CLASSES[2:], on_missing="deny")
+    scorer.configure_promotion(policy, report, operator=data[5])
+    object.__setattr__(policy, "on_missing", "ignore")
+    assert scorer.project(None, context, action)[0] == "deny"
+
+
+def test_calibration_does_not_replace_live_action_evidence_or_publish_raw_dataset_hashes():
+    first = configured(enabled=True)
+    scorer, _, context, *_ = first
+    action = ActionEnvelope.shell("git status")
+    receipt = score(scorer, context, action, "Please summarize the release notes")
+    report = scorer.calibrate(
+        corpus(), budget=SwarmRiskBudget(1000), context=context, action=action
+    )
+    assert scorer.verify(receipt, context, action)
+    second = configured(enabled=True)
+    other = second[0].calibrate(
+        corpus(), budget=SwarmRiskBudget(1000), context=second[2], action=action
+    )
+    assert report.dataset_digest != other.dataset_digest
+
+
+def test_explicit_excerpt_redacts_the_entire_known_secret_including_long_continuations():
+    context = build_swarm_risk_context(inputs("token=" + "S" * 1000), include_redacted_excerpt=True)
+    assert "ssss" not in json.dumps(context.as_dict())
+
+
+@pytest.mark.parametrize(
+    "on_missing,expected", (("ignore", "execute"), ("escalate", "escalate"), ("deny", "deny"))
+)
+def test_scored_unknown_does_not_satisfy_required_risk_policy(on_missing, expected):
+    class UnknownDomain:
+        def score(self, context, budget):
+            if any(row.input_kind == "tool_output" for row in context.evidence):
+                return SwarmRiskSignal("unknown", (), 0.5, 1.0, 0, budget)
+            return LocalSwarmRiskRules().score(context, budget)
+
+    data = configured(UnknownDomain(), enabled=True)
+    promote(data, on_missing=on_missing)
+    action = ActionEnvelope.shell("git status")
+    ticket = data[0].submit(
+        data[2], action, inputs("unmodeled output", "tool_output"), budget=SwarmRiskBudget(1000)
+    )
+    receipt = data[0].poll(ticket, wait_ms=1000)
+    assert (
+        receipt is not None
+        and receipt.status == "scored"
+        and receipt.signal.signal_class == "unknown"
+    )
+    assert (
+        evaluate(SwarmGate(data[1], risk_scorer=data[0]), data, action, receipt).disposition
+        == expected
+    )

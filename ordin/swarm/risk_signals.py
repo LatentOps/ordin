@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import math
 import hashlib
 import hmac
@@ -14,7 +14,7 @@ from typing import Any, Callable, Protocol
 from uuid import uuid4
 
 from ordin import ActionEnvelope
-from ordin._runtime_json import digest
+from ordin._runtime_json import canonical_json, digest
 
 from .models import SwarmContext
 
@@ -64,7 +64,7 @@ _PATTERNS = (
     ),
 )
 _SECRET = re.compile(
-    r"(?i)(bearer\s{1,8}\S{1,256}|(?:password|secret|token|api[_-]?key)\s{0,8}[:=]\s{0,8}\S{1,256}|[\w.+-]{1,64}@[\w.-]{1,128}\.[a-z]{2,16})"
+    r"(?i)(bearer\s{1,8}\S{1,16384}|(?:password|secret|token|api[_-]?key)\s{0,8}[:=]\s{0,8}\S{1,16384}|[\w.+-]{1,64}@[\w.-]{1,128}\.[a-z]{2,16})"
 )
 
 
@@ -354,9 +354,12 @@ class SwarmRiskPromotionPolicy:
         if (
             type(self.signal_classes) is not tuple
             or not self.signal_classes
+            or any(type(value) is not str for value in self.signal_classes)
             or len(set(self.signal_classes)) != len(self.signal_classes)
             or any(v not in SIGNAL_CLASSES[2:] for v in self.signal_classes)
+            or type(self.disposition) is not str
             or self.disposition not in {"escalate", "deny"}
+            or type(self.on_missing) is not str
             or self.on_missing not in {"ignore", "escalate", "deny"}
         ):
             raise ValueError("risk operator policy can only tighten a decision")
@@ -413,6 +416,7 @@ class SwarmRiskCalibrationReport:
             "report_id": self.report_id,
             "provider_binding": self.provider_binding,
             "dataset_digest": self.dataset_digest,
+            "dataset_digest_kind": "private_scorer_hmac",
             "cases": self.cases,
             "true_positive": self.true_positive,
             "false_positive": self.false_positive,
@@ -448,6 +452,7 @@ class _Job:
     generation: int
     reserved_cost: int = 0
     receipt: SwarmRiskReceipt | None = None
+    provider_call: Any = field(default=None, repr=False)
 
 
 class SwarmRiskScorer:
@@ -492,7 +497,8 @@ class SwarmRiskScorer:
             if type(selected) is LocalSwarmRiskRules
             else "user-configured-semantic-provider"
         )
-        if enabled and not callable(getattr(selected, "score", None)):
+        provider_call = getattr(selected, "score", None) if enabled else None
+        if enabled and not callable(provider_call):
             raise ValueError("explicit risk provider score interface required")
         self._provider, self._enabled, self._operator, self._clock = (
             selected,
@@ -512,6 +518,20 @@ class SwarmRiskScorer:
             0,
             0,
         )
+        self._provider_call = provider_call
+        self._original_provider, self._original_clock, self._original_call = (
+            selected,
+            clock,
+            provider_call,
+        )
+        self._configuration_values = (
+            enabled,
+            provider_id,
+            max_pending,
+            max_jobs,
+            total_cost_micros,
+            include_redacted_excerpt,
+        )
         self._jobs: dict[SwarmRiskTicket, _Job] = {}
         self._latest: dict[tuple[str, str], _Job] = {}
         self._active: set[SwarmRiskTicket] = set()
@@ -521,6 +541,29 @@ class SwarmRiskScorer:
         self._condition = Condition(RLock())
         self._pointer_key = secrets.token_bytes(32)
         self._last_now = 0.0
+
+    def _configuration(self):
+        if (
+            self._provider is not self._original_provider
+            or self._clock is not self._original_clock
+            or self._provider_call is not self._original_call
+            or (
+                self._enabled,
+                self._id,
+                self._pending_limit,
+                self._job_limit,
+                self._cost_limit,
+                self._excerpt,
+            )
+            != self._configuration_values
+        ):
+            raise ValueError("protected risk configuration changed")
+
+    @property
+    def enabled(self) -> bool:
+        with self._condition:
+            self._configuration()
+            return self._enabled
 
     def _now(self) -> float:
         now = self._clock()
@@ -532,6 +575,7 @@ class SwarmRiskScorer:
     @property
     def binding_digest(self):
         with self._condition:
+            self._configuration()
             return digest(
                 [
                     self._nonce,
@@ -539,6 +583,7 @@ class SwarmRiskScorer:
                     self._enabled,
                     self._generation,
                     self._excerpt,
+                    self._configuration_values,
                     repr(self._promotion),
                 ]
             )
@@ -577,8 +622,10 @@ class SwarmRiskScorer:
         budget: SwarmRiskBudget = SwarmRiskBudget(),
     ) -> SwarmRiskTicket | None:
         # Disabled means no input collection, hashing, worker, provider call or charge.
-        if not self._enabled:
-            return None
+        with self._condition:
+            self._configuration()
+            if not self._enabled:
+                return None
         if (
             type(context) is not SwarmContext
             or type(action) is not ActionEnvelope
@@ -586,10 +633,14 @@ class SwarmRiskScorer:
         ):
             raise ValueError("exact risk action/context/budget required")
         budget.__post_init__()
+        # Retain a protected value snapshot; provider/caller objects are not the
+        # authoritative deadline or reservation after admission.
+        budget = SwarmRiskBudget(budget.time_ms, budget.cost_micros)
         redacted = build_swarm_risk_context(
             inputs, include_redacted_excerpt=self._excerpt, _pointer_key=self._pointer_key
         )
         with self._condition:
+            self._configuration()
             self._now()
             if len(self._jobs) >= self._job_limit:
                 raise ValueError("risk bounded job history capacity reached")
@@ -603,6 +654,7 @@ class SwarmRiskScorer:
                 self._generation,
             )
             self._jobs[ticket] = job
+            job.provider_call = self._provider_call
             self._latest[(job.context_digest, job.action_digest)] = job
             if (
                 len(self._active) >= self._pending_limit
@@ -625,7 +677,19 @@ class SwarmRiskScorer:
     def _score(self, ticket, job):
         signal, status = None, "failed"
         try:
-            result = self._provider.score(job.context, job.budget)
+            # Frozen dataclasses are not a sandbox for configured Python code.
+            # A provider receives detached data, never the retained scope/budget
+            # against which its output and deadline will be checked.
+            supplied = SwarmRiskContext(
+                job.context.context_digest,
+                tuple(
+                    SwarmRiskEvidencePointer(row.pointer, row.input_kind, row.features, row.excerpt)
+                    for row in job.context.evidence
+                ),
+                job.context.privacy_mode,
+            )
+            supplied_budget = SwarmRiskBudget(job.budget.time_ms, job.budget.cost_micros)
+            result = job.provider_call(supplied, supplied_budget)
             signal = SwarmRiskSignal.from_dict(
                 result.as_dict() if type(result) is SwarmRiskSignal else result
             )
@@ -653,6 +717,7 @@ class SwarmRiskScorer:
         if type(wait_ms) is not int or not 0 <= wait_ms <= 1000:
             raise ValueError("bounded risk polling wait required")
         with self._condition:
+            self._configuration()
             if type(ticket) is not SwarmRiskTicket or ticket not in self._jobs:
                 raise ValueError("original risk shadow ticket required")
             job = self._jobs[ticket]
@@ -671,6 +736,7 @@ class SwarmRiskScorer:
     def verify(self, receipt, context: SwarmContext, action: ActionEnvelope):
         with self._condition:
             try:
+                self._configuration()
                 return (
                     type(receipt) is SwarmRiskReceipt
                     and self._receipts.get(receipt) == digest(receipt.as_dict())
@@ -697,6 +763,20 @@ class SwarmRiskScorer:
                 )
             signal = receipt.signal
             if (
+                signal is None
+                or signal.signal_class == "unknown"
+                or (
+                    signal.signal_class in policy.signal_classes
+                    and (
+                        signal.confidence < policy.minimum_confidence
+                        or signal.uncertainty > policy.maximum_uncertainty
+                    )
+                )
+            ):
+                return ("execute" if policy.on_missing == "ignore" else policy.on_missing), (
+                    "risk.inference_inconclusive",
+                )
+            if (
                 signal is not None
                 and signal.signal_class in policy.signal_classes
                 and signal.confidence >= policy.minimum_confidence
@@ -715,6 +795,9 @@ class SwarmRiskScorer:
     ) -> SwarmRiskCalibrationReport:
         if (
             not self._enabled
+            or type(context) is not SwarmContext
+            or type(action) is not ActionEnvelope
+            or type(budget) is not SwarmRiskBudget
             or type(cases) is not tuple
             or not 12 <= len(cases) <= 256
             or any(type(v) is not SwarmRiskCalibrationCase for v in cases)
@@ -727,6 +810,9 @@ class SwarmRiskScorer:
             if len(self._reports) >= 16:
                 raise ValueError("risk calibration history capacity reached")
             binding = self.binding_digest
+        # Calibration is an independent synthetic capture, never a replacement
+        # for the latest evidence attached to a caller's live action.
+        calibration_action = replace(action, action_id="risk-calibration-" + uuid4().hex)
         tp = fp = tn = fn = matches = failures = 0
         elapsed, fingerprints = [], []
         brier: list[float] = []
@@ -734,7 +820,7 @@ class SwarmRiskScorer:
         confusion: dict[tuple[str, str], int] = {}
         for case in cases:
             case.__post_init__()
-            ticket = self.submit(context, action, case.inputs, budget=budget)
+            ticket = self.submit(context, calibration_action, case.inputs, budget=budget)
             receipt = self.poll(ticket, wait_ms=budget.time_ms)
             if receipt is None:
                 raise ValueError("risk calibration result unavailable")
@@ -762,14 +848,16 @@ class SwarmRiskScorer:
             fingerprints.append(
                 [
                     case.case_id,
-                    [(value.kind, value.text) for value in case.inputs],
+                    receipt.input_digest,
                     case.expected_class,
                 ]
             )
         report = SwarmRiskCalibrationReport(
             uuid4().hex,
             binding,
-            digest(fingerprints),
+            hmac.new(
+                self._pointer_key, canonical_json(fingerprints).encode("utf-8"), hashlib.sha256
+            ).hexdigest(),
             len(cases),
             tp,
             fp,
@@ -788,6 +876,8 @@ class SwarmRiskScorer:
         with self._condition:
             if binding != self.binding_digest:
                 raise ValueError("risk provider configuration changed during calibration")
+            if len(self._reports) >= 16:
+                raise ValueError("risk calibration history capacity reached")
             self._reports[report] = digest(report.as_dict())
         return report
 
@@ -817,7 +907,10 @@ class SwarmRiskScorer:
                     raise ValueError("incomplete risk calibration cannot enable promotion")
                 if report.false_positive_rate > policy.maximum_calibration_false_positive_rate:
                     raise ValueError("risk calibration exceeds operator false-positive maximum")
-            self._promotion, self._generation = policy, self._generation + 1
+            self._promotion, self._generation = (
+                (replace(policy) if policy is not None else None),
+                self._generation + 1,
+            )
 
     def disable_promotion(self, *, operator: object) -> None:
         """An original operator can stop tightening when calibration is unavailable."""

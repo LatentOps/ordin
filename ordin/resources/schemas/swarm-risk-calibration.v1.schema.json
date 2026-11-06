@@ -45,6 +45,9 @@
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
     },
+    "dataset_digest_kind": {
+      "const": "private_scorer_hmac"
+    },
     "cases": {
       "type": "integer",
       "minimum": 12,
