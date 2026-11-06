@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--framework", choices=("base", "langgraph", "crewai", "autogen"), required=True
+        "--framework", choices=("base", "langgraph", "autogen", "crewai-quarantine"), required=True
     )
     parser.add_argument("--workspace", type=Path, required=True)
     parser.add_argument("--wheel-dir", type=Path)
@@ -79,7 +79,8 @@ def _verify(args, workspace, environment, core, swarm):
     def run(*arguments):
         subprocess.run([str(python), *arguments], check=True, env=settings, cwd=workspace)
 
-    if args.framework != "base":
+    active_sdk = args.framework in {"langgraph", "autogen"}
+    if active_sdk:
         run(
             "-m",
             "pip",
@@ -94,14 +95,17 @@ def _verify(args, workspace, environment, core, swarm):
         "install",
         "--no-deps",
         str(core),
-        str(swarm) + ("[" + args.framework + "]" if args.framework != "base" else ""),
+        str(swarm) + ("[" + args.framework + "]" if active_sdk else ""),
     )
+    run("-m", "pip", "check")
     run(
         "-I",
         "-c",
         "from importlib.resources import files; from ordin_swarm.adapters import LangGraphAdapter,CrewAIAdapter,AutoGenAdapter,CustomRuntimeAdapter; assert files('ordin_swarm').joinpath('migrations/0001-coordinator.sql').is_file()",
     )
-    if args.framework == "base":
+    if args.framework == "crewai-quarantine":
+        run("-I", str(ROOT / "scripts/check_swarm_crewai_quarantine.py"))
+    elif args.framework == "base":
         run(
             "-I",
             "-c",

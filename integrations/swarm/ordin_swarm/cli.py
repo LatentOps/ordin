@@ -10,7 +10,7 @@ import stat
 import sys
 
 from ordin._runtime_json import digest
-from .adapters.contracts import PINS, coverage, installed_versions
+from .adapters.contracts import PINS, coverage, installed_versions, require_framework_enabled
 from ._reports import checked
 
 MANIFEST = "ordin-swarm-framework.json"
@@ -39,6 +39,7 @@ def _directory(directory):
 def setup(framework, *, directory, dry_run=True):
     if framework not in PINS or type(dry_run) is not bool:
         raise ValueError("supported explicit adapter and dry-run flag required")
+    require_framework_enabled(framework)
     target = _directory(directory) / MANIFEST
     if target.exists() or target.is_symlink():
         raise ValueError("existing framework manifest is never overwritten")
@@ -111,12 +112,15 @@ def main(argv=None):
         else:
             report = coverage(args.framework)
             if args.operation == "doctor":
-                report["diagnostics"] = [
-                    "native_runtime_not_bound",
-                    "manifest_never_authorizes_execution",
-                ]
+                report["diagnostics"].extend(
+                    [
+                        "native_runtime_not_bound",
+                        "manifest_never_authorizes_execution",
+                    ]
+                )
                 report["environment_compatible"] = (
-                    installed_versions(args.framework) == PINS[args.framework]
+                    report["compatible"]
+                    and installed_versions(args.framework) == PINS[args.framework]
                 )
         print(json.dumps(report, sort_keys=True))
         return 0 if args.operation != "doctor" or report["compatible"] else 1

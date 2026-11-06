@@ -359,6 +359,9 @@ class _Host:
 
 
 def run(framework):
+    from .adapters.contracts import require_framework_enabled
+
+    require_framework_enabled(framework)
     with (
         offline_runtime(),
         tempfile.TemporaryDirectory(prefix="ordin-framework-fixture-") as directory,
@@ -477,6 +480,9 @@ def _langgraph(workspace):
 
 
 def _crewai(workspace):
+    from .adapters.contracts import require_framework_enabled
+
+    require_framework_enabled("crewai")
     import json
     from crewai import Agent, BaseLLM, Crew, Task
     from crewai.tools import tool

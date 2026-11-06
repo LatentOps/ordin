@@ -19,3 +19,8 @@ original audit sources and the authenticated operator API from
 `ordin_swarm.operator_api`. CLI diagnostics and the static dashboard remain
 local. `ordin-swarm[telemetry]` enables explicitly requested OpenTelemetry SDK
 exports; no network exporter is configured by default.
+
+The optional CrewAI integration is currently `security_blocked` because its
+required ChromaDB release has unresolved advisories. There is no active CrewAI
+extra or SDK installation lane; adapter construction, setup and demos refuse
+before SDK import. See the [dependency quarantine](../../docs/swarm/framework-adapters.md#crewai-dependency-quarantine).

@@ -23,7 +23,18 @@ def installed_versions(framework):
     return result
 
 
+def require_framework_enabled(framework):
+    if framework not in PINS:
+        raise ValueError("unsupported framework adapter")
+    if framework == "crewai":
+        raise ValueError(
+            "CrewAI is security_blocked: its required ChromaDB dependency has no patched release; "
+            "see docs/swarm/framework-adapters.md"
+        )
+
+
 def require_version(framework):
+    require_framework_enabled(framework)
     actual = installed_versions(framework)
     if actual != PINS[framework]:
         raise ValueError("framework API version has not passed pinned conformance")
@@ -32,15 +43,17 @@ def require_version(framework):
 
 def coverage(framework, *, installed=False, connected=False):
     actual = installed_versions(framework)
+    blocked = framework == "crewai"
     return checked(
         {
             "schema_version": "ordin.swarm_framework_adapter.v1",
             "framework": framework,
             "versions": actual,
-            "tested_versions": PINS[framework],
-            "compatible": actual == PINS[framework],
-            "installed": installed,
-            "connected": connected,
+            "tested_versions": dict(PINS[framework]),
+            "availability": "security_blocked" if blocked else "enabled",
+            "compatible": not blocked and actual == PINS[framework],
+            "installed": installed and not blocked,
+            "connected": connected and not blocked,
             "upstream_status": "archived"
             if framework == "autogen"
             else "maintained"
@@ -49,13 +62,16 @@ def coverage(framework, *, installed=False, connected=False):
             "mode": "intercept",
             "physical_enforcement": False,
             "execution_authority": False,
-            "covered": [
+            "covered": []
+            if blocked
+            else [
                 "bound_synchronous_tool_calls",
                 "host_session_identity",
                 "exact_arguments",
                 "post_tool_outcome",
             ],
-            "uncovered": [
+            "uncovered": (["security_blocked_unpatched_chromadb"] if blocked else [])
+            + [
                 "unwrapped_tools",
                 "background_tasks",
                 "direct_python_calls",
@@ -66,5 +82,6 @@ def coverage(framework, *, installed=False, connected=False):
                 "async_native_tools",
             ],
             "native_approvals": "unavailable_escalation_refused",
+            "diagnostics": ["security_blocked_unpatched_chromadb"] if blocked else [],
         }
     )

@@ -14,22 +14,54 @@ a protection claim from a similar API name.
 | Adapter | Tested distributions | Actual boundary | Existing runtime |
 | --- | --- | --- | --- |
 | LangGraph | `langgraph==1.2.20`, `langgraph-prebuilt==1.1.1`, `langchain-core==1.7.6` | ToolNode wrapper plus guarded synchronous StructuredTool callback after native argument validation | Rebuild ToolNode and its compiled graph |
-| CrewAI | `crewai==1.15.35`, `crewai-core==1.15.35` | Native before/after tool hooks and an independent guarded BaseTool callback | Disable caching explicitly and install before agent executor construction; rebuild an existing executor |
+| CrewAI — security blocked | Historical hook tests used `crewai==1.15.35`, `crewai-core==1.15.35` | No active coverage; required ChromaDB has unresolved advisories | Setup, adapter construction and fixtures refuse before importing the SDK, including an externally installed matching version |
 | AutoGen legacy | `autogen-core==0.7.5` | Owned SingleThreadedAgentRuntime intervention handler and native synchronous FunctionTool callback | Create a runtime with the original intervention handler |
 | Custom Python | No framework dependency | Original protected SDK session or verified HostSessionEndpoint dispatch table | Live future-call routing where the host provides a verified setter |
 
-The maintained-framework conformance gates use LangGraph and CrewAI. Microsoft
+The active maintained-framework conformance gate covers LangGraph. CrewAI is
+temporarily quarantined; this release does not claim two available maintained
+framework integrations. Microsoft
 has [archived AutoGen](https://github.com/microsoft/autogen); its adapter is
 explicitly pinned legacy compatibility. It is not described as maintained
 upstream support. The public contracts researched for these adapters are
 [LangGraph ToolNode](https://reference.langchain.com/python/langgraph.prebuilt/tool_node/ToolNode),
 [CrewAI tool hooks](https://docs.crewai.com/v1.15.35/en/learn/tool-hooks), and
 [AutoGen intervention handlers](https://microsoft.github.io/autogen/stable/user-guide/core-user-guide/cookbook/tool-use-with-intervention.html).
-The version matrix was checked on 2026-11-05.
+The version matrix and quarantine were checked on 2026-11-06.
 The optional extras also pin the common native argument parser to
 `pydantic==2.12.5`. CI uses separate hash-locked dependency closures under
 `requirements/swarm-*.txt`, generated from the tested Linux Python 3.12
 environment with `scripts/lock_swarm_frameworks.py` and primary PyPI hashes.
+
+### CrewAI dependency quarantine
+
+The CrewAI 1.15.35 runtime requires ChromaDB 1.5.9. At the review date the
+[published ChromaDB release](https://pypi.org/project/chromadb/1.5.9/) has no
+published fix listed for
+[GHSA-f4j7-r4q5-qw2c](https://github.com/advisories/GHSA-f4j7-r4q5-qw2c),
+[GHSA-36p7-vc44-83pf](https://github.com/advisories/GHSA-36p7-vc44-83pf),
+[GHSA-2wm9-hf6c-p5cr](https://github.com/advisories/GHSA-2wm9-hf6c-p5cr) and
+[GHSA-xph7-9rjv-w5fr](https://github.com/advisories/GHSA-xph7-9rjv-w5fr).
+The active CrewAI extra, dependency lock and SDK provisioning lane are removed.
+The retained implementation cannot be enabled through setup, a matching version,
+an environment variable or copied configuration. Status reports
+`availability:security_blocked`, false compatibility and no covered paths.
+
+This removes Ordin's active installation and adapter exposure; it does not patch
+upstream or uninstall packages from an operator's environment. Existing managed
+manifests can still be uninstalled with their original digest. Do not install
+CrewAI through this integration while quarantined. Re-enablement requires a code
+change after a verified fixed dependency closure and fresh real SDK conformance
+and dependency-security checks. Previous offline hook passes do not clear these
+dependency findings or authorize a production rollout.
+
+Before upgrading an already running deployment, use the original operator path
+to fence and drain its protected work, stop the affected runtime, and restart
+with the quarantined package. Installing new code cannot hotpatch an old process
+or retroactively revoke unmediated tools or credentials. Use the supported
+upstream credential-revocation procedure where needed. Status inspection and
+managed-manifest uninstall remain available; the blocked adapter cannot import
+the SDK to operate on an old runtime or act as a cleanup shortcut.
 
 ## Install and run without paid services
 
@@ -40,7 +72,7 @@ python -m pip install -e . -e "integrations/swarm[langgraph]"
 python examples/swarm/framework_adapter_demo.py --framework langgraph
 ```
 
-Replace `langgraph` with `crewai` or `autogen` for their pinned SDKs. The custom
+Replace `langgraph` with `autogen` for its pinned legacy SDK. The custom
 Python fixture needs only core and `integrations/swarm`:
 
 ```bash
@@ -52,7 +84,7 @@ local tools, finite local model responses where a planner is needed, and a
 temporary workspace. Runtime network connections and telemetry are disabled
 for the fixture process. There is no implicit model or embedding download.
 
-Every fixture performs an allowed artifact read, sends its original lineage
+Every active fixture performs an allowed artifact read, sends its original lineage
 through the real message gateway to a second agent, verifies inherited private
 labels, and denies both the upload and an unrepresented child-creation tool.
 The child request receives no grant and never reaches its callback. This is
@@ -104,7 +136,9 @@ Command/Send results require a stronger adapter and return non-success. Removing
 the outer wrapper does not make the guarded inner callback executable without
 its original per-call scope. Arbitrary graph nodes remain uncovered.
 
-CrewAI binds original Agent and Task objects and validates the original tool
+The quarantined CrewAI implementation is retained for a future verified fix;
+the following describes its historical hook boundary, not available coverage.
+It binds original Agent and Task objects and validates the original tool
 schema/callback relationship. Its inner callback requires a one-use scope from
 the native hook, including across native worker threads. A missing, swallowed
 or foreign hook cannot forward the tool. Native caches must be disabled
@@ -192,11 +226,15 @@ receipt are separate evidence.
 
 Pinned SDK conformance lives under `integrations/swarm/tests`; core SDK, typed
 service and actual broker composition regressions live under `tests`. The
-framework CI matrix uses isolated environments, disables implicit pytest
+active framework CI matrix uses isolated environments, disables implicit pytest
 plugin autoload and runtime network access, and runs real two-agent workflows
 plus forged/replayed/mutated/concurrent/error/unsupported-path controls. Wheel
 smoke covers the optional adapter package and its base install without model
 or framework dependencies.
+The separate mandatory `CrewAI security quarantine` lane installs no CrewAI or
+ChromaDB package, checks their absence and verifies that matching external SDK
+metadata cannot bypass the block. It reports quarantine, rather than positive
+CrewAI conformance.
 
 Runtime schema loading uses the resources owned by the installed Ordin package.
 A sibling `site-packages/schemas` directory installed by another SDK cannot
