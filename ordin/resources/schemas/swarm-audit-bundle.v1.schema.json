@@ -1,0 +1,578 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-audit-bundle.v1.schema.json",
+  "title": "swarm_audit_bundle",
+  "description": "Privacy-default diagnostic data; never identity, permission or runtime authority. External anchor trust is independent of local history ownership.",
+  "type": "object",
+  "additionalProperties": false,
+  "maxProperties": 12,
+  "required": [
+    "schema_version",
+    "tenant_ref",
+    "journal_ref",
+    "scope_ref",
+    "first_sequence",
+    "tail_sequence",
+    "base_hash",
+    "tail_hash",
+    "events",
+    "privacy",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_audit_bundle.v1"
+    },
+    "tenant_ref": {
+      "type": "string",
+      "minLength": 69,
+      "maxLength": 69,
+      "pattern": "^hmac:[a-f0-9]{64}$"
+    },
+    "journal_ref": {
+      "type": "string",
+      "minLength": 69,
+      "maxLength": 69,
+      "pattern": "^hmac:[a-f0-9]{64}$"
+    },
+    "scope_ref": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 69,
+          "maxLength": 69,
+          "pattern": "^hmac:[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "first_sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "tail_sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "base_hash": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "tail_hash": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "events": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "maxProperties": 11,
+        "required": [
+          "schema_version",
+          "sequence",
+          "admitted_at",
+          "kind",
+          "state",
+          "evidence",
+          "refs",
+          "facts",
+          "previous_hash",
+          "event_hash",
+          "execution_authority"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "ordin.swarm_audit_event.v1"
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "admitted_at": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1e+18
+          },
+          "kind": {
+            "enum": [
+              "decision",
+              "admission",
+              "broker_result",
+              "incident",
+              "risk_signal",
+              "retention",
+              "legacy_review",
+              "legacy_observation",
+              "message"
+            ]
+          },
+          "state": {
+            "enum": [
+              "reviewed",
+              "reserved",
+              "forwarded",
+              "completed",
+              "denied",
+              "canceled",
+              "unknown",
+              "paused",
+              "revoked",
+              "quarantined",
+              "resumed",
+              "swept",
+              "risk_reported"
+            ]
+          },
+          "evidence": {
+            "enum": [
+              "intent",
+              "reported",
+              "observed",
+              "unknown",
+              "diagnostic"
+            ]
+          },
+          "refs": {
+            "type": "object",
+            "additionalProperties": false,
+            "maxProperties": 15,
+            "required": [],
+            "properties": {
+              "actor": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "task": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "action": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "session": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "swarm": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "policy": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "resource": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "route": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "message": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "incident": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "source": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "proof": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "operator": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              },
+              "tool": {
+                "type": "string",
+                "minLength": 69,
+                "maxLength": 69,
+                "pattern": "^hmac:[a-f0-9]{64}$"
+              }
+            }
+          },
+          "facts": {
+            "type": "object",
+            "additionalProperties": false,
+            "maxProperties": 12,
+            "required": [],
+            "properties": {
+              "disposition": {
+                "enum": [
+                  "execute",
+                  "escalate",
+                  "deny",
+                  "unknown"
+                ]
+              },
+              "risk": {
+                "enum": [
+                  "unknown",
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ]
+              },
+              "observed_outcome": {
+                "enum": [
+                  "allowed",
+                  "denied",
+                  "completed",
+                  "failed",
+                  "unknown"
+                ]
+              },
+              "physical_enforcement": {
+                "type": "boolean"
+              },
+              "reason_refs": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 69,
+                  "maxLength": 69,
+                  "pattern": "^hmac:[a-f0-9]{64}$"
+                }
+              },
+              "gap_refs": {
+                "type": "array",
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 69,
+                  "maxLength": 69,
+                  "pattern": "^hmac:[a-f0-9]{64}$"
+                }
+              },
+              "proof_gaps": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "enum": [
+                    "unmediated_paths_uncovered",
+                    "prehistory_unknown",
+                    "diagnostic_not_runtime_evidence",
+                    "capture_unavailable",
+                    "unsupported_effect_semantics",
+                    "retained_prefix_unavailable",
+                    "source_unavailable",
+                    "observation_unverified"
+                  ]
+                }
+              },
+              "model_risk": {
+                "enum": [
+                  "unknown",
+                  "low",
+                  "medium",
+                  "high",
+                  "critical"
+                ]
+              },
+              "model_confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "policy_epoch": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "revocation_epoch": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            }
+          },
+          "previous_hash": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "event_hash": {
+            "type": "string",
+            "minLength": 64,
+            "maxLength": 64,
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "execution_authority": {
+            "const": false
+          }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "const": "decision"
+              },
+              "evidence": {
+                "enum": [
+                  "intent"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "reviewed",
+                  "denied"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "admission"
+              },
+              "evidence": {
+                "enum": [
+                  "intent",
+                  "reported",
+                  "unknown"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "reviewed",
+                  "reserved",
+                  "forwarded",
+                  "completed",
+                  "denied",
+                  "canceled",
+                  "unknown"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "broker_result"
+              },
+              "evidence": {
+                "enum": [
+                  "intent",
+                  "reported",
+                  "observed",
+                  "unknown"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "completed",
+                  "denied",
+                  "canceled",
+                  "unknown"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "incident"
+              },
+              "evidence": {
+                "enum": [
+                  "intent",
+                  "reported",
+                  "unknown"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "paused",
+                  "revoked",
+                  "quarantined",
+                  "resumed",
+                  "unknown"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "risk_signal"
+              },
+              "evidence": {
+                "enum": [
+                  "diagnostic"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "risk_reported"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "retention"
+              },
+              "evidence": {
+                "enum": [
+                  "diagnostic"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "swept"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "legacy_review"
+              },
+              "evidence": {
+                "enum": [
+                  "diagnostic"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "reviewed",
+                  "denied"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "legacy_observation"
+              },
+              "evidence": {
+                "enum": [
+                  "diagnostic"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "completed",
+                  "denied",
+                  "unknown"
+                ]
+              }
+            }
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "message"
+              },
+              "evidence": {
+                "enum": [
+                  "reported",
+                  "diagnostic"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "forwarded",
+                  "completed"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "privacy": {
+      "const": "tenant_keyed_hmac_metadata"
+    },
+    "execution_authority": {
+      "const": false
+    },
+    "capture_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 4,
+      "required": [
+        "flushed",
+        "dropped_events",
+        "complete_history"
+      ],
+      "properties": {
+        "flushed": {
+          "type": "boolean"
+        },
+        "dropped_events": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "complete_history": {
+          "const": false
+        },
+        "export_window_truncated": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

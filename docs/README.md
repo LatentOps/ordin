@@ -74,6 +74,7 @@ The Python API reviews actions but never executes them.
 - [Cross-agent causal temporal policies](swarm/temporal.md)
 - [Transactional shared budgets and reservations](swarm/budgets.md)
 - [Scoped containment, owned-job status and protected recovery](swarm/containment.md)
+- [Private audit, authenticated operator API, diagnostics and local exports](swarm/operations.md)
 - [Planned opt-in swarm architecture and coverage contract](swarm/architecture.md)
 - [Integration starter kit](../examples/integrations/README.md)
 - [Claude Code hooks](claude-code-integration.md)

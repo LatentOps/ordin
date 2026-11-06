@@ -13,3 +13,9 @@ The optional [human governance integration](../../docs/swarm/approval.md) export
 the original TLS/RBAC directory, durable approval service and host-injected
 operator CLI session from `ordin_swarm.approval_service`. Configure it explicitly
 before sealing the native assurance gate. JSON reports never restore approval.
+
+The [private operations integration](../../docs/swarm/operations.md) exposes
+original audit sources and the authenticated operator API from
+`ordin_swarm.operator_api`. CLI diagnostics and the static dashboard remain
+local. `ordin-swarm[telemetry]` enables explicitly requested OpenTelemetry SDK
+exports; no network exporter is configured by default.

@@ -27,6 +27,13 @@ from .approval_service import (
     HumanOperatorChannel,
     SwarmOperatorDirectory,
 )
+from .operator_api import (
+    SwarmAuditJournal,
+    SwarmAuditPolicy,
+    SwarmAuditSource,
+    SwarmOperatorAPI,
+    SwarmOperatorClient,
+)
 from .containment import (
     IncidentPolicy,
     IncidentRule,
@@ -82,6 +89,11 @@ __all__ = [
     "HumanOperator",
     "HumanOperatorChannel",
     "SwarmOperatorDirectory",
+    "SwarmAuditJournal",
+    "SwarmAuditPolicy",
+    "SwarmAuditSource",
+    "SwarmOperatorAPI",
+    "SwarmOperatorClient",
     "SwarmArtifactGateway",
     "WorkspaceArtifactAdapter",
     "SharedMemoryAdapter",

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-operator-response.v1.schema.json",
+  "title": "swarm_operator_response",
+  "description": "Privacy-default diagnostic data; never identity, permission or runtime authority. External anchor trust is independent of local history ownership.",
+  "type": "object",
+  "additionalProperties": false,
+  "maxProperties": 4,
+  "required": [
+    "schema_version",
+    "status",
+    "result",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_operator_response.v1"
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "denied"
+      ]
+    },
+    "result": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "maxProperties": 32
+        }
+      ]
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

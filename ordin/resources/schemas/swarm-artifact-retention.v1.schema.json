@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-artifact-retention.v1.schema.json",
+  "title": "swarm_artifact_retention",
+  "description": "Privacy-default diagnostic data; never identity, permission or runtime authority. External anchor trust is independent of local history ownership.",
+  "type": "object",
+  "additionalProperties": false,
+  "maxProperties": 10,
+  "required": [
+    "schema_version",
+    "resources_scanned",
+    "versions_removed",
+    "grants_removed",
+    "tombstones_retained",
+    "remaining_eligible_resources",
+    "labels_preserved",
+    "high_water_preserved",
+    "raw_backing_access",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_artifact_retention.v1"
+    },
+    "resources_scanned": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "versions_removed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "grants_removed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "tombstones_retained": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "remaining_eligible_resources": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "labels_preserved": {
+      "const": true
+    },
+    "high_water_preserved": {
+      "const": true
+    },
+    "raw_backing_access": {
+      "const": "uncovered"
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

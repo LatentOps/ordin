@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-operator-control.v1.schema.json",
+  "title": "swarm_operator_control",
+  "description": "Privacy-default diagnostic data; never identity, permission or runtime authority. External anchor trust is independent of local history ownership.",
+  "type": "object",
+  "additionalProperties": false,
+  "maxProperties": 6,
+  "required": [
+    "schema_version",
+    "scope_ref",
+    "operation",
+    "receipt_ref",
+    "status",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_operator_control.v1"
+    },
+    "scope_ref": {
+      "type": "string",
+      "minLength": 69,
+      "maxLength": 69,
+      "pattern": "^hmac:[a-f0-9]{64}$"
+    },
+    "operation": {
+      "enum": [
+        "pause",
+        "revoke",
+        "approve",
+        "deny"
+      ]
+    },
+    "receipt_ref": {
+      "type": "string",
+      "minLength": 69,
+      "maxLength": 69,
+      "pattern": "^hmac:[a-f0-9]{64}$"
+    },
+    "status": {
+      "enum": [
+        "logical_fence_recorded",
+        "pending",
+        "approved",
+        "denied",
+        "expired",
+        "stale",
+        "unknown"
+      ]
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

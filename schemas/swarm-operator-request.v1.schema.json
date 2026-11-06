@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-operator-request.v1.schema.json",
+  "title": "swarm_operator_request",
+  "description": "Privacy-default diagnostic data; never identity, permission or runtime authority. External anchor trust is independent of local history ownership.",
+  "type": "object",
+  "additionalProperties": false,
+  "maxProperties": 4,
+  "required": [
+    "schema_version",
+    "operation",
+    "scope_ref",
+    "arguments"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_operator_request.v1"
+    },
+    "operation": {
+      "enum": [
+        "list",
+        "status",
+        "graph",
+        "explain",
+        "incidents",
+        "policy",
+        "coverage",
+        "export",
+        "sweep",
+        "pause",
+        "revoke",
+        "approve",
+        "deny"
+      ]
+    },
+    "scope_ref": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 69,
+          "maxLength": 69,
+          "pattern": "^hmac:[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "arguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "maxProperties": 6,
+      "required": [],
+      "properties": {
+        "action_ref": {
+          "type": "string",
+          "minLength": 69,
+          "maxLength": 69,
+          "pattern": "^hmac:[a-f0-9]{64}$"
+        },
+        "scope_kind": {
+          "enum": [
+            "agent",
+            "task",
+            "swarm"
+          ]
+        },
+        "actor_ref": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 69,
+              "maxLength": 69,
+              "pattern": "^hmac:[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "maximum_resources": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "request_ref": {
+          "type": "string",
+          "minLength": 69,
+          "maxLength": 69,
+          "pattern": "^hmac:[a-f0-9]{64}$"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from threading import RLock
+from typing import Any
 
 from ordin.runtime_observation import RuntimeEvidenceSource, RuntimeObservation
 from ordin._runtime_json import digest as runtime_digest
@@ -92,7 +93,23 @@ class SwarmEventIngestor:
         self._action_digests: dict[tuple[str, SwarmIdentity, str], str] = {}
         self._action_reviews: dict[tuple[str, SwarmIdentity, str], str] = {}
         self._scope: tuple[str, str] | None = None
+        self._audit_sources: list[Any] = []
         self._lock = RLock()
+
+    def bind_audit(self, source, *, operator: object) -> None:
+        from .diagnostics import SwarmAuditSource
+
+        if (
+            type(source) is not SwarmAuditSource
+            or source._registry is not self._registry
+            or source._operator is not operator
+        ):
+            raise ValueError("original message audit source required")
+        with self._lock:
+            if source not in self._audit_sources:
+                if len(self._audit_sources) >= 64:
+                    raise ValueError("bounded audit source capacity reached")
+                self._audit_sources.append(source)
 
     def bind_source(
         self,
@@ -315,6 +332,11 @@ class SwarmEventIngestor:
             binding.sequences[event.source_sequence] = event.event_id
             while binding.contiguous + 1 in binding.sequences:
                 binding.contiguous += 1
+            for audit in self._audit_sources:
+                try:
+                    audit.record_ingested(self, record)
+                except (ValueError, OSError, RuntimeError):
+                    audit._fault = True
             return self._receipt(record, binding, duplicate=False)
 
     def _receipt(

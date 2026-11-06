@@ -138,9 +138,30 @@ class SwarmContainmentController:
         self._automatic_proofs: dict[IncidentSignal, tuple[Any, str]] = {}
         self._head = "0" * 64
         self._lock = RLock()
+        self._audit_source: Any = None
         for handle, native_scope in coordinator._scopes.items():
             coordinator.bind_recovery_verifier(handle, self, control=control)
             native_scope.native.bind_containment(self, operator=operator)
+
+    def bind_audit(self, source, *, operator: object) -> None:
+        from .diagnostics import SwarmAuditSource
+
+        self._operator_check(operator)
+        if (
+            type(source) is not SwarmAuditSource
+            or source._containment is not self
+            or source._coordinator is not self._coordinator
+            or source._scope is not self._scope
+        ):
+            raise ValueError("original scoped containment audit source required")
+        self._audit_source = source
+
+    def _emit_audit(self, receipt):
+        if self._audit_source is not None:
+            try:
+                self._audit_source.record_incident(self, receipt)
+            except (ValueError, OSError, RuntimeError):
+                self._audit_source._fault = True
 
     def require_current(self, context, action):
         """Recheck DB fences at native review/commit, including cached direct routes."""
@@ -453,6 +474,7 @@ class SwarmContainmentController:
         Thread(
             target=self._cleanup, args=(incident,), name="ordin-containment", daemon=True
         ).start()
+        self._emit_audit(receipt)
         return receipt
 
     def pause(self, signal, *, operator):
@@ -736,4 +758,5 @@ class SwarmContainmentController:
                 self._resumes.pop(selected, None)
             self._recovery_bundles.pop(approval, None)
             incident.resumed = True
+        self._emit_audit(receipt)
         return self.status(receipt, operator=operator)

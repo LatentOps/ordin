@@ -7,7 +7,7 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, BinaryIO, Protocol
+from typing import Any, BinaryIO, Mapping, Protocol
 
 from . import AUDIT_EVENT_SCHEMA_VERSION, __version__
 from .action import ActionReview
@@ -87,6 +87,33 @@ class AuditVerification:
 
 class AuditSink(Protocol):
     def record(self, review: ActionReview) -> AuditEvent: ...
+
+
+def audit_tail_checkpoint(path: str | Path) -> dict[str, Any]:
+    """Exact detached snapshot anchor; local ownership still permits re-forging."""
+    result = verify_audit_jsonl(path, require_hash_chain=True)
+    if not result.ok:
+        raise ValueError("valid hash-chained audit required")
+    return {
+        "schema_version": "ordin.audit_checkpoint.v1",
+        "event_count": result.event_count,
+        "tail_hash": result.last_hash,
+        "owner_rewrite_possible": True,
+        "execution_authority": False,
+    }
+
+
+def verify_audit_checkpoint(path: str | Path, checkpoint: Mapping[str, Any]) -> bool:
+    """Compare to an independently retained exact anchor, not a local attestation."""
+    try:
+        from .schema import validate_named_schema
+
+        return (
+            not validate_named_schema("audit_checkpoint", dict(checkpoint))
+            and audit_tail_checkpoint(path) == checkpoint
+        )
+    except (ValueError, OSError, TypeError):
+        return False
 
 
 def build_audit_event(

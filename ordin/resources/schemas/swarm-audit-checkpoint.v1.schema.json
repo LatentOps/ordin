@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-audit-checkpoint.v1.schema.json",
+  "title": "swarm_audit_checkpoint",
+  "description": "Privacy-default diagnostic data; never identity, permission or runtime authority. External anchor trust is independent of local history ownership.",
+  "type": "object",
+  "additionalProperties": false,
+  "maxProperties": 7,
+  "required": [
+    "schema_version",
+    "tenant_ref",
+    "journal_ref",
+    "scope_ref",
+    "tail_sequence",
+    "tail_hash",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_audit_checkpoint.v1"
+    },
+    "tenant_ref": {
+      "type": "string",
+      "minLength": 69,
+      "maxLength": 69,
+      "pattern": "^hmac:[a-f0-9]{64}$"
+    },
+    "journal_ref": {
+      "type": "string",
+      "minLength": 69,
+      "maxLength": 69,
+      "pattern": "^hmac:[a-f0-9]{64}$"
+    },
+    "scope_ref": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 69,
+          "maxLength": 69,
+          "pattern": "^hmac:[a-f0-9]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "tail_sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "tail_hash": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}
