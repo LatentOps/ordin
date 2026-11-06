@@ -265,10 +265,21 @@ def _validate_sqlite(connection: _Connection) -> int:
 class CoordinatorTransaction:
     def __init__(self, connection: _Connection, root, scopes: list[str], now: float):
         self.connection, self.now = connection, now
+        self._clock_now = now
         self.database_id = root["database_id"]
         self._scopes = scopes
         self._barriers = decode(root["scopes_json"], MAX_ROOT_BYTES)["barriers"]
         self._loaded: dict[str, dict[str, Any]] = {}
+
+    def _observe_clock(self, value: float) -> float:
+        # Accounting retains the transaction's admission timestamp. Shared host
+        # authenticators need a current clock: another request may already have
+        # observed a later time while this transaction holds the authority lock.
+        now = timestamp(value)
+        if now < self._clock_now:
+            raise CoordinatorUnavailable("coordinator database clock moved backward")
+        self._clock_now = now
+        return now
 
     def scope(self, key: str) -> dict[str, Any]:
         _hex(key, "coordinator scope")
@@ -467,9 +478,9 @@ class CoordinatorTransaction:
         self.connection.execute(
             "UPDATE coordinator_meta SET last_now=?,scopes_json=?,checksum=? WHERE singleton=1",
             (
-                self.now,
+                self._clock_now,
                 encode({"scopes": self._scopes, "barriers": self._barriers}, MAX_ROOT_BYTES),
-                _root_checksum(self.database_id, self.now, self._scopes, self._barriers),
+                _root_checksum(self.database_id, self._clock_now, self._scopes, self._barriers),
             ),
         )
 
@@ -533,7 +544,7 @@ class SQLiteCoordinatorStore:
     def server_time(self) -> float:
         active = _active_transaction.get()
         if active is not None and active[0] is self:
-            return active[1]
+            return active[2]._observe_clock(self._clock())
         try:
             with private_database(
                 self.path, "swarm_coordinator", readonly=True, create=False, foreign_keys=True
@@ -842,7 +853,7 @@ class PostgresCoordinatorStore:
     def server_time(self) -> float:
         active = _active_transaction.get()
         if active is not None and active[0] is self:
-            return active[1]
+            return active[2]._observe_clock(self._db_time(active[2].connection))
         try:
             with self._connect() as raw:
                 connection = _Connection(raw, postgres=True)
