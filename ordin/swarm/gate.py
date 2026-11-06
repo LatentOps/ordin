@@ -581,6 +581,8 @@ class SwarmGate:
                 risk_disposition, risk_reasons = self._risk_scorer.project(
                     risk_receipt, context, normalized
                 )
+                if risk_disposition != "execute":
+                    approval_blocked = True
                 final = max((final, risk_disposition), key=DISPOSITIONS.__getitem__)
                 reasons.extend(risk_reasons)
                 if self._risk_scorer.promoting and self._risk_scorer.verify(
