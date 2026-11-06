@@ -20,6 +20,7 @@ ordin-swarm-adapter = "ordin_swarm.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["ordin_swarm*"]
+namespaces = false
 
 [tool.setuptools.package-data]
 ordin_swarm = ["migrations/*.sql", "migrations/*.md"]

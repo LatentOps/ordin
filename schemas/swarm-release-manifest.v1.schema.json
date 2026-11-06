@@ -1,0 +1,656 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-release-manifest.v1.schema.json",
+  "title": "swarm_release_manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "wheels",
+    "locks",
+    "environment",
+    "artifacts",
+    "checks",
+    "benchmarks",
+    "external_gate_references",
+    "expected_boundaries",
+    "uncovered_paths",
+    "local_gate_passed",
+    "complete_conformance",
+    "fixture_operator_control",
+    "production_rollout_authorized",
+    "publication_authorized",
+    "origin_authenticated_by_json",
+    "execution_authority",
+    "limitations",
+    "manifest_sha256",
+    "dependency_security_clearance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_release_manifest.v1"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commit",
+        "tree",
+        "clean",
+        "source_bytes_verified",
+        "git_hooks_executed",
+        "code_resource_sha256"
+      ],
+      "properties": {
+        "commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "tree": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        "clean": {
+          "const": true
+        },
+        "source_bytes_verified": {
+          "const": true
+        },
+        "git_hooks_executed": {
+          "const": false
+        },
+        "code_resource_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "wheels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "filename",
+          "sha256",
+          "bytes",
+          "requires_dist"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "ordin",
+              "ordin-swarm"
+            ]
+          },
+          "filename": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_.-]{0,127}$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000
+          },
+          "requires_dist": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "minItems": 0,
+            "maxItems": 64
+          }
+        }
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "locks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "sha256",
+          "pin_format"
+        ],
+        "properties": {
+          "name": {
+            "enum": [
+              "requirements/dev-baseline.txt",
+              "requirements/coordinator-postgres.txt",
+              "requirements/swarm-langgraph.txt",
+              "requirements/swarm-autogen.txt"
+            ]
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "pin_format": {
+            "const": "pip_require_hashes"
+          }
+        }
+      },
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "python",
+        "implementation",
+        "platform",
+        "kernel_release",
+        "machine",
+        "logical_cpu_count",
+        "package_origin",
+        "optional_risk_module_installed",
+        "optional_risk_configured",
+        "hosted_model_providers_installed",
+        "llm_inference_exercised"
+      ],
+      "properties": {
+        "python": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32
+        },
+        "implementation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "platform": {
+          "enum": [
+            "linux",
+            "win32"
+          ]
+        },
+        "kernel_release": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "machine": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "logical_cpu_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4096
+        },
+        "package_origin": {
+          "const": "isolated_wheels"
+        },
+        "optional_risk_module_installed": {
+          "type": "boolean"
+        },
+        "optional_risk_configured": {
+          "const": false
+        },
+        "hosted_model_providers_installed": {
+          "const": false
+        },
+        "llm_inference_exercised": {
+          "const": false
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "sha256",
+          "bytes",
+          "kind",
+          "schema_version"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9_.-]{0,127}$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8388608
+          },
+          "kind": {
+            "enum": [
+              "data_report",
+              "regression_summary",
+              "benchmark",
+              "fixture"
+            ]
+          },
+          "schema_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 32
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "status",
+          "producer",
+          "observed_boundary",
+          "physical_enforcement",
+          "artifact",
+          "passed",
+          "failed",
+          "skipped",
+          "reason_code"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "core_compatibility",
+              "two_agent_quickstart",
+              "custom_sdk",
+              "owned_linux_worker",
+              "windows_unsupported_control",
+              "mcp",
+              "hooks",
+              "coordinator_restart",
+              "multi_host_epochs",
+              "corpus",
+              "overhead",
+              "langgraph",
+              "crewai",
+              "legacy_autogen",
+              "postgres",
+              "openshell"
+            ]
+          },
+          "status": {
+            "enum": [
+              "passed",
+              "failed",
+              "unsupported",
+              "not_evaluated"
+            ]
+          },
+          "producer": {
+            "enum": [
+              "fixed_installed_helper",
+              "fixed_installed_regression",
+              "not_run"
+            ]
+          },
+          "observed_boundary": {
+            "enum": [
+              "review_only",
+              "host_owned_callbacks",
+              "owned_linux_read_worker",
+              "real_mtls_sqlite_admission",
+              "unsupported",
+              "not_evaluated",
+              "unknown"
+            ]
+          },
+          "physical_enforcement": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "artifact": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-z0-9][a-z0-9_.-]{0,127}$"
+          },
+          "passed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "failed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "skipped": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "reason_code": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,95}$"
+          }
+        }
+      },
+      "minItems": 16,
+      "maxItems": 16
+    },
+    "benchmarks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus_artifact",
+        "corpus_result_sha256",
+        "cases",
+        "evaluated",
+        "kernel_not_run",
+        "optional_not_evaluated",
+        "critical_misses",
+        "false_allows",
+        "false_blocks",
+        "unnecessary_approvals",
+        "unknowns",
+        "uncovered_paths",
+        "overhead_artifact",
+        "p95_budget_ms",
+        "p99_budget_ms",
+        "samples_per_shape",
+        "requested_long_actions",
+        "completed_long_actions",
+        "retained_state_bounded"
+      ],
+      "properties": {
+        "corpus_artifact": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,127}$"
+        },
+        "corpus_result_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "cases": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "evaluated": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "kernel_not_run": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "optional_not_evaluated": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "critical_misses": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "false_allows": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "false_blocks": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "unnecessary_approvals": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "unknowns": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "uncovered_paths": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "overhead_artifact": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,127}$"
+        },
+        "p95_budget_ms": {
+          "const": 250.0
+        },
+        "p99_budget_ms": {
+          "const": 500.0
+        },
+        "samples_per_shape": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 256
+        },
+        "requested_long_actions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "completed_long_actions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1024
+        },
+        "retained_state_bounded": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "external_gate_references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "checks",
+          "workflow",
+          "workflow_sha256",
+          "observed_status",
+          "required_lock_sha256",
+          "observed_artifact_sha256",
+          "reason_code",
+          "availability",
+          "security_advisories"
+        ],
+        "properties": {
+          "checks": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "core_compatibility",
+                "two_agent_quickstart",
+                "custom_sdk",
+                "owned_linux_worker",
+                "windows_unsupported_control",
+                "mcp",
+                "hooks",
+                "coordinator_restart",
+                "multi_host_epochs",
+                "corpus",
+                "overhead",
+                "langgraph",
+                "crewai",
+                "legacy_autogen",
+                "postgres",
+                "openshell"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 5
+          },
+          "workflow": {
+            "enum": [
+              ".github/workflows/swarm-frameworks.yml",
+              ".github/workflows/coordinator.yml",
+              ".github/workflows/runtime-extension.yml"
+            ]
+          },
+          "workflow_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "observed_status": {
+            "const": "not_evaluated"
+          },
+          "required_lock_sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "observed_artifact_sha256": {
+            "const": null
+          },
+          "reason_code": {
+            "enum": [
+              "dedicated_gate_not_run_in_this_collection",
+              "security_blocked_unpatched_chromadb"
+            ]
+          },
+          "availability": {
+            "enum": [
+              "enabled",
+              "security_blocked"
+            ]
+          },
+          "security_advisories": {
+            "type": "array",
+            "minItems": 0,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "url",
+                "package",
+                "affected_version",
+                "first_patched_version",
+                "reviewed_on"
+              ],
+              "properties": {
+                "id": {
+                  "enum": [
+                    "GHSA-36p7-vc44-83pf",
+                    "GHSA-xph7-9rjv-w5fr",
+                    "GHSA-2wm9-hf6c-p5cr",
+                    "GHSA-f4j7-r4q5-qw2c"
+                  ]
+                },
+                "url": {
+                  "type": "string",
+                  "pattern": "^https://github[.]com/advisories/GHSA-[a-z0-9-]{14}$"
+                },
+                "package": {
+                  "const": "chromadb"
+                },
+                "affected_version": {
+                  "const": "1.5.9"
+                },
+                "first_patched_version": {
+                  "const": null
+                },
+                "reviewed_on": {
+                  "const": "2026-11-06"
+                }
+              }
+            }
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 5
+    },
+    "expected_boundaries": {
+      "const": [
+        "review_only",
+        "host_owned_callbacks",
+        "owned_linux_read_worker"
+      ]
+    },
+    "uncovered_paths": {
+      "const": [
+        "raw_host_tools",
+        "raw_host_network",
+        "existing_credentials",
+        "unwrapped_processes"
+      ]
+    },
+    "local_gate_passed": {
+      "type": "boolean"
+    },
+    "complete_conformance": {
+      "type": "boolean"
+    },
+    "fixture_operator_control": {
+      "const": "explicit_owned_fixture_flag"
+    },
+    "production_rollout_authorized": {
+      "const": false
+    },
+    "publication_authorized": {
+      "const": false
+    },
+    "origin_authenticated_by_json": {
+      "const": false
+    },
+    "execution_authority": {
+      "const": false
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024
+      },
+      "minItems": 1,
+      "maxItems": 16
+    },
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "dependency_security_clearance": {
+      "const": "not_established"
+    }
+  }
+}

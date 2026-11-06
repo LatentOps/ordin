@@ -452,6 +452,19 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     from tests.swarm_corpus_contract_samples import corpus_contract_samples
 
     samples.update(corpus_contract_samples())
+    from ordin_swarm.quickstart import run as quickstart_fixture
+
+    samples["swarm_quickstart"] = quickstart_fixture()
+    samples["swarm_owned_demo"] = {
+        "schema_version": "ordin.swarm_owned_demo.v1",
+        "status": "unsupported",
+        "reason_code": "owned_demo.linux_x86_64_required",
+        "physical_enforcement": False,
+        "execution_authority": False,
+    }
+    from tests.swarm_release_contract_samples import manifest_sample
+
+    samples["swarm_release_manifest"] = manifest_sample()
     assert set(samples) == set(SCHEMA_FILES)
     for name, payload in samples.items():
         assert not validate_named_schema(name, payload), name
@@ -573,6 +586,7 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
+        "swarm_release_manifest",
         "swarm_approval_policy",
         "swarm_approval",
         "swarm_recovery_request",
@@ -607,6 +621,8 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
         "swarm_corpus_report",
         "swarm_overhead_report",
         "swarm_framework_fixture",
+        "swarm_quickstart",
+        "swarm_owned_demo",
         "swarm_framework_preparation",
         "swarm_framework_result",
         "swarm_framework_session",

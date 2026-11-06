@@ -30,6 +30,7 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "swarm_release_manifest": "swarm-release-manifest.v1.schema.json",
     "swarm_approval_policy": "swarm-approval-policy.v1.schema.json",
     "swarm_approval": "swarm-approval.v1.schema.json",
     "swarm_recovery_request": "swarm-recovery-request.v1.schema.json",
@@ -40,6 +41,8 @@ SCHEMA_FILES = {
     "approval_scope": "approval-scope.v1.schema.json",
     "approval_satisfaction": "approval-satisfaction.v1.schema.json",
     "approval_execution_lease": "approval-execution-lease.v1.schema.json",
+    "swarm_owned_demo": "swarm-owned-demo.v1.schema.json",
+    "swarm_quickstart": "swarm-quickstart.v1.schema.json",
     "swarm_artifact": "swarm-artifact.v1.schema.json",
     "swarm_artifact_diagnostics": "swarm-artifact-diagnostics.v1.schema.json",
     "swarm_audit_event": "swarm-audit-event.v1.schema.json",
