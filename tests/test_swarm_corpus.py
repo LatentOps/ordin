@@ -28,7 +28,10 @@ def test_complete_offline_stateful_corpus_and_reproducible_judgments():
     assert not first["execution_authority"]
     assert not validate_named_schema("swarm_corpus_report", first)
     assert (
-        first["scope"]["cases"] == first["scope"]["evaluated"] + first["metrics"]["kernel_not_run"]
+        first["scope"]["cases"]
+        == first["scope"]["evaluated"]
+        + first["metrics"]["kernel_not_run"]
+        + first["metrics"]["optional_not_evaluated"]
     )
     assert first["scope"]["critical_not_run"] > 0
 
@@ -86,3 +89,14 @@ def test_unreviewed_capture_incomplete_or_unknown_fixture_is_refused(tmp_path, c
 def test_report_requires_exact_revision(revision):
     with pytest.raises(ValueError):
         evaluate(MANIFEST, revision=revision)
+
+
+def test_absent_optional_risk_retains_unknown_rows_without_claiming_enforcement(monkeypatch):
+    monkeypatch.setattr("ordin.swarm.benchmark.optional_risk_available", lambda: False)
+    report = evaluate(MANIFEST, revision="d" * 40)
+    assert report["ok"], report["errors"]
+    rows = [value for value in report["results"] if value["status"] == "not_evaluated"]
+    assert len(rows) == report["metrics"]["optional_not_evaluated"] == 5
+    assert report["scope"]["critical_not_evaluated"] == 3
+    assert all(value["actual"] == "unknown" and value["matched"] is None for value in rows)
+    assert all(not value["backend_facts"]["physical_enforcement"] for value in rows)

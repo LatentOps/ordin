@@ -51,3 +51,54 @@ def test_packaged_runtime_refuses_revoked_authority_before_backend(tmp_path):
         assert not result.forwarded
         assert result.status != "completed"
         assert result.executor_outcome is None
+
+
+def test_audit_intent_and_model_diagnostics_never_claim_backend_observation(tmp_path):
+    from ordin.swarm.corpus_controls import run_control
+
+    result = run_control("audit-intent-inference", agents=3, seed=276, workspace=tmp_path / "audit")
+    assert result["actual"] == "execute" and all(result["checks"].values()), result
+    assert result["facts"]["diagnostic_events"] == result["facts"]["intent_events"] == 1
+    assert result["facts"]["observed_events"] == 0
+    assert not result["backend_facts"]["physical_enforcement"]
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="owned kernel backend requires Linux")
+def test_audit_only_projects_original_owned_backend_evidence_as_observed(tmp_path):
+    from ordin.swarm.corpus_kernel import run_kernel
+
+    result = run_kernel("kernel-audit-provenance", workspace=tmp_path / "audit")
+    assert result["actual"] == "execute" and all(result["checks"].values())
+    assert result["facts"]["observed_events"] == 1
+    assert result["backend_facts"]["authenticated_observations"] == 1
+    assert result["backend_facts"]["physical_enforcement"]
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="owned kernel backend requires Linux")
+@pytest.mark.parametrize(
+    "scenario",
+    (
+        "kernel-approval-warn",
+        "kernel-approval-ask",
+        "kernel-approval-replay",
+        "kernel-approval-copy",
+        "kernel-approval-mutation",
+        "kernel-approval-block",
+    ),
+)
+def test_human_tls_approval_keeps_original_job_and_core_constraints(tmp_path, scenario):
+    from ordin.swarm.corpus_kernel import run_kernel
+
+    result = run_kernel(scenario, workspace=tmp_path / "approval")
+    assert all(result["checks"].values()), result
+    assert result["actual"] == (
+        "execute" if scenario in {"kernel-approval-warn", "kernel-approval-ask"} else "deny"
+    )
+    assert result["backend_facts"]["physical_enforcement"] == (
+        scenario
+        in {
+            "kernel-approval-warn",
+            "kernel-approval-ask",
+            "kernel-approval-replay",
+        }
+    )

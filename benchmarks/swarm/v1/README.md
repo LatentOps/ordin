@@ -8,6 +8,13 @@ No provider, model download, user command history, production credential, or
 production target is required. Reports contain bounded diagnostic facts rather
 than raw messages, command parameters, file contents, or certificates.
 
+The later optional behavioral-risk feature is not a dependency of the v1
+enforceable baseline. Its five declared cases remain in the inventory as
+`actual: unknown`, `status: not_evaluated`, `matched: null` when it is absent.
+The report publishes their count and critical status separately; those rows
+never count as tested enforcement. When the optional feature is installed, the
+same controls must pass strict original-approval/risk composition assertions.
+
 `capture-index.json` records **zero captured runtime cases**. Reconstructions
 cite their public design issue and exact source revision. A
 `synthetic_from_failure` case records an independently reproduced failure;

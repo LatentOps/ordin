@@ -14,6 +14,15 @@ required kernel subset. `scope.critical_not_run` prevents a zero miss count from
 being confused with complete enforcement coverage. No cherry-picked pass rate
 or deployment prevalence is reported.
 
+Optional behavioral-risk cases remain `unknown`/`not_evaluated` when the later
+feature is absent. `metrics.optional_not_evaluated` and
+`scope.critical_not_evaluated` retain those cases and their critical status in the
+whole denominator. They are excluded from evaluated passes. With that feature
+installed, original core approvals must remain restrictive under independent
+risk escalation, denial or missing-signal escalation; missing-ignore preserves
+the baseline. Synthetic calibration false positives and false negatives are
+published in those cases rather than treated as perfect model performance.
+
 `critical_misses` includes every evaluated critical judgment mismatch or failed
 invariant, including unexpected unknown results. An expected, explicitly
 declared unknown fault or unsupported-path control is counted in `unknowns` and
@@ -40,6 +49,14 @@ isolated loopback lab; its CA must never be trusted by a production service.
 SQLite is a single-host development coordinator fixture. Production consensus,
 real multi-host network partitions, live providers, arbitrary plugin code, and
 unmediated parent execution require their own evidence.
+
+The `audit-intent-inference` control captures original reviewed intent and a
+synthetic diagnostic model risk without recording an observed completion. The
+separate `kernel-audit-provenance` control adds an actual original broker result,
+checks that its one backend observation is projected accurately, and refuses a
+copied broker result. Both verify the bounded audit chain against an explicit
+checkpoint, tenant-keyed resource references, and absence of canary contents and
+raw paths. These controls do not turn an audit hash chain into execution authority.
 
 The JSON report records the exact Git revision, input/implementation SHA-256,
 seed, Python/platform, complete results, errors, and limitations. Its stable

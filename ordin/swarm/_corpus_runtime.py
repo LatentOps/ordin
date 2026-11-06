@@ -18,6 +18,7 @@ from ordin import (
     ToolSemanticRule,
     ToolSemanticsRegistry,
 )
+from ordin.action_policy import ActionPolicySet, ActionPolicyRule, ActionPolicyCondition
 from ordin.assurance import AssuranceGate, DelegationAuthority
 from ordin.runtime_boundary import RuntimeCapabilityBoundary
 from ordin.runtime_contract import FilesystemCapability, ToolCapability
@@ -69,7 +70,7 @@ def _tls(context, name):
 
 
 class OwnedRuntime:
-    def __init__(self, workspace: Path, stack: ExitStack, *, kernel=True):
+    def __init__(self, workspace: Path, stack: ExitStack, *, kernel=True, approval_decision=None):
         self.operator = object()
         self.store = SQLiteCoordinatorStore(
             workspace / "authority.sqlite", create=True, clock=lambda: 100
@@ -97,6 +98,26 @@ class OwnedRuntime:
                 ),
             )
         )
+        if approval_decision is not None:
+            if approval_decision not in {"warn", "ask", "block"}:
+                raise ValueError("unknown owned fixture approval decision")
+            from dataclasses import replace
+
+            self.core = replace(
+                self.core,
+                action_policy=ActionPolicySet(
+                    "corpus-human-read",
+                    "1",
+                    (
+                        ActionPolicyRule(
+                            "owned-read-approval",
+                            approval_decision,
+                            ActionPolicyCondition(effects_any=("filesystem.read",)),
+                        ),
+                    ),
+                ),
+            )
+        self.approval_decision = approval_decision
         self.names = ("parent", "child", "sibling")
         self.identities = tuple(
             SessionIdentity("corpus-" + name, "session-" + name) for name in self.names
@@ -135,9 +156,27 @@ class OwnedRuntime:
         self.auth = WorkloadAuthenticator(
             self.registry, tls, operator=self.operator, clock=self.clock
         )
+        self.bootstrap = None
+        if self.approval_decision is not None:
+            from .approval_service import SwarmApprovalBootstrap
+
+            self.bootstrap = SwarmApprovalBootstrap(
+                self.registry,
+                self.native.sources,
+                self.native.profile,
+                self.maximum,
+                operator=self.operator,
+                clock=self.clock,
+            )
         self.service = SwarmDelegationService(
             self.native.issuer,
-            AssuranceGate(AgentGate(self.core), self.native.profile),
+            AssuranceGate(
+                AgentGate(
+                    self.core,
+                    approval_source=self.bootstrap.authority if self.bootstrap else None,
+                ),
+                self.native.profile,
+            ),
             self.auth,
             operator=self.operator,
         )
@@ -246,7 +285,9 @@ class OwnedRuntime:
         control = coordinator.control_source(operator=self.operator)
         scope = coordinator.register_scope(
             self.service,
-            BudgetPolicy(0, (BudgetLimit("swarm", "requests", 32),)),
+            self.ledger.policy
+            if self.broker is not None
+            else BudgetPolicy(0, (BudgetLimit("swarm", "requests", 32),)),
             control=control,
             broker_channels=(self.broker_channel,),
             brokers=(("host-b", self.broker),) if self.broker is not None else (),
@@ -270,7 +311,7 @@ class OwnedRuntime:
 
 
 @contextmanager
-def owned_runtime(workspace: Path, *, kernel=True):
+def owned_runtime(workspace: Path, *, kernel=True, approval_decision=None):
     workspace.mkdir(parents=True, exist_ok=False)
     with ExitStack() as stack:
-        yield OwnedRuntime(workspace, stack, kernel=kernel)
+        yield OwnedRuntime(workspace, stack, kernel=kernel, approval_decision=approval_decision)

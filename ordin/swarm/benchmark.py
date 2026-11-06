@@ -2,6 +2,7 @@
 
 from collections import Counter
 import hashlib
+from importlib.util import find_spec
 import math
 from pathlib import Path
 import platform
@@ -32,6 +33,11 @@ BENIGN = frozenset(
         "valid-data-sharing",
         "reconnect-resume",
         "kernel-benign",
+        "audit-intent-inference",
+        "kernel-audit-provenance",
+        "kernel-approval-warn",
+        "kernel-approval-ask",
+        "approval-risk-missing-ignore",
     }
 )
 UNKNOWNS = frozenset(
@@ -47,6 +53,28 @@ UNKNOWNS = frozenset(
     }
 )
 BYPASSES = frozenset({"raw-host-uncovered", "kernel-bypass"})
+OPTIONAL_RISK_CASES = frozenset(
+    {
+        "model-provider-absent",
+        "approval-risk-escalation",
+        "approval-risk-deny",
+        "approval-risk-missing",
+        "approval-risk-missing-ignore",
+    }
+)
+
+
+def optional_risk_available():
+    return find_spec("ordin.swarm.risk_signals") is not None
+
+
+REQUIRED_APPROVALS = frozenset(
+    {
+        "kernel-approval-warn",
+        "kernel-approval-ask",
+        "approval-risk-missing-ignore",
+    }
+)
 
 
 def _expected_case(name):
@@ -205,6 +233,8 @@ def _implementation_digest():
         "_corpus_world.py",
         "_corpus_delegation.py",
         "_corpus_runtime.py",
+        "_corpus_audit.py",
+        "_corpus_approval.py",
         "overhead_benchmark.py",
     )
     return digest(
@@ -228,6 +258,7 @@ def evaluate(
     if type(include_kernel) is not bool:
         raise ValueError("kernel evaluation is explicit opt-in")
     corpus = load_corpus(path)
+    risk_available = optional_risk_available()
     selected_seed = corpus["seed"] if seed is None else seed
     if type(selected_seed) is not int or not 0 <= selected_seed < 2**32:
         raise ValueError("invalid scheduler seed")
@@ -249,12 +280,39 @@ def evaluate(
                 "authenticated_kernel_completions",
                 "owned_callback_completions",
                 "kernel_not_run",
+                "optional_not_evaluated",
             )
         }
     )
     with tempfile.TemporaryDirectory(prefix="ordin-swarm-corpus-") as directory:
         workspace = Path(directory)
         for index, case in enumerate(corpus["cases"]):
+            if case["id"] in OPTIONAL_RISK_CASES and not risk_available:
+                metrics["optional_not_evaluated"] += 1
+                results.append(
+                    {
+                        "id": case["id"],
+                        "lane": case["lane"],
+                        "status": "not_evaluated",
+                        "label": case["label"],
+                        "expected": case["expected"],
+                        "actual": "unknown",
+                        "matched": None,
+                        "checks": {},
+                        "core_intent": None,
+                        "model_inference": {"status": "not_installed", "evidence_authority": False},
+                        "backend_facts": {
+                            "outcome": "not_evaluated",
+                            "physical_enforcement": False,
+                            "authenticated_observations": 0,
+                        },
+                        "facts": {
+                            "optional_feature": "behavioral_risk",
+                            "reason": "optional_feature_not_installed",
+                        },
+                    }
+                )
+                continue
             if case["lane"] == "kernel" and not include_kernel:
                 metrics["kernel_not_run"] += 1
                 results.append(
@@ -309,7 +367,9 @@ def evaluate(
             )
             metrics["false_blocks"] += case["label"] == "benign" and finding["actual"] == "deny"
             metrics["unnecessary_approvals"] += case["label"] == "benign" and bool(
-                finding["core_intent"] and finding["core_intent"]["disposition"] == "escalate"
+                finding["core_intent"]
+                and finding["core_intent"]["disposition"] == "escalate"
+                and case["id"] not in REQUIRED_APPROVALS
             )
             metrics["unknowns"] += finding["actual"] == "unknown"
             metrics["uncovered_paths"] += finding["actual"] == "uncovered"
@@ -357,6 +417,11 @@ def evaluate(
                 c["critical"] and r["status"] == "not_run" for c, r in zip(corpus["cases"], results)
             ),
             "provenance": dict(Counter(v["provenance"]["kind"] for v in corpus["cases"])),
+            "critical_not_evaluated": sum(
+                c["critical"] and r["status"] == "not_evaluated"
+                for c, r in zip(corpus["cases"], results)
+            ),
+            "optional_risk_available": risk_available,
         },
         "metrics": dict(metrics),
         "scenario_latency_ms": latency(samples),
@@ -369,6 +434,7 @@ def evaluate(
             "Stateful callback facts are not kernel enforcement; kernel facts require the separate opt-in owned runtime lane.",
             "Missing collectors, models, completion or supported protocols stay unknown; unwrapped parent access stays uncovered.",
             "The local authority uses real mTLS and SQLite development storage; PostgreSQL multi-host deployment needs its independent coordinator gate.",
+            "Optional behavioral-risk controls stay unknown/not_evaluated when that later feature is not installed; they remain in the whole-corpus inventory and never count as enforcement passes.",
         ],
         "execution_authority": False,
     }

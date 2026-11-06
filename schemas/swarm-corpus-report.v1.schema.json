@@ -87,7 +87,9 @@
         "evaluated",
         "critical_cases",
         "critical_not_run",
-        "provenance"
+        "provenance",
+        "critical_not_evaluated",
+        "optional_risk_available"
       ],
       "properties": {
         "cases": {
@@ -145,6 +147,14 @@
             "minimum": 0,
             "maximum": 128
           }
+        },
+        "critical_not_evaluated": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "optional_risk_available": {
+          "type": "boolean"
         }
       }
     },
@@ -161,7 +171,8 @@
         "invariant_failures",
         "authenticated_kernel_completions",
         "owned_callback_completions",
-        "kernel_not_run"
+        "kernel_not_run",
+        "optional_not_evaluated"
       ],
       "properties": {
         "critical_misses": {
@@ -210,6 +221,11 @@
           "maximum": 128
         },
         "kernel_not_run": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 128
+        },
+        "optional_not_evaluated": {
           "type": "integer",
           "minimum": 0,
           "maximum": 128
@@ -315,7 +331,8 @@
           "status": {
             "enum": [
               "evaluated",
-              "not_run"
+              "not_run",
+              "not_evaluated"
             ]
           },
           "label": {

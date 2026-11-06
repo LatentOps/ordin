@@ -194,3 +194,23 @@ def test_tenant_bound_budget_and_lineage_objects_do_not_cross_boundaries(agents)
             complete=True,
         )
     assert not left.effects and not right.effects
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    (
+        "approval-risk-escalation",
+        "approval-risk-deny",
+        "approval-risk-missing",
+        "approval-risk-missing-ignore",
+    ),
+)
+def test_original_core_approval_never_waives_independent_risk(tmp_path, scenario):
+    pytest.importorskip("ordin.swarm.risk_signals")
+    result = run_control(scenario, agents=3, seed=276, workspace=tmp_path / "risk")
+    assert all(result["checks"].values())
+    assert result["actual"] == ("execute" if scenario.endswith("-ignore") else "deny")
+    assert result["core_intent"]["decision"] == "warn"
+    assert not result["backend_facts"]["physical_enforcement"]
+    assert result["facts"]["calibration_false_positive"] == 1
+    assert result["facts"]["calibration_false_negative"] == 1

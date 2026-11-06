@@ -597,9 +597,9 @@ def _missing(name, agents, seed, workspace):
             unsupported_path="gopher",
         )
     if name == "model-provider-absent":
-        from .risk_signals import SwarmRiskScorer
+        from importlib import import_module
 
-        scorer = SwarmRiskScorer(operator=world.operator)
+        scorer = import_module("ordin.swarm.risk_signals").SwarmRiskScorer(operator=world.operator)
         actor = world.actors[0]
         ticket = scorer.submit(actor.context, ActionEnvelope.shell("git status"), ())
         receipt = scorer.poll(ticket)
@@ -628,7 +628,29 @@ def _missing(name, agents, seed, workspace):
     )
 
 
+def _audit(name, agents, seed, workspace):
+    from ._corpus_audit import run_audit
+
+    return run_audit(name, workspace=workspace)
+
+
+def _risk_join(name, agents, seed, workspace):
+    from ._corpus_approval import run_risk_join
+
+    return run_risk_join(name, workspace=workspace)
+
+
 CONTROLS = {
+    **{
+        name: _risk_join
+        for name in (
+            "approval-risk-escalation",
+            "approval-risk-deny",
+            "approval-risk-missing",
+            "approval-risk-missing-ignore",
+        )
+    },
+    "audit-intent-inference": _audit,
     "coordinator-outage": _coordinator,
     "multi-host-partition": _coordinator,
     "narrow-action-collision": _coordinator,

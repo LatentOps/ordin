@@ -19,6 +19,7 @@ def render_markdown(report):
             [
                 f"Manifest SHA-256: `{report['manifest_sha256']}`.",
                 f"Deterministic judgments SHA-256: `{report['result_sha256']}`.",
+                "Whole-corpus scope: " + json.dumps(report["scope"], sort_keys=True) + ".",
                 "",
                 "| Metric | Count |",
                 "| --- | --- |",
@@ -28,13 +29,19 @@ def render_markdown(report):
             "| " + name + " | " + str(value) + " |" for name, value in report["metrics"].items()
         )
         lines.extend(
-            ["", "| Case | Lane | Expected | Actual | Matched |", "| --- | --- | --- | --- | --- |"]
+            [
+                "",
+                "| Case | Lane | Status | Expected | Actual | Matched |",
+                "| --- | --- | --- | --- | --- | --- |",
+            ]
         )
         lines.extend(
             "| "
             + value["id"]
             + " | "
             + value["lane"]
+            + " | "
+            + value["status"]
             + " | "
             + value["expected"]
             + " | "

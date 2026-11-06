@@ -10,6 +10,7 @@ from ordin._runtime_json import digest
 from ._corpus_runtime import owned_runtime
 from .corpus_controls import outcome
 from .linux_backend import ExecutorOutcome
+from ._corpus_approval import APPROVAL_KERNEL_CASES
 
 KERNEL_CASES = (
     "kernel-benign",
@@ -19,12 +20,24 @@ KERNEL_CASES = (
     "kernel-revoked",
     "kernel-untrusted-outcome",
     "kernel-bypass",
+    "kernel-audit-provenance",
+    *APPROVAL_KERNEL_CASES,
 )
 
 
 def run_kernel(name: str, *, workspace: Path):
     if name not in KERNEL_CASES:
         raise ValueError("unknown owned kernel corpus case")
+    if name in APPROVAL_KERNEL_CASES:
+        from ._corpus_approval import run_approval_kernel
+
+        workspace.mkdir(parents=True, exist_ok=False)
+        return run_approval_kernel(name, workspace=workspace)
+    if name == "kernel-audit-provenance":
+        from ._corpus_audit import run_audit
+
+        workspace.mkdir(parents=True, exist_ok=False)
+        return run_audit(name, workspace=workspace)
     with owned_runtime(workspace, kernel=True) as runtime:
         prepared = runtime.broker.prepare(
             runtime.channels["child"], runtime.grant, runtime.action, idempotency_key=name

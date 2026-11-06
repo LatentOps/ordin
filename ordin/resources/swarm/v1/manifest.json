@@ -490,6 +490,186 @@
         "source_revision": null,
         "description": "Owned Linux read worker and real mutually authenticated local authority; synthetic data only."
       }
+    },
+    {
+      "id": "audit-intent-inference",
+      "scenario": "audit-intent-inference",
+      "agents": 3,
+      "label": "benign",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Independent synthetic provenance control over original review, diagnostic inference and authenticated backend producers."
+      }
+    },
+    {
+      "id": "kernel-audit-provenance",
+      "scenario": "kernel-audit-provenance",
+      "agents": 3,
+      "label": "benign",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Independent synthetic provenance control over original review, diagnostic inference and authenticated backend producers."
+      }
+    },
+    {
+      "id": "kernel-approval-warn",
+      "scenario": "kernel-approval-warn",
+      "agents": 3,
+      "label": "benign",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "kernel-approval-ask",
+      "scenario": "kernel-approval-ask",
+      "agents": 3,
+      "label": "benign",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "kernel-approval-replay",
+      "scenario": "kernel-approval-replay",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "kernel-approval-copy",
+      "scenario": "kernel-approval-copy",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "kernel-approval-mutation",
+      "scenario": "kernel-approval-mutation",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "kernel-approval-block",
+      "scenario": "kernel-approval-block",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "kernel",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "approval-risk-escalation",
+      "scenario": "approval-risk-escalation",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "approval-risk-deny",
+      "scenario": "approval-risk-deny",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "approval-risk-missing",
+      "scenario": "approval-risk-missing",
+      "agents": 3,
+      "label": "adversarial",
+      "critical": true,
+      "lane": "stateful",
+      "expected": "deny",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
+    },
+    {
+      "id": "approval-risk-missing-ignore",
+      "scenario": "approval-risk-missing-ignore",
+      "agents": 3,
+      "label": "benign",
+      "critical": false,
+      "lane": "stateful",
+      "expected": "execute",
+      "provenance": {
+        "kind": "control",
+        "source_issue": null,
+        "source_revision": null,
+        "description": "Original exact approval and restrictive diagnostic-risk composition in a synthetic owned lab; no production or independently human-reviewed capture."
+      }
     }
   ]
 }
