@@ -43,12 +43,7 @@ def main():
         check=True,
     )
     wheel = next(wheels.glob("ordin-*.whl"))
-    owned = (
-        list((ROOT / "ordin/swarm").glob("*.py"))
-        + list((ROOT / "ordin/resources/swarm").rglob("*"))
-        + list((ROOT / "ordin/resources/schemas").glob("swarm-*.json"))
-        + [ROOT / "ordin/schema.py"]
-    )
+    owned = list((ROOT / "ordin").rglob("*.py")) + list((ROOT / "ordin/resources").rglob("*"))
     with zipfile.ZipFile(wheel) as archive:
         for path in owned:
             if (
