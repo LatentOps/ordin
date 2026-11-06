@@ -1,5 +1,17 @@
 """Optional host integration entry points; import starts no transports."""
 
+from .sdk import (
+    SwarmSDK,
+    FrameworkSession,
+    FrameworkTool,
+    FrameworkCall,
+    FrameworkPreparation,
+    FrameworkResult,
+    SwarmToolRefused,
+)
+from .data_bridge import FrameworkDataBridge, FrameworkData
+from .protocol import FrameworkJSONClient
+
 from .mcp_adapter import SwarmMCPAdapter
 from .approval_service import (
     SwarmApprovalBootstrap,
@@ -82,6 +94,16 @@ __all__ = [
     "IncidentReceipt",
     "IncidentResumeReceipt",
     "SwarmContainmentController",
+    "SwarmSDK",
+    "FrameworkSession",
+    "FrameworkTool",
+    "FrameworkCall",
+    "FrameworkPreparation",
+    "FrameworkResult",
+    "SwarmToolRefused",
+    "FrameworkDataBridge",
+    "FrameworkData",
+    "FrameworkJSONClient",
     "SwarmCoordinator",
     "CoordinatorClock",
     "CoordinatorEndpoint",

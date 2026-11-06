@@ -135,8 +135,17 @@ def test_db_clock_is_original_shared_source_and_backward_clock_fails_closed(tmp_
     assert clock() == 100
     with backend.transaction() as transaction:
         now[0] = 102
-        assert clock() == transaction.now == 100  # One transaction's DB clock domain.
+        assert clock() == 102
+        assert transaction.now == 100  # Accounting keeps its admission timestamp.
+        now[0] = 101
+        with pytest.raises(CoordinatorUnavailable):
+            clock()
+        now[0] = 102
     assert clock() == 102
+    now[0] = 101
+    with pytest.raises(CoordinatorUnavailable):
+        clock()  # The latest observed time survives the transaction commit.
+    now[0] = 102
     with backend.transaction():
         pass
     now[0] = 99
@@ -145,6 +154,30 @@ def test_db_clock_is_original_shared_source_and_backward_clock_fails_closed(tmp_
     with pytest.raises(CoordinatorUnavailable):
         with backend.transaction():
             pytest.fail("backward-clock transaction entered")
+
+
+@pytest.mark.parametrize("backend_kind", ("sqlite", "postgres"))
+def test_transaction_clock_does_not_rewind_shared_authenticated_host_clock(
+    tmp_path, monkeypatch, backend_kind
+):
+    from tests.test_swarm_coordinator import configured
+
+    backend = postgres_fixture() if backend_kind == "postgres" else None
+    current = [backend.server_time()] if backend is not None else None
+    if backend is not None:
+        monkeypatch.setattr(backend, "_db_time", lambda connection: current[0])
+    with configured(tmp_path, backend=backend) as data:
+        channel = data["channels"]["parent"]
+        with data["store"].transaction() as transaction:
+            started = transaction.now
+            (current if current is not None else data["now"])[0] += 2
+            # This second request has no active transaction and observes the
+            # actual later DB clock. The first transaction must not present its
+            # older accounting timestamp as a new host authentication time.
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                executor.submit(data["auth"].require, channel, role="workload").result(timeout=5)
+            assert data["auth"].require(channel, role="workload") is not None
+            assert transaction.now == started
 
 
 def test_concurrent_connections_serialize_updates_at_database_boundary(tmp_path):

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-framework-installation.v1.schema.json",
+  "title": "swarm_framework_installation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "framework",
+    "tested_versions",
+    "manifest_only",
+    "hook_installation",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_framework_installation.v1"
+    },
+    "framework": {
+      "enum": [
+        "custom",
+        "langgraph",
+        "crewai",
+        "autogen"
+      ]
+    },
+    "tested_versions": {
+      "type": "object",
+      "maxProperties": 3,
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      }
+    },
+    "manifest_only": {
+      "const": true
+    },
+    "hook_installation": {
+      "const": "in_process_host_required"
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

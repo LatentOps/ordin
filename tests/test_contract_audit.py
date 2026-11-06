@@ -443,6 +443,9 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     from tests.swarm_approval_contract_samples import approval_contract_samples
 
     samples.update(approval_contract_samples())
+    from tests.swarm_framework_contract_samples import framework_contract_samples
+
+    samples.update(framework_contract_samples(tmp_path))
     assert set(samples) == set(SCHEMA_FILES)
     for name, payload in samples.items():
         assert not validate_named_schema(name, payload), name
@@ -576,6 +579,13 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
         "approval_execution_lease",
         "swarm_artifact",
         "swarm_artifact_diagnostics",
+        "swarm_framework_fixture",
+        "swarm_framework_preparation",
+        "swarm_framework_result",
+        "swarm_framework_session",
+        "swarm_framework_adapter",
+        "swarm_framework_installation",
+        "swarm_framework_setup",
         "swarm_coordinator_record",
         "swarm_incident",
         "swarm_coordinator_fence",

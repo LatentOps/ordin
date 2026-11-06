@@ -10,7 +10,10 @@ from typing import Any, Iterable
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_SCHEMA_DIR = ROOT / "schemas"
 PACKAGE_SCHEMA_DIR = Path(__file__).resolve().parent / "resources" / "schemas"
-SCHEMA_DIR = SOURCE_SCHEMA_DIR if SOURCE_SCHEMA_DIR.exists() else PACKAGE_SCHEMA_DIR
+# A sibling site-packages/schemas directory can belong to another distribution.
+# Runtime validation uses the resources owned by this Ordin package; source
+# schemas remain available for the checkout parity checks below.
+SCHEMA_DIR = PACKAGE_SCHEMA_DIR
 SOURCE_DATA_DIR = ROOT / "data"
 PACKAGE_DATA_DIR = Path(__file__).resolve().parent / "resources"
 DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
@@ -40,6 +43,13 @@ SCHEMA_FILES = {
     "swarm_artifact": "swarm-artifact.v1.schema.json",
     "swarm_artifact_diagnostics": "swarm-artifact-diagnostics.v1.schema.json",
     "swarm_incident": "swarm-incident.v1.schema.json",
+    "swarm_framework_fixture": "swarm-framework-fixture.v1.schema.json",
+    "swarm_framework_preparation": "swarm-framework-preparation.v1.schema.json",
+    "swarm_framework_result": "swarm-framework-result.v1.schema.json",
+    "swarm_framework_session": "swarm-framework-session.v1.schema.json",
+    "swarm_framework_adapter": "swarm-framework-adapter.v1.schema.json",
+    "swarm_framework_installation": "swarm-framework-installation.v1.schema.json",
+    "swarm_framework_setup": "swarm-framework-setup.v1.schema.json",
     "swarm_coordinator_record": "swarm-coordinator-record.v1.schema.json",
     "swarm_coordinator_fence": "swarm-coordinator-fence.v1.schema.json",
     "swarm_coordinator_dispatch": "swarm-coordinator-dispatch.v1.schema.json",

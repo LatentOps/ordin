@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-framework-fixture.v1.schema.json",
+  "title": "swarm_framework_fixture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "framework",
+    "versions",
+    "upstream_status",
+    "trust_boundary",
+    "allowed_read_completed",
+    "private_handoff_delivered",
+    "inherited_labels",
+    "source_flow_violated",
+    "egress_callbacks",
+    "child_callbacks",
+    "denied_reviews",
+    "post_tool_outcome_linked",
+    "physical_enforcement",
+    "observed_exfiltration",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_framework_fixture.v1"
+    },
+    "framework": {
+      "enum": [
+        "custom",
+        "langgraph",
+        "crewai",
+        "autogen"
+      ]
+    },
+    "versions": {
+      "type": "object",
+      "maxProperties": 3,
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      }
+    },
+    "upstream_status": {
+      "enum": [
+        "host_owned",
+        "maintained",
+        "archived"
+      ]
+    },
+    "trust_boundary": {
+      "const": "host_owned_synthetic_fixture"
+    },
+    "allowed_read_completed": {
+      "type": "boolean"
+    },
+    "private_handoff_delivered": {
+      "type": "boolean"
+    },
+    "inherited_labels": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 32
+      },
+      "maxItems": 16,
+      "uniqueItems": true
+    },
+    "source_flow_violated": {
+      "type": "boolean"
+    },
+    "egress_callbacks": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4096
+    },
+    "child_callbacks": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4096
+    },
+    "denied_reviews": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4096
+    },
+    "post_tool_outcome_linked": {
+      "type": "boolean"
+    },
+    "physical_enforcement": {
+      "const": false
+    },
+    "observed_exfiltration": {
+      "const": "unknown"
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

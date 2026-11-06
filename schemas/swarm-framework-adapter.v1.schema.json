@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-framework-adapter.v1.schema.json",
+  "title": "swarm_framework_adapter",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "framework",
+    "versions",
+    "tested_versions",
+    "compatible",
+    "installed",
+    "connected",
+    "upstream_status",
+    "mode",
+    "physical_enforcement",
+    "covered",
+    "uncovered",
+    "native_approvals",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_framework_adapter.v1"
+    },
+    "framework": {
+      "enum": [
+        "custom",
+        "langgraph",
+        "crewai",
+        "autogen"
+      ]
+    },
+    "versions": {
+      "type": "object",
+      "maxProperties": 3,
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "tested_versions": {
+      "type": "object",
+      "maxProperties": 3,
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      }
+    },
+    "compatible": {
+      "type": "boolean"
+    },
+    "installed": {
+      "type": "boolean"
+    },
+    "connected": {
+      "type": "boolean"
+    },
+    "upstream_status": {
+      "enum": [
+        "maintained",
+        "archived",
+        "host_owned"
+      ]
+    },
+    "mode": {
+      "const": "intercept"
+    },
+    "physical_enforcement": {
+      "const": false
+    },
+    "covered": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "maxItems": 128,
+      "uniqueItems": true
+    },
+    "uncovered": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "maxItems": 128,
+      "uniqueItems": true
+    },
+    "native_approvals": {
+      "const": "unavailable_escalation_refused"
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      },
+      "maxItems": 128,
+      "uniqueItems": true
+    },
+    "environment_compatible": {
+      "type": "boolean"
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}
