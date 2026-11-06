@@ -100,11 +100,31 @@ def test_real_owned_broker_joins_db_budget_and_current_policy_without_double_con
                     revocation_epoch=fence.revocation_epoch,
                 )
                 assert result.status == "canceled_holds_retained"
+                again = coordinator.reconcile_broker_outcome(
+                    scope,
+                    reserved.reference,
+                    broker.status(authorization),
+                    control=control,
+                    revocation_epoch=fence.revocation_epoch,
+                )
+                assert again.reference == result.reference
+                newer = coordinator.record_fence(
+                    scope, control=control, kind="action", subject_digest=reserved.action_digest
+                )
+                refreshed = coordinator.reconcile_broker_outcome(
+                    scope,
+                    reserved.reference,
+                    broker.status(authorization),
+                    control=control,
+                    revocation_epoch=newer.revocation_epoch,
+                )
+                assert refreshed.status == "canceled_holds_retained"
                 with store.transaction() as transaction:
                     row = transaction.scope(scope.scope_key)["reservations"][reserved.reference]
                     assert (
                         row["status"] == "uncertain"
                         and row["incident_outcome"]["status"] == "canceled"
+                        and row["incident_outcome"]["revocation_epoch"] == newer.revocation_epoch
                     )
                     assert (
                         transaction.connection.execute(

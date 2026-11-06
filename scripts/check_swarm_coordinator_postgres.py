@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -53,18 +54,26 @@ def main() -> int:
         if commands:
             os.chown(sockets, owner.pw_uid, owner.pw_gid)
 
-        def run(arguments):
-            try:
-                subprocess.run(
-                    [*commands, *map(str, arguments)],
-                    check=True,
-                    timeout=60,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                )
-            except subprocess.CalledProcessError as error:
-                print(error.stdout.decode("utf-8", errors="replace"), file=sys.stderr)
-                raise
+        def run(arguments, *, timeout=60):
+            command = [*commands, *map(str, arguments)]
+            with subprocess.Popen(
+                command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True
+            ) as process:
+                try:
+                    output, _ = process.communicate(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    # This new process group contains only this owned fixture's
+                    # helper/children, never an existing system service.
+                    os.killpg(process.pid, signal.SIGTERM)
+                    try:
+                        process.communicate(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(process.pid, signal.SIGKILL)
+                        process.communicate()
+                    raise
+                if process.returncode:
+                    print(output.decode("utf-8", errors="replace"), file=sys.stderr)
+                    raise subprocess.CalledProcessError(process.returncode, command, output)
 
         run(
             [
@@ -74,7 +83,8 @@ def main() -> int:
                 "--auth-local=trust",
                 "--auth-host=reject",
                 "--no-instructions",
-            ]
+            ],
+            timeout=180,
         )
         run(
             [

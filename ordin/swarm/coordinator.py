@@ -1973,9 +1973,15 @@ class SwarmCoordinator:
                 "action_digest": prepared.action_digest,
             }
             previous = reservation.get("incident_outcome")
-            if previous is not None and previous != outcome:
-                raise CoordinatorRejected("coordinator.incident_outcome_conflict")
-            if previous is None:
+            if previous is not None:
+                if (
+                    any(previous[key] != outcome[key] for key in ("status", "action_digest"))
+                    or previous["revocation_epoch"] > revocation_epoch
+                ):
+                    raise CoordinatorRejected("coordinator.incident_outcome_conflict")
+                if previous["revocation_epoch"] == revocation_epoch:
+                    receipt_digest = previous["receipt_digest"]
+            if previous is None or previous["revocation_epoch"] < revocation_epoch:
                 reservation["incident_outcome"] = outcome
                 transaction.append(
                     handle.scope_key,
