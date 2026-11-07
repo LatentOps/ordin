@@ -1,6 +1,7 @@
 import json
 import subprocess
 import sys
+from types import MappingProxyType
 
 import pytest
 
@@ -227,6 +228,170 @@ def test_direct_proxy_preserves_a_valid_supplementary_unicode_request_id():
     observed = proxy.observe_server_message({"jsonrpc": "2.0", "id": "🙂", "result": {}})
     assert observed is not None and observed.action_id == approved.action_id
     assert observed.exit_code == 0 and proxy.pending_count == 0
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {"\ud800": "value"}},
+        {"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {"values": [("\udfff",)]}},
+        {"jsonrpc": "2.0", "id": 1, "method": "\ud800"},
+        {"jsonrpc": "2.0", "method": "notifications/tools/list_changed", "params": {"\ud800": 1}},
+        {"jsonrpc": "2.0", "method": "\udfff"},
+        MappingProxyType(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/list",
+                "params": MappingProxyType({"nested": (MappingProxyType({"key": "\ud800"}),)}),
+            }
+        ),
+    ],
+)
+def test_direct_client_unicode_is_checked_before_any_pending_or_session_change(message):
+    from ordin.mcp_proxy import _encode_jsonrpc
+
+    proxy = MCPStdioSafetyProxy(server_id="fixture")
+    before = proxy.session.snapshot()
+    rejected = proxy.process_client_message(message)
+    assert not rejected.forward
+    assert json.loads(_encode_jsonrpc(rejected.response))["error"]["code"] == -32600
+    assert proxy.session.snapshot() == before
+    proxy.reset_session()
+    assert proxy.process_client_message({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}).forward
+    proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {"tools": []}})
+    proxy.reset_session()
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"result": {"content": [{"text": "\ud800"}]}},
+        {"result": {"content": [{"\udfff": "value"}]}},
+        {"result": MappingProxyType({"nested": (MappingProxyType({"value": "\ud800"}),)})},
+        {"error": {"code": -32603, "message": "\ud800"}},
+        {"method": "notifications/tools/list_changed", "params": {"value": "\udfff"}},
+        {"method": "\ud800"},
+    ],
+)
+def test_direct_server_unicode_is_checked_before_observation_or_nonce_consumption(extra):
+    proxy = MCPStdioSafetyProxy(
+        server_id="fixture", gate=AgentGate(Ordin(tool_semantics=_read_semantics()))
+    )
+    original = proxy.process_client_message(_call(arguments={"path": "README.md"}))
+    assert original.forward
+    before = proxy.session.snapshot()
+    with pytest.raises(ValueError, match="Unicode scalar"):
+        proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, **extra})
+    assert proxy.pending_count == 1
+    assert proxy.session.snapshot() == before
+    assert not proxy.process_client_message(_call()).forward
+    observed = proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {"content": []}})
+    assert observed is not None and observed.action_id == original.action_id
+    assert observed.exit_code == 0 and proxy.pending_count == 0
+
+
+def test_direct_invalid_unicode_cannot_invalidate_discovery_contracts():
+    from ordin.mcp_contracts import MCPContractLock, semantics_binding_digest, tool_contract_digest
+
+    semantics = _read_semantics()
+    contract = {"name": "read_file", "inputSchema": {"type": "object"}}
+    lock = MCPContractLock(
+        semantics_binding_digest(semantics, frozenset()),
+        {("fixture", "read_file"): tool_contract_digest(contract)},
+    )
+    proxy = MCPStdioSafetyProxy(
+        server_id="fixture",
+        gate=AgentGate(Ordin(tool_semantics=semantics)),
+        shell_tools=frozenset(),
+        contract_lock=lock,
+    )
+    listing = {"jsonrpc": "2.0", "id": 0, "method": "tools/list"}
+    assert proxy.process_client_message(listing).forward
+    proxy.observe_server_message({"jsonrpc": "2.0", "id": 0, "result": {"tools": [contract]}})
+    assert proxy.contracts.status == "complete"
+    original_live = dict(proxy.contracts.live)
+    rejected = proxy.process_client_message({**listing, "id": 1, "params": {"\ud800": "value"}})
+    assert not rejected.forward
+    assert proxy.contracts.status == "complete" and proxy.contracts.live == original_live
+    with pytest.raises(ValueError, match="Unicode scalar"):
+        proxy.observe_server_message(
+            {
+                "jsonrpc": "2.0",
+                "method": "notifications/tools/list_changed",
+                "params": {"\udfff": 1},
+            }
+        )
+    assert proxy.contracts.status == "complete" and proxy.contracts.live == original_live
+    assert proxy.process_client_message({**listing, "id": 1}).forward
+    proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {"tools": [contract]}})
+    assert proxy.contracts.status == "complete"
+    proxy.observe_server_message({"jsonrpc": "2.0", "method": "notifications/tools/list_changed"})
+    assert proxy.contracts.status == "unverified"
+    proxy.reset_session()
+
+
+@pytest.mark.parametrize("shape", ["mapping-cycle", "list-cycle", "tuple-cycle", "deep"])
+def test_direct_container_preflight_is_bounded_and_preserves_retry(shape):
+    script = """
+from ordin.mcp_proxy import MCPStdioSafetyProxy
+shape = SHAPE
+if shape == 'mapping-cycle':
+    params = {}
+    params['again'] = params
+elif shape == 'list-cycle':
+    params = []
+    params.append(params)
+elif shape == 'tuple-cycle':
+    values = []
+    params = (values,)
+    values.append(params)
+else:
+    params = 'value'
+    for _ in range(70):
+        params = (params,)
+proxy = MCPStdioSafetyProxy(server_id='fixture')
+decision = proxy.process_client_message({'jsonrpc':'2.0','id':1,'method':'tools/list','params':params})
+assert not decision.forward
+assert decision.response['error']['code'] == -32600
+proxy.reset_session()
+assert proxy.process_client_message({'jsonrpc':'2.0','id':1,'method':'tools/list'}).forward
+proxy.observe_server_message({'jsonrpc':'2.0','id':1,'result':{'tools':[]}})
+proxy.reset_session()
+""".replace("SHAPE", repr(shape))
+    result = subprocess.run(
+        [sys.executable, "-B", "-c", script], text=True, capture_output=True, timeout=10
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_direct_server_container_cycle_cannot_consume_the_pending_call():
+    proxy = MCPStdioSafetyProxy(
+        server_id="fixture", gate=AgentGate(Ordin(tool_semantics=_read_semantics()))
+    )
+    original = proxy.process_client_message(_call(arguments={"path": "README.md"}))
+    assert original.forward
+    cycle = []
+    cycle.append(cycle)
+    before = proxy.session.snapshot()
+    with pytest.raises(ValueError, match="nesting"):
+        proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {"content": cycle}})
+    assert proxy.session.snapshot() == before and proxy.pending_count == 1
+    observed = proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {}})
+    assert observed is not None and observed.action_id == original.action_id
+
+
+def test_valid_direct_mapping_and_tuple_unicode_values_remain_supported():
+    from ordin.mcp_proxy import _encode_jsonrpc
+
+    message = MappingProxyType(
+        {"jsonrpc": "2.0", "id": "🙂", "method": "ping", "params": {"parts": ({"text": "🙂"},)}}
+    )
+    proxy = MCPStdioSafetyProxy(server_id="fixture")
+    assert proxy.process_client_message(message).forward
+    assert json.loads(_encode_jsonrpc(message))["params"] == {"parts": [{"text": "🙂"}]}
+    proxy.observe_server_message(MappingProxyType({"jsonrpc": "2.0", "id": "🙂", "result": {}}))
+    proxy.reset_session()
 
 
 def test_jsonrpc_parser_enforces_the_documented_nesting_boundary():

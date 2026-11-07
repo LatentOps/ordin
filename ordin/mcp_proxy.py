@@ -214,6 +214,15 @@ class MCPStdioSafetyProxy:
         # Reserve IDs, evaluate history, and register pending observations as
         # one transaction; concurrent callers cannot reuse an in-flight ID.
         with self._lock:
+            try:
+                _validate_json_depth(message)
+            except ValueError as exc:
+                return MCPClientMessageDecision(
+                    forward=False,
+                    response=_jsonrpc_error(
+                        None, code=INVALID_REQUEST_CODE, message=f"invalid MCP message: {exc}"
+                    ),
+                )
             return self._process_client_message(message)
 
     def _process_client_message(self, message: Mapping[str, Any]) -> MCPClientMessageDecision:
@@ -382,6 +391,7 @@ class MCPStdioSafetyProxy:
         """Create a redacted observation for a terminal upstream tool response."""
 
         with self._lock:
+            _validate_json_depth(message)
             return self._observe_server_message(message, observed_effects=observed_effects)
 
     def _observe_server_message(
@@ -620,6 +630,7 @@ def _finite_json_number(text: str) -> float:
 
 
 def _validate_json_depth(payload: Any) -> None:
+    """Validate decoded Unicode and nesting before mutable protocol processing."""
     pending: list[tuple[Any, int]] = [(payload, 0)]
     while pending:
         value, depth = pending.pop()
@@ -631,13 +642,13 @@ def _validate_json_depth(payload: Any) -> None:
             except UnicodeEncodeError as exc:
                 raise ValueError("MCP JSON strings must contain Unicode scalar values") from exc
             continue
-        if not isinstance(value, (dict, list)):
+        if not isinstance(value, (Mapping, list, tuple)):
             continue
         if depth > MAX_MCP_JSON_DEPTH:
             raise ValueError(f"MCP JSON nesting exceeds maximum depth {MAX_MCP_JSON_DEPTH}")
-        if isinstance(value, dict):
+        if isinstance(value, Mapping):
             pending.extend((key, depth + 1) for key in value)
-        children = value.values() if isinstance(value, dict) else value
+        children = value.values() if isinstance(value, Mapping) else value
         pending.extend((child, depth + 1) for child in children)
 
 

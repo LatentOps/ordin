@@ -298,6 +298,41 @@ def test_invalid_client_unicode_is_rejected_without_failing_the_session(bad_body
         assert len(state["calls"]) == 1
 
 
+@pytest.mark.parametrize("server_info", [{"name": "\ud800"}, {"\udfff": "value"}])
+def test_direct_http_unicode_validation_precedes_initialization_and_nonce_changes(server_info):
+    from ordin.mcp_http import HTTPBoundaryError
+
+    with _upstream() as (url, _), _proxy(url) as server:
+        session = server.new_session("fixture-credential", "init")
+        try:
+            assert session.reviewer.process_client_message(
+                {"jsonrpc": "2.0", "id": "init", "method": "initialize"}
+            ).forward
+            before = session.reviewer.session.snapshot()
+            reply = {
+                "jsonrpc": "2.0",
+                "id": "init",
+                "result": {
+                    "protocolVersion": MCP_HTTP_PROTOCOL,
+                    "capabilities": {},
+                    "serverInfo": server_info,
+                },
+            }
+            with pytest.raises(HTTPBoundaryError, match="invalid_upstream_protocol"):
+                server.observe(session, reply)
+            assert not session.initialized and not session.failed
+            assert session.reviewer.session.snapshot() == before
+            with pytest.raises(ValueError, match="in-flight"):
+                session.reviewer.reset_session()
+            valid = {**reply, "result": {**reply["result"], "serverInfo": {"name": "fixture"}}}
+            assert server.observe(session, valid) == valid
+            assert session.initialized
+            session.reviewer.reset_session()
+        finally:
+            server.drop(session)
+            server.release(session)
+
+
 def _call(request_id=1, name="read_file", arguments=None):
     return {
         "jsonrpc": "2.0",
