@@ -64,6 +64,8 @@ The proxy exits when its upstream server exits, even if the client keeps stdin
 open. It preserves the server's exit code; an upstream protocol failure returns
 exit code `1`. Client EOF still gives the server the configured
 `--shutdown-timeout` to finish before it is terminated.
+The timeout must be finite, positive, and within the platform's wait limit;
+invalid values are rejected before the upstream process starts.
 
 Direct Python calls use the same decoded JSON validation before request tracking
 or observations change. Mapping and tuple containers remain supported; member

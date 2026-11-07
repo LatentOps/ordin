@@ -14,6 +14,7 @@ from ordin.mcp_proxy import (
     MAX_MCP_JSON_DEPTH,
     MCPStdioSafetyProxy,
     _parse_jsonrpc_line,
+    run_stdio_proxy,
 )
 from ordin.tool_calls import ToolResourceBinding, ToolSemanticRule, ToolSemanticsRegistry
 
@@ -663,6 +664,59 @@ def test_nonfinite_request_ids_are_rejected_by_the_direct_proxy_api(request_id):
     decision = proxy.process_client_message(_call(request_id=request_id))
     assert not decision.forward
     assert decision.response["error"]["code"] == -32600
+
+
+@pytest.mark.parametrize(
+    "timeout",
+    [float("nan"), float("inf"), float("-inf"), 0, -1, 1e300, 10**1000, True, None, "1"],
+    ids=[
+        "nan",
+        "infinity",
+        "negative-infinity",
+        "zero",
+        "negative",
+        "huge-float",
+        "huge-integer",
+        "boolean",
+        "null",
+        "text",
+    ],
+)
+def test_invalid_shutdown_timeout_is_rejected_before_launch(monkeypatch, timeout):
+    def forbidden(*args, **kwargs):
+        pytest.fail("invalid shutdown configuration launched an upstream process")
+
+    monkeypatch.setattr(subprocess, "Popen", forbidden)
+    with pytest.raises(ValueError, match="finite, positive"):
+        run_stdio_proxy(
+            MCPStdioSafetyProxy(server_id="fixture"), ["never-run"], shutdown_timeout=timeout
+        )
+
+
+@pytest.mark.parametrize("timeout", ["nan", "inf", "-inf", "1e300"])
+def test_stdio_cli_reports_unsupported_timeouts_as_configuration_errors(timeout):
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ordin.mcp_proxy",
+            "--server-id",
+            "fixture",
+            f"--shutdown-timeout={timeout}",
+            "--",
+            sys.executable,
+            "-c",
+            "raise SystemExit(99)",
+        ],
+        input="",
+        text=True,
+        capture_output=True,
+        timeout=10,
+    )
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert "finite, positive" in result.stderr
+    assert "Traceback" not in result.stderr
 
 
 def test_stdio_proxy_rejects_ambiguous_client_json_and_continues():

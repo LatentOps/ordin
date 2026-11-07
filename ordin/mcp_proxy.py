@@ -888,8 +888,14 @@ def run_stdio_proxy(
 ) -> int:
     if not command:
         raise ValueError("upstream MCP command must not be empty")
-    if shutdown_timeout <= 0:
-        raise ValueError("shutdown timeout must be greater than zero")
+    if (
+        isinstance(shutdown_timeout, bool)
+        or not isinstance(shutdown_timeout, (int, float))
+        or not 0 < shutdown_timeout <= threading.TIMEOUT_MAX
+    ):
+        raise ValueError(
+            "shutdown timeout must be finite, positive, and within the platform wait limit"
+        )
 
     process = subprocess.Popen(
         list(command),
