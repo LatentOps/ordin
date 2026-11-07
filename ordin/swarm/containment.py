@@ -6,6 +6,7 @@ the original in-memory objects can participate in a recovery ceremony.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from threading import Event, RLock, Thread
 from typing import Any, TYPE_CHECKING
@@ -135,6 +136,7 @@ class SwarmContainmentController:
         self._resumes: dict[IncidentResumeReceipt, _Resume] = {}
         self._recovery_bundles: dict[IncidentResumeReceipt, tuple[Any, ...]] = {}
         self._signals_used: set[IncidentSignal] = set()
+        self._pending_signals: set[IncidentSignal] = set()
         self._automatic_proofs: dict[IncidentSignal, tuple[Any, str]] = {}
         self._head = "0" * 64
         self._lock = RLock()
@@ -363,12 +365,30 @@ class SwarmContainmentController:
         targets = self._targets(protected.scope)
         if not protected.operator_owned and (rule is None or len(targets) > rule.max_affected):
             raise ValueError("automatic containment exceeds configured narrow blast radius")
-        with self._lock:
-            if signal in self._signals_used or len(self._incidents) >= self._limit:
-                raise ValueError("incident signal already used or capacity reached")
-            # Consume before attempting durable commit: an ambiguous ACK must
-            # not cause an automatic second incident or re-enable anything.
-            self._signals_used.add(signal)
+        with self._admission(signal):
+            return self._contain(protected, targets, operation, signal)
+
+    @contextmanager
+    def _admission(self, signal):
+        admitted = False
+        try:
+            with self._lock:
+                if signal in self._signals_used or (
+                    len(self._incidents) + len(self._pending_signals) >= self._limit
+                ):
+                    raise ValueError("incident signal already used or capacity reached")
+                admitted = True
+                # Consume before attempting durable commit: an ambiguous ACK must
+                # not cause an automatic second incident or re-enable anything.
+                self._signals_used.add(signal)
+                self._pending_signals.add(signal)
+            yield
+        finally:
+            if admitted:
+                with self._lock:
+                    self._pending_signals.discard(signal)
+
+    def _contain(self, protected, targets, operation, signal):
         selected = protected.scope
         kind = "subtree" if selected.kind in {"agent", "delegation_subtree"} else selected.kind
         subject = (
@@ -451,6 +471,7 @@ class SwarmContainmentController:
                 chain,
             )
             self._incidents[receipt] = incident
+            self._pending_signals.discard(signal)
             self._head = chain
         # Registry pause does not wait on the issuer's execution barrier. This
         # closes cached native authorization paths as the durable fence closes
