@@ -235,3 +235,60 @@ def test_pristine_transaction_does_not_consume_initialization_permission(
         initialize(connection)
     with store.transaction() as connection:
         assert connection.execute("SELECT last_now FROM budget_meta").fetchone()[0] == 100
+
+
+@pytest.mark.parametrize("phase", ["before-begin", "after-begin", "before-commit", "after-commit"])
+@pytest.mark.parametrize(
+    "exception_type",
+    [RuntimeError, KeyboardInterrupt, SystemExit, asyncio.CancelledError],
+    ids=lambda value: value.__name__,
+)
+@pytest.mark.parametrize("cleanup_failure", [False, True], ids=["closed", "close-lost-ack"])
+def test_failed_memory_constructor_closes_connection_without_replacing_failure(
+    monkeypatch, phase, exception_type, cleanup_failure
+):
+    original_connect = sqlite3.connect
+    failure = exception_type("constructor interrupted")
+    retained = []
+
+    class FaultConnection(sqlite3.Connection):
+        armed = True
+
+        def execute(self, sql, parameters=()):
+            if self.armed and sql == "BEGIN IMMEDIATE" and phase == "before-begin":
+                self.armed = False
+                raise failure
+            result = super().execute(sql, parameters)
+            if self.armed and sql == "BEGIN IMMEDIATE" and phase == "after-begin":
+                self.armed = False
+                raise failure
+            return result
+
+        def commit(self):
+            if self.armed and phase == "before-commit":
+                self.armed = False
+                raise failure
+            result = super().commit()
+            if self.armed and phase == "after-commit":
+                self.armed = False
+                raise failure
+            return result
+
+        def close(self):
+            result = super().close()
+            if cleanup_failure:
+                raise RuntimeError("connection close acknowledgement unavailable")
+            return result
+
+    def connect(*args, **kwargs):
+        connection = original_connect(*args, **kwargs, factory=FaultConnection)
+        retained.append(connection)
+        return connection
+
+    monkeypatch.setattr(sqlite3, "connect", connect)
+    with pytest.raises(exception_type) as caught:
+        InMemoryBudgetStore()
+    assert caught.value is failure
+    assert len(retained) == 1
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        retained[0].execute("SELECT 1")

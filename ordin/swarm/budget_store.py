@@ -106,18 +106,22 @@ class InMemoryBudgetStore:
         self._connection = sqlite3.connect(
             ":memory:", isolation_level=None, check_same_thread=False
         )
-        self._connection.execute("PRAGMA trusted_schema=OFF")
-        self._connection.execute("PRAGMA foreign_keys=ON")
-        self._connection.execute("PRAGMA max_page_count=16384")
-        self._lock = RLock()
-        self._allow_initialize = True
-        self._connection.execute("BEGIN IMMEDIATE")
         try:
+            self._connection.execute("PRAGMA trusted_schema=OFF")
+            self._connection.execute("PRAGMA foreign_keys=ON")
+            self._connection.execute("PRAGMA max_page_count=16384")
+            self._lock = RLock()
+            self._allow_initialize = True
+            self._connection.execute("BEGIN IMMEDIATE")
             _initialize_schema(self._connection)
             self._connection.commit()
-        except Exception:
-            self._connection.rollback()
-            self._connection.close()
+        except BaseException:
+            try:
+                # Closing an unreturned connection also rolls back partial setup.
+                self._connection.close()
+            except BaseException:
+                # Preserve the original startup failure if cleanup also fails.
+                pass
             raise
 
     @contextmanager
