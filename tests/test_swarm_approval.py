@@ -620,3 +620,46 @@ def test_changed_authority_or_history_cannot_forward_an_original_approved_job(
             assert result.status != "host_completed"
         with pytest.raises(ValueError):
             service.dispatch(receipt)
+
+
+def test_rotated_human_needs_fresh_request_votes_and_approval_receipt(tmp_path):
+    require_kernel()
+    with configured(tmp_path, quorum=True) as data, ExitStack() as stack:
+        service, _, _, channel, lease, grant, action, humans, _, native = data
+        request = service.request(channel, lease, grant, action, idempotency_key="before-rotation")
+        service.resolve(humans["alice"], request.request_id, "approve", idempotency_key="alice")
+        receipt = service.resolve(
+            humans["bob"], request.request_id, "approve", idempotency_key="bob"
+        )["receipt"]
+        directory, operator = service.directory, native[11]
+        old = directory.require(humans["alice"], task_id="task", roles=("approve",))
+        directory.revoke(old.enrollment_id, operator=operator)
+        current = directory.enroll(
+            principal_id="alice",
+            certificate_digest=fingerprint("outsider"),
+            roles=("approve", "observe", "break_glass", "recover"),
+            task_ids=("task",),
+            operator=operator,
+        )
+        for person, credential in (("alice", "outsider"), ("bob", "sibling")):
+            socket, _ = stack.enter_context(tls_pair(directory.authenticator._tls, credential))
+            humans[person] = directory.authenticate(socket)
+        with pytest.raises(ValueError):
+            service.prepare(receipt, channel, lease, action)
+        fresh = service.request(channel, lease, grant, action, idempotency_key="after-rotation")
+        first = service.resolve(
+            humans["alice"], fresh.request_id, "approve", idempotency_key="new-alice"
+        )
+        assert first["status"] == "pending" and first["votes"] == 1
+        again = service.resolve(
+            humans["alice"], fresh.request_id, "approve", idempotency_key="same-human"
+        )
+        assert again["status"] == "pending" and again["votes"] == 1
+        final = service.resolve(
+            humans["bob"], fresh.request_id, "approve", idempotency_key="new-bob"
+        )
+        assert final["status"] == "approved" and final["votes"] == 2
+        assert current.enrollment_id != old.enrollment_id and final["receipt"] is not receipt
+        prepared = service.prepare(final["receipt"], channel, lease, action)
+        assert prepared.reference is not None
+        assert service.dispatch(final["receipt"]).status == "host_completed"

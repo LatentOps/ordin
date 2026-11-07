@@ -9,7 +9,7 @@ import pytest
 
 from ordin.swarm.operator_auth import HumanOperatorChannel, SwarmOperatorDirectory
 from tests.test_swarm_broker import fixture
-from tests.test_swarm_delegation import fingerprint, tls_pair
+from tests.test_swarm_delegation import fingerprint, tls_pair, server_context
 
 
 def enroll(data):
@@ -249,3 +249,97 @@ def test_operator_clock_still_rejects_rollback_and_invalid_samples(tmp_path, sam
         with pytest.raises(ValueError):
             directory.authenticate(socket)
         assert auth._last_now == 100
+
+
+def test_revoked_human_can_rotate_leaf_at_directory_capacity_without_restoring_old_handles(
+    tmp_path,
+):
+    with fixture(tmp_path) as data, ExitStack() as stack:
+        auth, operator = data[1].authenticator, data[11]
+        directory = SwarmOperatorDirectory(auth, operator=operator, maximum_members=1)
+        old = directory.enroll(
+            principal_id="alice",
+            certificate_digest=fingerprint("grandchild"),
+            roles=("approve",),
+            task_ids=("task",),
+            operator=operator,
+        )
+        old_socket, _ = stack.enter_context(tls_pair(auth._tls, "grandchild"))
+        old_channel = directory.authenticate(old_socket)
+        before = directory.binding_digest
+        with pytest.raises(ValueError):
+            directory.enroll(
+                principal_id="alice",
+                certificate_digest=fingerprint("sibling"),
+                roles=("approve",),
+                task_ids=("task",),
+                operator=operator,
+            )
+        directory.revoke(old.enrollment_id, operator=operator)
+        assert old.enrollment_id in auth._revoked
+        assert directory.binding_digest != before
+        current = directory.enroll(
+            principal_id="alice",
+            certificate_digest=fingerprint("sibling"),
+            roles=("approve",),
+            task_ids=("task",),
+            operator=operator,
+        )
+        assert current.principal_id == old.principal_id
+        assert current.enrollment_id != old.enrollment_id
+        assert len(directory._members) == 1
+        new_socket, _ = stack.enter_context(tls_pair(auth._tls, "sibling"))
+        channel = directory.authenticate(new_socket)
+        assert directory.require(channel, task_id="task", roles=("approve",)) is current
+        for original in (old_channel, copy(channel), HumanOperatorChannel(channel.channel_id)):
+            with pytest.raises(ValueError):
+                directory.require(original, task_id="task", roles=("approve",))
+        with pytest.raises(ValueError):
+            directory.member(old.enrollment_id, task_id="task", roles=("approve",))
+        with pytest.raises(ValueError):
+            directory.authenticate(old_socket)
+        for task, roles in (("other-task", ("approve",)), ("task", ("recover",))):
+            with pytest.raises(ValueError):
+                directory.require(channel, task_id=task, roles=roles)
+        with pytest.raises(ValueError):
+            directory.enroll(
+                principal_id="bob",
+                certificate_digest=fingerprint("outsider"),
+                roles=("approve",),
+                task_ids=("task",),
+                operator=operator,
+            )
+
+
+def test_operator_rotation_retains_bounded_authenticator_revocation_history():
+    from ordin.swarm import InMemoryAgentRegistry
+    from ordin.swarm.workload_auth import WorkloadAuthenticator
+
+    operator = object()
+    auth = WorkloadAuthenticator(
+        InMemoryAgentRegistry("tenant", "swarm", clock=lambda: 100),
+        server_context(),
+        operator=operator,
+        clock=lambda: 100,
+        max_enrollments=1,
+    )
+    directory = SwarmOperatorDirectory(auth, operator=operator, maximum_members=1)
+    old = directory.enroll(
+        principal_id="alice",
+        certificate_digest=fingerprint("grandchild"),
+        roles=("approve",),
+        task_ids=("task",),
+        operator=operator,
+    )
+    directory.revoke(old.enrollment_id, operator=operator)
+    for credential in ("grandchild", "sibling"):
+        with pytest.raises(ValueError):
+            directory.enroll(
+                principal_id="alice",
+                certificate_digest=fingerprint(credential),
+                roles=("approve",),
+                task_ids=("task",),
+                operator=operator,
+            )
+    assert not directory._members
+    assert len(auth._enrollments) == 1 and old.enrollment_id in auth._revoked
