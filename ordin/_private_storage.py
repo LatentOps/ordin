@@ -41,6 +41,7 @@ def private_database(
     flags = (
         (os.O_RDONLY if readonly else (os.O_CREAT if create else 0) | os.O_RDWR)
         | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_NONBLOCK", 0)
         | getattr(os, "O_BINARY", 0)
     )
     descriptor = os.open(target, flags, 0o600)
