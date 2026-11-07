@@ -6,6 +6,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from types import SimpleNamespace
 from urllib.parse import urlsplit
 
 import pytest
@@ -57,7 +58,14 @@ def _running(server):
 
 
 @contextmanager
-def _upstream(mode="json", *, redirect="http://127.0.0.1:1/never"):
+def _upstream(
+    mode="json",
+    *,
+    redirect="http://127.0.0.1:1/never",
+    sse_newline=b"\n",
+    sse_bom=False,
+    sse_chunk_size=17,
+):
     state = {
         "calls": [],
         "headers": [],
@@ -97,6 +105,17 @@ def _upstream(mode="json", *, redirect="http://127.0.0.1:1/never"):
                 body = b"id: fixture-cursor\ndata:\n\n"
                 if not priming_only:
                     body += b"event: message\ndata: " + raw + b"\n\n"
+                endings = sse_newline if isinstance(sse_newline, tuple) else (sse_newline,)
+                lines = body.split(b"\n")
+                body = (
+                    b"".join(
+                        line + endings[index % len(endings)]
+                        for index, line in enumerate(lines[:-1])
+                    )
+                    + lines[-1]
+                )
+                if sse_bom:
+                    body = b"\xef\xbb\xbf" + body
             else:
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(raw)))
@@ -105,8 +124,8 @@ def _upstream(mode="json", *, redirect="http://127.0.0.1:1/never"):
             self.close_connection = True
             try:
                 if sse:
-                    for offset in range(0, len(body), 17):
-                        chunk = body[offset : offset + 17]
+                    for offset in range(0, len(body), sse_chunk_size):
+                        chunk = body[offset : offset + sse_chunk_size]
                         self.wfile.write(f"{len(chunk):x}\r\n".encode() + chunk + b"\r\n")
                     self.wfile.write(b"0\r\n\r\n")
                 else:
@@ -388,6 +407,111 @@ def test_json_sse_and_stateless_upstreams_preserve_gate_decisions(mode):
         assert server._sessions[token].reviewer.context.cwd is None
 
 
+@pytest.mark.parametrize("newline", [b"\n", b"\r", b"\r\n", (b"\r", b"\r\n", b"\n")])
+@pytest.mark.parametrize("bom", [False, True])
+def test_fragmented_sse_line_endings_and_bom_preserve_initialization_and_correlation(newline, bom):
+    with (
+        _upstream("sse", sse_newline=newline, sse_bom=bom, sse_chunk_size=1) as (url, state),
+        _proxy(url) as server,
+    ):
+        token = _initialize(server)
+        status, _, body = _request(server, _call(), token=token)
+        assert status == 200 and b"fixture result" in body
+        assert b"fixture-cursor" in body
+        assert len(state["calls"]) == 1
+        assert server._sessions[token].reviewer.pending_count == 0
+
+
+class _SSEProbeResponse:
+    def __init__(self, body, chunk_size=65_536, *, forbid_eof_read=False):
+        self.body = io.BytesIO(body)
+        self.chunk_size = chunk_size
+        self.forbid_eof_read = forbid_eof_read
+
+    def read1(self, count):
+        data = self.body.read(min(count, self.chunk_size))
+        if not data and self.forbid_eof_read:
+            raise AssertionError("terminal SSE event waited for another byte or EOF")
+        return data
+
+
+def _sse_probe_handler():
+    from ordin.mcp_http import _MCPHTTPHandler
+
+    observed = []
+    handler = object.__new__(_MCPHTTPHandler)
+    handler._resumable_seen = False
+    handler._check_upstream_deadline = lambda: None
+    handler.wfile = io.BytesIO()
+    handler.server = SimpleNamespace(
+        observe=lambda session, message: observed.append(message) or message
+    )
+    return handler, observed
+
+
+@pytest.mark.parametrize("ending", [b"\n", b"\r", b"\r\n"])
+@pytest.mark.parametrize("chunk_size", [1, 2, 3, 17, 65_536])
+def test_sse_complete_terminal_event_does_not_wait_for_upstream_eof(ending, chunk_size):
+    payload = b'{"jsonrpc":"2.0","id":7,"result":{"content":[]}}'
+    body = b"\xef\xbb\xbf: keepalive" + ending + b"id: cursor" + ending
+    body += b"data: " + payload + ending + ending
+    handler, observed = _sse_probe_handler()
+    handler._stream(
+        _SSEProbeResponse(body, chunk_size, forbid_eof_read=True), object(), request_id=7
+    )
+    assert observed == [json.loads(payload)]
+    assert handler.wfile.getvalue().rstrip(b"\r\n") == body[3:].rstrip(b"\r\n")
+
+
+@pytest.mark.parametrize("chunk_size", [1, 65_536])
+def test_sse_crlf_is_one_line_ending_and_cannot_complete_an_unterminated_event(chunk_size):
+    from ordin.mcp_http import HTTPBoundaryError
+
+    body = b'data: {"jsonrpc":"2.0","id":7,"result":{}}\r\n'
+    handler, observed = _sse_probe_handler()
+    with pytest.raises(HTTPBoundaryError, match="upstream_stream_ended_without_result"):
+        handler._stream(_SSEProbeResponse(body, chunk_size), object(), request_id=7)
+    assert observed == [] and handler.wfile.getvalue() == b""
+
+
+@pytest.mark.parametrize("bom", [b"", b"\xef\xbb\xbf"])
+def test_sse_event_limit_counts_original_framing_and_bom_bytes(monkeypatch, bom):
+    import ordin.mcp_http as module
+
+    payload = b'{"jsonrpc":"2.0","id":7,"result":{}}'
+    body = bom + b"event: message\nid: cursor\ndata: " + payload + b"\n\n"
+    monkeypatch.setattr(module, "MAX_MCP_MESSAGE_BYTES", len(body))
+    handler, observed = _sse_probe_handler()
+    handler._stream(_SSEProbeResponse(body), object(), request_id=7)
+    assert observed == [json.loads(payload)]
+    monkeypatch.setattr(module, "MAX_MCP_MESSAGE_BYTES", len(body) - 1)
+    handler, observed = _sse_probe_handler()
+    with pytest.raises(module.HTTPBoundaryError, match="upstream_event_limit_exceeded"):
+        handler._stream(_SSEProbeResponse(body), object(), request_id=7)
+    assert observed == [] and handler.wfile.getvalue() == b""
+
+
+def test_sse_line_and_total_wire_limits_remain_bounded(monkeypatch):
+    import ordin.mcp_http as module
+
+    monkeypatch.setattr(module, "MAX_MCP_MESSAGE_BYTES", 32)
+    handler, observed = _sse_probe_handler()
+    with pytest.raises(module.HTTPBoundaryError, match="upstream_event_limit_exceeded"):
+        handler._stream(_SSEProbeResponse(b"data: " + b"x" * 40, 3), object(), request_id=7)
+    assert observed == [] and handler.wfile.getvalue() == b""
+
+    body = b": keepalive\r\n" * 8
+    monkeypatch.setattr(module, "MAX_SSE_STREAM_BYTES", len(body))
+    handler, _ = _sse_probe_handler()
+    handler._stream(_SSEProbeResponse(body, 1), object(), request_id=None)
+    assert handler.wfile.getvalue() == body
+    monkeypatch.setattr(module, "MAX_SSE_STREAM_BYTES", len(body) - 1)
+    handler, _ = _sse_probe_handler()
+    with pytest.raises(module.HTTPBoundaryError, match="upstream_stream_byte_limit_exceeded"):
+        handler._stream(_SSEProbeResponse(body, 1), object(), request_id=None)
+    assert len(handler.wfile.getvalue()) < len(body)
+
+
 @pytest.mark.parametrize("supplied", ["unknown-session", "upstream-1\r\n\tX-Injected: yes"])
 def test_upstream_fixture_never_reflects_unissued_or_folded_session_ids(supplied):
     with _upstream() as (url, _):
@@ -607,7 +731,6 @@ def test_slow_drip_upstream_cannot_extend_absolute_timeout():
 
 
 def test_stream_deadline_is_checked_after_buffered_read_even_before_timer_fires(monkeypatch):
-    import io
     from unittest.mock import Mock
     from ordin.mcp_http import _MCPHTTPHandler
 
@@ -618,10 +741,11 @@ def test_stream_deadline_is_checked_after_buffered_read_even_before_timer_fires(
     times = iter([9.0, 10.0])
     monkeypatch.setattr("ordin.mcp_http.time.monotonic", lambda: next(times))
     response = Mock()
-    response.readline.return_value = b"retry: 1000\n\n"
+    response.read1.return_value = b"retry: 1000\n\n"
     with pytest.raises(TimeoutError):
         handler._stream(response, Mock(), request_id=1)
     assert handler.wfile.getvalue() == b""
+    response.read1.assert_called_once()
 
 
 def test_initialization_can_resume_before_tool_calls_are_allowed():
@@ -737,8 +861,12 @@ def test_http_evaluation_separates_core_transport_and_upstream_delay():
     assert timings["transport_and_session_overhead_p50"] >= 0
 
 
-def test_incomplete_sse_response_fails_without_forwarding_or_claiming_success():
-    with _upstream("bad-sse") as (url, state), _proxy(url) as server:
+@pytest.mark.parametrize("newline,bom", [(b"\n", False), (b"\r", True), (b"\r\n", True)])
+def test_incomplete_sse_response_fails_without_forwarding_or_claiming_success(newline, bom):
+    with (
+        _upstream("bad-sse", sse_newline=newline, sse_bom=bom, sse_chunk_size=1) as (url, state),
+        _proxy(url) as server,
+    ):
         token = _initialize(server)
         status, _, body = _request(server, _call(), token=token)
         assert status == 200 and b'"jsonrpc"' not in body
