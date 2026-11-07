@@ -110,3 +110,128 @@ def test_business_rejection_still_commits_safe_housekeeping(tmp_path, persistent
     assert caught.value is failure
     with store.transaction() as connection:
         assert connection.execute("SELECT last_now FROM budget_meta").fetchone()[0] == 200
+
+
+def commit_fault_connections(monkeypatch):
+    class FaultConnection(sqlite3.Connection):
+        commit_failure = None
+        fail_after_commit = False
+        rollback_failure = None
+        fail_after_rollback = False
+
+        def commit(self):
+            failure = self.commit_failure
+            self.commit_failure = None
+            if failure is not None:
+                if self.fail_after_commit:
+                    super().commit()
+                raise failure
+            return super().commit()
+
+        def rollback(self):
+            failure = self.rollback_failure
+            self.rollback_failure = None
+            if failure is not None:
+                if self.fail_after_rollback:
+                    super().rollback()
+                raise failure
+            return super().rollback()
+
+    original_connect = sqlite3.connect
+
+    def connect(*args, **kwargs):
+        return original_connect(*args, **kwargs, factory=FaultConnection)
+
+    monkeypatch.setattr(sqlite3, "connect", connect)
+
+
+@pytest.mark.parametrize("persistent", [False, True], ids=["memory", "sqlite"])
+@pytest.mark.parametrize("initialized", [False, True], ids=["initializing", "initialized"])
+@pytest.mark.parametrize("business_denial", [False, True], ids=["normal", "business-denial"])
+@pytest.mark.parametrize("committed", [False, True], ids=["before-commit", "lost-ack"])
+@pytest.mark.parametrize(
+    "exception_type",
+    [KeyboardInterrupt, SystemExit, asyncio.CancelledError],
+    ids=lambda value: value.__name__,
+)
+def test_interrupted_commit_preserves_history_and_bootstrap_permission(
+    tmp_path, monkeypatch, persistent, initialized, business_denial, committed, exception_type
+):
+    commit_fault_connections(monkeypatch)
+    store = (
+        SQLiteBudgetStore(tmp_path / "budget.db", create=True)
+        if persistent
+        else InMemoryBudgetStore()
+    )
+    if initialized:
+        with store.transaction() as connection:
+            initialize(connection)
+    failure = exception_type("interrupted commit")
+    with pytest.raises(exception_type) as caught:
+        with store.transaction() as connection:
+            if not initialized:
+                initialize(connection)
+            connection.execute("UPDATE budget_meta SET last_now=200")
+            connection.commit_failure = failure
+            connection.fail_after_commit = committed
+            if business_denial:
+                raise BudgetRejected("deliberate business denial")
+    assert caught.value is failure
+    assert store._allow_initialize is (not initialized and not committed)
+    with store.transaction() as connection:
+        row = connection.execute("SELECT last_now FROM budget_meta").fetchone()
+        expected = 200 if committed else 100 if initialized else None
+        assert (None if row is None else row[0]) == expected
+        if row is None:
+            initialize(connection)
+        connection.execute("UPDATE budget_meta SET last_now=300")
+    with store.transaction() as connection:
+        assert connection.execute("SELECT last_now FROM budget_meta").fetchone()[0] == 300
+
+
+@pytest.mark.parametrize("persistent", [False, True], ids=["memory", "sqlite"])
+@pytest.mark.parametrize("rolled_back", [False, True], ids=["rollback-failed", "rollback-lost-ack"])
+def test_unknown_rollback_never_restores_bootstrap_or_replaces_original_failure(
+    tmp_path, monkeypatch, persistent, rolled_back
+):
+    commit_fault_connections(monkeypatch)
+    store = (
+        SQLiteBudgetStore(tmp_path / "budget.db", create=True)
+        if persistent
+        else InMemoryBudgetStore()
+    )
+    failure = KeyboardInterrupt("interrupted commit")
+    with pytest.raises(KeyboardInterrupt) as caught:
+        with store.transaction() as connection:
+            initialize(connection)
+            connection.commit_failure = failure
+            connection.rollback_failure = RuntimeError("rollback unavailable")
+            connection.fail_after_rollback = rolled_back
+    assert caught.value is failure
+    assert not store._allow_initialize
+    with pytest.raises(ValueError):
+        with store.transaction():
+            pytest.fail("an unknown rollback must not allow fresh initialization")
+
+
+@pytest.mark.parametrize("persistent", [False, True], ids=["memory", "sqlite"])
+@pytest.mark.parametrize("business_denial", [False, True], ids=["normal", "business-denial"])
+def test_pristine_transaction_does_not_consume_initialization_permission(
+    tmp_path, persistent, business_denial
+):
+    store = (
+        SQLiteBudgetStore(tmp_path / "budget.db", create=True)
+        if persistent
+        else InMemoryBudgetStore()
+    )
+    if business_denial:
+        with pytest.raises(BudgetRejected):
+            with store.transaction():
+                raise BudgetRejected("no initialization attempted")
+    else:
+        with store.transaction():
+            pass
+    with store.transaction() as connection:
+        initialize(connection)
+    with store.transaction() as connection:
+        assert connection.execute("SELECT last_now FROM budget_meta").fetchone()[0] == 100
