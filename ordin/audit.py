@@ -322,7 +322,12 @@ def _verify_audit_stream(handle: BinaryIO, *, require_hash_chain: bool) -> Audit
                 continue
             from .schema import validate_named_schema
 
-            schema_errors = validate_named_schema("audit_event", payload)
+            schema_errors = validate_named_schema(
+                "audit_event",
+                payload,
+                maximum_errors=MAX_AUDIT_VERIFICATION_ERRORS - len(errors),
+                maximum_error_characters=MAX_AUDIT_ERROR_CHARACTERS,
+            )
             if schema_errors:
                 for schema_error in schema_errors:
                     error(f"line {line_number}: {schema_error}")

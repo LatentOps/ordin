@@ -143,3 +143,38 @@ def test_valid_unicode_audit_and_regular_symlink_remain_readable(tmp_path, ensur
         link = tmp_path / "regular-link.jsonl"
         link.symlink_to(path)
         assert audit.verify_audit_jsonl(link, require_hash_chain=True).ok
+
+
+def test_audit_limits_schema_error_production_before_collecting_invalid_array_items(
+    tmp_path, monkeypatch
+):
+    from ordin import schema
+
+    payload = {"provenance": {"records": [{}] * 1000}}
+    assert len(schema.validate_named_schema("audit_event", payload)) == 13015
+    path = tmp_path / "invalid-nested-records.jsonl"
+    path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+    original = schema._type_matches
+    visits = 0
+
+    def counted(instance, expected):
+        nonlocal visits
+        visits += 1
+        return original(instance, expected)
+
+    monkeypatch.setattr(schema, "_type_matches", counted)
+    result = audit.verify_audit_jsonl(path)
+    assert not result.ok
+    assert len(result.errors) <= audit.MAX_AUDIT_VERIFICATION_ERRORS
+    assert max(map(len, result.errors)) <= audit.MAX_AUDIT_ERROR_CHARACTERS
+    assert visits < 100
+
+
+def test_audit_valid_checkpoint_still_uses_complete_validated_event(tmp_path):
+    payload = event_payload(hash_chain=True)
+    path = tmp_path / "valid-checkpoint.jsonl"
+    path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+    result = audit.verify_audit_jsonl(
+        path, require_hash_chain=True, expected_last_hash=payload["event_hash"]
+    )
+    assert result.ok and result.event_count == 1 and result.last_hash == payload["event_hash"]
