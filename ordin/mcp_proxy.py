@@ -10,10 +10,11 @@ import subprocess
 import sys
 import threading
 import uuid
+from collections import OrderedDict
 from decimal import Decimal
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, IO, Mapping, Sequence
+from typing import Any, IO, Iterator, Mapping, Sequence
 
 from .action_policy import load_action_policy
 from .adapters import MCPAdapter
@@ -37,6 +38,7 @@ from .trace_capture import TraceRecorder, attach_trace
 MCP_PROXY_RUNTIME = "mcp-proxy"
 MAX_MCP_MESSAGE_BYTES = 10 * 1024 * 1024
 MAX_MCP_JSON_DEPTH = 64
+MAX_MCP_PREFLIGHT_CACHE_ITEMS = 4096
 MAX_LOCAL_EVENT_BYTES = 1_048_576
 MAX_PROXY_REASON_LENGTH = 4096
 APPROVAL_REQUIRED_CODE = -32040
@@ -629,27 +631,146 @@ def _finite_json_number(text: str) -> float:
     return number
 
 
+@dataclass
+class _JSONPreflightFrame:
+    value: Any
+    depth: int
+    children: Iterator[Any]
+    size: int = 2
+    height: int = 0
+
+
+def _minimum_json_scalar_bytes(value: Any, integer_digit_limit: int) -> int:
+    if isinstance(value, str):
+        if len(value) > MAX_MCP_MESSAGE_BYTES:
+            raise ValueError("MCP JSON exceeds maximum message size")
+        try:
+            return len(json.dumps(value, ensure_ascii=False).encode("utf-8"))
+        except UnicodeEncodeError as exc:
+            raise ValueError("MCP JSON strings must contain Unicode scalar values") from exc
+    if value is None:
+        return 4
+    if isinstance(value, bool):
+        return 4 if value else 5
+    if isinstance(value, int):
+        # A cheap lower bound avoids rendering huge direct-API integers.
+        digits = max(1, (value.bit_length() - 1) * 301 // 1000 + 1)
+        if digits > MAX_MCP_MESSAGE_BYTES:
+            raise ValueError("MCP JSON exceeds maximum message size")
+        if integer_digit_limit and (
+            digits > integer_digit_limit
+            or value.bit_length() > integer_digit_limit * 3
+            and abs(value) >= 10**integer_digit_limit
+        ):
+            raise ValueError("MCP JSON integer exceeds the encoder digit limit")
+        return digits + int(value < 0)
+    if not isinstance(value, float):
+        raise ValueError("MCP JSON contains an unsupported value type")
+    if not math.isfinite(value):
+        raise ValueError("MCP JSON numbers must be finite")
+    # Short exponent spellings can expand when decoded floats are rendered.
+    # One byte is conservative, so legitimate compact wire numbers stay valid.
+    return 1
+
+
+def _json_children(value: Any) -> Iterator[Any]:
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            if not isinstance(key, str):
+                raise ValueError("MCP JSON object member names must be strings")
+            yield key
+            yield child
+    else:
+        yield from value
+
+
+def _json_mapping_default(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise TypeError("MCP JSON contains an unsupported value type")
+    return dict(value)
+
+
 def _validate_json_depth(payload: Any) -> None:
-    """Validate decoded Unicode and nesting before mutable protocol processing."""
-    pending: list[tuple[Any, int]] = [(payload, 0)]
-    while pending:
-        value, depth = pending.pop()
-        if isinstance(value, str):
-            # JSON escape syntax can decode to lone UTF-16 surrogates. They
-            # cannot be encoded as UTF-8 for action IDs or forwarded replies.
-            try:
-                value.encode("utf-8")
-            except UnicodeEncodeError as exc:
-                raise ValueError("MCP JSON strings must contain Unicode scalar values") from exc
-            continue
-        if not isinstance(value, (Mapping, list, tuple)):
-            continue
-        if depth > MAX_MCP_JSON_DEPTH:
-            raise ValueError(f"MCP JSON nesting exceeds maximum depth {MAX_MCP_JSON_DEPTH}")
-        if isinstance(value, Mapping):
-            pending.extend((key, depth + 1) for key in value)
-        children = value.values() if isinstance(value, Mapping) else value
-        pending.extend((child, depth + 1) for child in children)
+    """Bound Unicode/depth checks and logical JSON expansion before state changes.
+
+    Direct callers may share containers. Memoized subtree heights still enforce
+    depth when an alias is reached on a deeper path; expanded byte lower bounds
+    reject enormous DAGs before subsequent hashing/encoding. The budget is the
+    existing wire-byte limit, and cannot reject a legal message within it.
+    """
+    pending: list[_JSONPreflightFrame] = []
+    active: set[int] = set()
+    memo: OrderedDict[int, tuple[Any, int, int]] = OrderedDict()
+    spent = 0
+    integer_digit_limit = getattr(sys, "get_int_max_str_digits", lambda: 0)()
+
+    def charge(amount: int) -> None:
+        nonlocal spent
+        spent += amount
+        if spent > MAX_MCP_MESSAGE_BYTES:
+            raise ValueError("MCP JSON expanded value exceeds maximum message size")
+
+    def remember(value: Any, height: int, size: int) -> None:
+        # Retaining the object prevents Python ID reuse during the traversal.
+        memo[id(value)] = (value, height, size)
+        memo.move_to_end(id(value))
+        if len(memo) > MAX_MCP_PREFLIGHT_CACHE_ITEMS:
+            memo.popitem(last=False)
+
+    end = object()
+    value, depth = payload, 0
+    while True:
+        container = isinstance(value, (Mapping, list, tuple))
+        if container:
+            if depth > MAX_MCP_JSON_DEPTH:
+                raise ValueError(f"MCP JSON nesting exceeds maximum depth {MAX_MCP_JSON_DEPTH}")
+            if id(value) in active:
+                raise ValueError("MCP JSON contains cyclic containers")
+        cached = memo.get(id(value)) if container or isinstance(value, str) else None
+        if cached is not None and cached[0] is value:
+            _, height, size = cached
+            if container and depth + height > MAX_MCP_JSON_DEPTH:
+                raise ValueError(f"MCP JSON nesting exceeds maximum depth {MAX_MCP_JSON_DEPTH}")
+            memo.move_to_end(id(value))
+            charge(size)
+        elif container:
+            charge(2)
+            children = _json_children(value)
+            frame = _JSONPreflightFrame(value, depth, children)
+            pending.append(frame)
+            active.add(id(value))
+            child = next(children, end)
+            if child is not end:
+                value, depth = child, depth + 1
+                continue
+            pending.pop()
+            active.remove(id(value))
+            height, size = 0, 2
+            remember(value, height, size)
+        else:
+            height, size = -1, _minimum_json_scalar_bytes(value, integer_digit_limit)
+            charge(size)
+            if isinstance(value, str):
+                remember(value, height, size)
+
+        while pending:
+            parent = pending[-1]
+            parent.size += size
+            parent.height = max(parent.height, height + 1)
+            child = next(parent.children, end)
+            if child is not end:
+                # Array commas and alternating object colons/commas each cost
+                # one byte between flattened children.
+                charge(1)
+                parent.size += 1
+                value, depth = child, parent.depth + 1
+                break
+            pending.pop()
+            active.remove(id(parent.value))
+            height, size = parent.height, parent.size
+            remember(parent.value, height, size)
+        else:
+            return
 
 
 def _parse_json_value(line: bytes) -> Any:
@@ -681,8 +802,17 @@ def _parse_jsonrpc_line(line: bytes) -> Mapping[str, Any]:
 
 
 def _encode_jsonrpc(payload: Mapping[str, Any]) -> bytes:
+    _validate_json_depth(payload)
     return (
-        json.dumps(dict(payload), sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n"
+        json.dumps(
+            dict(payload),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+            default=_json_mapping_default,
+        )
+        + "\n"
     ).encode("utf-8")
 
 

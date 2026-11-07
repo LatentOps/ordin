@@ -298,7 +298,18 @@ def test_invalid_client_unicode_is_rejected_without_failing_the_session(bad_body
         assert len(state["calls"]) == 1
 
 
-@pytest.mark.parametrize("server_info", [{"name": "\ud800"}, {"\udfff": "value"}])
+@pytest.mark.parametrize(
+    "server_info",
+    [
+        {"name": "\ud800"},
+        {"\udfff": "value"},
+        {"data": b"raw"},
+        {"data": {"value"}},
+        {("tuple", "key"): "value"},
+        {"data": float("nan")},
+        {"data": float("inf")},
+    ],
+)
 def test_direct_http_unicode_validation_precedes_initialization_and_nonce_changes(server_info):
     from ordin.mcp_http import HTTPBoundaryError
 
@@ -331,6 +342,25 @@ def test_direct_http_unicode_validation_precedes_initialization_and_nonce_change
         finally:
             server.drop(session)
             server.release(session)
+
+
+def test_http_json_output_preserves_nested_mapping_and_tuple_values():
+    from types import MappingProxyType
+    from ordin.mcp_http import _MCPHTTPHandler
+
+    shared = MappingProxyType({"text": "🙂", "values": (None, True, 0.1)})
+    payload = MappingProxyType(
+        {"jsonrpc": "2.0", "id": 1, "result": {"left": shared, "right": shared}}
+    )
+    headers = []
+    handler = object.__new__(_MCPHTTPHandler)
+    handler.wfile = io.BytesIO()
+    handler._headers = lambda status, kind, **fields: headers.append((status, kind, fields))
+    handler._json(200, payload)
+    body = handler.wfile.getvalue()
+    expected = {"text": "🙂", "values": [None, True, 0.1]}
+    assert json.loads(body)["result"] == {"left": expected, "right": expected}
+    assert headers == [(200, "application/json", {"session": None, "length": len(body)})]
 
 
 def _call(request_id=1, name="read_file", arguments=None):

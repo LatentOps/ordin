@@ -1,6 +1,7 @@
 import json
 import subprocess
 import sys
+from decimal import Decimal
 from types import MappingProxyType
 
 import pytest
@@ -374,7 +375,7 @@ def test_direct_server_container_cycle_cannot_consume_the_pending_call():
     cycle = []
     cycle.append(cycle)
     before = proxy.session.snapshot()
-    with pytest.raises(ValueError, match="nesting"):
+    with pytest.raises(ValueError, match="cyclic"):
         proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {"content": cycle}})
     assert proxy.session.snapshot() == before and proxy.pending_count == 1
     observed = proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {}})
@@ -392,6 +393,232 @@ def test_valid_direct_mapping_and_tuple_unicode_values_remain_supported():
     assert json.loads(_encode_jsonrpc(message))["params"] == {"parts": [{"text": "🙂"}]}
     proxy.observe_server_message(MappingProxyType({"jsonrpc": "2.0", "id": "🙂", "result": {}}))
     proxy.reset_session()
+
+
+@pytest.mark.parametrize("boundary", ["client", "server", "http"])
+def test_direct_shared_dag_is_bounded_before_protocol_state_changes(boundary):
+    script = """
+from ordin import AgentGate, Ordin
+from ordin.mcp_http import MCPHTTPConfig, MCPHTTPServer, MCP_HTTP_PROTOCOL, HTTPBoundaryError
+from ordin.mcp_proxy import MCPStdioSafetyProxy
+from ordin.tool_calls import ToolResourceBinding, ToolSemanticRule, ToolSemanticsRegistry
+boundary = BOUNDARY
+graph = ['text']
+for _ in range(40):
+    graph = [graph, graph]
+if boundary == 'client':
+    proxy = MCPStdioSafetyProxy(server_id='fixture')
+    before = proxy.session.snapshot()
+    decision = proxy.process_client_message({'jsonrpc':'2.0','id':2,'method':'ping','params':graph})
+    assert not decision.forward and decision.response['error']['code'] == -32600
+    assert proxy.session.snapshot() == before
+    proxy.reset_session()
+    assert proxy.process_client_message({'jsonrpc':'2.0','id':2,'method':'ping'}).forward
+    proxy.observe_server_message({'jsonrpc':'2.0','id':2,'result':{}})
+    proxy.reset_session()
+elif boundary == 'server':
+    rule = ToolSemanticRule(id='read',kind='mcp',server='fixture',tool='read_file',
+        effects=('filesystem.read',),resources=(ToolResourceBinding(argument='path',type='path'),))
+    semantics = ToolSemanticsRegistry('dag-test','1',(rule,))
+    proxy = MCPStdioSafetyProxy(server_id='fixture',gate=AgentGate(Ordin(tool_semantics=semantics)))
+    assert proxy.process_client_message({'jsonrpc':'2.0','id':2,'method':'tools/call',
+        'params':{'name':'read_file','arguments':{'path':'README.md'}}}).forward
+    before = proxy.session.snapshot()
+    try:
+        proxy.observe_server_message({'jsonrpc':'2.0','id':2,
+            'result':{'content':[],'structuredContent':{'graph':graph}}})
+    except ValueError as exc:
+        assert 'maximum message size' in str(exc)
+    else:
+        raise AssertionError('server accepted enormous logical JSON expansion')
+    assert proxy.pending_count == 1 and proxy.session.snapshot() == before
+    observed = proxy.observe_server_message({'jsonrpc':'2.0','id':2,'result':{'content':[]}})
+    assert observed.exit_code == 0 and proxy.pending_count == 0
+else:
+    server = MCPHTTPServer(MCPHTTPConfig('fixture','http://127.0.0.1:1/mcp',port=0))
+    session = server.new_session('fixture-credential','init')
+    try:
+        assert session.reviewer.process_client_message({'jsonrpc':'2.0','id':'init',
+            'method':'initialize'}).forward
+        before = session.reviewer.session.snapshot()
+        result = {'protocolVersion':MCP_HTTP_PROTOCOL,'capabilities':{'experimental':{'graph':graph}}}
+        try:
+            server.observe(session,{'jsonrpc':'2.0','id':'init','result':result})
+        except HTTPBoundaryError as exc:
+            assert exc.code == 'invalid_upstream_protocol'
+        else:
+            raise AssertionError('HTTP accepted enormous logical JSON expansion')
+        assert not session.initialized and not session.failed
+        assert session.reviewer.session.snapshot() == before
+        server.observe(session,{'jsonrpc':'2.0','id':'init',
+            'result':{'protocolVersion':MCP_HTTP_PROTOCOL,'capabilities':{}}})
+        assert session.initialized
+        session.reviewer.reset_session()
+    finally:
+        server.drop(session)
+        server.release(session)
+        server.server_close()
+""".replace("BOUNDARY", repr(boundary))
+    result = subprocess.run(
+        [sys.executable, "-B", "-c", script], text=True, capture_output=True, timeout=10
+    )
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("order", ["shallow-first", "deep-first"])
+@pytest.mark.parametrize("over_limit", [False, True])
+def test_shared_subtree_height_is_checked_on_every_alias_path(order, over_limit):
+    shared = []
+    for _ in range(4):
+        shared = (shared,)
+    deep = shared
+    for _ in range(MAX_MCP_JSON_DEPTH - 2 - 4 + int(over_limit)):
+        deep = [deep]
+    params = (
+        {"shallow": shared, "deep": deep}
+        if order == "shallow-first"
+        else {"deep": deep, "shallow": shared}
+    )
+    proxy = MCPStdioSafetyProxy(server_id="fixture")
+    before = proxy.session.snapshot()
+    decision = proxy.process_client_message(
+        {"jsonrpc": "2.0", "id": 1, "method": "ping", "params": params}
+    )
+    assert decision.forward is not over_limit
+    assert proxy.session.snapshot() == before
+    if over_limit:
+        assert "nesting" in decision.response["error"]["message"]
+        proxy.reset_session()
+    else:
+        proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {}})
+        proxy.reset_session()
+
+
+@pytest.mark.parametrize(
+    "shared", [{"text": "🙂"}, ["🙂"], ("🙂",), MappingProxyType({"text": "🙂"})]
+)
+def test_small_shared_container_aliases_remain_supported_without_normalization(shared):
+    from ordin.mcp_proxy import _encode_jsonrpc
+
+    params = {"left": shared, "right": shared}
+    proxy = MCPStdioSafetyProxy(server_id="fixture")
+    assert proxy.process_client_message(
+        {"jsonrpc": "2.0", "id": 1, "method": "ping", "params": params}
+    ).forward
+    assert params["left"] is shared and params["right"] is shared
+    encoded = json.loads(
+        _encode_jsonrpc({"jsonrpc": "2.0", "id": 1, "method": "ping", "params": params})
+    )
+    assert encoded["params"]["left"] == encoded["params"]["right"]
+    assert "🙂" in str(encoded)
+    proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {}})
+    proxy.reset_session()
+
+
+def test_preflight_cache_eviction_preserves_legal_shared_inputs():
+    from ordin.mcp_proxy import MAX_MCP_PREFLIGHT_CACHE_ITEMS, _encode_jsonrpc
+
+    shared = ["🙂"]
+    values = [shared, *([] for _ in range(MAX_MCP_PREFLIGHT_CACHE_ITEMS + 1)), shared]
+    message = {"jsonrpc": "2.0", "id": 1, "method": "ping", "params": values}
+    proxy = MCPStdioSafetyProxy(server_id="fixture")
+    assert proxy.process_client_message(message).forward
+    assert len(json.loads(_encode_jsonrpc(message))["params"]) == len(values)
+    proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {}})
+    proxy.reset_session()
+
+
+def test_preflight_preserves_legal_compact_wire_numbers(monkeypatch):
+    import ordin.mcp_proxy as module
+
+    raw = b'{"jsonrpc":"2.0","id":1,"method":"ping","params":[' + b",".join([b"1e9"] * 10) + b"]}"
+    monkeypatch.setattr(module, "MAX_MCP_MESSAGE_BYTES", len(raw))
+    message = _parse_jsonrpc_line(raw)
+    assert len(module._encode_jsonrpc(message)) > len(raw)
+    proxy = MCPStdioSafetyProxy(server_id="fixture")
+    assert proxy.process_client_message(message).forward
+    proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {}})
+    proxy.reset_session()
+
+
+@pytest.fixture(
+    params=[
+        pytest.param(b"raw", id="bytes"),
+        pytest.param(bytearray(b"raw"), id="bytearray"),
+        pytest.param({"value"}, id="set"),
+        pytest.param({("tuple", "key"): "value"}, id="tuple-key"),
+        pytest.param({1: "value"}, id="integer-key"),
+        pytest.param(float("nan"), id="nan"),
+        pytest.param(float("inf"), id="infinity"),
+        pytest.param(float("-inf"), id="negative-infinity"),
+        pytest.param(Decimal("0.1"), id="decimal"),
+        pytest.param(object(), id="opaque-object"),
+    ]
+)
+def unencodable_direct_json(request):
+    return request.param
+
+
+def test_direct_client_unencodable_values_cannot_reserve_an_id(unencodable_direct_json):
+    from ordin.mcp_proxy import _encode_jsonrpc
+
+    proxy = MCPStdioSafetyProxy(server_id="fixture")
+    before = proxy.session.snapshot()
+    message = {"jsonrpc": "2.0", "id": 1, "method": "ping", "params": unencodable_direct_json}
+    rejected = proxy.process_client_message(message)
+    assert not rejected.forward
+    assert json.loads(_encode_jsonrpc(rejected.response))["error"]["code"] == -32600
+    with pytest.raises(ValueError):
+        _encode_jsonrpc(message)
+    assert proxy.session.snapshot() == before
+    proxy.reset_session()
+    assert proxy.process_client_message({"jsonrpc": "2.0", "id": 1, "method": "ping"}).forward
+    proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {}})
+    proxy.reset_session()
+
+
+def test_direct_server_unencodable_values_cannot_become_completion(unencodable_direct_json):
+    proxy = MCPStdioSafetyProxy(
+        server_id="fixture", gate=AgentGate(Ordin(tool_semantics=_read_semantics()))
+    )
+    approved = proxy.process_client_message(_call(arguments={"path": "README.md"}))
+    assert approved.forward
+    before = proxy.session.snapshot()
+    with pytest.raises(ValueError):
+        proxy.observe_server_message(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "result": {"structuredContent": {"value": unencodable_direct_json}},
+            }
+        )
+    assert proxy.pending_count == 1 and proxy.session.snapshot() == before
+    observed = proxy.observe_server_message({"jsonrpc": "2.0", "id": 1, "result": {}})
+    assert observed is not None and observed.action_id == approved.action_id
+    assert observed.exit_code == 0 and proxy.pending_count == 0
+
+
+def test_direct_unencodable_large_integer_is_rejected_before_state_changes():
+    from ordin.mcp_proxy import _encode_jsonrpc
+
+    if not hasattr(sys, "set_int_max_str_digits"):
+        pytest.skip("interpreter has no configurable integer encoding limit")
+    original_limit = sys.get_int_max_str_digits()
+    try:
+        sys.set_int_max_str_digits(640)
+        value = 10**700
+        with pytest.raises(ValueError):
+            json.dumps(value)
+        proxy = MCPStdioSafetyProxy(server_id="fixture")
+        before = proxy.session.snapshot()
+        message = {"jsonrpc": "2.0", "id": value, "method": "ping"}
+        rejected = proxy.process_client_message(message)
+        assert not rejected.forward
+        assert json.loads(_encode_jsonrpc(rejected.response))["id"] is None
+        assert proxy.session.snapshot() == before
+        proxy.reset_session()
+    finally:
+        sys.set_int_max_str_digits(original_limit)
 
 
 def test_jsonrpc_parser_enforces_the_documented_nesting_boundary():

@@ -65,6 +65,12 @@ open. It preserves the server's exit code; an upstream protocol failure returns
 exit code `1`. Client EOF still gives the server the configured
 `--shutdown-timeout` to finish before it is terminated.
 
+Direct Python calls use the same decoded JSON validation before request tracking
+or observations change. Mapping and tuple containers remain supported; member
+names must be strings and numbers must be finite. Cycles, excessive nesting and
+shared containers with oversized logical JSON expansion are refused before
+they can reserve a request ID or consume a pending result.
+
 `--server-id` is required and is part of the safety identity. Trusted semantics match an exact `(kind="mcp", server, tool)` tuple. A semantics file for another server identity does not transfer trust to this proxy instance.
 
 Identities retain their original whitespace. For example, `read_file` and
