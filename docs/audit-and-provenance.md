@@ -100,8 +100,9 @@ if not verification.ok:
 Verification detects modified events, invalid event hashes, broken links, reordered events, and removal of an event from the middle of a chain when later events remain.
 
 Verification accepts regular files and rejects special files without waiting for
-a writer. It reads at most 64 MiB, with a 1 MiB limit per line, and enforces the
-total byte limit even if the file grows during inspection. Escaped lone Unicode
+a writer. It reads at most 64 MiB plus one overflow-probe byte, with a 1 MiB
+limit per line, and enforces the total byte limit even if the file grows during
+inspection. Escaped lone Unicode
 surrogates are rejected; ordinary UTF-8 and valid escaped Unicode remain supported.
 Diagnostics are limited to 64 messages of at most 1,024 characters each. Reaching
 that limit stops verification with an explicit diagnostic and `ok=False`;

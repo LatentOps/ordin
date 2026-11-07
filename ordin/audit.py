@@ -296,11 +296,13 @@ def _verify_audit_stream(handle: BinaryIO, *, require_hash_chain: bool) -> Audit
     try:
         if os.fstat(handle.fileno()).st_size > MAX_AUDIT_BYTES:
             return AuditVerification(False, 0, None, ("audit file exceeds byte limit",))
-        for line_number, raw in enumerate(
-            iter(lambda: handle.readline(MAX_AUDIT_LINE_BYTES + 1), b""), start=1
-        ):
-            if len(errors) >= MAX_AUDIT_VERIFICATION_ERRORS:
+        line_number = 0
+        while len(errors) < MAX_AUDIT_VERIFICATION_ERRORS:
+            # A single probe byte distinguishes exact-budget EOF from growth.
+            raw = handle.readline(min(MAX_AUDIT_LINE_BYTES + 1, MAX_AUDIT_BYTES - consumed + 1))
+            if not raw:
                 break
+            line_number += 1
             consumed += len(raw)
             if consumed > MAX_AUDIT_BYTES:
                 error("audit file exceeds byte limit")

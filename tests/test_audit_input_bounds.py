@@ -96,6 +96,7 @@ def test_audit_enforces_byte_budget_when_a_file_grows_after_initial_stat(tmp_pat
 
         class GrowingReader:
             grown = False
+            bytes_read = 0
 
             def fileno(self):
                 return handle.fileno()
@@ -105,13 +106,17 @@ def test_audit_enforces_byte_budget_when_a_file_grows_after_initial_stat(tmp_pat
                     self.grown = True
                     with path.open("ab") as writer:
                         writer.write(raw * 4)
-                return handle.readline(size)
+                data = handle.readline(size)
+                self.bytes_read += len(data)
+                return data
 
-        result = audit._verify_audit_stream(GrowingReader(), require_hash_chain=False)
+        reader = GrowingReader()
+        result = audit._verify_audit_stream(reader, require_hash_chain=False)
 
     assert not result.ok
     assert any("byte limit" in error for error in result.errors)
     assert result.event_count <= 3
+    assert reader.bytes_read <= 3 * len(raw) + 1
 
 
 def test_audit_filesystem_errors_are_bounded(tmp_path, monkeypatch):
