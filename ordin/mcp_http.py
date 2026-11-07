@@ -31,8 +31,10 @@ from .mcp_proxy import (
     MCPStdioSafetyProxy,
     _append_private_jsonl,
     _jsonrpc_error,
+    _json_mapping_default,
     _parse_jsonrpc_line,
     _request_id_key,
+    _validate_json_depth,
     build_mcp_proxy,
 )
 
@@ -339,6 +341,10 @@ class MCPHTTPServer(ThreadingHTTPServer):
     def observe(self, session: _HTTPSession, message: Mapping[str, Any]) -> Mapping[str, Any]:
         if session.failed:
             raise HTTPBoundaryError(409, "session_closed")
+        try:
+            _validate_json_depth(message)
+        except ValueError as exc:
+            raise HTTPBoundaryError(502, "invalid_upstream_protocol") from exc
         if message.get("jsonrpc") != "2.0" or ("result" in message and "error" in message):
             raise HTTPBoundaryError(502, "invalid_upstream_protocol")
         if "method" in message:
@@ -519,7 +525,10 @@ class _MCPHTTPHandler(BaseHTTPRequestHandler):
     def _json(
         self, status: int, payload: Mapping[str, Any], *, session: _HTTPSession | None = None
     ) -> None:
-        raw = json.dumps(dict(payload), separators=(",", ":"), allow_nan=False).encode()
+        _validate_json_depth(payload)
+        raw = json.dumps(
+            dict(payload), separators=(",", ":"), allow_nan=False, default=_json_mapping_default
+        ).encode()
         self._headers(status, "application/json", session=session, length=len(raw))
         self.wfile.write(raw)
 
