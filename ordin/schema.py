@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import re
+from itertools import islice
 from pathlib import Path
 from string import Formatter
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -257,11 +258,180 @@ def _type_matches(instance: Any, expected: str) -> bool:
     return True
 
 
+class _SchemaErrorText:
+    def __init__(self, maximum: int | None):
+        self.maximum = maximum
+
+    def clip(self, value: str) -> str:
+        return value if self.maximum is None else value[: self.maximum]
+
+    def representation(self, value: Any) -> str:
+        if self.maximum is None:
+            return repr(value)
+        if type(value) is str:
+            # Slice before repr can expand escapes or copy an attacker-sized value.
+            return self.clip(repr(value[: self.maximum]))
+        if type(value) is int and value.bit_length() <= self.maximum * 3:
+            return self.clip(repr(value))
+        if value is None or type(value) in {bool, float}:
+            return self.clip(repr(value))
+        return self.clip("<" + type(value).__name__ + ">")
+
+    def message(self, path: str, detail: str) -> str:
+        return self.clip(self.clip(path) + ": " + detail)
+
+    def child(self, path: str, key: str | int, *, index: bool = False) -> str:
+        suffix = "[" + str(key) + "]" if index else "." + self.clip(str(key))
+        selected = self.clip(path) + suffix
+        return selected if self.maximum is None else selected[: max(1, self.maximum // 2)]
+
+
+def _validation_key(value: Any) -> Any:
+    if isinstance(value, dict):
+        return (
+            "object",
+            tuple(sorted((key, _validation_key(item)) for key, item in value.items())),
+        )
+    if isinstance(value, list):
+        return ("array", tuple(_validation_key(item) for item in value))
+    if isinstance(value, bool):
+        return ("boolean", value)
+    if isinstance(value, (int, float)):
+        return ("number", value)
+    return (type(value).__name__, value)
+
+
+def _iter_bounded_schema_errors(
+    instance: Any, schema: dict[str, Any], path: str, text: _SchemaErrorText
+) -> Iterator[str]:
+    """Yield diagnostics on demand; alternatives probe validity independently."""
+    expected_type = schema.get("type")
+    if expected_type is not None:
+        expected = expected_type if isinstance(expected_type, list) else [expected_type]
+        if not any(isinstance(item, str) and _type_matches(instance, item) for item in expected):
+            yield text.message(path, "expected type " + text.representation(expected_type))
+            return
+    if "const" in schema and instance != schema["const"]:
+        yield text.message(path, "expected constant " + text.representation(schema["const"]))
+    if "enum" in schema and instance not in schema["enum"]:
+        yield text.message(path, "value " + text.representation(instance) + " is not in enum")
+    if isinstance(instance, str):
+        minimum, maximum = schema.get("minLength"), schema.get("maxLength")
+        if isinstance(minimum, int) and len(instance) < minimum:
+            yield text.message(path, "string is shorter than " + text.representation(minimum))
+        if isinstance(maximum, int) and len(instance) > maximum:
+            yield text.message(path, "string is longer than " + text.representation(maximum))
+        pattern = schema.get("pattern")
+        if isinstance(pattern, str):
+            try:
+                if re.search(pattern, instance) is None:
+                    yield text.message(
+                        path, "string does not match pattern " + text.representation(pattern)
+                    )
+            except re.error as error:
+                detail = str(error) if text.maximum is None else text.clip(error.msg)
+                yield text.message(path, "schema has invalid pattern: " + detail)
+    if isinstance(instance, (int, float)) and not isinstance(instance, bool):
+        minimum, maximum = schema.get("minimum"), schema.get("maximum")
+        if isinstance(minimum, (int, float)) and instance < minimum:
+            yield text.message(path, "value is below minimum " + text.representation(minimum))
+        if isinstance(maximum, (int, float)) and instance > maximum:
+            yield text.message(path, "value is above maximum " + text.representation(maximum))
+    if isinstance(instance, list):
+        minimum, maximum = schema.get("minItems"), schema.get("maxItems")
+        if isinstance(minimum, int) and len(instance) < minimum:
+            yield text.message(
+                path, "array has fewer than " + text.representation(minimum) + " items"
+            )
+            return
+        if isinstance(maximum, int) and len(instance) > maximum:
+            yield text.message(
+                path, "array has more than " + text.representation(maximum) + " items"
+            )
+            return
+        if schema.get("uniqueItems") is True:
+            seen = set()
+            for value in instance:
+                key = _validation_key(value)
+                if key in seen:
+                    yield text.message(path, "array items must be unique")
+                    break
+                seen.add(key)
+        item_schema = schema.get("items")
+        if isinstance(item_schema, dict):
+            for index, value in enumerate(instance):
+                yield from _iter_bounded_schema_errors(
+                    value, item_schema, text.child(path, index, index=True), text
+                )
+    if isinstance(instance, dict):
+        maximum = schema.get("maxProperties")
+        if isinstance(maximum, int) and len(instance) > maximum:
+            yield text.message(
+                path, "object has more than " + text.representation(maximum) + " properties"
+            )
+            return
+        required = schema.get("required", [])
+        if isinstance(required, list):
+            for key in required:
+                if key not in instance:
+                    yield text.message(
+                        path, "missing required property " + text.representation(key)
+                    )
+        properties = schema.get("properties", {})
+        if not isinstance(properties, dict):
+            properties = {}
+        for key, value in instance.items():
+            if key in properties and isinstance(properties[key], dict):
+                yield from _iter_bounded_schema_errors(
+                    value, properties[key], text.child(path, key), text
+                )
+            else:
+                additional = schema.get("additionalProperties", True)
+                if additional is False:
+                    yield text.message(path, "unexpected property " + text.representation(key))
+                elif isinstance(additional, dict):
+                    yield from _iter_bounded_schema_errors(
+                        value, additional, text.child(path, key), text
+                    )
+    any_of = schema.get("anyOf")
+    if isinstance(any_of, list):
+        branches = [branch for branch in any_of if isinstance(branch, dict)]
+        if branches and not any(
+            next(_iter_bounded_schema_errors(instance, branch, path, text), None) is None
+            for branch in branches
+        ):
+            yield text.message(path, "value does not satisfy anyOf")
+    one_of = schema.get("oneOf")
+    if isinstance(one_of, list):
+        successes = 0
+        for branch in one_of:
+            if (
+                isinstance(branch, dict)
+                and next(_iter_bounded_schema_errors(instance, branch, path, text), None) is None
+            ):
+                successes += 1
+                if successes > 1:
+                    break
+        if successes != 1:
+            yield text.message(path, "value must satisfy exactly one oneOf branch")
+
+
 def validate_instance(
     instance: Any,
     schema: dict[str, Any],
     path: str = "$",
+    *,
+    maximum_errors: int | None = None,
+    maximum_error_characters: int | None = None,
 ) -> list[str]:
+    if maximum_errors is not None or maximum_error_characters is not None:
+        for limit in (maximum_errors, maximum_error_characters):
+            if limit is not None and (type(limit) is not int or limit < 1):
+                raise ValueError("schema diagnostic limits must be positive integers")
+        diagnostics = _iter_bounded_schema_errors(
+            instance, schema, path, _SchemaErrorText(maximum_error_characters)
+        )
+        return list(diagnostics if maximum_errors is None else islice(diagnostics, maximum_errors))
     errors: list[str] = []
 
     expected_type = schema.get("type")
@@ -371,8 +541,19 @@ def validate_instance(
     return errors
 
 
-def validate_named_schema(name: str, instance: Any) -> list[str]:
-    return validate_instance(instance, load_schema(name))
+def validate_named_schema(
+    name: str,
+    instance: Any,
+    *,
+    maximum_errors: int | None = None,
+    maximum_error_characters: int | None = None,
+) -> list[str]:
+    return validate_instance(
+        instance,
+        load_schema(name),
+        maximum_errors=maximum_errors,
+        maximum_error_characters=maximum_error_characters,
+    )
 
 
 def validate_schema_files() -> list[str]:

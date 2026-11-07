@@ -99,6 +99,20 @@ if not verification.ok:
 
 Verification detects modified events, invalid event hashes, broken links, reordered events, and removal of an event from the middle of a chain when later events remain.
 
+Verification accepts regular files and rejects special files without waiting for
+a writer. It reads at most 64 MiB plus one overflow-probe byte, with a 1 MiB
+limit per line, and enforces the total byte limit even if the file grows during
+inspection. Escaped lone Unicode
+surrogates are rejected; ordinary UTF-8 and valid escaped Unicode remain supported.
+Diagnostics are limited to 64 messages of at most 1,024 characters each. Reaching
+that limit stops verification with an explicit diagnostic and `ok=False`;
+`event_count` and `last_hash` then describe only the inspected prefix. An invalid
+or incomplete verification cannot establish a trusted checkpoint.
+Audit schema diagnostics are generated lazily under the same limits, without
+first collecting all errors from malformed containers. Alternative schema branches
+are checked independently, so a failed branch cannot exhaust the diagnostic
+budget and hide a later valid alternative. General validation defaults are unchanged.
+
 Hash chaining is not a digital signature. Without separately anchoring the latest hash, it cannot prove that the entire tail of a local file was not truncated. Key management and remote attestation are intentionally outside Ordin core.
 
 ## Persistence and concurrency boundary

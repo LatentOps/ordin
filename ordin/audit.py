@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -17,6 +18,8 @@ from .provenance import DecisionProvenance
 
 
 MAX_AUDIT_LINE_BYTES = 1_048_576
+MAX_AUDIT_VERIFICATION_ERRORS = 64
+MAX_AUDIT_ERROR_CHARACTERS = 1024
 
 
 def _canonical_json(payload: dict[str, Any]) -> str:
@@ -244,88 +247,121 @@ def verify_audit_jsonl(
     expected_last_hash: str | None = None,
 ) -> AuditVerification:
     audit_path = Path(path)
-    if not audit_path.exists():
-        return AuditVerification(
-            ok=False,
-            event_count=0,
-            last_hash=None,
-            errors=("audit file does not exist",),
-        )
-
     try:
-        with audit_path.open("rb") as handle:
-            result = _verify_audit_stream(handle, require_hash_chain=require_hash_chain)
-            if expected_last_hash is not None and result.last_hash != expected_last_hash:
-                return AuditVerification(
-                    False,
-                    result.event_count,
-                    result.last_hash,
-                    (*result.errors, "audit head differs from trusted checkpoint"),
-                )
-            return result
+        if not audit_path.exists():
+            return AuditVerification(
+                ok=False,
+                event_count=0,
+                last_hash=None,
+                errors=("audit file does not exist",),
+            )
+        # Opening a FIFO for blocking reads waits before it can be inspected.
+        # Nonblocking open lets us reject special files without consuming data.
+        descriptor = os.open(
+            audit_path,
+            os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0),
+        )
+        try:
+            if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+                return AuditVerification(False, 0, None, ("audit must be a regular file",))
+            with os.fdopen(descriptor, "rb", closefd=False) as handle:
+                result = _verify_audit_stream(handle, require_hash_chain=require_hash_chain)
+                if expected_last_hash is not None and result.last_hash != expected_last_hash:
+                    errors = (*result.errors, "audit head differs from trusted checkpoint")
+                    return AuditVerification(
+                        False,
+                        result.event_count,
+                        result.last_hash,
+                        errors[:MAX_AUDIT_VERIFICATION_ERRORS],
+                    )
+                return result
+        finally:
+            os.close(descriptor)
     except OSError as exc:
-        return AuditVerification(False, 0, None, (str(exc),))
+        return AuditVerification(False, 0, None, (str(exc)[:MAX_AUDIT_ERROR_CHARACTERS],))
 
 
 def _verify_audit_stream(handle: BinaryIO, *, require_hash_chain: bool) -> AuditVerification:
     errors: list[str] = []
     previous_hash: str | None = None
     event_count = 0
+    consumed = 0
+
+    def error(message: str) -> None:
+        if len(errors) < MAX_AUDIT_VERIFICATION_ERRORS - 1:
+            errors.append(message[:MAX_AUDIT_ERROR_CHARACTERS])
+        elif len(errors) == MAX_AUDIT_VERIFICATION_ERRORS - 1:
+            errors.append("audit verification reached the diagnostic limit; further checks omitted")
+
     try:
         if os.fstat(handle.fileno()).st_size > MAX_AUDIT_BYTES:
             return AuditVerification(False, 0, None, ("audit file exceeds byte limit",))
-        for line_number, raw in enumerate(
-            iter(lambda: handle.readline(MAX_AUDIT_LINE_BYTES + 1), b""), start=1
-        ):
+        line_number = 0
+        while len(errors) < MAX_AUDIT_VERIFICATION_ERRORS:
+            # A single probe byte distinguishes exact-budget EOF from growth.
+            raw = handle.readline(min(MAX_AUDIT_LINE_BYTES + 1, MAX_AUDIT_BYTES - consumed + 1))
+            if not raw:
+                break
+            line_number += 1
+            consumed += len(raw)
+            if consumed > MAX_AUDIT_BYTES:
+                error("audit file exceeds byte limit")
+                break
             if len(raw) > MAX_AUDIT_LINE_BYTES:
-                errors.append(f"line {line_number}: audit event exceeds maximum size")
+                error(f"line {line_number}: audit event exceeds maximum size")
                 break
             if not raw.endswith(b"\n"):
-                errors.append(f"line {line_number}: incomplete audit line")
+                error(f"line {line_number}: incomplete audit line")
             try:
                 payload = load_audit_line(raw)
             except (UnicodeDecodeError, ValueError, RecursionError):
-                errors.append(f"line {line_number}: invalid or ambiguous JSON")
+                error(f"line {line_number}: invalid or ambiguous JSON")
                 break
             if not isinstance(payload, dict):
-                errors.append(f"line {line_number}: audit event must be an object")
+                error(f"line {line_number}: audit event must be an object")
                 continue
             from .schema import validate_named_schema
 
-            schema_errors = validate_named_schema("audit_event", payload)
+            schema_errors = validate_named_schema(
+                "audit_event",
+                payload,
+                maximum_errors=MAX_AUDIT_VERIFICATION_ERRORS - len(errors),
+                maximum_error_characters=MAX_AUDIT_ERROR_CHARACTERS,
+            )
             if schema_errors:
-                errors.extend(f"line {line_number}: {error}" for error in schema_errors)
+                for schema_error in schema_errors:
+                    error(f"line {line_number}: {schema_error}")
             provenance = payload.get("provenance")
             if isinstance(provenance, dict):
                 if payload.get("decision") != provenance.get("final_decision"):
-                    errors.append(f"line {line_number}: decision disagrees with provenance")
+                    error(f"line {line_number}: decision disagrees with provenance")
                 if payload.get("risk") != provenance.get("final_risk"):
-                    errors.append(f"line {line_number}: risk disagrees with provenance")
+                    error(f"line {line_number}: risk disagrees with provenance")
             event_count += 1
             event_hash = payload.get("event_hash")
             previous = payload.get("previous_hash")
             if event_hash is None:
                 if require_hash_chain:
-                    errors.append(f"line {line_number}: missing event_hash")
+                    error(f"line {line_number}: missing event_hash")
                 if previous is not None:
-                    errors.append(f"line {line_number}: previous_hash without event_hash")
+                    error(f"line {line_number}: previous_hash without event_hash")
                 previous_hash = None
                 continue
             if not isinstance(event_hash, str) or len(event_hash) != 64:
-                errors.append(f"line {line_number}: invalid event_hash")
+                error(f"line {line_number}: invalid event_hash")
                 continue
             if previous != previous_hash:
-                errors.append(f"line {line_number}: previous_hash does not match prior event")
+                error(f"line {line_number}: previous_hash does not match prior event")
             expected = _event_hash(payload)
             if event_hash != expected:
-                errors.append(f"line {line_number}: event_hash mismatch")
+                error(f"line {line_number}: event_hash mismatch")
             previous_hash = event_hash
     except OSError as exc:
         return AuditVerification(
             ok=False,
             event_count=event_count,
             last_hash=previous_hash,
-            errors=(str(exc),),
+            errors=(str(exc)[:MAX_AUDIT_ERROR_CHARACTERS],),
         )
 
     return AuditVerification(
