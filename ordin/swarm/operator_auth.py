@@ -222,5 +222,9 @@ class SwarmOperatorDirectory:
             if enrollment_id not in self._members:
                 raise ValueError("original operator enrollment required")
             self.authenticator.revoke_enrollment(enrollment_id, operator=operator)
+            # RBAC capacity tracks current humans. The authenticator retains the
+            # revoked enrollment/certificate history, so rotation cannot revive
+            # an old credential or count its previous votes as the new member.
+            del self._members[enrollment_id]
             self._generation += 1
             self._channels.clear()

@@ -95,6 +95,10 @@ administrative recovery path.
    `enroll_workload`, `enroll_broker` or directory `enroll` API, with explicit
    host, current original context/source, task and role bindings. Do not reuse an
    old enrollment ID or treat an identical common name as authentication.
+   An operator may retain the same human principal after revocation; two active
+   enrollments for that principal are refused. Revocation releases its active
+   directory slot while the authenticator retains bounded certificate and
+   revocation history, including refusal of the old certificate.
 4. Authenticate a new actual TLS socket. Workload and broker certificates cannot
    become operator credentials. Obtain fresh current grants, approval receipts,
    reservations and evidence bindings; old original channels and grants are not
