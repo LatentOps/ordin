@@ -216,20 +216,28 @@ class WorkloadAuthenticator:
             raise ValueError("operator TLS credential has wrong role or was revoked")
         return row
 
-    def _operator_time(self, now: float) -> float:
-        """Accept a protected clock sample taken BEFORE entering any auth lock."""
-        if now < self._last_now:
-            raise ValueError("operator clock sample became stale or moved backward")
-        self._last_now = now
-        return now
+    def _operator_clock_sample(self) -> tuple[float, float]:
+        # A DB-backed clock must run outside authentication locks. Remember the
+        # already-observed floor before sampling so overlapping valid samples
+        # can complete in either order without being mistaken for a rollback.
+        with self._lock:
+            minimum = self._last_now
+        return timestamp(self._clock()), minimum
+
+    def _operator_time(self, now: float, minimum: float) -> float:
+        """Linearize an outside-lock sample without moving authority time back."""
+        if now < minimum:
+            raise ValueError("operator clock moved backward")
+        self._last_now = max(self._last_now, now)
+        return self._last_now
 
     def authenticate_operator(self, connection: ssl.SSLSocket) -> AuthorityChannel:
         """Preemptive operator path: never wait for a running workload callback barrier."""
         if type(connection) is not ssl.SSLSocket:
             raise ValueError("actual operator TLS socket required")
-        now = timestamp(self._clock())
+        now, minimum = self._operator_clock_sample()
         with self._lock:
-            self._operator_time(now)
+            now = self._operator_time(now, minimum)
             enrolled = self._operator_peer(connection)
             self._channels = {
                 handle: row
@@ -253,9 +261,9 @@ class WorkloadAuthenticator:
         if type(channel) is not AuthorityChannel:
             raise ValueError("original operator authority channel required")
         # A DB-backed clock must never be sampled while holding auth/issuer locks.
-        now = timestamp(self._clock())
+        now, minimum = self._operator_clock_sample()
         with self._lock:
-            self._operator_time(now)
+            now = self._operator_time(now, minimum)
             row = self._channels.get(channel)
             if (
                 row is None
