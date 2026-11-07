@@ -12,9 +12,10 @@ import re
 import subprocess
 import tarfile
 import zipfile
+from datetime import datetime
 from email.parser import BytesParser
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 
 RELEASE_WORKFLOW_CHECKS = {
@@ -100,10 +101,88 @@ def verify_release_checks(repository: str, revision: str, *, tag: str | None = N
     ):
         raise ValueError("invalid release repository/revision")
 
-    def reject(detail: str) -> None:
+    def reject(detail: str) -> NoReturn:
         raise ValueError(
             f"all maintained CI checks must pass on the exact release commit: {detail}"
         )
+
+    def execution_start(run: dict[str, Any]) -> datetime:
+        if any(
+            type(run.get(field)) is not int or run[field] < 1
+            for field in ("id", "check_suite_id", "run_attempt")
+        ):
+            reject("main workflow attempt is missing or invalid")
+        attempts = _github_pages(
+            repository, f"actions/runs/{run['id']}/attempts/{run['run_attempt']}"
+        )
+        if len(attempts) != 1 or not isinstance(attempts[0], dict):
+            reject("main workflow attempt response is ambiguous")
+        attempt = attempts[0]
+        if not _main_run(attempt, repository, revision) or any(
+            field not in run or attempt.get(field) != run[field]
+            for field in (
+                "id",
+                "run_attempt",
+                "check_suite_id",
+                "path",
+                "head_sha",
+                "head_branch",
+                "event",
+                "status",
+                "conclusion",
+                "run_started_at",
+                "updated_at",
+            )
+        ):
+            reject("main workflow attempt identity changed or does not match")
+        if any(
+            not isinstance(attempt.get(field), str)
+            or re.fullmatch(
+                r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", attempt[field]
+            )
+            is None
+            for field in ("run_started_at", "updated_at")
+        ):
+            reject("main workflow execution timestamp is missing or invalid")
+        try:
+            started = datetime.strptime(attempt["run_started_at"], "%Y-%m-%dT%H:%M:%SZ")
+            updated = datetime.strptime(attempt["updated_at"], "%Y-%m-%dT%H:%M:%SZ")
+        except (KeyError, TypeError, ValueError):
+            reject("main workflow execution timestamp is missing or invalid")
+        if updated < started:
+            reject("main workflow execution timestamps are inconsistent")
+        if run["run_attempt"] > 1:
+            previous = _github_pages(
+                repository, f"actions/runs/{run['id']}/attempts/{run['run_attempt'] - 1}"
+            )
+            if (
+                len(previous) != 1
+                or not isinstance(previous[0], dict)
+                or not _main_run(previous[0], repository, revision)
+                or type(previous[0].get("run_attempt")) is not int
+                or previous[0].get("run_attempt") != run["run_attempt"] - 1
+                or any(
+                    previous[0].get(field) != run[field]
+                    for field in (
+                        "id",
+                        "check_suite_id",
+                        "path",
+                        "head_sha",
+                        "head_branch",
+                        "event",
+                    )
+                )
+            ):
+                reject("previous main workflow attempt identity does not match")
+            try:
+                previous_start = datetime.strptime(
+                    previous[0]["run_started_at"], "%Y-%m-%dT%H:%M:%SZ"
+                )
+            except (KeyError, TypeError, ValueError):
+                reject("previous main workflow attempt timestamp is missing or invalid")
+            if previous_start >= started:
+                reject("main workflow attempt chronology is ambiguous")
+        return started
 
     runs = [
         run
@@ -120,13 +199,26 @@ def verify_release_checks(repository: str, revision: str, *, tag: str | None = N
     by_check_id = {check["id"]: check for check in checks}
     by_suite = {run["check_suite_id"]: run for run in runs}
     main_runs: dict[str, dict[str, Any]] = {}
+    main_starts: dict[str, datetime] = {}
+    main_executions = []
+    execution_starts = {}
     for run in runs:
         if _main_run(run, repository, revision):
-            if run["status"] != "completed":
-                reject(f"pending main execution: {run['path']}")
+            started = execution_start(run)
+            main_executions.append(run)
+            execution_starts[run["id"]] = started
             path = run["path"]
-            if path not in main_runs or run["id"] > main_runs[path]["id"]:
+            # An older run ID can have the newest retry, even if that retry never
+            # schedules a job. Completion time cannot order overlapping attempts.
+            if path not in main_runs or started > main_starts[path]:
+                main_starts[path] = started
                 main_runs[path] = run
+            elif started == main_starts[path] and run["id"] != main_runs[path]["id"]:
+                if any(
+                    candidate["status"] != "completed" or candidate["conclusion"] != "success"
+                    for candidate in (run, main_runs[path])
+                ):
+                    reject("main workflow execution chronology is ambiguous")
     for filename in RELEASE_WORKFLOW_CHECKS:
         run = main_runs.get(f".github/workflows/{filename}")
         if not run or run["status"] != "completed" or run["conclusion"] != "success":
@@ -160,7 +252,7 @@ def verify_release_checks(repository: str, revision: str, *, tag: str | None = N
     retired_checks = set()
     tag_checks = set()
     permitted_skips = set()
-    for run in [*main_runs.values(), *([current_tag] if current_tag else [])]:
+    for run in [*main_executions, *([current_tag] if current_tag else [])]:
         jobs = [
             job
             for page in _github_pages(
@@ -168,7 +260,8 @@ def verify_release_checks(repository: str, revision: str, *, tag: str | None = N
             )
             for job in page["jobs"]
         ]
-        names = set()
+        effective_jobs: dict[str, tuple[dict[str, Any], int]] = {}
+        verified_check_ids = set()
         for job in jobs:
             match = re.fullmatch(
                 rf"https://api\.github\.com/repos/{re.escape(repository)}/check-runs/([0-9]+)",
@@ -178,7 +271,7 @@ def verify_release_checks(repository: str, revision: str, *, tag: str | None = N
                 not match
                 or job.get("run_id") != run["id"]
                 or job.get("head_sha") != revision
-                or not isinstance(job.get("run_attempt"), int)
+                or type(job.get("run_attempt")) is not int
                 or not 1 <= job["run_attempt"] <= run["run_attempt"]
             ):
                 reject("job does not identify the expected source/workflow attempt")
@@ -193,18 +286,35 @@ def verify_release_checks(repository: str, revision: str, *, tag: str | None = N
                 or check.get("conclusion") != job["conclusion"]
             ):
                 reject("job/check source, app or workflow identity does not match")
-            if job["run_attempt"] < run["run_attempt"]:
+            verified_check_ids.add(check_id)
+            previous = effective_jobs.get(job["name"])
+            if previous is None or (job["run_attempt"], check_id) > (
+                previous[0]["run_attempt"],
+                previous[1],
+            ):
+                if previous is not None:
+                    retired_checks.add(previous[1])
+                effective_jobs[job["name"]] = (job, check_id)
+            elif check_id != previous[1]:
                 retired_checks.add(check_id)
-                continue
+        if run is not current_tag and execution_starts[run["id"]] < main_starts[run["path"]]:
+            # Only known jobs from an API-verified earlier execution are
+            # superseded. Late-created check IDs do not make that execution new.
+            retired_checks.update(verified_check_ids)
+            continue
+        names = set()
+        for job, check_id in effective_jobs.values():
             names.add(job["name"])
             if run is current_tag:
                 if job["name"] not in TAG_RELEASE_CHECKS:
                     reject("unexpected job in the current tag workflow")
-                tag_checks.add(check_id)
-                # Only this API-verified tag attempt can be in progress. It never
-                # supplies the independent, completed main release qualification.
-                if job["status"] in {"queued", "in_progress"}:
-                    continue
+                if job["run_attempt"] == run["run_attempt"]:
+                    tag_checks.add(check_id)
+                    # Only this API-verified tag attempt can be in progress. An
+                    # untouched job from an earlier attempt must have succeeded.
+                    # Neither supplies independent main release qualification.
+                    if job["status"] in {"queued", "in_progress"}:
+                        continue
             elif (
                 (run["path"], job["name"])
                 in {

@@ -46,6 +46,7 @@ class ReleaseAPI:
         self.runs = []
         self.checks = []
         self.jobs = {}
+        self.attempts = {}
         self.statuses = []
         self.calls = []
         self.analyses = [
@@ -88,6 +89,8 @@ class ReleaseAPI:
             "status": "completed",
             "conclusion": "success",
             "check_suite_id": run_id + 100,
+            "updated_at": f"2026-11-07T00:00:{run_id:02d}Z",
+            "run_started_at": f"2026-11-07T00:00:{run_id:02d}Z",
         }
         self.runs.append(run)
         self.jobs[run_id] = []
@@ -135,6 +138,11 @@ class ReleaseAPI:
         for record in (job, self.check(job)):
             record.update(status=status, conclusion=conclusion)
 
+    def begin_attempt(self, run, started="2026-11-07T01:00:00Z"):
+        self.attempts[run["id"], run["run_attempt"]] = deepcopy(run)
+        run["run_attempt"] += 1
+        run.update(run_started_at=started, updated_at=started)
+
     def tag_run(self, monkeypatch):
         run = self.add_run(
             "release.yml",
@@ -175,6 +183,13 @@ class ReleaseAPI:
             rows, key = self.statuses, None
         elif endpoint == "code-scanning/analyses?ref=refs/heads/main&tool_name=CodeQL&per_page=100":
             rows, key = self.analyses, None
+        elif endpoint.startswith("actions/runs/") and "/attempts/" in endpoint:
+            run_id, attempt_number = map(
+                int, endpoint.removeprefix("actions/runs/").split("/attempts/")
+            )
+            run = next(run for run in self.runs if run["id"] == run_id)
+            attempt = self.attempts.get((run_id, attempt_number), run)
+            return json.dumps([attempt])
         else:
             prefix, suffix = "actions/runs/", "/jobs?filter=all&per_page=100"
             assert endpoint.startswith(prefix) and endpoint.endswith(suffix), endpoint
@@ -281,7 +296,7 @@ def test_a_later_main_run_supersedes_only_its_own_workflow(api):
 def test_retry_of_an_older_run_cannot_hide_behind_a_later_successful_run_id(api, outcome):
     original = next(run for run in api.runs if run["path"].endswith("runtime-extension.yml"))
     api.add_run("runtime-extension.yml", {"Native request authority"})
-    original["run_attempt"] = 2
+    api.begin_attempt(original)
     if outcome == "pending":
         original.update(status="in_progress", conclusion=None)
     job = api.add_job(original, "Native request authority")
@@ -298,7 +313,7 @@ def test_retry_of_an_older_run_cannot_hide_behind_a_later_successful_run_id(api,
 def test_latest_attempt_supersedes_old_attempts_without_hiding_a_new_failure(api, latest_outcome):
     run = next(run for run in api.runs if run["path"].endswith("runtime-extension.yml"))
     api.outcome(api.job("Native request authority"), "completed", "failure")
-    run["run_attempt"] = 2
+    api.begin_attempt(run)
     new_job = api.add_job(run, "Native request authority")
     api.outcome(
         new_job,
@@ -310,6 +325,134 @@ def test_latest_attempt_supersedes_old_attempts_without_hiding_a_new_failure(api
     else:
         with pytest.raises(ValueError, match="unsuccessful job"):
             verify_release_checks(REPOSITORY, REVISION)
+
+
+@pytest.mark.parametrize(
+    "filename,name",
+    [
+        ("security.yml", "CodeQL Python"),
+        ("swarm-frameworks.yml", "Installed adapter wheel (langgraph)"),
+    ],
+)
+@pytest.mark.parametrize("outcome", ["success", "failure", "pending"])
+def test_partial_rerun_keeps_untouched_verified_jobs(api, filename, name, outcome):
+    run = next(run for run in api.runs if run["path"].endswith(filename))
+    api.outcome(api.job(name), "completed", "failure")
+    api.begin_attempt(run)
+    replacement = api.add_job(run, name)
+    api.outcome(
+        replacement,
+        "in_progress" if outcome == "pending" else "completed",
+        None if outcome == "pending" else outcome,
+    )
+    api.jobs[run["id"]].reverse()  # API page order cannot choose the winning attempt.
+    if outcome == "success":
+        verify_release_checks(REPOSITORY, REVISION)
+    else:
+        with pytest.raises(ValueError, match="unsuccessful job"):
+            verify_release_checks(REPOSITORY, REVISION)
+
+
+@pytest.mark.parametrize("status,conclusion", [("completed", "failure"), ("in_progress", None)])
+def test_partial_rerun_cannot_discard_an_untouched_failed_or_pending_job(api, status, conclusion):
+    run = next(run for run in api.runs if run["path"].endswith("security.yml"))
+    api.outcome(api.job("Workflow security"), status, conclusion)
+    api.begin_attempt(run)
+    api.add_job(run, "CodeQL Python")
+    with pytest.raises(ValueError, match="unsuccessful job"):
+        verify_release_checks(REPOSITORY, REVISION)
+
+
+@pytest.mark.parametrize("conclusion", ["failure", "cancelled"])
+@pytest.mark.parametrize("retry_is_newer", [True, False])
+def test_no_job_retry_is_ordered_by_specific_attempt_start_not_run_id_or_completion(
+    api, conclusion, retry_is_newer
+):
+    original = next(run for run in api.runs if run["path"].endswith("runtime-extension.yml"))
+    newer_id = api.add_run("runtime-extension.yml", {"Native request authority"})
+    newer_id.update(run_started_at="2026-11-07T14:00:00Z", updated_at="2026-11-07T14:30:00Z")
+    api.begin_attempt(
+        original, "2026-11-07T15:00:00Z" if retry_is_newer else "2026-11-07T13:00:00Z"
+    )
+    original.update(conclusion=conclusion, updated_at="2026-11-07T16:00:00Z")
+    assert len(api.jobs[original["id"]]) == 1  # The cancelled/failed retry created no job or check.
+    if retry_is_newer:
+        with pytest.raises(ValueError, match="main qualification: runtime-extension.yml"):
+            verify_release_checks(REPOSITORY, REVISION)
+    else:
+        verify_release_checks(REPOSITORY, REVISION)
+
+
+def test_earlier_retry_late_job_ids_do_not_supersede_a_later_successful_execution(api):
+    original = next(run for run in api.runs if run["path"].endswith("runtime-extension.yml"))
+    newer = api.add_run("runtime-extension.yml", {"Native request authority"})
+    newer.update(run_started_at="2026-11-07T14:00:00Z", updated_at="2026-11-07T14:30:00Z")
+    api.begin_attempt(original, "2026-11-07T13:00:00Z")
+    original.update(conclusion="failure", updated_at="2026-11-07T16:00:00Z")
+    late_job = api.add_job(original, "Native request authority")
+    api.outcome(late_job, "completed", "failure")
+    assert late_job["id"] > api.jobs[newer["id"]][0]["id"]
+    verify_release_checks(REPOSITORY, REVISION)
+
+
+def test_observed_job_attempt_newer_than_the_run_snapshot_is_not_retired(api):
+    original = next(run for run in api.runs if run["path"].endswith("runtime-extension.yml"))
+    api.add_run("runtime-extension.yml", {"Native request authority"})
+    job = api.add_job(original, "Native request authority")
+    job["run_attempt"] = original["run_attempt"] + 1
+    with pytest.raises(ValueError, match="expected source/workflow attempt"):
+        verify_release_checks(REPOSITORY, REVISION)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("run_attempt", 0),
+        ("run_attempt", True),
+        ("run_attempt", "2"),
+        ("run_started_at", None),
+        ("run_started_at", "not-a-time"),
+        ("updated_at", "2026-01-01T00:00:00Z"),
+    ],
+)
+def test_main_attempt_and_timestamp_shape_must_be_unambiguous(api, field, value):
+    run = next(run for run in api.runs if run["path"].endswith("runtime-extension.yml"))
+    run[field] = value
+    with pytest.raises(ValueError, match="main workflow"):
+        verify_release_checks(REPOSITORY, REVISION)
+
+
+def test_attempt_endpoint_must_match_the_listed_execution_identity(api):
+    run = next(run for run in api.runs if run["path"].endswith("runtime-extension.yml"))
+    api.attempts[run["id"], run["run_attempt"]] = {**run, "run_attempt": 99}
+    with pytest.raises(ValueError, match="attempt identity"):
+        verify_release_checks(REPOSITORY, REVISION)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("run_attempt", 2),
+        ("run_attempt", True),
+        ("head_sha", "b" * 40),
+        ("run_started_at", "2026-11-07T01:00:00Z"),
+    ],
+)
+def test_retry_requires_a_consistent_prior_attempt_identity_and_chronology(api, field, value):
+    run = next(run for run in api.runs if run["path"].endswith("runtime-extension.yml"))
+    api.begin_attempt(run)
+    api.add_job(run, "Native request authority")
+    api.attempts[run["id"], 1][field] = value
+    with pytest.raises(ValueError, match="workflow attempt"):
+        verify_release_checks(REPOSITORY, REVISION)
+
+
+def test_same_start_time_with_conflicting_run_outcomes_is_not_ordered_by_id(api):
+    original = next(run for run in api.runs if run["path"].endswith("runtime-extension.yml"))
+    newer = api.add_run("runtime-extension.yml", {"Native request authority"})
+    newer.update(run_started_at=original["run_started_at"], conclusion="failure")
+    with pytest.raises(ValueError, match="chronology is ambiguous"):
+        verify_release_checks(REPOSITORY, REVISION)
 
 
 @pytest.mark.parametrize("status,conclusion", [("in_progress", None), ("completed", "failure")])
@@ -440,15 +583,48 @@ def test_current_tag_check_app_identity_cannot_be_spoofed(api, monkeypatch):
         verify_release_checks(REPOSITORY, REVISION, tag=TAG)
 
 
-def test_current_tag_retry_retires_only_api_identified_prior_attempt_jobs(api, monkeypatch):
+def test_current_tag_partial_retry_retains_successful_untouched_jobs(api, monkeypatch):
     run = api.tag_run(monkeypatch)
     for job in api.jobs[run["id"]]:
-        api.outcome(job, "completed", "failure")
-    run["run_attempt"] = 2
+        api.outcome(
+            job, "completed", "failure" if job["name"] == "Publish GitHub Release" else "success"
+        )
+    api.begin_attempt(run)
     monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "2")
-    current = api.add_job(run, "Build release artifacts")
+    current = api.add_job(run, "Publish GitHub Release")
     api.outcome(current, "in_progress", None)
     verify_release_checks(REPOSITORY, REVISION, tag=TAG)
+
+
+@pytest.mark.parametrize("status,conclusion", [("completed", "failure"), ("in_progress", None)])
+def test_tag_partial_retry_does_not_waive_untouched_prior_attempt_jobs(
+    api, monkeypatch, status, conclusion
+):
+    run = api.tag_run(monkeypatch)
+    for job in api.jobs[run["id"]]:
+        api.outcome(job, "completed", "success")
+    untouched = next(
+        job for job in api.jobs[run["id"]] if job["name"] == "Attest tested release artifacts"
+    )
+    api.outcome(untouched, status, conclusion)
+    api.begin_attempt(run)
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "2")
+    current = api.add_job(run, "Publish GitHub Release")
+    api.outcome(current, "in_progress", None)
+    with pytest.raises(ValueError, match="unsuccessful job"):
+        verify_release_checks(REPOSITORY, REVISION, tag=TAG)
+
+
+def test_tag_partial_retry_failed_replacement_still_blocks(api, monkeypatch):
+    run = api.tag_run(monkeypatch)
+    for job in api.jobs[run["id"]]:
+        api.outcome(job, "completed", "success")
+    api.begin_attempt(run)
+    monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "2")
+    current = api.add_job(run, "Publish GitHub Release")
+    api.outcome(current, "completed", "failure")
+    with pytest.raises(ValueError, match="unsuccessful job"):
+        verify_release_checks(REPOSITORY, REVISION, tag=TAG)
 
 
 def test_tag_exemption_does_not_cover_another_run(api, monkeypatch):
