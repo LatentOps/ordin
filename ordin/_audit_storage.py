@@ -25,7 +25,9 @@ def load_audit_line(raw: bytes) -> dict[str, Any]:
         return result
 
     payload = json.loads(raw.decode("utf-8"), object_pairs_hook=unique)
-    json.dumps(payload, allow_nan=False)
+    # JSON escapes can decode into lone surrogates even when the input bytes
+    # are valid UTF-8. Every accepted value must remain encodable for hashing.
+    json.dumps(payload, allow_nan=False, ensure_ascii=False).encode("utf-8")
     if not isinstance(payload, dict):
         raise ValueError("audit event must be an object")
     pending = [(payload, 0)]
