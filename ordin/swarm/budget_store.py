@@ -113,8 +113,10 @@ class InMemoryBudgetStore:
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
         with self._lock:
-            self._connection.execute("BEGIN IMMEDIATE")
+            if self._connection.in_transaction:
+                raise ValueError("nested budget transaction refused")
             try:
+                self._connection.execute("BEGIN IMMEDIATE")
                 _validate_history(self._connection, self._allow_initialize)
                 yield self._connection
                 self._initialized()
@@ -126,7 +128,9 @@ class InMemoryBudgetStore:
             except sqlite3.Error:
                 self._connection.rollback()
                 raise ValueError("budget transaction unavailable or corrupt") from None
-            except Exception:
+            except BaseException:
+                # Cancellation and process-level interruptions must not leave
+                # the reusable connection holding an uncommitted transaction.
                 self._connection.rollback()
                 raise
 
