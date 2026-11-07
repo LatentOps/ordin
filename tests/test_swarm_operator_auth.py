@@ -153,3 +153,99 @@ def test_urgent_operator_auth_does_not_wait_for_execution_barrier_or_sample_db_c
         finally:
             release.set()
             callback.join(1)
+
+
+def test_overlapping_operator_clock_samples_can_complete_out_of_order(tmp_path):
+    with fixture(tmp_path) as data, ExitStack() as stack:
+        directory, alice, _ = enroll(data)
+        auth = data[1].authenticator
+        first, _ = stack.enter_context(tls_pair(auth._tls, "grandchild"))
+        second, _ = stack.enter_context(tls_pair(auth._tls, "grandchild"))
+        sampled, release = Event(), Event()
+        channels, failures = {}, []
+
+        def clock():
+            assert not auth._lock._is_owned()
+            assert not directory._lock._is_owned()
+            if not sampled.is_set():
+                sampled.set()
+                assert release.wait(2)
+                return 100
+            return 101
+
+        auth._clock = clock
+
+        def earlier():
+            try:
+                channels["earlier"] = auth.authenticate_operator(first)
+            except Exception as error:
+                failures.append(error)
+
+        worker = Thread(target=earlier)
+        worker.start()
+        try:
+            assert sampled.wait(1)
+            channels["later"] = auth.authenticate_operator(second)
+        finally:
+            release.set()
+            worker.join(2)
+        assert not worker.is_alive() and not failures
+        assert channels["earlier"] is not channels["later"]
+        for channel in channels.values():
+            assert auth.require_operator(channel).enrollment_id == alice.enrollment_id
+        assert auth._last_now == 101
+
+
+def test_overlapping_old_operator_sample_cannot_revive_expired_channel(tmp_path):
+    with fixture(tmp_path) as data, ExitStack() as stack:
+        directory, _, _ = enroll(data)
+        auth = data[1].authenticator
+        first, _ = stack.enter_context(tls_pair(auth._tls, "grandchild"))
+        second, _ = stack.enter_context(tls_pair(auth._tls, "sibling"))
+        channel = auth.authenticate_operator(first)
+        sampled, release = Event(), Event()
+        failures, accepted = [], []
+
+        def clock():
+            assert not auth._lock._is_owned()
+            assert not directory._lock._is_owned()
+            if not sampled.is_set():
+                sampled.set()
+                assert release.wait(2)
+                return 101
+            return 131
+
+        auth._clock = clock
+
+        def earlier():
+            try:
+                accepted.append(auth.require_operator(channel))
+            except ValueError as error:
+                failures.append(error)
+
+        worker = Thread(target=earlier)
+        worker.start()
+        try:
+            assert sampled.wait(1)
+            auth.authenticate_operator(second)
+        finally:
+            release.set()
+            worker.join(2)
+        assert not worker.is_alive() and not accepted
+        assert len(failures) == 1 and "expired" in str(failures[0])
+        assert auth._last_now == 131
+
+
+@pytest.mark.parametrize("sample", [99, float("nan"), float("inf"), -1, True])
+def test_operator_clock_still_rejects_rollback_and_invalid_samples(tmp_path, sample):
+    with fixture(tmp_path) as data, ExitStack() as stack:
+        directory, _, _ = enroll(data)
+        auth = data[1].authenticator
+        socket, _ = stack.enter_context(tls_pair(auth._tls, "grandchild"))
+        channel = auth.authenticate_operator(socket)
+        auth._clock = lambda: sample
+        with pytest.raises(ValueError):
+            auth.require_operator(channel)
+        with pytest.raises(ValueError):
+            directory.authenticate(socket)
+        assert auth._last_now == 100
