@@ -277,6 +277,27 @@ def _initialize(server, *, headers=None):
     return token
 
 
+@pytest.mark.parametrize(
+    "bad_body",
+    [
+        rb'{"jsonrpc":"2.0","id":"\ud800","method":"tools/call","params":{"name":"read_file"}}',
+        rb'{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"\udfff"}}',
+        rb'{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"read_file","arguments":{"\ud800":1}}}',
+    ],
+)
+def test_invalid_client_unicode_is_rejected_without_failing_the_session(bad_body):
+    with _upstream() as (url, state), _proxy(url) as server:
+        token = _initialize(server)
+        before = len(state["headers"])
+        status, _, body = _request(server, token=token, raw=bad_body)
+        assert status == 400
+        assert json.loads(body)["error"] == "invalid_json_rpc_body"
+        assert len(state["headers"]) == before
+        assert state["calls"] == []
+        assert _request(server, _call(request_id=2), token=token)[0] == 200
+        assert len(state["calls"]) == 1
+
+
 def _call(request_id=1, name="read_file", arguments=None):
     return {
         "jsonrpc": "2.0",

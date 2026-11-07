@@ -617,10 +617,20 @@ def _validate_json_depth(payload: Any) -> None:
     pending: list[tuple[Any, int]] = [(payload, 0)]
     while pending:
         value, depth = pending.pop()
+        if isinstance(value, str):
+            # JSON escape syntax can decode to lone UTF-16 surrogates. They
+            # cannot be encoded as UTF-8 for action IDs or forwarded replies.
+            try:
+                value.encode("utf-8")
+            except UnicodeEncodeError as exc:
+                raise ValueError("MCP JSON strings must contain Unicode scalar values") from exc
+            continue
         if not isinstance(value, (dict, list)):
             continue
         if depth > MAX_MCP_JSON_DEPTH:
             raise ValueError(f"MCP JSON nesting exceeds maximum depth {MAX_MCP_JSON_DEPTH}")
+        if isinstance(value, dict):
+            pending.extend((key, depth + 1) for key in value)
         children = value.values() if isinstance(value, dict) else value
         pending.extend((child, depth + 1) for child in children)
 

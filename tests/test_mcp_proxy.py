@@ -183,6 +183,28 @@ def test_jsonrpc_parser_allows_reused_members_in_distinct_objects():
     assert message["params"] == [{"value": 1.5}, {"value": 2.5}]
 
 
+@pytest.mark.parametrize(
+    "line",
+    [
+        rb'{"jsonrpc":"2.0","id":"\ud800","method":"tools/list"}',
+        rb'{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"\udfff"}}',
+        rb'{"jsonrpc":"2.0","id":1,"params":{"nested":[{"\ud800":"value"}]}}',
+        rb'{"jsonrpc":"2.0","id":1,"result":{"content":[{"text":"\udfff"}]}}',
+    ],
+)
+def test_jsonrpc_parser_rejects_lone_surrogates_in_values_and_keys(line):
+    with pytest.raises(ValueError, match="Unicode scalar"):
+        _parse_jsonrpc_line(line)
+
+
+def test_jsonrpc_parser_preserves_valid_supplementary_unicode():
+    message = _parse_jsonrpc_line(
+        rb'{"jsonrpc":"2.0","id":"\ud83d\ude42","params":{"\ud83d\ude42":"ok"}}'
+    )
+    assert message["id"] == "🙂"
+    assert message["params"] == {"🙂": "ok"}
+
+
 def test_jsonrpc_parser_enforces_the_documented_nesting_boundary():
     prefix = b'{"jsonrpc":"2.0","params":'
     nested = b"[" * MAX_MCP_JSON_DEPTH + b"0" + b"]" * MAX_MCP_JSON_DEPTH
@@ -232,6 +254,62 @@ def test_stdio_proxy_rejects_ambiguous_client_json_and_continues():
     assert messages[0]["id"] is None
     assert messages[0]["error"]["code"] == -32700
     assert messages[1] == {"jsonrpc": "2.0", "id": 2, "result": {"received": valid}}
+
+
+@pytest.mark.parametrize("bad_call", [_call("\ud800"), _call(name="\udfff")])
+def test_stdio_proxy_rejects_invalid_unicode_and_processes_next_request(bad_call):
+    server = (
+        "import json,sys\n"
+        "for line in sys.stdin:\n"
+        " message=json.loads(line)\n"
+        " print(json.dumps({'jsonrpc':'2.0','id':message['id'],'result':{}}),flush=True)\n"
+    )
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ordin.mcp_proxy",
+            "--server-id",
+            "fixture",
+            "--",
+            sys.executable,
+            "-c",
+            server,
+        ],
+        input=json.dumps(bad_call) + '\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n',
+        text=True,
+        capture_output=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+    messages = [json.loads(line) for line in result.stdout.splitlines()]
+    assert messages[0]["id"] is None
+    assert messages[0]["error"]["code"] == -32700
+    assert messages[1] == {"jsonrpc": "2.0", "id": 2, "result": {}}
+
+
+def test_stdio_proxy_does_not_forward_invalid_unicode_from_upstream():
+    line = r'{"jsonrpc":"2.0","id":1,"result":{"content":[{"text":"\ud800"}]}}'
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "ordin.mcp_proxy",
+            "--server-id",
+            "fixture",
+            "--",
+            sys.executable,
+            "-c",
+            f"print({line!r},flush=True)",
+        ],
+        input="",
+        text=True,
+        capture_output=True,
+        timeout=10,
+    )
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert "upstream protocol error" in result.stderr
 
 
 @pytest.mark.parametrize(
