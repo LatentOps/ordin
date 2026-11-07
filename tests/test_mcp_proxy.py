@@ -398,14 +398,19 @@ def test_valid_direct_mapping_and_tuple_unicode_values_remain_supported():
 @pytest.mark.parametrize("boundary", ["client", "server", "http"])
 def test_direct_shared_dag_is_bounded_before_protocol_state_changes(boundary):
     script = """
+import faulthandler
+print('phase=imports', flush=True)
+faulthandler.dump_traceback_later(8)
 from ordin import AgentGate, Ordin
 from ordin.mcp_http import MCPHTTPConfig, MCPHTTPServer, MCP_HTTP_PROTOCOL, HTTPBoundaryError
 from ordin.mcp_proxy import MCPStdioSafetyProxy
 from ordin.tool_calls import ToolResourceBinding, ToolSemanticRule, ToolSemanticsRegistry
+print('phase=imports_ready', flush=True)
 boundary = BOUNDARY
 graph = ['text']
 for _ in range(40):
     graph = [graph, graph]
+print('phase=graph_ready', flush=True)
 if boundary == 'client':
     proxy = MCPStdioSafetyProxy(server_id='fixture')
     before = proxy.session.snapshot()
@@ -435,34 +440,54 @@ elif boundary == 'server':
     observed = proxy.observe_server_message({'jsonrpc':'2.0','id':2,'result':{'content':[]}})
     assert observed.exit_code == 0 and proxy.pending_count == 0
 else:
+    print('phase=http_bind', flush=True)
     server = MCPHTTPServer(MCPHTTPConfig('fixture','http://127.0.0.1:1/mcp',port=0))
+    print('phase=http_bound', flush=True)
+    print('phase=http_session', flush=True)
     session = server.new_session('fixture-credential','init')
+    print('phase=http_session_ready', flush=True)
     try:
+        print('phase=http_initialize_request', flush=True)
         assert session.reviewer.process_client_message({'jsonrpc':'2.0','id':'init',
             'method':'initialize'}).forward
         before = session.reviewer.session.snapshot()
         result = {'protocolVersion':MCP_HTTP_PROTOCOL,'capabilities':{'experimental':{'graph':graph}}}
         try:
+            print('phase=http_reject_graph', flush=True)
             server.observe(session,{'jsonrpc':'2.0','id':'init','result':result})
         except HTTPBoundaryError as exc:
             assert exc.code == 'invalid_upstream_protocol'
         else:
             raise AssertionError('HTTP accepted enormous logical JSON expansion')
+        print('phase=http_graph_rejected', flush=True)
         assert not session.initialized and not session.failed
         assert session.reviewer.session.snapshot() == before
+        print('phase=http_valid_retry', flush=True)
         server.observe(session,{'jsonrpc':'2.0','id':'init',
             'result':{'protocolVersion':MCP_HTTP_PROTOCOL,'capabilities':{}}})
         assert session.initialized
+        print('phase=http_reset', flush=True)
         session.reviewer.reset_session()
     finally:
+        print('phase=http_drop', flush=True)
         server.drop(session)
+        print('phase=http_release', flush=True)
         server.release(session)
+        print('phase=http_close', flush=True)
         server.server_close()
+        print('phase=http_closed', flush=True)
+faulthandler.cancel_dump_traceback_later()
+print('phase=complete', flush=True)
 """.replace("BOUNDARY", repr(boundary))
-    result = subprocess.run(
-        [sys.executable, "-B", "-c", script], text=True, capture_output=True, timeout=10
-    )
-    assert result.returncode == 0, result.stderr
+    try:
+        result = subprocess.run(
+            [sys.executable, "-B", "-c", script], text=True, capture_output=True, timeout=10
+        )
+    except subprocess.TimeoutExpired as error:
+        pytest.fail(
+            f"bounded DAG child timed out: stdout={error.stdout!r}; stderr={error.stderr!r}"
+        )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 @pytest.mark.parametrize("order", ["shallow-first", "deep-first"])
