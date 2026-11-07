@@ -81,6 +81,20 @@ def _validate_history(connection: sqlite3.Connection, allow_initialize: bool) ->
         raise ValueError("budget coordinator history unavailable; reinitialization denied")
 
 
+def _rollback_initialization(connection: sqlite3.Connection, previously_allowed: bool) -> bool:
+    """Restore bootstrap permission only after a confirmed pristine rollback."""
+    try:
+        connection.rollback()
+        if not previously_allowed:
+            return False
+        _validate_history(connection, True)
+        return connection.execute("SELECT 1 FROM budget_meta LIMIT 1").fetchone() is None
+    except BaseException:
+        # Cleanup must preserve the original failure. An unknown rollback or
+        # history state cannot grant permission to initialize a new domain.
+        return False
+
+
 class BudgetStore(Protocol):
     def transaction(self): ...
 
@@ -92,43 +106,59 @@ class InMemoryBudgetStore:
         self._connection = sqlite3.connect(
             ":memory:", isolation_level=None, check_same_thread=False
         )
-        self._connection.execute("PRAGMA trusted_schema=OFF")
-        self._connection.execute("PRAGMA foreign_keys=ON")
-        self._connection.execute("PRAGMA max_page_count=16384")
-        self._lock = RLock()
-        self._allow_initialize = True
-        self._connection.execute("BEGIN IMMEDIATE")
         try:
+            self._connection.execute("PRAGMA trusted_schema=OFF")
+            self._connection.execute("PRAGMA foreign_keys=ON")
+            self._connection.execute("PRAGMA max_page_count=16384")
+            self._lock = RLock()
+            self._allow_initialize = True
+            self._connection.execute("BEGIN IMMEDIATE")
             _initialize_schema(self._connection)
             self._connection.commit()
-        except Exception:
-            self._connection.rollback()
-            self._connection.close()
+        except BaseException:
+            try:
+                # Closing an unreturned connection also rolls back partial setup.
+                self._connection.close()
+            except BaseException:
+                # Preserve the original startup failure if cleanup also fails.
+                pass
             raise
-
-    def _initialized(self) -> None:
-        if self._connection.execute("SELECT 1 FROM budget_meta LIMIT 1").fetchone() is not None:
-            self._allow_initialize = False
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
         with self._lock:
-            self._connection.execute("BEGIN IMMEDIATE")
+            if self._connection.in_transaction:
+                raise ValueError("nested budget transaction refused")
+            previously_allowed = self._allow_initialize
+            rejected = None
             try:
-                _validate_history(self._connection, self._allow_initialize)
-                yield self._connection
-                self._initialized()
+                self._connection.execute("BEGIN IMMEDIATE")
+                _validate_history(self._connection, previously_allowed)
+                try:
+                    yield self._connection
+                except BudgetRejected as error:
+                    rejected = error
+                initialized = (
+                    self._connection.execute("SELECT 1 FROM budget_meta LIMIT 1").fetchone()
+                    is not None
+                )
+                self._allow_initialize = False
                 self._connection.commit()
-            except BudgetRejected:
-                self._initialized()
-                self._connection.commit()
-                raise
+                self._allow_initialize = previously_allowed and not initialized
             except sqlite3.Error:
-                self._connection.rollback()
+                self._allow_initialize = _rollback_initialization(
+                    self._connection, previously_allowed
+                )
                 raise ValueError("budget transaction unavailable or corrupt") from None
-            except Exception:
-                self._connection.rollback()
+            except BaseException:
+                # Cancellation and process-level interruptions must not leave
+                # the reusable connection holding an uncommitted transaction.
+                self._allow_initialize = _rollback_initialization(
+                    self._connection, previously_allowed
+                )
                 raise
+            if rejected is not None:
+                raise rejected
 
 
 class SQLiteBudgetStore:
@@ -144,6 +174,7 @@ class SQLiteBudgetStore:
         if type(create) is not bool:
             raise ValueError("budget initialization must be explicit host configuration")
         self._allow_initialize = create
+        self._lock = RLock()
         try:
             if create:
                 descriptor = os.open(
@@ -172,6 +203,14 @@ class SQLiteBudgetStore:
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
+        # Initialization permission is local state and must remain serialized
+        # through commit/rollback even after the database releases its lock.
+        with self._lock:
+            yield from self._transaction()
+
+    def _transaction(self) -> Iterator[sqlite3.Connection]:
+        previously_allowed = self._allow_initialize
+        rejected = None
         try:
             info = self.path.stat()
             if (info.st_dev, info.st_ino) != self._identity:
@@ -179,22 +218,26 @@ class SQLiteBudgetStore:
             with private_database(
                 self.path, "swarm_budget", create=False, foreign_keys=True
             ) as connection:
-                _validate_history(connection, self._allow_initialize)
+                _validate_history(connection, previously_allowed)
                 try:
-                    yield connection
-                    if (
+                    try:
+                        yield connection
+                    except BudgetRejected as error:
+                        rejected = error
+                    initialized = (
                         connection.execute("SELECT 1 FROM budget_meta LIMIT 1").fetchone()
                         is not None
-                    ):
-                        self._allow_initialize = False
-                except BudgetRejected:
-                    if (
-                        connection.execute("SELECT 1 FROM budget_meta LIMIT 1").fetchone()
-                        is not None
-                    ):
-                        self._allow_initialize = False
+                    )
+                    self._allow_initialize = False
                     connection.commit()
+                    self._allow_initialize = previously_allowed and not initialized
+                except BaseException:
+                    self._allow_initialize = _rollback_initialization(
+                        connection, previously_allowed
+                    )
                     raise
+                if rejected is not None:
+                    raise rejected
         except BudgetRejected:
             raise
         except (OSError, sqlite3.Error, ValueError):
