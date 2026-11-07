@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Mapping, Sequence, cast
+from typing import Any, Callable, Iterator, Mapping, Sequence, cast
 from urllib.parse import urlsplit
 from ._runtime_url import has_unsafe_authority_characters
 
@@ -43,6 +43,82 @@ MCP_HTTP_PROTOCOL = "2025-11-25"
 MAX_HTTP_HEADERS = 16_384
 MAX_HTTP_SESSIONS = 64
 MAX_HTTP_CONNECTIONS = 32
+MAX_SSE_STREAM_BYTES = 64 * 1024 * 1024
+
+
+def _sse_lines(
+    response: http.client.HTTPResponse, check_deadline: Callable[[], None]
+) -> Iterator[tuple[bytes, int, int]]:
+    """Read bounded SSE lines without waiting for LF after a valid lone CR.
+
+    Return the line, its original byte size (including a stripped initial BOM),
+    and any LF continuing the preceding CR. Wire budgets count the input bytes,
+    rather than the normalized/filtered bytes that reach the client.
+    """
+    pending = bytearray()
+    starting = True
+    skip_lf = False
+    bom_bytes = continued_lf = total = scan_from = 0
+    eof = False
+    while True:
+        check_deadline()
+        if skip_lf and (pending or eof):
+            if pending.startswith(b"\n"):
+                del pending[:1]
+                continued_lf += 1
+            skip_lf = False
+        if starting and (pending or eof):
+            if eof or len(pending) >= 3 or not b"\xef\xbb\xbf".startswith(pending):
+                if pending.startswith(b"\xef\xbb\xbf"):
+                    del pending[:3]
+                    bom_bytes = 3
+                starting = False
+                scan_from = 0
+        if not starting:
+            ends = [
+                i
+                for i in (pending.find(b"\r", scan_from), pending.find(b"\n", scan_from))
+                if i >= 0
+            ]
+            if ends:
+                end = min(ends) + 1
+                if pending[end - 1] == 13:
+                    if pending[end : end + 1] == b"\n":
+                        end += 1
+                    else:
+                        skip_lf = True
+                line = bytes(pending[:end])
+                del pending[:end]
+                size, prefix = end + bom_bytes, continued_lf
+                bom_bytes = continued_lf = scan_from = 0
+                yield line, size, prefix
+                continue
+            scan_from = len(pending)
+            if len(pending) + bom_bytes > MAX_MCP_MESSAGE_BYTES:
+                raise HTTPBoundaryError(502, "upstream_event_limit_exceeded")
+            if eof:
+                if pending:
+                    yield bytes(pending), len(pending) + bom_bytes, continued_lf
+                elif continued_lf:
+                    yield b"", 0, continued_lf
+                return
+        chunk = response.read1(
+            min(
+                65_536,
+                MAX_MCP_MESSAGE_BYTES + 1 - len(pending) - bom_bytes,
+                MAX_SSE_STREAM_BYTES + 1 - total,
+            )
+        )
+        check_deadline()
+        if not chunk:
+            eof = True
+            continue
+        total += len(chunk)
+        if total > MAX_SSE_STREAM_BYTES:
+            raise HTTPBoundaryError(502, "upstream_stream_byte_limit_exceeded")
+        pending.extend(chunk)
+
+
 _HEADER_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 _RESERVED_HEADERS = {
     "authorization",
@@ -937,30 +1013,40 @@ class _MCPHTTPHandler(BaseHTTPRequestHandler):
     ) -> None:
         event = bytearray()
         data: list[bytes] = []
-        total = 0
-        while True:
-            self._check_upstream_deadline()
-            line = response.readline(MAX_MCP_MESSAGE_BYTES + 1)
-            self._check_upstream_deadline()
-            if not line:
-                if request_id is not None and not self._resumable_seen:
-                    raise HTTPBoundaryError(502, "upstream_stream_ended_without_result")
-                return
-            total += len(line)
-            if total > 64 * 1024 * 1024:
-                raise HTTPBoundaryError(502, "upstream_stream_byte_limit_exceeded")
-            if len(line) > MAX_MCP_MESSAGE_BYTES or len(event) + len(line) > MAX_MCP_MESSAGE_BYTES:
+        event_bytes = previous_event_bytes = previous_line_bytes = 0
+        previous_kind = ""
+        for line, wire_size, continued_lf in _sse_lines(response, self._check_upstream_deadline):
+            if continued_lf:
+                if previous_kind in {"comment", "event"}:
+                    previous_size = (
+                        event_bytes + previous_line_bytes
+                        if previous_kind == "comment"
+                        else previous_event_bytes
+                    )
+                    if previous_size + continued_lf > MAX_MCP_MESSAGE_BYTES:
+                        raise HTTPBoundaryError(502, "upstream_event_limit_exceeded")
+                    self.wfile.write(b"\n")
+                    self.wfile.flush()
+                else:
+                    event_bytes += continued_lf
+                    event.extend(b"\n")
+            if event_bytes + wire_size > MAX_MCP_MESSAGE_BYTES:
                 raise HTTPBoundaryError(502, "upstream_event_limit_exceeded")
+            if not line:
+                continue
             if line.startswith(b":"):
                 self.wfile.write(line)
                 self.wfile.flush()
+                previous_kind, previous_line_bytes = "comment", wire_size
                 continue
+            event_bytes += wire_size
             event.extend(line)
             stripped = line.rstrip(b"\r\n")
             if stripped.startswith(b"data:"):
                 value = stripped[5:]
                 data.append(value[1:] if value.startswith(b" ") else value)
             if stripped:
+                previous_kind = "field"
                 continue
             if any(
                 part.startswith(b"id:") and part[3:].strip() for part in bytes(event).splitlines()
@@ -990,10 +1076,14 @@ class _MCPHTTPHandler(BaseHTTPRequestHandler):
                 )
             self.wfile.write(event)
             self.wfile.flush()
+            previous_kind, previous_event_bytes = "event", event_bytes
+            event_bytes = 0
             event.clear()
             data.clear()
             if terminal:
                 return
+        if request_id is not None and not self._resumable_seen:
+            raise HTTPBoundaryError(502, "upstream_stream_ended_without_result")
 
 
 def build_http_server(

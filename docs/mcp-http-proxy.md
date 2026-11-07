@@ -118,6 +118,9 @@ deletion remain possible. SSE correlation survives a resumable disconnect.
   still owns DNS lookup timing. Calls are not sent after an expired connect deadline.
 
 The proxy neither buffers an entire SSE stream nor keeps an unbounded request map.
+SSE framing accepts LF, CRLF or CR line endings and one leading UTF-8 BOM,
+including when those bytes arrive in separate HTTP chunks. Byte limits count
+the original upstream bytes, and absolute deadlines apply to each buffered read.
 Session capacity, malformed JSON, duplicate headers/members, unsupported framing,
 and unknown correlations cannot silently turn into allowed execution.
 
