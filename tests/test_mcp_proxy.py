@@ -205,6 +205,30 @@ def test_jsonrpc_parser_preserves_valid_supplementary_unicode():
     assert message["params"] == {"🙂": "ok"}
 
 
+@pytest.mark.parametrize("message", [_call("\ud800"), _call(name="\udfff")])
+def test_direct_proxy_rejects_invalid_unicode_without_losing_the_next_request(message):
+    from ordin.mcp_proxy import _encode_jsonrpc
+
+    proxy = MCPStdioSafetyProxy(server_id="fixture")
+    rejected = proxy.process_client_message(message)
+    assert not rejected.forward
+    assert rejected.response["error"]["code"] == -32600
+    assert json.loads(_encode_jsonrpc(rejected.response))["error"]["code"] == -32600
+    assert proxy.pending_count == 0
+    assert proxy.process_client_message({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}).forward
+
+
+def test_direct_proxy_preserves_a_valid_supplementary_unicode_request_id():
+    proxy = MCPStdioSafetyProxy(
+        server_id="fixture", gate=AgentGate(Ordin(tool_semantics=_read_semantics()))
+    )
+    approved = proxy.process_client_message(_call("🙂", arguments={"path": "README.md"}))
+    assert approved.forward
+    observed = proxy.observe_server_message({"jsonrpc": "2.0", "id": "🙂", "result": {}})
+    assert observed is not None and observed.action_id == approved.action_id
+    assert observed.exit_code == 0 and proxy.pending_count == 0
+
+
 def test_jsonrpc_parser_enforces_the_documented_nesting_boundary():
     prefix = b'{"jsonrpc":"2.0","params":'
     nested = b"[" * MAX_MCP_JSON_DEPTH + b"0" + b"]" * MAX_MCP_JSON_DEPTH

@@ -50,6 +50,11 @@ def _request_id_key(value: Any) -> str | int | float | None:
         return None
     if isinstance(value, float) and not math.isfinite(value):
         return None
+    if isinstance(value, str):
+        try:
+            value.encode("utf-8")
+        except UnicodeEncodeError:
+            return None
     # JSON has one Number type. Native numeric equality matches 1 with 1.0
     # without conflating string IDs or rounding large integer IDs to floats.
     return value
@@ -300,13 +305,14 @@ class MCPStdioSafetyProxy:
             self._sequence += 1
             sequence = self._sequence
 
-        action_id = _action_id(
-            server_id=self.session.identity.key,
-            request_id=request_id,
-            tool=tool,
-            sequence=sequence,
-        )
+        action_id = None
         try:
+            action_id = _action_id(
+                server_id=self.session.identity.key,
+                request_id=request_id,
+                tool=tool,
+                sequence=sequence,
+            )
             action = self.adapter.adapt(
                 tool,
                 arguments,
