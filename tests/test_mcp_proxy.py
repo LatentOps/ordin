@@ -401,6 +401,7 @@ def test_direct_shared_dag_is_bounded_before_protocol_state_changes(boundary):
 import faulthandler
 print('phase=imports', flush=True)
 faulthandler.dump_traceback_later(8)
+from unittest.mock import patch
 from ordin import AgentGate, Ordin
 from ordin.mcp_http import MCPHTTPConfig, MCPHTTPServer, MCP_HTTP_PROTOCOL, HTTPBoundaryError
 from ordin.mcp_proxy import MCPStdioSafetyProxy
@@ -441,7 +442,9 @@ elif boundary == 'server':
     assert observed.exit_code == 0 and proxy.pending_count == 0
 else:
     print('phase=http_bind', flush=True)
-    server = MCPHTTPServer(MCPHTTPConfig('fixture','http://127.0.0.1:1/mcp',port=0))
+    # This observer guard needs a real listener, not reverse-DNS metadata.
+    with patch('socket.getfqdn', return_value='localhost'):
+        server = MCPHTTPServer(MCPHTTPConfig('fixture','http://127.0.0.1:1/mcp',port=0))
     print('phase=http_bound', flush=True)
     print('phase=http_session', flush=True)
     session = server.new_session('fixture-credential','init')
