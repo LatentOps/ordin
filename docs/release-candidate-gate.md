@@ -26,16 +26,23 @@ SBOM and provenance are independently generated and verified.
 
 ## Acceptance sequence
 
-1. Merge the gate PR only after all 15 checks pass on its exact head.
+1. Merge the gate PR only after every applicable maintained check passes on its
+   exact head.
 2. Choose its squash commit on `main` as candidate `S`; wait for the applicable
    main CI/security/platform matrix to pass independently.
-3. Run `gh workflow run release.yml --ref main` while `main` still identifies
-   `S`. Verify the run's `head_sha == S`; otherwise select the new SHA and repeat.
-   Manual validation cannot publish a release.
+3. Run `gh workflow run release.yml --ref main`,
+   `gh workflow run assurance.yml --ref main`, and
+   `gh workflow run runtime-extension.yml --ref main` while `main` still
+   identifies `S`. Verify each run's `head_sha == S`, repository, workflow and
+   main-branch identity; otherwise select the new SHA and repeat. Manual
+   validation cannot publish a release.
 4. Require successful build, candidate workloads, checksums/SBOM, and attestation
    verification. Dependency review applies to the PR; its skipped main job is
    explicitly inapplicable, not a waived failure.
-5. Record `S`, CI/manual run links and artifact IDs in the issue/PR receipt.
+5. Require all 42 maintained main jobs, all other current checks/statuses and the
+   exact processed main CodeQL Python analysis without errors or warnings.
+   The PR-only Advanced Security aggregate is not a required main success.
+   Record `S`, CI/manual run links and artifact IDs in the issue/PR receipt.
    An external receipt avoids a self-referential commit hash; the artifact
    contains the same exact `S`.
 

@@ -7,6 +7,7 @@ import ast
 import hashlib
 import importlib.metadata
 import json
+import os
 import re
 import subprocess
 import tarfile
@@ -16,56 +17,265 @@ from pathlib import Path
 from typing import Any
 
 
-RELEASE_CHECKS = {
-    "Quality",
-    "Safety benchmark",
-    "Build and install package",
-    "Linux Debian 12",
-    "Linux Fedora 42",
-    "macOS 15 Python 3.13",
-    "Python 3.10",
-    "Python 3.11",
-    "Python 3.12",
-    "Python 3.13",
-    "CodeQL Python",
-    "Workflow security",
+RELEASE_WORKFLOW_CHECKS = {
+    "tests.yml": {
+        "Quality",
+        "Safety benchmark",
+        "Build and install package",
+        "Linux Debian 12",
+        "Linux Fedora 42",
+        "macOS 15 Python 3.13",
+        "Hermes v0.21.7 hook contract",
+        *(f"Python {version}" for version in ("3.10", "3.11", "3.12", "3.13")),
+    },
+    "security.yml": {"CodeQL Python", "Workflow security"},
+    "coordinator.yml": {"PostgreSQL multi-host authority"},
+    "swarm-frameworks.yml": {
+        *(
+            f"Installed adapter wheel ({framework})"
+            for framework in ("base", "langgraph", "autogen")
+        ),
+        "CrewAI security quarantine",
+    },
+    "swarm-corpus.yml": {"Installed corpus and owned kernel evidence"},
+    "swarm-assurance.yml": {
+        f"Installed swarm release evidence ({platform})"
+        for platform in ("ubuntu-24.04", "windows-latest")
+    },
+    "assurance.yml": {
+        *(f"Vetted Linux kernel broker Python {version}" for version in ("3.10", "3.13")),
+        *(
+            f"Offline Assurance {platform} Python {version}"
+            for platform in ("ubuntu-latest", "windows-latest")
+            for version in ("3.10", "3.11", "3.12", "3.13")
+        ),
+        *(
+            f"Offline optional {package} Python {version}"
+            for package in ("decision_models", "codex_security")
+            for version in ("3.10", "3.13")
+        ),
+        *(
+            f"Finite solver {platform} Python {version}"
+            for platform in ("ubuntu-latest", "windows-latest")
+            for version in ("3.10", "3.13")
+        ),
+    },
+    "runtime-extension.yml": {"Native request authority"},
+    "release.yml": {"Build release artifacts", "Attest tested release artifacts"},
 }
+RELEASE_CHECKS = set().union(*RELEASE_WORKFLOW_CHECKS.values())
+MANUAL_RELEASE_WORKFLOWS = {"release.yml", "assurance.yml", "runtime-extension.yml"}
+TAG_RELEASE_CHECKS = RELEASE_WORKFLOW_CHECKS["release.yml"] | {"Publish GitHub Release"}
 
 
-def verify_release_checks(repository: str, revision: str) -> None:
+def _github_pages(repository: str, endpoint: str) -> list[Any]:
+    return json.loads(
+        subprocess.check_output(
+            ["gh", "api", "--paginate", "--slurp", f"repos/{repository}/{endpoint}"], text=True
+        )
+    )
+
+
+def _main_run(run: dict[str, Any], repository: str, revision: str) -> bool:
+    filename = run.get("path", "").removeprefix(".github/workflows/")
+    events = (
+        {"workflow_dispatch"}
+        if filename in MANUAL_RELEASE_WORKFLOWS
+        else {"push", "workflow_dispatch", "schedule"}
+    )
+    return (
+        run.get("repository", {}).get("full_name") == repository
+        and run.get("head_repository", {}).get("full_name") == repository
+        and run.get("head_sha") == revision
+        and run.get("head_branch") == "main"
+        and run.get("event") in events
+        and run.get("path") == f".github/workflows/{filename}"
+        and filename in RELEASE_WORKFLOW_CHECKS
+    )
+
+
+def verify_release_checks(repository: str, revision: str, *, tag: str | None = None) -> None:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository) or not re.fullmatch(
         r"[a-f0-9]{40}", revision
     ):
         raise ValueError("invalid release repository/revision")
-    pages = json.loads(
-        subprocess.check_output(
-            [
-                "gh",
-                "api",
-                "--paginate",
-                "--slurp",
-                f"repos/{repository}/commits/{revision}/check-runs?per_page=100",
-            ],
-            text=True,
+
+    def reject(detail: str) -> None:
+        raise ValueError(
+            f"all maintained CI checks must pass on the exact release commit: {detail}"
         )
-    )
-    latest = {}
-    for page in pages:
-        for run in page["check_runs"]:
-            name = run["name"]
+
+    runs = [
+        run
+        for page in _github_pages(repository, f"actions/runs?head_sha={revision}&per_page=100")
+        for run in page["workflow_runs"]
+    ]
+    checks = [
+        check
+        for page in _github_pages(
+            repository, f"commits/{revision}/check-runs?filter=all&per_page=100"
+        )
+        for check in page["check_runs"]
+    ]
+    by_check_id = {check["id"]: check for check in checks}
+    by_suite = {run["check_suite_id"]: run for run in runs}
+    main_runs: dict[str, dict[str, Any]] = {}
+    for run in runs:
+        if _main_run(run, repository, revision):
+            if run["status"] != "completed":
+                reject(f"pending main execution: {run['path']}")
+            path = run["path"]
+            if path not in main_runs or run["id"] > main_runs[path]["id"]:
+                main_runs[path] = run
+    for filename in RELEASE_WORKFLOW_CHECKS:
+        run = main_runs.get(f".github/workflows/{filename}")
+        if not run or run["status"] != "completed" or run["conclusion"] != "success":
+            reject(f"missing or unsuccessful main qualification: {filename}")
+
+    current_tag = None
+    if tag is not None:
+        if (
+            os.environ.get("GITHUB_EVENT_NAME") != "push"
+            or os.environ.get("GITHUB_REF_TYPE") != "tag"
+            or os.environ.get("GITHUB_REF") != f"refs/tags/{tag}"
+            or os.environ.get("GITHUB_REF_NAME") != tag
+        ):
+            reject("invalid current tag context")
+        current_tag = next(
+            (run for run in runs if str(run["id"]) == os.environ.get("GITHUB_RUN_ID")), None
+        )
+        if not current_tag or not (
+            current_tag.get("repository", {}).get("full_name") == repository
+            and current_tag.get("head_repository", {}).get("full_name") == repository
+            and current_tag.get("head_sha") == revision
+            and current_tag.get("head_branch") == tag
+            and current_tag.get("event") == "push"
+            and current_tag.get("path") == ".github/workflows/release.yml"
+            and str(current_tag.get("run_attempt")) == os.environ.get("GITHUB_RUN_ATTEMPT")
+            and current_tag.get("status") in {"queued", "in_progress", "completed"}
+            and current_tag.get("conclusion") in {None, "success"}
+        ):
+            reject("current tag workflow identity does not match")
+
+    retired_checks = set()
+    tag_checks = set()
+    permitted_skips = set()
+    for run in [*main_runs.values(), *([current_tag] if current_tag else [])]:
+        jobs = [
+            job
+            for page in _github_pages(
+                repository, f"actions/runs/{run['id']}/jobs?filter=all&per_page=100"
+            )
+            for job in page["jobs"]
+        ]
+        names = set()
+        for job in jobs:
+            match = re.fullmatch(
+                rf"https://api\.github\.com/repos/{re.escape(repository)}/check-runs/([0-9]+)",
+                job.get("check_run_url", ""),
+            )
             if (
-                run.get("app", {}).get("slug") == "github-actions"
-                and run.get("head_sha") == revision
-                and (name not in latest or latest[name]["id"] < run["id"])
+                not match
+                or job.get("run_id") != run["id"]
+                or job.get("head_sha") != revision
+                or not isinstance(job.get("run_attempt"), int)
+                or not 1 <= job["run_attempt"] <= run["run_attempt"]
             ):
-                latest[name] = run
-    if any(
-        name not in latest
-        or latest[name]["status"] != "completed"
-        or latest[name]["conclusion"] != "success"
-        for name in RELEASE_CHECKS
-    ):
-        raise ValueError("all maintained CI checks must pass on the exact release commit")
+                reject("job does not identify the expected source/workflow attempt")
+            check_id = int(match[1])
+            check = by_check_id.get(check_id, {})
+            if (
+                check.get("app", {}).get("slug") != "github-actions"
+                or check.get("head_sha") != revision
+                or check.get("check_suite", {}).get("id") != run["check_suite_id"]
+                or check.get("name") != job["name"]
+                or check.get("status") != job["status"]
+                or check.get("conclusion") != job["conclusion"]
+            ):
+                reject("job/check source, app or workflow identity does not match")
+            if job["run_attempt"] < run["run_attempt"]:
+                retired_checks.add(check_id)
+                continue
+            names.add(job["name"])
+            if run is current_tag:
+                if job["name"] not in TAG_RELEASE_CHECKS:
+                    reject("unexpected job in the current tag workflow")
+                tag_checks.add(check_id)
+                # Only this API-verified tag attempt can be in progress. It never
+                # supplies the independent, completed main release qualification.
+                if job["status"] in {"queued", "in_progress"}:
+                    continue
+            elif (
+                (run["path"], job["name"])
+                in {
+                    (".github/workflows/security.yml", "Dependency review"),
+                    (".github/workflows/release.yml", "Publish GitHub Release"),
+                }
+                and job["status"] == "completed"
+                and job["conclusion"] == "skipped"
+            ):
+                permitted_skips.add(check_id)
+                continue
+            if job["status"] != "completed" or job["conclusion"] != "success":
+                reject(f"unsuccessful job: {job['name']}")
+        if (
+            run is not current_tag
+            and not RELEASE_WORKFLOW_CHECKS[run["path"].removeprefix(".github/workflows/")] <= names
+        ):
+            reject(f"missing maintained jobs: {run['path']}")
+
+    latest = {}
+    for check in checks:
+        if check.get("head_sha") != revision or check["id"] in retired_checks:
+            continue
+        run = by_suite.get(check.get("check_suite", {}).get("id"))
+        if run and _main_run(run, repository, revision):
+            # Check IDs also order reruns of an older run ID. Do not discard an
+            # entire older suite: its new retry may fail after a newer run passed.
+            scope = (run["path"], "main")
+        else:
+            scope = (
+                (run.get("path"), run.get("head_branch"), run.get("event"))
+                if run
+                else ("external",)
+            )
+        key = (check.get("app", {}).get("slug"), check["name"], scope)
+        if key not in latest or check["id"] > latest[key]["id"]:
+            latest[key] = check
+    for check in latest.values():
+        if check["id"] in permitted_skips:
+            continue
+        if check["id"] in tag_checks and check["status"] in {"queued", "in_progress"}:
+            continue
+        if check["status"] != "completed" or check["conclusion"] != "success":
+            reject(f"unsuccessful additional check: {check['name']}")
+
+    statuses = {}
+    for page in _github_pages(repository, f"commits/{revision}/statuses?per_page=100"):
+        for status in page:
+            context = status["context"]
+            if context not in statuses or status["id"] > statuses[context]["id"]:
+                statuses[context] = status
+    if any(status["state"] != "success" for status in statuses.values()):
+        reject("unsuccessful commit status")
+
+    analyses = [
+        analysis
+        for page in _github_pages(
+            repository, "code-scanning/analyses?ref=refs/heads/main&tool_name=CodeQL&per_page=100"
+        )
+        for analysis in page
+        if (
+            analysis.get("commit_sha") == revision
+            and analysis.get("ref") == "refs/heads/main"
+            and analysis.get("analysis_key") == ".github/workflows/security.yml:codeql"
+            and analysis.get("category") == "/language:python"
+            and analysis.get("tool", {}).get("name") == "CodeQL"
+        )
+    ]
+    analysis = max(analyses, key=lambda item: item["id"], default=None)
+    if not analysis or analysis.get("error") or analysis.get("warning"):
+        reject("missing or unsuccessful processed main CodeQL analysis")
 
 
 def sha256(path: Path) -> str:
@@ -224,7 +434,6 @@ def verify_metadata(dist: Path, *, version: str, revision: str, tag: str) -> dic
 
 
 def main() -> None:
-    import os
     import tomllib
 
     parser = argparse.ArgumentParser(description=__doc__)
@@ -264,7 +473,7 @@ def main() -> None:
             or os.environ.get("GITHUB_REF_TYPE") != "tag"
         ):
             raise ValueError("publishing requires a tag push event")
-        verify_release_checks(os.environ["GITHUB_REPOSITORY"], actual)
+        verify_release_checks(os.environ["GITHUB_REPOSITORY"], actual, tag=args.tag)
     if args.mode == "create":
         create_metadata(args.dist, version=version, revision=actual, tag=args.tag)
     print(
