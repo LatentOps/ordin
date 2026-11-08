@@ -31,6 +31,7 @@ KNOWN_TEMPLATE_FIELDS = {
     "branch",
 }
 SCHEMA_FILES = {
+    "swarm_tool_host_profile": "swarm-tool-host-profile.v1.schema.json",
     "swarm_release_manifest": "swarm-release-manifest.v1.schema.json",
     "swarm_approval_policy": "swarm-approval-policy.v1.schema.json",
     "swarm_approval": "swarm-approval.v1.schema.json",
