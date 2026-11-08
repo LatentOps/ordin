@@ -25,13 +25,19 @@ def configured(
     initialize=True,
     hard_limit=None,
     operator_roles=("approve", "observe", "break_glass", "recover"),
+    owned_tools=False,
 ):
     now = [100.0]
     store = SQLiteCoordinatorStore(tmp_path / "authority.db", create=True, clock=lambda: now[0])
     clock = CoordinatorClock(store)
     (tmp_path / "broker").mkdir()
     with (
-        fixture(tmp_path / "broker", shared_clock=clock, approval_decision=decision) as data,
+        fixture(
+            tmp_path / "broker",
+            shared_clock=clock,
+            approval_decision=decision,
+            **({"owned_tools": True} if owned_tools else {}),
+        ) as data,
         ExitStack() as stack,
     ):
         broker, native, ledger, _, action, channel, grant, _, _, _, _, operator, *_ = data
