@@ -99,10 +99,11 @@ def host_core() -> Ordin:
 
 def make_backend(profile: ToolHostProfile, *, operator: object, initialize: bool):
     # This import remains optional: inspecting a core action starts no host.
-    from ordin.swarm.owned_tools import LinuxOwnedToolsBackend, OwnedHTTPRoute
+    from ordin.swarm.owned_tools import LinuxOwnedToolsBackend
 
     routes = []
     for selected in profile.http_routes:
+        from ordin.swarm.owned_tools import OwnedHTTPRoute
         parsed = urlsplit(selected.url)
         credential = (
             None
