@@ -211,6 +211,86 @@ def test_current_main_policy_qualifies_all_paginated_evidence(api):
     assert len([call for call in api.calls if "/jobs?" in call]) == 9
 
 
+@pytest.mark.parametrize(
+    "listed_updated,attempt_updated",
+    [
+        ("2026-11-08T01:03:12Z", "2026-11-08T01:03:13Z"),
+        ("2026-11-08T01:03:13Z", "2026-11-08T01:03:12Z"),
+        ("2026-11-08T01:03:12Z", "2026-11-09T04:00:00Z"),
+        ("2026-11-09T04:00:00Z", "2026-11-08T01:03:12Z"),
+    ],
+)
+def test_same_verified_attempt_accepts_independent_valid_metadata_updates(
+    api, listed_updated, attempt_updated
+):
+    run = next(run for run in api.runs if run["path"] == ".github/workflows/assurance.yml")
+    # The first pair was captured from a successful real Assurance execution.
+    run.update(run_started_at="2026-11-08T00:58:51Z", updated_at=listed_updated)
+    api.attempts[run["id"], run["run_attempt"]] = {
+        **deepcopy(run),
+        "updated_at": attempt_updated,
+    }
+    verify_release_checks(REPOSITORY, REVISION)
+
+
+@pytest.mark.parametrize("endpoint", ["list", "attempt"])
+@pytest.mark.parametrize(
+    "case,value",
+    [
+        ("missing", None),
+        ("none", None),
+        ("integer", 123),
+        ("boolean", True),
+        ("malformed", "not-a-time"),
+        ("offset", "2026-11-08T01:03:12+00:00"),
+        ("fractional", "2026-11-08T01:03:12.000Z"),
+        ("invalid-calendar", "2026-11-31T01:03:12Z"),
+        ("invalid-year", "0000-11-08T01:03:12Z"),
+        ("invalid-hour", "2026-11-08T24:03:12Z"),
+        ("before-start", "2026-11-08T00:58:50Z"),
+    ],
+)
+def test_each_endpoint_metadata_update_must_be_strict_and_not_before_its_start(
+    api, endpoint, case, value
+):
+    run = next(run for run in api.runs if run["path"] == ".github/workflows/assurance.yml")
+    run.update(run_started_at="2026-11-08T00:58:51Z", updated_at="2026-11-08T01:03:12Z")
+    attempt = deepcopy(run)
+    api.attempts[run["id"], run["run_attempt"]] = attempt
+    snapshot = run if endpoint == "list" else attempt
+    if case == "missing":
+        snapshot.pop("updated_at")
+    else:
+        snapshot["updated_at"] = value
+    with pytest.raises(ValueError, match="execution timestamp"):
+        verify_release_checks(REPOSITORY, REVISION)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("id", 999999),
+        ("run_attempt", 2),
+        ("check_suite_id", 999999),
+        ("head_sha", "b" * 40),
+        ("head_branch", "fix/elsewhere"),
+        ("path", ".github/workflows/foreign.yml"),
+        ("event", "pull_request"),
+        ("status", "in_progress"),
+        ("conclusion", "failure"),
+        ("run_started_at", "2026-11-08T00:58:52Z"),
+    ],
+)
+def test_endpoint_metadata_divergence_never_waives_execution_identity(api, field, value):
+    run = next(run for run in api.runs if run["path"] == ".github/workflows/assurance.yml")
+    run.update(run_started_at="2026-11-08T00:58:51Z", updated_at="2026-11-08T01:03:12Z")
+    attempt = {**deepcopy(run), "updated_at": "2026-11-08T01:03:13Z"}
+    attempt[field] = value
+    api.attempts[run["id"], run["run_attempt"]] = attempt
+    with pytest.raises(ValueError, match="attempt identity"):
+        verify_release_checks(REPOSITORY, REVISION)
+
+
 def test_twelve_legacy_names_are_insufficient_even_with_successful_run_summaries(api):
     for run_id, jobs in api.jobs.items():
         api.jobs[run_id] = [job for job in jobs if job["name"] in LEGACY_CHECKS]

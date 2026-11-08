@@ -131,25 +131,28 @@ def verify_release_checks(repository: str, revision: str, *, tag: str | None = N
                 "status",
                 "conclusion",
                 "run_started_at",
-                "updated_at",
             )
         ):
             reject("main workflow attempt identity changed or does not match")
         if any(
-            not isinstance(attempt.get(field), str)
+            not isinstance(snapshot.get(field), str)
             or re.fullmatch(
-                r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", attempt[field]
+                r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", snapshot[field]
             )
             is None
+            for snapshot in (run, attempt)
             for field in ("run_started_at", "updated_at")
         ):
             reject("main workflow execution timestamp is missing or invalid")
         try:
             started = datetime.strptime(attempt["run_started_at"], "%Y-%m-%dT%H:%M:%SZ")
             updated = datetime.strptime(attempt["updated_at"], "%Y-%m-%dT%H:%M:%SZ")
+            listed_started = datetime.strptime(run["run_started_at"], "%Y-%m-%dT%H:%M:%SZ")
+            listed_updated = datetime.strptime(run["updated_at"], "%Y-%m-%dT%H:%M:%SZ")
         except (KeyError, TypeError, ValueError):
             reject("main workflow execution timestamp is missing or invalid")
-        if updated < started:
+        # Mutable update times describe each endpoint's metadata, not execution identity.
+        if updated < started or listed_updated < listed_started:
             reject("main workflow execution timestamps are inconsistent")
         if run["run_attempt"] > 1:
             previous = _github_pages(
