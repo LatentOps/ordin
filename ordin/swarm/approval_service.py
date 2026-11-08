@@ -1053,7 +1053,7 @@ class SwarmApprovalService:
             pending.scope.action,
             broker=broker,
             context=pending.scope.context,
-            host_context=pending.scope.review_context,
+            host_context=pending.scope.delegation_scope.review_context,
         )
 
     def require_preparation(
