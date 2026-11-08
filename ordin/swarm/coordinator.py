@@ -747,6 +747,63 @@ class SwarmCoordinator:
             )
             return self._status(transaction, handle, state)
 
+    def refresh_broker_channel(
+        self,
+        handle: CoordinatorScope,
+        channel: AuthorityChannel,
+        *,
+        control: CoordinatorControlSource,
+        operator: object,
+        expected_owner_fence: int,
+    ) -> None:
+        """Refresh original broker transport without renewing workload or approval authority."""
+        from .broker import SwarmExecutionBroker
+
+        self._control_check(control)
+        if (
+            operator is not self._operator
+            or type(expected_owner_fence) is not int
+            or expected_owner_fence < 1
+        ):
+            raise CoordinatorRejected("original broker refresh owner control required")
+        scope = self._scope(handle)
+        enrolled = scope.authenticator.require(channel, role="broker")
+        broker = scope.brokers.get(enrolled.host_id)
+        if (
+            type(broker) is not SwarmExecutionBroker
+            or broker._operator is not operator
+            or broker._service is not scope.native
+        ):
+            raise CoordinatorRejected("original registered broker refresh required")
+        with self._containment_barrier(scope), broker._barrier(), broker._execution_lock:
+            with broker._state_lock:
+                if any(
+                    row.state in {"prepared", "checking", "forwarding"}
+                    for row in broker._pending.values()
+                ):
+                    raise CoordinatorRejected("broker transport refresh requires no pending work")
+            with self.store.transaction() as transaction:
+                _, state = self._owner(transaction, handle)
+                current = scope.authenticator.require(channel, role="broker")
+                if (
+                    state["owner"]["fence"] != expected_owner_fence
+                    or current is not enrolled
+                    or current is not broker._broker_enrollment
+                    or scope.authenticator.enrollment(current.enrollment_id) is not current
+                    or scope.broker_channels.get(current.host_id) is not broker._broker_channel
+                ):
+                    raise CoordinatorRejected("broker refresh identity, pin or owner fence changed")
+                transaction.append(
+                    handle.scope_key,
+                    "broker_transport_refreshed",
+                    digest(current.enrollment_id),
+                    {"host_digest": digest(current.host_id), "owner_fence": expected_owner_fence},
+                    maximum=self._limit,
+                )
+            # Both live transport pins move together only after durable ACK.
+            broker.refresh_broker_channel(channel, operator=operator)
+            scope.broker_channels[current.host_id] = channel
+
     def _subject(self, handle, channel):
         scope = self._scope(handle)
         enrollment = scope.authenticator.require(channel, role="workload")

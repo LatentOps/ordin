@@ -107,6 +107,7 @@ class _OriginalRequest:
     broker: Any
     costs_digest: str
     task_id: str
+    caller_action: ActionEnvelope
 
 
 @dataclass
@@ -193,6 +194,10 @@ class SwarmApprovalService:
         ):
             raise ValueError("finite original owned-factory proofs required")
         self._factory_proofs = dict(factory_proofs or {})
+        self._factory_configurations = {
+            host: broker.factory_configuration_digest
+            for host, broker in native_scope.brokers.items()
+        }
 
     def _configuration(self):
         self.coordinator._control_check(self._control)
@@ -357,6 +362,8 @@ class SwarmApprovalService:
         factory = self._factory_proofs.get(enrollment.host_id)
         if (
             type(broker) is not SwarmExecutionBroker
+            or broker.factory_configuration_digest
+            != self._factory_configurations.get(enrollment.host_id)
             or factory is None
             or not broker.verify_activation(factory, policy_digest=state["policy_digest"])
         ):
@@ -371,7 +378,13 @@ class SwarmApprovalService:
                 context_digest=digest([enrollment.source.key, enrollment.context.registry_id]),
             )
             grant.gate.bind_runtime_source(runtime_source)
-            preview = grant.gate.preview_action(action, host_context=enrollment.source.context())
+            credential_uses = broker.review_credential_uses(enrollment.source, action)
+            if not broker.verify_credential_uses(enrollment.source, action, credential_uses):
+                raise CoordinatorRejected("governance original credential routing unavailable")
+            preview = grant.gate.preview_action(
+                action,
+                host_context=enrollment.source.context(credential_uses=credential_uses),
+            )
             review = preview.review
             contract = ApprovalSource._base_contract(review.action, review)
             native_scope.native.issuer._preview_operation(grant.handle, enrollment.source, contract)
@@ -438,6 +451,48 @@ class SwarmApprovalService:
             state["owner"]["fence"],
         )
         return binding, preview, source, broker, costs_digest, enrollment, lease
+
+    def refresh_factory_proof(
+        self, host_id: str, proof, *, operator: object, expected_owner_fence: int
+    ):
+        """Refresh only a proven original factory; existing request deadlines stay fixed."""
+        from .broker import SwarmExecutionBroker
+
+        if (
+            operator is not self._operator
+            or type(host_id) is not str
+            or type(expected_owner_fence) is not int
+            or expected_owner_fence < 1
+            or _active_transaction.get() is not None
+        ):
+            raise CoordinatorRejected("original factory refresh control required")
+        with self._barrier, self._lock:
+            with self._transaction() as transaction:
+                native_scope, state, _ = self._namespace(transaction)
+                broker = native_scope.brokers.get(host_id)
+                if (
+                    state["owner"]["fence"] != expected_owner_fence
+                    or type(broker) is not SwarmExecutionBroker
+                    or broker._operator is not operator
+                    or broker._service is not native_scope.native
+                    or broker.factory_configuration_digest
+                    != self._factory_configurations.get(host_id)
+                    or not broker.verify_activation(proof, policy_digest=state["policy_digest"])
+                ):
+                    raise CoordinatorRejected("original current same-factory proof required")
+                description = broker.describe_activation(proof)
+                transaction.append(
+                    self.scope.scope_key,
+                    "approval_factory_refreshed",
+                    digest(host_id),
+                    {
+                        "factory_digest": broker.factory_configuration_digest,
+                        "proof_digest": digest(description),
+                    },
+                    maximum=self.coordinator._limit,
+                )
+            # Publish under the same barriers, only after the durable acknowledgement.
+            self._factory_proofs[host_id] = proof
 
     def request(
         self,
@@ -609,6 +664,7 @@ class SwarmApprovalService:
                 broker,
                 costs_digest,
                 enrollment.context.identity.task_id or "swarm-control",
+                caller,
             )
         # Rollback/lost ACK must never publish a live request binding.
         with self._lock:
@@ -882,7 +938,132 @@ class SwarmApprovalService:
             raise CoordinatorRejected("governance original exact preparation required")
         return value
 
-    def require_preparation(self, context, broker, channel, reference, action):
+    def _ordinary_allow(
+        self, channel, reference, action, *, broker=None, context=None, host_context=None
+    ):
+        """Additional fresh core filter; ordinary authority/policy/budget checks still apply."""
+        from .broker import SwarmExecutionBroker
+
+        if type(action) is not ActionEnvelope:
+            raise CoordinatorRejected("governance exact ordinary action required")
+        with self._barrier, self._lock, self._transaction() as transaction:
+            native_scope, _, _ = self._namespace(transaction)
+            native = native_scope.native
+            with native._lock, native.issuer._lock:
+                grant, subject = native._grant(channel, reference)
+                original = native_scope.brokers.get(subject.host_id)
+                if (
+                    type(original) is not SwarmExecutionBroker
+                    or broker is not None
+                    and broker is not original
+                    or original._service is not native
+                    or subject.source is None
+                    or subject.context is None
+                    or context is not None
+                    and context is not subject.context
+                ):
+                    raise CoordinatorRejected("governance original ordinary broker scope required")
+                supplied = host_context
+                if supplied is None:
+                    credential_uses = original.review_credential_uses(subject.source, action)
+                    supplied = subject.source.context(credential_uses=credential_uses)
+                if supplied.source is not subject.source:
+                    raise CoordinatorRejected("governance original ordinary host required")
+                if not original.verify_credential_uses(
+                    subject.source, action, supplied.credential_uses
+                ):
+                    raise CoordinatorRejected(
+                        "governance original ordinary credentials unavailable"
+                    )
+                runtime_source = original._executor.evidence_source(
+                    session_digest=subject.source.session_digest,
+                    policy_digest=subject.source.runtime_policy_digest,
+                    context_digest=digest([subject.source.key, subject.context.registry_id]),
+                )
+                grant.gate.bind_runtime_source(runtime_source)
+                preview = grant.gate.preview_action(action, host_context=supplied)
+                contract = derive_runtime_capability_contract(preview.review)
+                if (
+                    preview.review.decision != "allow"
+                    or contract.decision != "allow"
+                    or contract.unknowns
+                    or preview.assurance.baseline.denied
+                    or preview.verification is None
+                    or not preview.verification.ok
+                    or any(
+                        check.status != "satisfied"
+                        for check in preview.assurance.invariant_evaluations
+                    )
+                ):
+                    raise CoordinatorRejected(
+                        "governance original human preparation or resolved requirements required"
+                    )
+                native.issuer._preview_operation(grant.handle, subject.source, contract)
+            if native_scope.runtime is not None:
+                provider = native._policy_facts_provider
+                facts = (
+                    provider(subject.context, action, native_scope.runtime, preview)
+                    if provider is not None
+                    else None
+                )
+                projection = native_scope.runtime.evaluate_baseline(
+                    subject.context, action, preview, facts=facts, delegation_gate=grant.gate
+                )
+                if projection._constraints_disposition != "execute":
+                    raise CoordinatorRejected(
+                        "governance independent ordinary policy denies execution"
+                    )
+
+    def _ordinary_pending(self, broker, *, authorization=None, executor=None, job=None):
+        """Resolve only an original protected authorization/job, never a caller allow flag."""
+        from .broker import SwarmExecutionBroker
+
+        native_scope = self.coordinator._scope(self.scope)
+        if type(broker) is not SwarmExecutionBroker or not any(
+            value is broker for value in native_scope.brokers.values()
+        ):
+            raise CoordinatorRejected("governance original ordinary broker required")
+        with broker._state_lock:
+            if authorization is not None:
+                pending = broker._pending_row(authorization)
+            else:
+                matches = [row for row in broker._pending.values() if row.owned_job is job]
+                if len(matches) != 1:
+                    raise CoordinatorRejected("governance original ordinary owned job required")
+                pending = matches[0]
+            if (
+                pending.scope.decision.review.decision != "allow"
+                or pending.scope.decision.approval_fulfilled
+                or executor is not None
+                and executor is not broker._executor
+                or job is not None
+                and pending.owned_job is not job
+            ):
+                raise CoordinatorRejected("governance ordinary route cannot fulfill a warning")
+            admission = broker._service._admissions.get(pending.admission_id)
+            if (
+                admission is None
+                or admission.owner_channel is not pending.workload_channel
+                or digest(admission.action.as_dict()) != digest(pending.scope.action.as_dict())
+            ):
+                raise CoordinatorRejected("governance ordinary admission binding changed")
+        self._ordinary_allow(
+            pending.workload_channel,
+            admission.grant_ref,
+            pending.scope.action,
+            broker=broker,
+            context=pending.scope.context,
+            host_context=pending.scope.review_context,
+        )
+
+    def require_preparation(
+        self, context, broker, channel, reference, action, *, host_context=None
+    ):
+        if context is None:
+            self._ordinary_allow(
+                channel, reference, action, broker=broker, host_context=host_context
+            )
+            return
         value = self._preparation(context)
         original = value.original
         if (
@@ -902,10 +1083,32 @@ class SwarmApprovalService:
             value.scope,
         ):
             raise CoordinatorRejected("governance original human fulfillment no longer current")
+        expected = original.preview._context
+        if host_context is not None and (
+            host_context.source is not expected.source
+            or len(host_context.credential_uses) != len(expected.credential_uses)
+            or any(
+                actual is not retained
+                for actual, retained in zip(host_context.credential_uses, expected.credential_uses)
+            )
+        ):
+            raise CoordinatorRejected("governance original credential routing changed")
+        if not broker.verify_credential_uses(expected.source, action, expected.credential_uses):
+            raise CoordinatorRejected("governance original credential routing unavailable")
 
     def native_options(self, context, channel, reference, action, host_context):
+        if context is None:
+            self._ordinary_allow(channel, reference, action, host_context=host_context)
+            return host_context, {}
         value = self._preparation(context)
-        self.require_preparation(context, value.original.broker, channel, reference, action)
+        self.require_preparation(
+            context,
+            value.original.broker,
+            channel,
+            reference,
+            action,
+            host_context=host_context,
+        )
         native = value.original.source.host_approval(value.satisfaction)
         if host_context.source is not value.original.source.host:
             raise CoordinatorRejected("governance protected host identity changed")
@@ -927,7 +1130,27 @@ class SwarmApprovalService:
             "approval_execution_lease": value.execution_lease,
         }
 
-    def require_native_dispatch(self, context, workload_context, action, broker):
+    def require_native_dispatch(
+        self,
+        context,
+        workload_context,
+        action,
+        broker,
+        *,
+        channel=None,
+        reference=None,
+        host_context=None,
+    ):
+        if context is None:
+            self._ordinary_allow(
+                channel,
+                reference,
+                action,
+                broker=broker,
+                context=workload_context,
+                host_context=host_context,
+            )
+            return
         value = self._preparation(context)
         if (
             broker is not value.original.broker
@@ -941,9 +1164,16 @@ class SwarmApprovalService:
             value.original.workload_channel,
             value.original.native_reference,
             action,
+            host_context=host_context,
         )
 
     def bind_owned_job(self, context, broker, executor, job):
+        if context is None:
+            # An ordinary allow has no human execution lease to bind. Native,
+            # consumption and effect hooks still require its fresh exact core allow.
+            if executor is not broker._executor:
+                raise CoordinatorRejected("governance original ordinary executor required")
+            return
         value = self._preparation(context)
         if broker is not value.original.broker:
             raise CoordinatorRejected("governance job belongs to another broker")
@@ -952,6 +1182,16 @@ class SwarmApprovalService:
         )
 
     def consume_in_transaction(self, transaction, context, broker, authorization, reservation_id):
+        if context is None:
+            prepared = self.coordinator._prepared.get(reservation_id)
+            if (
+                prepared is None
+                or prepared.broker is not broker
+                or prepared.authorization is not authorization
+            ):
+                raise CoordinatorRejected("governance original ordinary reservation required")
+            self._ordinary_pending(broker, authorization=authorization)
+            return
         value = self._preparation(context)
         original = value.original
         if (
@@ -995,10 +1235,39 @@ class SwarmApprovalService:
         )
 
     def begin_owned_effect(self, context, broker, executor, job):
+        if context is None:
+            self._ordinary_pending(broker, executor=executor, job=job)
+            return
         value = self._preparation(context)
         value.original.source.begin(
             value.execution_lease, broker, executor, job, operator=self._operator
         )
+
+    def fulfill(self, operator_channel, request_id: str):
+        """Execute one approved request using only retained original host inputs."""
+        if type(request_id) is not str or not 1 <= len(request_id) <= 64:
+            raise CoordinatorRejected("governance bounded original request required")
+        with self._lock:
+            original = self._originals.get(request_id)
+        if original is None:
+            raise CoordinatorRejected("governance original current request required")
+        self.directory.require(
+            operator_channel, task_id=original.task_id, roles=original.request.required_roles
+        )
+        with self._barrier, self._lock:
+            self._configuration()
+            if self._originals.get(request_id) is not original:
+                raise CoordinatorRejected("governance original request changed")
+            self.directory.require(
+                operator_channel, task_id=original.task_id, roles=original.request.required_roles
+            )
+            receipt = self._receipt_by_request.get(request_id)
+            if receipt is None or self._approved(receipt).original is not original:
+                raise CoordinatorRejected("governance original approved receipt unavailable")
+            self.prepare(
+                receipt, original.workload_channel, original.lease_id, original.caller_action
+            )
+            return self.dispatch(receipt)
 
     def dispatch(self, receipt: SwarmApprovalReceipt):
         with self._barrier, self._lock:
