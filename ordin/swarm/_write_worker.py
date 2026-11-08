@@ -13,6 +13,25 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _owned_isolation import file_identity, isolate
 from _owned_protocol import WRITE_PROTOCOL, wire
 
+_libc = ctypes.CDLL(None, use_errno=True)
+_libc.syscall.restype = ctypes.c_long
+
+
+def open_metadata(name):
+    # openat's optional mode vararg is unspecified for O_PATH. Use the fixed
+    # x86-64 syscall ABI so every filter-bound argument is supplied, including
+    # its kernel-ignored mode; no flags, descriptors or allowances are widened.
+    descriptor = _libc.syscall(
+        257,
+        3,
+        ctypes.c_char_p(os.fsencode(name)),
+        os.O_PATH | os.O_NOFOLLOW | os.O_CLOEXEC,
+        0o600,
+    )
+    if descriptor < 0:
+        raise OSError(ctypes.get_errno(), "managed metadata descriptor unavailable")
+    return descriptor
+
 
 def unique(pairs):
     result = {}
@@ -25,7 +44,7 @@ def unique(pairs):
 
 def current_identity(name, expected):
     try:
-        descriptor = os.open(name, os.O_PATH | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=3)
+        descriptor = open_metadata(name)
     except FileNotFoundError:
         if expected is None:
             return None
@@ -154,10 +173,8 @@ def main():
             new_identity = file_identity(descriptor)
         finally:
             os.close(descriptor)
-        libc = ctypes.CDLL(None, use_errno=True)
-        libc.syscall.restype = ctypes.c_long
         flags = 1 if old_identity is None else 2
-        if libc.syscall(
+        if _libc.syscall(
             316,
             3,
             ctypes.c_char_p(os.fsencode(stage)),
@@ -168,7 +185,7 @@ def main():
             raise OSError(ctypes.get_errno(), "managed atomic publication failed")
         mutation = True
         if old_identity is not None:
-            descriptor = os.open(stage, os.O_PATH | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=3)
+            descriptor = open_metadata(stage)
             try:
                 displaced = file_identity(descriptor)
                 stable = ("device", "inode", "mode", "size", "mtime_ns", "uid", "gid", "links")
@@ -179,7 +196,7 @@ def main():
             os.unlink(stage, dir_fd=3)
         stage = None
         os.fsync(3)
-        descriptor = os.open(name, os.O_PATH | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=3)
+        descriptor = open_metadata(name)
         try:
             final = file_identity(descriptor)
             if any(
