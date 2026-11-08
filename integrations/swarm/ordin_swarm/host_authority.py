@@ -104,6 +104,7 @@ def make_backend(profile: ToolHostProfile, *, operator: object, initialize: bool
     routes = []
     for selected in profile.http_routes:
         from ordin.swarm.owned_tools import OwnedHTTPRoute
+
         parsed = urlsplit(selected.url)
         credential = (
             None
@@ -579,27 +580,16 @@ class HostAuthority:
         )
         if reserved.status != "reserved" or reserved.reference is None:
             return HostDispatch("denied", ("host.reservation_refused",), False, False)
-        # These are original protected objects, not imported record JSON. The SDK
-        # uses the same custody boundary to recover the broker's verified result.
-        original = self.coordinator._prepared.get(reserved.reference)
-        if original is None or original.broker is not self.broker:
-            raise ValueError("managed original broker reservation unavailable")
+        broker_channel = self.auth.authenticate(self.broker_socket)
         dispatched = self.coordinator.guarded_dispatch(
-            self.scope, self.auth.authenticate(self.broker_socket), reserved.reference
+            self.scope, broker_channel, reserved.reference
         )
-        pending = self.broker._pending.get(original.authorization)
-        native = pending.result if pending is not None else None
-        if native is None or not self.broker.verify_result(native, original.authorization):
+        if dispatched.status != "host_completed":
+            return HostDispatch("unknown", ("host.original_dispatch_uncertain",), None, False)
+        try:
+            native = self.coordinator.broker_result(self.scope, broker_channel, reserved.reference)
+        except (ValueError, OSError, RuntimeError):
             return HostDispatch("unknown", ("host.original_outcome_unavailable",), None, False)
-        if dispatched.status != "host_completed" or native.status != "completed":
-            return HostDispatch(
-                "denied" if native.status == "denied" else "unknown",
-                (native.reason_code,),
-                native.forwarded,
-                native.physical_enforcement,
-                result=native,
-                action=action,
-            )
         return HostDispatch(
             "completed",
             (),
