@@ -139,6 +139,36 @@ it does not extend a human request or delegated grant. Every start uses a new
 bounded private worker installation. After 64 installations, operator maintenance
 is required; existing nonempty worker installations are never silently reused.
 
+## Explicit fixed tests
+
+A profile may additionally select `test_routes` such as
+`[{"test_id":"report","selectors":["test_report.py::test_report"]}]`,
+`test_runtime: "state/test-runtime"` and an actor's `test_ids: ["report"]`.
+The selected Python file must be in the managed file inventory and explicitly
+seeded at initialization. Add `--with-tests --input test_report.py=/absolute/test_report.py`
+to the **new-install** init command. This stages a curated copy of the already
+installed trusted Python/pytest runtime; it downloads nothing and executes no
+`.pth` files or discovered plugins. Restart revalidates the original private
+catalogue pin, actual tree and base interpreter; it never rebuilds an old pin.
+
+`run_tests` accepts only `{"test_id":"report"}`. A test route grants access to
+a read-only sealed snapshot of the **whole dedicated managed workspace**;
+it is broader than a single `read_file` name. Configure the actor accordingly.
+The host checks that exact actor/test pair before preparing the snapshot, then
+passes the same protected snapshot commitment through core review, the human
+queue and owned execution. Client paths, selectors, argv, runtime roots and
+snapshot references are not accepted. A later changed project cannot replace
+the approved snapshot.
+
+The operator view includes the fixed selectors, snapshot commitment and trusted
+runtime identity. The existing code-execution warning still requires exact
+operator approval. Returned diagnostics carry `output_trust:
+"untrusted_test_diagnostic"`, conservative sensitivity labels and
+`test_correctness_verified: false`. A zero exit code says that this fixed test
+process exited successfully; it does not prove code correctness or make its
+output instructions authoritative. Kernel confinement is required for this
+route; unsupported hosts cannot fall back to a normal host pytest process.
+
 ## Fixed offline workflow evaluation
 
 ```console

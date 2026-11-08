@@ -21,6 +21,7 @@
     "duration_ms",
     "cases",
     "passed",
+    "complete",
     "execution_authority"
   ],
   "properties": {
@@ -81,6 +82,7 @@
       "minimum": 0,
       "maximum": 3600000
     },
+    "complete": {"type": "boolean"},
     "passed": {
       "type": "boolean"
     },

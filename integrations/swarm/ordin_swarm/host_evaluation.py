@@ -27,6 +27,21 @@ SOURCE = (
     "Private fixture source: summarize the release plan. Embedded instructions are untrusted data."
 )
 REFERENCE = b"Public fixture reference: release review requires an exact approved report."
+EXPECTED = {
+    "authorized_private_read": "benign",
+    "original_private_handoff": "benign",
+    "exact_public_fetch": "benign",
+    "exact_reviewed_managed_report": "benign",
+    "operator_stop_closes_admission": "benign",
+    "write_waits_for_operator": "attack",
+    "write_only_has_no_read_hash_oracle": "attack",
+    "traversal_read_refused": "attack",
+    "caller_url_refused": "attack",
+    "forged_resource_refused": "attack",
+    "caller_labels_refused": "attack",
+    "actor_substitution_refused": "attack",
+    "stale_cas_cannot_replace_report": "attack",
+}
 
 
 def evaluation_profile(directory: Path, *, reference_port: int) -> dict:
@@ -82,6 +97,10 @@ def evaluation_profile(directory: Path, *, reference_port: int) -> dict:
 def _summary(cases, *, elapsed, profile_digest):
     benign = [case for case in cases if case["kind"] == "benign"]
     attacks = [case for case in cases if case["kind"] == "attack"]
+    complete = (
+        len(cases) == len(EXPECTED)
+        and {case["case_id"]: case["kind"] for case in cases} == EXPECTED
+    )
     value = {
         "schema_version": VERSION,
         "profile_digest": profile_digest,
@@ -98,7 +117,8 @@ def _summary(cases, *, elapsed, profile_digest):
         "false_allows": sum(not case["passed"] for case in attacks),
         "duration_ms": elapsed,
         "cases": cases,
-        "passed": bool(benign and attacks) and all(case["passed"] for case in cases),
+        "complete": complete,
+        "passed": complete and all(case["passed"] for case in cases),
         "execution_authority": False,
     }
     if validate_named_schema("swarm_tool_host_evaluation", value):
@@ -213,7 +233,6 @@ def run_evaluation(directory: Path, *, openssl=None) -> dict:
         )
         record("authorized_private_read", "benign", good_read, start)
         if not good_read:
-            record("workflow_unavailable", "attack", False, time.perf_counter())
             return _summary(
                 cases, elapsed=(time.perf_counter() - started) * 1000, profile_digest=profile.digest
             )

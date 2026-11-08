@@ -167,6 +167,10 @@ class ManagedHostServer:
                     raw, _ = self.listener.accept()
                 except TimeoutError:
                     continue
+                except OSError:
+                    if self.host.shutdown_requested.is_set():
+                        break
+                    raise
                 if not self._slots.acquire(blocking=False):
                     raw.close()
                     continue

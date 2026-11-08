@@ -10,6 +10,7 @@ import os
 import tempfile
 from pathlib import Path
 import time
+from typing import Mapping
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -37,6 +38,7 @@ from ordin.runtime_contract import (
     ToolCapability,
 )
 from ordin.runtime_observation import RuntimeEvidenceSource
+from ordin.runtime_requirements import RuntimeRequirementProfile, ToolRuntimeRequirement
 from ordin.session import IntegrationSession, SessionIdentity
 from ordin.swarm import CoverageManifest, InMemoryAgentRegistry, SwarmGate
 from ordin.swarm.budget_store import SQLiteBudgetStore
@@ -70,9 +72,32 @@ class HostDispatch:
     lease_id: str | None = field(default=None, repr=False)
 
 
-def host_core() -> Ordin:
+def host_core(test_routes=()) -> Ordin:
     return Ordin(
         rest_semantics=RestSemantics(),
+        runtime_requirements=(
+            RuntimeRequirementProfile(
+                "managed-fixed-tests",
+                tool_requirements=tuple(
+                    ToolRuntimeRequirement(
+                        RUNTIME,
+                        None,
+                        "run_tests",
+                        "call",
+                        route.test_id,
+                        filesystem=(
+                            FilesystemCapability("read", str(route.project_root), "prefix"),
+                            FilesystemCapability("read", str(route.runtime.root), "prefix"),
+                        ),
+                        client_executables=(str(route.runtime.interpreter),),
+                        spawn_children=False,
+                    )
+                    for route in test_routes
+                ),
+            )
+            if test_routes
+            else None
+        ),
         tool_semantics=ToolSemanticsRegistry(
             "managed-host-tools",
             "1",
@@ -84,6 +109,15 @@ def host_core() -> Ordin:
                     ("filesystem.read",),
                     runtime=RUNTIME,
                     resources=(ToolResourceBinding("path", "path"),),
+                ),
+                *(
+                    (
+                        ToolSemanticRule(
+                            "managed-tests", "tool", "run_tests", ("code.execute",), runtime=RUNTIME
+                        ),
+                    )
+                    if test_routes
+                    else ()
                 ),
                 ToolSemanticRule(
                     "managed-write",
@@ -98,7 +132,21 @@ def host_core() -> Ordin:
     )
 
 
-def make_backend(profile: ToolHostProfile, *, operator: object, initialize: bool):
+def host_test_routes(profile: ToolHostProfile, *, operator: object):
+    if not profile.test_routes:
+        return ()
+    from ordin.swarm.confined_tests import TestRoute, load_python_runtime_catalog
+
+    runtime = load_python_runtime_catalog(
+        profile.configuration_root / "state" / "test-runtime", operator=operator
+    )
+    return tuple(
+        TestRoute(route.test_id, profile.workspace, route.selectors, runtime)
+        for route in profile.test_routes
+    )
+
+
+def make_backend(profile: ToolHostProfile, *, operator: object, initialize: bool, test_routes=None):
     # This import remains optional: inspecting a core action starts no host.
     from ordin.swarm.owned_tools import LinuxOwnedToolsBackend
 
@@ -165,10 +213,19 @@ def make_backend(profile: ToolHostProfile, *, operator: object, initialize: bool
         max_payload_bytes=HOST_TOOL_DATA_BYTES,
         max_write_bytes=HOST_TOOL_DATA_BYTES,
         initialize=initialize,
+        **(
+            {
+                "test_routes": host_test_routes(profile, operator=operator)
+                if test_routes is None
+                else test_routes
+            }
+            if profile.test_routes
+            else {}
+        ),
     )
 
 
-def _authority(profile, actor, uid) -> DelegationAuthority:
+def _authority(profile, actor, uid, test_routes=()) -> DelegationAuthority:
     reads = (
         {name for principal in profile.actors for name in principal.read_files}
         if actor is None
@@ -184,10 +241,20 @@ def _authority(profile, actor, uid) -> DelegationAuthority:
         if actor is None
         else tuple(route for route in profile.http_routes if route.route_id in actor.http_routes)
     )
+    selected_tests = tuple(
+        route for route in test_routes if actor is None or route.test_id in actor.test_ids
+    )
     filesystem = tuple(
         FilesystemCapability(access, str(profile.workspace / name), "exact")
         for access, names in (("read", reads), ("write", writes))
         for name in sorted(names)
+    )
+    filesystem += tuple(
+        dict.fromkeys(
+            FilesystemCapability("read", str(path), "prefix")
+            for route in selected_tests
+            for path in (route.project_root, route.runtime.root)
+        )
     )
     network, credentials, requests = [], [], []
     for route in selected_routes:
@@ -214,10 +281,18 @@ def _authority(profile, actor, uid) -> DelegationAuthority:
             network=tuple(network),
             tools=tuple(
                 ToolCapability(RUNTIME, None, tool)
-                for tool, enabled in (("read_file", bool(reads)), ("write_artifact", bool(writes)))
+                for tool, enabled in (
+                    ("read_file", bool(reads)),
+                    ("write_artifact", bool(writes)),
+                    ("run_tests", bool(selected_tests)),
+                )
                 if enabled
             ),
-            process=ProcessCapability(False, (), False),
+            process=ProcessCapability(
+                bool(selected_tests),
+                tuple(sorted({str(route.runtime.interpreter) for route in selected_tests})),
+                False,
+            ),
             privilege=PrivilegeCapability(False, uid),
             credentials=tuple(credentials),
             filesystem_semantics="lexical_prefix",
@@ -264,13 +339,16 @@ class HostAuthority:
             )
             clock = self.clock = CoordinatorClock(self.store)
             self.pki = PrivateHostPKI(profile)
-            self.backend = make_backend(profile, operator=operator, initialize=False)
+            self.test_routes = host_test_routes(profile, operator=operator)
+            self.backend = make_backend(
+                profile, operator=operator, initialize=False, test_routes=self.test_routes
+            )
             self.stack.callback(self.backend.close)
-            self.core = host_core()
+            self.core = host_core(self.test_routes)
             self.started_at = clock()
             self.expires_at = self.started_at + min(profile.limits.lifetime_seconds, 600)
             self.incarnation = uuid4().hex
-            maximum = _authority(profile, None, self.backend.uid)
+            maximum = _authority(profile, None, self.backend.uid, self.test_routes)
             scope = RepositoryScope("managed/" + profile.profile_id, profile.digest)
             content = SecurityProfile("managed-" + profile.profile_id, "1", scope)
             assurance_path = profile.configuration_root / "assurance.json"
@@ -398,7 +476,7 @@ class HostAuthority:
                     root_channel,
                     root_ref.grant_id,
                     self.enrollments[actor.agent_id],
-                    _authority(profile, actor, self.backend.uid),
+                    _authority(profile, actor, self.backend.uid, self.test_routes),
                     request_id="enroll-" + actor.agent_id,
                     lifetime=max(1, min(600, int(self.expires_at - clock()) - 1)),
                 )
@@ -535,6 +613,16 @@ class HostAuthority:
         lease = self.coordinator.admit(self.scope, channel)
         if lease.reference is None:
             return HostDispatch("denied", ("host.lease_unavailable",), False, False)
+        if action.kind == "tool" and action.parameters.get("tool") == "run_tests":
+            arguments = action.parameters.get("arguments")
+            if (
+                not isinstance(arguments, Mapping)
+                or set(arguments) != {"test_id"}
+                or type(arguments["test_id"]) is not str
+                or arguments["test_id"] not in self.profile.actor(actor).test_ids
+            ):
+                return HostDispatch("denied", ("host.test_route_not_authorized",), False, False)
+            action = self.backend.prepare_action(action, operator=self.operator)
         reference = self.grants[actor]
         self.coordinator.bind_grant(self.scope, channel, lease.reference, reference)
         evaluation = self.coordinator.evaluate(

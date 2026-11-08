@@ -63,19 +63,26 @@ def _inputs(values, names, *, maximum, text):
     return captured
 
 
-def initialize(directory: Path, document: dict, *, inputs=(), private_files=(), openssl=None):
+def initialize(
+    directory: Path, document: dict, *, inputs=(), private_files=(), openssl=None, with_tests=False
+):
     """Seed only a new dedicated workspace; never chown caller source data."""
     from .host_authority import initialize_host_authority_files
 
     profile = ToolHostProfile.from_dict(document, configuration_root=directory)
     if sys.platform != "linux" or directory.exists() or directory.is_symlink():
         raise ValueError("new private Linux installation required")
+    if type(with_tests) is not bool or bool(profile.test_routes) is not with_tests:
+        raise ValueError("fixed test staging requires explicit --with-tests and configured routes")
     from ordin.swarm.owned_tools import LinuxOwnedToolsBackend
 
     seeds = _inputs(
         inputs, {item.name for item in profile.files}, maximum=HOST_TOOL_DATA_BYTES, text=True
     )
     required = {name for actor in profile.actors for name in actor.read_files}
+    required.update(
+        selector.split("::", 1)[0] for route in profile.test_routes for selector in route.selectors
+    )
     if not required <= set(seeds):
         raise ValueError("each configured readable file requires an explicit UTF-8 input")
     material = {
@@ -111,6 +118,12 @@ def initialize(directory: Path, document: dict, *, inputs=(), private_files=(), 
                 parent.mkdir(mode=0o700)
             check_private_directory(parent)
         _new_file(parent / parts[-1], raw)
+    if with_tests:
+        from ordin.swarm.confined_tests import build_python_runtime_catalog
+
+        runtime = directory / "state" / "test-runtime"
+        runtime.mkdir(mode=0o700)
+        build_python_runtime_catalog(runtime, operator=object())
     loaded = load_host_profile(directory)
     initialize_host_authority_files(loaded, operator=object())
     return {
@@ -243,6 +256,7 @@ def main(argv=None):
     init.add_argument("--input", action="append", default=[], metavar="NAME=/ABSOLUTE/UTF8_FILE")
     init.add_argument("--private-file", action="append", default=[], metavar="NAME=/ABSOLUTE/FILE")
     init.add_argument("--openssl", type=_absolute)
+    init.add_argument("--with-tests", action="store_true")
     serve = commands.add_parser("serve", help="run one shared loopback mTLS daemon")
     serve.add_argument("--directory", type=_absolute, required=True)
     serve.add_argument("--port", type=int, default=9443)
@@ -293,6 +307,7 @@ def main(argv=None):
                 inputs=args.input,
                 private_files=args.private_file,
                 openssl=args.openssl,
+                with_tests=args.with_tests,
             )
         elif args.operation == "doctor":
             result = doctor(args.directory, live=args.live, actor=args.actor)

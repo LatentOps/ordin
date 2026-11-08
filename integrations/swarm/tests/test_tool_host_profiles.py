@@ -66,6 +66,29 @@ def route():
     }
 
 
+def test_optional_fixed_tests_are_exact_managed_catalogue_entries(tmp_path):
+    value = document(tmp_path)
+    value["files"].append({"name": "test_report.py", "label": "private_code"})
+    value["test_routes"] = [{"test_id": "report", "selectors": ["test_report.py::test_report"]}]
+    value["test_runtime"] = "state/test-runtime"
+    value["actors"][1]["test_ids"] = ["report"]
+    profile = ToolHostProfile.from_dict(value, configuration_root=tmp_path)
+    assert profile.actor("reader").test_ids == ()
+    assert profile.actor("writer").test_ids == ("report",)
+    assert profile.as_dict() == value
+    for change in (
+        lambda v: v.update(test_runtime="pki"),
+        lambda v: v["actors"][0].update(test_ids=["other"]),
+        lambda v: v["test_routes"][0].update(selectors=["../test_report.py"]),
+        lambda v: v["test_routes"][0].update(selectors=["-c.py"]),
+        lambda v: v["test_routes"][0].update(selectors=["unlisted.py"]),
+    ):
+        invalid = deepcopy(value)
+        change(invalid)
+        with pytest.raises(ValueError):
+            ToolHostProfile.from_dict(invalid, configuration_root=tmp_path)
+
+
 def test_profile_roundtrip_preserves_explicit_actor_resource_scopes_without_io(tmp_path):
     source = document(tmp_path)
     profile = ToolHostProfile.from_dict(source, configuration_root=tmp_path)

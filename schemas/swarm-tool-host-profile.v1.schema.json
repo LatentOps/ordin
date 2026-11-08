@@ -134,6 +134,10 @@
               "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
             }
           },
+          "test_ids": {
+            "type": "array", "maxItems": 16, "uniqueItems": true,
+            "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"}
+          },
           "peers": {
             "type": "array",
             "maxItems": 16,
@@ -232,6 +236,19 @@
               "unclassified"
             ]
           }
+        }
+      }
+    },
+    "test_runtime": {"const": "state/test-runtime"},
+    "test_routes": {
+      "type": "array", "maxItems": 16,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["test_id", "selectors"],
+        "properties": {
+          "test_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"},
+          "selectors": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true,
+            "items": {"type": "string", "minLength": 1, "maxLength": 256}}
         }
       }
     },

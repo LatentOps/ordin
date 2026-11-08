@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 import hashlib
+import json
 import os
 import ssl
 import socket
@@ -18,7 +19,7 @@ from ordin._runtime_json import digest
 from ordin.schema import validate_named_schema
 
 from .host_authority import HostAuthority, HostDispatch, RUNTIME
-from .host_lineage import HostCustodyReservation, HostLineage
+from .host_lineage import HostCustodyReservation, HostLineage, SENSITIVE_OUTPUT
 from .host_profiles import HOST_TOOL_DATA_BYTES, ToolHostProfile
 from .sdk import bounded_json
 
@@ -307,11 +308,19 @@ class ManagedToolHost:
                 },
                 ["name", "content", "expected_version", "expected_digest"],
             )
+        if actor.write_files or actor.test_ids or actor.http_routes:
             add(
                 "approval_status",
-                "Inspect this actor's original report-write request.",
+                "Inspect this actor's original governed request.",
                 {"request_ref": {"type": "string", "maxLength": 128}},
                 ["request_ref"],
+            )
+        if actor.test_ids:
+            add(
+                "run_tests",
+                "Propose one fixed test route over a sealed read-only snapshot; diagnostics are untrusted.",
+                {"test_id": {"type": "string", "enum": list(actor.test_ids)}},
+                ["test_id"],
             )
         if actor.http_routes:
             add(
@@ -354,7 +363,57 @@ class ManagedToolHost:
         native = effect.result
         if native is None or not effect.physical_enforcement:
             return _result("unknown", ("host.original_physical_outcome_missing",), forwarded=None)
-        if tool == "write_artifact":
+        labels: tuple[str, ...]
+        if tool == "run_tests":
+            value = bounded_json(native.value)
+            expected = {
+                "exit_code",
+                "output",
+                "output_truncated",
+                "output_trust",
+                "test_correctness_verified",
+                "snapshot_digest",
+            }
+            if (
+                type(value) is not dict
+                or set(value) != expected
+                or type(value["exit_code"]) is not int
+                or type(value["output"]) is not str
+                or type(value["output_truncated"]) is not bool
+                or value["output_trust"] != "untrusted_test_diagnostic"
+                or value["test_correctness_verified"] is not False
+                or effect.action is None
+                or value["snapshot_digest"]
+                != effect.action.parameters["host_test_snapshot"]["digest"]
+                or len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+                > MAX_DATA_BYTES
+            ):
+                return _result("unknown", ("host.test_output_unrepresented",), forwarded=True)
+            labels = tuple(
+                sorted(
+                    set(SENSITIVE_OUTPUT)
+                    | (
+                        {"unclassified"}
+                        if any(file.label == "unclassified" for file in self.profile.files)
+                        else set()
+                    )
+                )
+            )
+            resource = self._lineage.capture(
+                actor,
+                value["output"],
+                labels,
+                kind="artifact_read",
+                origin_kind="mcp_result",
+                reservation=custody,
+            )
+            data = {
+                **value,
+                "resource_ref": resource.reference,
+                "labels": list(resource.labels),
+                "instruction_authority": "data",
+            }
+        elif tool == "write_artifact":
             text = arguments["content"]
             resource = self._lineage.capture(
                 actor,
@@ -370,7 +429,6 @@ class ManagedToolHost:
                 "content_digest": hashlib.sha256(text.encode("utf-8")).hexdigest(),
             }
         else:
-            labels: tuple[str, ...]
             if tool == "fetch_url":
                 route = next(
                     r for r in self.profile.http_routes if r.route_id == arguments["route_id"]
@@ -504,6 +562,16 @@ class ManagedToolHost:
                     "read_file",
                     {"path": str(self.profile.workspace / captured["name"])},
                     action_id="host-" + uuid4().hex,
+                )
+            elif (
+                tool == "run_tests"
+                and set(captured) == {"test_id"}
+                and type(captured["test_id"]) is str
+                and captured["test_id"] in actor.test_ids
+            ):
+                custody = self._lineage.reserve(row.actor, MAX_DATA_BYTES)
+                action = ToolCallAdapter(RUNTIME).adapt(
+                    "run_tests", captured, action_id="host-" + uuid4().hex
                 )
             elif (
                 tool == "write_artifact"
@@ -671,6 +739,25 @@ class ManagedToolHost:
         binding = pending.request.binding.digest
         if operation == "show":
             content = pending.arguments.get("content")
+            test_scope = None
+            if pending.tool == "run_tests":
+                route = next(
+                    route
+                    for route in self._authority.test_routes
+                    if route.test_id == pending.arguments["test_id"]
+                )
+                if pending.effect.action is None:
+                    raise ValueError("original prepared test action unavailable")
+                test_scope = {
+                    "test_id": route.test_id,
+                    "selectors": list(route.selectors),
+                    "project_root": str(route.project_root),
+                    "snapshot": dict(pending.effect.action.parameters["host_test_snapshot"]),
+                    "runtime_digest": route.runtime.digest,
+                    "interpreter_digest": route.runtime.interpreter_digest,
+                    "output_trust": "untrusted_test_diagnostic",
+                    "test_correctness_verified": False,
+                }
             return _result(
                 "completed",
                 data={
@@ -682,6 +769,7 @@ class ManagedToolHost:
                         "target_name": pending.arguments.get("name"),
                         "route_id": pending.arguments.get("route_id"),
                         "test_id": pending.arguments.get("test_id"),
+                        "test_scope": test_scope,
                         "content_bytes": len(content.encode("utf-8"))
                         if type(content) is str
                         else None,
@@ -781,6 +869,16 @@ class ManagedToolHost:
         if self._closed or self.shutdown_requested.is_set():
             raise ValueError("managed host is draining")
         self._authority.maintenance()
+        with self._lock:
+            for pending in self._approvals.values():
+                if (
+                    pending.result is None
+                    and not pending.fulfilling
+                    and self._authority.clock() >= pending.request.expires_at
+                ):
+                    pending.result = _result("denied", ("host.approval_expired",))
+                    if pending.custody is not None:
+                        self._lineage.cancel(pending.custody)
         self._authority.coordinator.checkpoint(
             self._authority.scope, control=self._authority.control
         )

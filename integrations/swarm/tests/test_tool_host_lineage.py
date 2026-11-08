@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from types import SimpleNamespace
+from threading import RLock, Event
 
 import pytest
 
@@ -188,3 +189,43 @@ def test_uncertain_output_reservation_cannot_be_refunded_or_replaced_by_late_suc
     with pytest.raises(ValueError, match="capacity"):
         lineage.reserve("writer", 1)
     assert lineage.status("reader")["uncertain_custody_holds"] == 1
+
+
+def test_host_maintenance_expires_only_original_known_unforwarded_queue_custody(tmp_path):
+    from ordin_swarm.host_authority import HostDispatch
+    from ordin_swarm.host_runtime import ManagedToolHost, HostClient, _Approval, _result
+
+    lineage, authority = host(tmp_path)
+    managed = object.__new__(ManagedToolHost)
+    managed._lineage, managed._authority = lineage, authority
+    managed._closed, managed.shutdown_requested, managed._lock = False, Event(), RLock()
+    authority.clock = lambda: 101
+    authority.maintenance = lambda: None
+    authority.scope, authority.control = object(), object()
+    authority.coordinator = SimpleNamespace(checkpoint=lambda *args, **kwargs: None)
+    reservations = [lineage.reserve("writer", 32) for _ in range(4)]
+    lineage.uncertain(reservations[2])
+    managed._approvals = {
+        str(index): _Approval(
+            HostClient(str(index)),
+            "writer",
+            "write_artifact",
+            {},
+            HostDispatch(
+                "requires_approval",
+                (),
+                False,
+                False,
+                approval=SimpleNamespace(expires_at=200 if index == 1 else 100),
+            ),
+            custody=reservation,
+            result=_result("unknown", forwarded=None) if index == 2 else None,
+            fulfilling=index == 3,
+        )
+        for index, reservation in enumerate(reservations)
+    }
+    managed.maintenance()
+    assert managed._approvals["0"].result["status"] == "denied"
+    assert managed._approvals["1"].result is None and managed._approvals["3"].result is None
+    assert lineage.status("writer")["pending_custody_reservations"] == 3
+    assert lineage.status("writer")["uncertain_custody_holds"] == 1

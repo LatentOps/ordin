@@ -41,8 +41,8 @@ def _counter(value: Any, field: str, minimum: int, maximum: int) -> int:
     return value
 
 
-def _shape(value: Any, fields: set[str], field: str) -> dict[str, Any]:
-    if type(value) is not dict or set(value) != fields:
+def _shape(value: Any, fields: set[str], field: str, *, optional=frozenset()) -> dict[str, Any]:
+    if type(value) is not dict or not fields <= set(value) <= fields | set(optional):
         raise ValueError(f"invalid host {field} fields")
     return value
 
@@ -201,11 +201,15 @@ class HostActor:
     write_files: tuple[str, ...]
     http_routes: tuple[str, ...]
     peers: tuple[str, ...]
+    test_ids: tuple[str, ...] = ()
 
     @classmethod
     def parse(cls, value: Any) -> HostActor:
         row = _shape(
-            value, {"agent_id", "read_files", "write_files", "http_routes", "peers"}, "actor"
+            value,
+            {"agent_id", "read_files", "write_files", "http_routes", "peers"},
+            "actor",
+            optional={"test_ids"},
         )
         agent_id = _identifier(row["agent_id"], "agent identity")
         if agent_id in _RESERVED:
@@ -214,13 +218,34 @@ class HostActor:
         writes = _items(row["write_files"], "write files")
         routes = _items(row["http_routes"], "HTTP routes", maximum=16)
         peers = _items(row["peers"], "message peers", maximum=16)
+        tests = _items(row.get("test_ids", []), "test routes", maximum=16)
         for name in (*reads, *writes):
             _flat(name)
-        for name in (*routes, *peers):
+        for name in (*routes, *peers, *tests):
             _identifier(name, "route or peer")
         if agent_id in peers:
             raise ValueError("self-directed host message route")
-        return cls(agent_id, reads, writes, routes, peers)
+        return cls(agent_id, reads, writes, routes, peers, tests)
+
+
+@dataclass(frozen=True, slots=True)
+class HostTestRoute:
+    test_id: str
+    selectors: tuple[str, ...]
+
+    @classmethod
+    def parse(cls, value):
+        row = _shape(value, {"test_id", "selectors"}, "fixed test route")
+        test_id = _identifier(row["test_id"], "test identity")
+        selectors = _items(row["selectors"], "fixed test selectors", maximum=16)
+        if not selectors or any(
+            len(value) > 256
+            or re.fullmatch(r"[A-Za-z0-9_.-]+\.py(?:::[A-Za-z0-9_]+)*", value) is None
+            or value.startswith(("/", "-"))
+            for value in selectors
+        ):
+            raise ValueError("test selectors must name fixed managed Python file node IDs")
+        return cls(test_id, selectors)
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,6 +281,8 @@ class ToolHostProfile:
     limits: HostLimits
     configuration_root: Path
     file_digest: str
+    test_routes: tuple[HostTestRoute, ...] = ()
+    test_runtime: str | None = None
 
     @classmethod
     def from_dict(
@@ -276,6 +303,7 @@ class ToolHostProfile:
                 "limits",
             },
             "profile",
+            optional={"test_routes", "test_runtime"},
         )
         if row["schema_version"] != PROFILE_VERSION:
             raise ValueError("unsupported host profile schema")
@@ -292,22 +320,38 @@ class ToolHostProfile:
         files = tuple(HostFile.parse(item) for item in row["files"])
         actors = tuple(HostActor.parse(item) for item in row["actors"])
         routes = tuple(HostHTTPRoute.parse(item) for item in row["http_routes"])
+        selected_tests = row.get("test_routes", [])
+        if type(selected_tests) is not list or len(selected_tests) > 16:
+            raise ValueError("invalid fixed host test inventory")
+        tests = tuple(HostTestRoute.parse(item) for item in selected_tests)
+        runtime = row.get("test_runtime")
+        if (tests and runtime != "state/test-runtime") or (not tests and runtime is not None):
+            raise ValueError("fixed host tests require their dedicated initialized runtime")
         names = {item.name for item in files}
         principals = {item.agent_id for item in actors}
         route_ids = {item.route_id for item in routes}
+        test_ids = {item.test_id for item in tests}
         if (
             len(names) != len(files)
             or len(principals) != len(actors)
             or len(route_ids) != len(routes)
+            or len(test_ids) != len(tests)
         ):
             raise ValueError("duplicate host profile identity")
         if any(
             not set((*actor.read_files, *actor.write_files)) <= names
             or not set(actor.http_routes) <= route_ids
             or not set(actor.peers) <= principals
+            or not set(actor.test_ids) <= test_ids
             for actor in actors
         ):
             raise ValueError("host actor references an unconfigured resource")
+        if any(
+            selector.split("::", 1)[0] not in names
+            for route in tests
+            for selector in route.selectors
+        ):
+            raise ValueError("fixed test selector references an unconfigured managed file")
         if (
             type(file_digest) is not str
             or file_digest
@@ -326,6 +370,8 @@ class ToolHostProfile:
             HostLimits.parse(row["limits"]),
             root,
             file_digest,
+            tests,
+            runtime,
         )
 
     @property
@@ -348,6 +394,7 @@ class ToolHostProfile:
                     "write_files": list(item.write_files),
                     "http_routes": list(item.http_routes),
                     "peers": list(item.peers),
+                    **({"test_ids": list(item.test_ids)} if item.test_ids else {}),
                 }
                 for item in self.actors
             ],
@@ -371,6 +418,17 @@ class ToolHostProfile:
                 "concurrency": self.limits.concurrency,
                 "lifetime_seconds": self.limits.lifetime_seconds,
             },
+            **(
+                {
+                    "test_routes": [
+                        {"test_id": item.test_id, "selectors": list(item.selectors)}
+                        for item in self.test_routes
+                    ],
+                    "test_runtime": self.test_runtime,
+                }
+                if self.test_routes
+                else {}
+            ),
         }
 
     def actor(self, agent_id: str) -> HostActor:
@@ -452,6 +510,7 @@ __all__ = [
     "HostFile",
     "HostHTTPRoute",
     "HostLimits",
+    "HostTestRoute",
     "ToolHostProfile",
     "check_private_directory",
     "load_host_profile",
