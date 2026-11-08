@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from contextlib import nullcontext
+import asyncio
+import inspect
 from threading import RLock
 import time
 from typing import Any, Callable, Mapping
@@ -87,6 +89,7 @@ class _Actor:
     closed: bool = False
     broker: Any = None
     broker_binding: Any = None
+    async_work: set[Any] = field(default_factory=set)
     lock: Any = field(default_factory=RLock)
 
 
@@ -198,6 +201,7 @@ class SwarmToolGateway:
         self._lifetime, self._clock, self._last_now = float(ticket_lifetime), clock, 0.0
         self._actors: dict[GatewayAgent, _Actor] = {}
         self._pending: dict[ForwardTicket, _Pending] = {}
+        self._async_work: set[Any] = set()
         self._lock = RLock()
         self._operation_lock = RLock()
 
@@ -318,6 +322,11 @@ class SwarmToolGateway:
         with self._operation_lock, self._lock:
             actor = self._actor(handle, authenticate=False)
             actor.closed = True
+            for task in tuple(actor.async_work):
+                try:
+                    task.get_loop().call_soon_threadsafe(task.cancel)
+                except RuntimeError:
+                    actor.journal_gap = True
             for pending in self._pending.values():
                 if pending.actor is handle and pending.broker_authorization is not None:
                     actor.broker.request_stop(pending.broker_authorization)
@@ -590,33 +599,7 @@ class SwarmToolGateway:
                     raise ValueError("unknown, foreign or consumed forwarding ticket")
                 del self._pending[ticket]
             try:
-                actor.gate._registry.authenticate(actor.context, actor.channel, actor.adapter)
-                if actor.session is None or actor.active is not ticket:
-                    raise ValueError("changed forwarding session")
-                if self._now() >= pending.expires_at:
-                    raise ValueError("expired forwarding ticket")
-                if pending.decision.approval_fulfilled:
-                    raise ValueError(
-                        "human-approved execution requires its original owned broker job"
-                    )
-                selected = action if action is not None else pending.action
-                if digest(selected.as_dict()) != pending.decision.action_digest:
-                    raise ValueError("forwarding action changed")
-                if digest(actor.session.snapshot()) != pending.session_digest:
-                    raise ValueError("forwarding history changed")
-                if not actor.gate.binding_matches(
-                    pending.decision,
-                    actor.context,
-                    selected,
-                    channel=actor.channel,
-                    adapter=actor.adapter,
-                    event_source=actor.event_source if actor.gate._events is not None else None,
-                    **pending.options,
-                ):
-                    raise ValueError("stale forwarding decision")
-                detached = ActionEnvelope.from_dict(selected.as_dict())
-                if detached.action_id is None:
-                    raise ValueError("forwarding requires its host action ID")
+                detached = self._validate_forwarding(actor, ticket, pending, action)
                 if pending.budget_ticket is not None and self._budget is not None:
                     self._budget.begin_forward(
                         pending.budget_ticket,
@@ -671,6 +654,175 @@ class SwarmToolGateway:
                     except ValueError:
                         actor.journal_gap = True
                 actor.active = None
+
+    def _validate_forwarding(self, actor, ticket, pending, action):
+        actor.gate._registry.authenticate(actor.context, actor.channel, actor.adapter)
+        if actor.session is None or actor.active is not ticket:
+            raise ValueError("changed forwarding session")
+        if self._now() >= pending.expires_at:
+            raise ValueError("expired forwarding ticket")
+        if pending.decision.approval_fulfilled:
+            raise ValueError("human-approved execution requires its original owned broker job")
+        selected = action if action is not None else pending.action
+        if digest(selected.as_dict()) != pending.decision.action_digest:
+            raise ValueError("forwarding action changed")
+        if digest(actor.session.snapshot()) != pending.session_digest:
+            raise ValueError("forwarding history changed")
+        if not actor.gate.binding_matches(
+            pending.decision,
+            actor.context,
+            selected,
+            channel=actor.channel,
+            adapter=actor.adapter,
+            event_source=actor.event_source if actor.gate._events is not None else None,
+            **pending.options,
+        ):
+            raise ValueError("stale forwarding decision")
+        detached = ActionEnvelope.from_dict(selected.as_dict())
+        if detached.action_id is None:
+            raise ValueError("forwarding requires its host action ID")
+        return detached
+
+    async def forward_async(
+        self,
+        handle: GatewayAgent,
+        ticket: ForwardTicket,
+        executor: Callable[[ActionEnvelope], Any],
+        *,
+        action: ActionEnvelope | None = None,
+    ) -> GatewayResult:
+        """Admit one original host coroutine, await without thread locks, settle once.
+
+        This is callback mediation. Cancellation cannot roll back effects, so a
+        forwarded cancellation fences subsequent calls and retains uncertain
+        budget holds even if the host coroutine later suppresses cancellation.
+        """
+        actor = self._actor(handle, authenticate=False)
+        if actor.broker is not None or not callable(executor):
+            raise ValueError("async callbacks require an original intercepted gateway actor")
+
+        def execution_guard():
+            return (
+                actor.gate._policy_runtime.execution_guard(actor.context)
+                if actor.gate._policy_runtime is not None
+                else nullcontext()
+            )
+
+        budget_started = forwarded = settling = False
+        pending = None
+        work = None
+        try:
+            with execution_guard(), self._operation_lock, actor.lock:
+                if actor.closed:
+                    raise ValueError("gateway actor was revoked")
+                with self._lock:
+                    if len(self._async_work) >= self._pending_limit:
+                        raise ValueError("gateway async work capacity reached")
+                    pending = self._pending.get(ticket) if type(ticket) is ForwardTicket else None
+                    if pending is None or pending.actor is not handle:
+                        raise ValueError("unknown, foreign or consumed forwarding ticket")
+                    del self._pending[ticket]
+                detached = self._validate_forwarding(actor, ticket, pending, action)
+                if pending.budget_ticket is not None and self._budget is not None:
+                    self._budget.begin_forward(
+                        pending.budget_ticket,
+                        actor.context,
+                        detached,
+                        channel=actor.channel,
+                        adapter=actor.adapter,
+                    )
+                    budget_started = True
+                forwarded = True
+                coroutine = executor(detached)
+                if not inspect.iscoroutine(coroutine):
+                    raise ValueError("async forwarding requires a fresh host coroutine")
+                try:
+                    work = asyncio.create_task(coroutine)
+                except BaseException:
+                    coroutine.close()
+                    raise
+                with self._lock:
+                    self._async_work.add(work)
+                    actor.async_work.add(work)
+
+                def completed(task):
+                    with self._lock:
+                        self._async_work.discard(task)
+                        actor.async_work.discard(task)
+                    try:
+                        task.exception()
+                    except BaseException:
+                        pass
+
+                work.add_done_callback(completed)
+                if actor.closed:
+                    work.cancel()
+            # Shield makes caller cancellation observable even when callback
+            # code catches CancelledError. Never await unbounded cancellation
+            # cleanup or silently retry that already-forwarded operation.
+            value = await asyncio.shield(work)
+            settling = True
+            with execution_guard(), self._operation_lock, actor.lock:
+                try:
+                    current = (
+                        self._actor(handle) is actor
+                        and not actor.closed
+                        and actor.active is ticket
+                        and actor.session is not None
+                        and digest(actor.session.snapshot()) == pending.session_digest
+                        and actor.gate.configuration_digest == pending.decision.configuration_digest
+                        and actor.gate.policy_digest == pending.decision.policy_digest
+                    )
+                except ValueError:
+                    current = False
+                outcome = value.status if type(value) is GatewayOutcome else "completed"
+                payload = value.value if type(value) is GatewayOutcome else value
+                if not current:
+                    outcome, payload = "pending", None
+                    actor.journal_gap = True
+                if outcome == "pending":
+                    actor.journal_gap = True
+                if (
+                    budget_started
+                    and pending.budget_ticket is not None
+                    and self._budget is not None
+                ):
+                    if outcome == "completed":
+                        self._budget.commit(pending.budget_ticket)
+                    else:
+                        self._budget.uncertain(pending.budget_ticket)
+                self._journal(actor, pending, outcome)
+                return GatewayResult(detached.action_id, outcome, payload, actor.journal_gap)
+        except BaseException as exc:
+            with self._operation_lock, actor.lock:
+                if work is not None and not work.done():
+                    work.cancel()
+                if pending is not None:
+                    if (
+                        budget_started
+                        and pending.budget_ticket is not None
+                        and self._budget is not None
+                    ):
+                        try:
+                            self._budget.uncertain(pending.budget_ticket)
+                        except ValueError:
+                            actor.journal_gap = True
+                    elif pending.budget_ticket is not None and self._budget is not None:
+                        try:
+                            self._budget.cancel(pending.budget_ticket)
+                        except ValueError:
+                            actor.journal_gap = True
+                    if forwarded:
+                        uncertain = settling or not isinstance(exc, Exception)
+                        if uncertain:
+                            actor.journal_gap = True
+                        self._journal(actor, pending, "pending" if uncertain else "failed")
+            raise
+        finally:
+            if pending is not None:
+                with self._operation_lock, actor.lock:
+                    if actor.active is ticket:
+                        actor.active = None
 
     def _forward_broker(self, handle, actor, ticket, action):
         with self._operation_lock, actor.lock:

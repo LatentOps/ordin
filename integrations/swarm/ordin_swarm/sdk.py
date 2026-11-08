@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+import asyncio
+from contextvars import ContextVar
 import inspect
 import json
 import math
@@ -154,6 +156,9 @@ class _Session:
     requests: set[str] = field(default_factory=set)
     closed: bool = False
     lock: Any = field(default_factory=RLock)
+    async_tools: dict[str, FrameworkTool] = field(default_factory=dict)
+    async_lock: Any = None
+    async_loop: Any = None
 
 
 @dataclass(frozen=True)
@@ -166,6 +171,7 @@ class _Tool:
     guard: Callable
     action_builder: Callable | None
     route: str
+    asynchronous: bool = False
 
 
 @dataclass
@@ -176,6 +182,7 @@ class _Call:
     argument_digest: str
     authorization: Any
     state: str = "prepared"
+    owner_task: Any = None
 
 
 class SwarmSDK:
@@ -198,6 +205,9 @@ class SwarmSDK:
         self._calls: dict[FrameworkCall, _Call] = {}
         self._results: dict[FrameworkResult, tuple[FrameworkCall, str]] = {}
         self._lock = RLock()
+        self._async_current: ContextVar[frozenset[FrameworkSession]] = ContextVar(
+            "ordin-sdk-async-sessions", default=frozenset()
+        )
 
     def bind(
         self,
@@ -385,6 +395,56 @@ class SwarmSDK:
         action_builder=None,
         operator: object,
     ) -> FrameworkTool:
+        return self._register_tool(
+            session,
+            name=name,
+            runtime=runtime,
+            callback=callback,
+            guard=guard,
+            route=route,
+            action_builder=action_builder,
+            operator=operator,
+            asynchronous=False,
+        )
+
+    def register_async_tool(
+        self,
+        session: FrameworkSession,
+        *,
+        name: str,
+        runtime: str,
+        callback: Callable,
+        guard: Callable,
+        route="sdk",
+        action_builder=None,
+        operator: object,
+    ) -> FrameworkTool:
+        """Register one original coroutine callback on an intercepted session."""
+        return self._register_tool(
+            session,
+            name=name,
+            runtime=runtime,
+            callback=callback,
+            guard=guard,
+            route=route,
+            action_builder=action_builder,
+            operator=operator,
+            asynchronous=True,
+        )
+
+    def _register_tool(
+        self,
+        session,
+        *,
+        name,
+        runtime,
+        callback,
+        guard,
+        route,
+        action_builder,
+        operator,
+        asynchronous,
+    ):
         from ordin.swarm.models import identifier
 
         identifier(name, "tool_name")
@@ -393,15 +453,21 @@ class SwarmSDK:
             operator is not self._operator
             or not callable(callback)
             or not callable(guard)
-            or inspect.iscoroutinefunction(callback)
+            or inspect.iscoroutinefunction(callback) is not asynchronous
+            or inspect.iscoroutinefunction(guard)
             or (action_builder is not None and not callable(action_builder))
+            or inspect.iscoroutinefunction(action_builder)
         ):
-            raise ValueError("original synchronous host tool and current-object guard required")
+            mode = "asynchronous" if asynchronous else "synchronous"
+            raise ValueError(f"original {mode} host tool and current-object guard required")
         if route not in {"sdk", "file", "http", "mcp", "shell", "database"}:
             raise ValueError("unsupported framework forwarding route")
         row = self._session(session)
+        if asynchronous and (row.broker is not None or row.coordinator is not None):
+            raise ValueError("native async callbacks are intercepted, not an owned broker executor")
         with self._operation(row), self._lock, row.lock:
-            if name in row.tools or len(self._tools) >= self._limits[1]:
+            table = row.async_tools if asynchronous else row.tools
+            if name in table or len(self._tools) >= self._limits[1]:
                 raise ValueError("SDK tool capacity or duplicate native name")
             guard()
             handle = FrameworkTool(uuid4().hex)
@@ -414,8 +480,9 @@ class SwarmSDK:
                 guard,
                 action_builder,
                 route,
+                asynchronous,
             )
-            row.tools[name] = handle
+            table[name] = handle
             return handle
 
     def tool(self, session: FrameworkSession, name: str) -> FrameworkTool:
@@ -423,6 +490,24 @@ class SwarmSDK:
         if type(name) is not str or name not in row.tools:
             raise ValueError("tool is not in this original host dispatch table")
         return row.tools[name]
+
+    def async_tool(self, session: FrameworkSession, name: str) -> FrameworkTool:
+        row = self._session(session)
+        if type(name) is not str or name not in row.async_tools and name not in row.tools:
+            raise ValueError("async tool is not in this original host dispatch table")
+        return row.async_tools[name] if name in row.async_tools else row.tools[name]
+
+    def _async_lock(self, row):
+        loop = asyncio.get_running_loop()
+        with self._lock:
+            if row.async_loop is None:
+                row.async_loop, row.async_lock = loop, asyncio.Lock()
+            elif row.async_loop is not loop:
+                raise ValueError("original async SDK event loop required")
+            return row.async_lock
+
+    def _async_session_active(self, session):
+        return session in self._async_current.get()
 
     def prepare(
         self,
@@ -432,6 +517,19 @@ class SwarmSDK:
         *,
         request_id: str,
     ) -> FrameworkPreparation:
+        return self._prepare(session, tool, arguments, request_id=request_id)
+
+    async def prepare_async(self, session, tool, arguments, *, request_id):
+        row = self._session(session)
+        if row.broker is not None or row.coordinator is not None:
+            raise ValueError("async host callbacks cannot replace an owned executor")
+        self._async_lock(row)
+        task = asyncio.current_task()
+        if task is None:
+            raise ValueError("original asyncio task required")
+        return self._prepare(session, tool, arguments, request_id=request_id, owner_task=task)
+
+    def _prepare(self, session, tool, arguments, *, request_id, owner_task=None):
         row = self._session(session)
         bound = self._tools.get(tool) if type(tool) is FrameworkTool else None
         if (
@@ -440,8 +538,12 @@ class SwarmSDK:
             or type(request_id) is not str
             or not 1 <= len(request_id) <= 256
             or not isinstance(arguments, Mapping)
+            or owner_task is None
+            and bound.asynchronous
         ):
             raise ValueError("exact session/tool binding and bounded request ID required")
+        if owner_task is not None and (row.broker is not None or row.coordinator is not None):
+            raise ValueError("native async callback cannot replace an owned executor")
         captured = bounded_json(dict(arguments))
         with self._operation(row), self._lock, row.lock:
             if len(self._calls) >= self._limits[2] or len(row.requests) >= self._limits[2]:
@@ -501,7 +603,9 @@ class SwarmSDK:
                     reasons or ("framework.review_restricted",),
                 )
             handle = FrameworkCall(uuid4().hex)
-            self._calls[handle] = _Call(session, tool, captured, digest(captured), authorization)
+            self._calls[handle] = _Call(
+                session, tool, captured, digest(captured), authorization, owner_task=owner_task
+            )
             return FrameworkPreparation("execute", authorization.action_digest, (), handle)
 
     def forward(
@@ -510,7 +614,13 @@ class SwarmSDK:
         row = self._session(session)
         with self._operation(row), self._lock, row.lock:
             pending = self._calls.get(call) if type(call) is FrameworkCall else None
-            if pending is None or pending.session is not session or pending.state != "prepared":
+            if (
+                pending is None
+                or pending.session is not session
+                or pending.state != "prepared"
+                or self._tools[pending.tool].asynchronous
+                or pending.owner_task is not None
+            ):
                 raise ValueError("unknown, foreign or consumed framework authorization")
             pending.state = "checking"
         bound = self._tools[pending.tool]
@@ -606,6 +716,100 @@ class SwarmSDK:
                 pass
             raise
 
+    async def forward_async(self, session, call, *, arguments=None) -> FrameworkResult:
+        row = self._session(session)
+        if row.broker is not None or row.coordinator is not None:
+            raise ValueError("async host callbacks cannot replace an owned executor")
+        self._async_lock(row)
+        task = asyncio.current_task()
+        with self._operation(row), self._lock, row.lock:
+            pending = self._calls.get(call) if type(call) is FrameworkCall else None
+            if (
+                pending is None
+                or pending.session is not session
+                or pending.state != "prepared"
+                or pending.owner_task is not task
+                or task is None
+            ):
+                raise ValueError("original task and unconsumed async framework call required")
+            pending.state = "checking"
+        bound = self._tools[pending.tool]
+        try:
+            with self._operation(row), row.lock:
+                self._session(session)
+                bound.guard()
+                if callback_binding(bound.callback) != bound.callback_key or (
+                    arguments is not None
+                    and digest(bounded_json(arguments)) != pending.argument_digest
+                ):
+                    raise ValueError("exact framework callback or arguments changed")
+                pending.state = "forwarding"
+
+            async def execute(_action):
+                from ordin.swarm.gateway import GatewayOutcome
+
+                self._session(session)
+                bound.guard()
+                if callback_binding(bound.callback) != bound.callback_key:
+                    raise ValueError("framework callback changed before effect")
+                captured_arguments = bounded_json(pending.arguments)
+                if bound.asynchronous:
+                    value = await bound.callback(captured_arguments)
+                else:
+
+                    def run_sync():
+                        self._session(session)
+                        bound.guard()
+                        if callback_binding(bound.callback) != bound.callback_key:
+                            raise ValueError("framework callback changed before effect")
+                        return bound.callback(captured_arguments)
+
+                    value = await asyncio.to_thread(run_sync)
+                if inspect.iscoroutine(value):
+                    value.close()
+                    raise ValueError("async framework output requires bounded JSON data")
+                try:
+                    self._session(session)
+                    bound.guard()
+                    if callback_binding(bound.callback) != bound.callback_key:
+                        raise ValueError("async framework callback changed during forwarding")
+                except ValueError:
+                    return GatewayOutcome(None, "pending")
+                if (
+                    type(value) is GatewayOutcome
+                    and value.status == "pending"
+                    and value.value is None
+                ):
+                    return value
+                captured = bounded_json(value)
+                return tuple(captured) if type(value) is tuple else captured
+
+            result = await row.gateway.forward_async(
+                row.actor, pending.authorization.ticket, execute
+            )
+            with self._lock:
+                pending.state = result.status
+                report = FrameworkResult(
+                    result.status,
+                    pending.authorization.action_digest,
+                    digest(call.call_id),
+                    result.journal_gap,
+                    False,
+                    result.value,
+                )
+                self._results[report] = (call, digest(report.as_dict()))
+                pending.owner_task = None
+                return report
+        except BaseException:
+            with self._lock:
+                pending.state = "uncertain" if pending.state == "forwarding" else "failed"
+                pending.owner_task = None
+            try:
+                row.gateway.cancel(row.actor, pending.authorization.ticket)
+            except Exception:
+                pass
+            raise
+
     def invoke(self, session, tool, arguments, *, request_id):
         prepared = self.prepare(session, tool, arguments, request_id=request_id)
         if prepared.call is None:
@@ -615,6 +819,25 @@ class SwarmSDK:
             raise SwarmToolRefused("deny", ("framework.effect_" + result.status,))
         return result.value
 
+    async def invoke_async(self, session, tool, arguments, *, request_id):
+        if self._async_session_active(session):
+            raise ValueError("nested async calls on the same SDK session are not represented")
+        row = self._session(session)
+        if row.broker is not None or row.coordinator is not None:
+            raise ValueError("async host callbacks cannot replace an owned executor")
+        async with self._async_lock(row):
+            token = self._async_current.set(self._async_current.get() | {session})
+            try:
+                prepared = await self.prepare_async(session, tool, arguments, request_id=request_id)
+                if prepared.call is None:
+                    raise SwarmToolRefused(prepared.disposition, prepared.reason_codes)
+                result = await self.forward_async(session, prepared.call)
+                if result.status != "completed":
+                    raise SwarmToolRefused("deny", ("framework.effect_" + result.status,))
+                return result.value
+            finally:
+                self._async_current.reset(token)
+
     def cancel(self, session, call):
         row = self._session(session)
         with self._operation(row), self._lock, row.lock:
@@ -622,6 +845,7 @@ class SwarmSDK:
             if pending is None or pending.session is not session or pending.state != "prepared":
                 raise ValueError("original queued framework call required")
             pending.state = "canceled"
+            pending.owner_task = None
             if row.coordinator is not None:
                 service, scope, channel, _, lease, _ = row.coordinator
                 service.cancel(scope, channel, lease, pending.authorization.reference)
@@ -643,6 +867,11 @@ class SwarmSDK:
             if row.closed:
                 return
             row.closed = True
+            for pending in self._calls.values():
+                if pending.session is session:
+                    pending.owner_task = None
+                    if pending.state == "prepared":
+                        pending.state = "canceled"
         if row.attachment is not None:
             row.attachment[0].detach(row.attachment[1])
         elif row.coordinator is not None:
@@ -657,7 +886,7 @@ class SwarmSDK:
             {
                 "schema_version": "ordin.swarm_framework_session.v1",
                 "context_digest": digest(row.context.as_dict()),
-                "tool_names": sorted(row.tools),
+                "tool_names": sorted(set(row.tools) | set(row.async_tools)),
                 "state": "connected",
                 "mode": "coordinator"
                 if row.coordinator

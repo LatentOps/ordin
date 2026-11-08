@@ -12,6 +12,7 @@ from test_framework_conformance import host, offline, require_sdk
 
 def test_langgraph_real_normalization_replay_concurrency_callback_error_and_missing_wrapper(
     tmp_path,
+    async_loop,
 ):
     require_sdk("langgraph")
     from langgraph.graph import StateGraph, MessagesState, START, END
@@ -83,7 +84,7 @@ def test_langgraph_real_normalization_replay_concurrency_callback_error_and_miss
         {"messages": [AIMessage(content="", tool_calls=[{**call, "id": "missing"}])]}
     )["messages"][-1]
     assert missing.status == "error" and len(called) == 2
-    asynchronous = asyncio.run(
+    asynchronous = async_loop.run_until_complete(
         running.ainvoke({"messages": [AIMessage(content="", tool_calls=[{**call, "id": "async"}])]})
     )
     assert asynchronous["messages"][-1].status == "error" and len(called) == 2
