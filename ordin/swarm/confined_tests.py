@@ -55,7 +55,7 @@ def _wire(value: Any) -> bytes:
 
 
 def _capture(
-    root: Path, maximum_files: int, maximum_bytes: int
+    root: Path, maximum_files: int, maximum_bytes: int, *, ignored: frozenset[str] = IGNORED_PROJECT
 ) -> tuple[list[tuple], dict[str, bytes]]:
     if root.resolve(strict=True) != root or not root.is_dir():
         raise ValueError("canonical operator-selected snapshot root required")
@@ -84,7 +84,7 @@ def _capture(
         entries = []
         with os.scandir(directory) as iterator:
             for entry in iterator:
-                if entry.name in IGNORED_PROJECT:
+                if entry.name in ignored:
                     continue
                 count += 1
                 if count > maximum_files:
@@ -212,6 +212,135 @@ class PythonRuntimeCatalog:
             raise ValueError("invalid fixed runtime catalogue")
 
 
+def _catalog_manifest(root: Path) -> Path:
+    _private_directory(root.parent)
+    return root.parent / (root.name + ".pinned.json")
+
+
+def _catalog_settings(catalog: PythonRuntimeCatalog) -> dict:
+    return {
+        "interpreter": str(catalog.interpreter),
+        "interpreter_digest": catalog.interpreter_digest,
+        "stdlib_virtual": catalog.stdlib_virtual,
+        "pytest_version": catalog.pytest_version,
+    }
+
+
+def _verify_catalog(catalog: PythonRuntimeCatalog) -> None:
+    interpreter = Path(getattr(sys, "_base_executable", sys.executable)).resolve()
+    if catalog.interpreter != interpreter or _sha(interpreter) != catalog.interpreter_digest:
+        raise ValueError("fixed test interpreter differs from pinned installation")
+    records, _ = _capture(catalog.root, MAX_RUNTIME_FILES, MAX_RUNTIME_BYTES, ignored=frozenset())
+    if _tree_digest(records) != catalog.digest:
+        raise ValueError("fixed test runtime catalogue changed")
+    if any(
+        Path(row[0]).name in FORBIDDEN_RUNTIME
+        or Path(row[0]).suffix in {".pth", ".pyc", ".pem", ".key", ".p12"}
+        or (row[0] not in {".", "catalog.json"} and row[0].split("/")[0] not in {"stdlib", "site"})
+        or stat.S_IMODE(row[2][2]) != (0o555 if row[1] == "directory" else 0o444)
+        or row[2][3] != os.geteuid()
+        for row in records
+    ):
+        raise ValueError("runtime catalogue contains prohibited bootstrap data")
+    settings = json.loads(_source(catalog.root / "catalog.json", 65536))
+    if settings != _catalog_settings(catalog) or catalog.stdlib_virtual != str(
+        Path(sysconfig.get_path("stdlib")).resolve()
+    ):
+        raise ValueError("original runtime catalogue metadata differs")
+
+
+def load_python_runtime_catalog(root: Path, *, operator: object) -> PythonRuntimeCatalog:
+    """Reattach only after verifying the private installation pin and actual bytes.
+
+    The owner-only sibling manifest is host installation state, never agent JSON
+    or a permit. Missing/changed pins require explicit new installation; loading
+    never rebuilds a tree, rewrites a manifest, or restores an execution handle.
+    """
+    if type(operator) is not object or sys.platform != "linux":
+        raise ValueError("qualified Linux host operator required for runtime loading")
+    root = Path(root).absolute()
+    if root.resolve(strict=True) != root:
+        raise ValueError("canonical runtime catalogue root required")
+    manifest = _catalog_manifest(root)
+    descriptor = os.open(manifest, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+    try:
+        before = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(before.st_mode)
+            or before.st_nlink != 1
+            or before.st_uid != os.geteuid()
+            or stat.S_IMODE(before.st_mode) != 0o600
+            or before.st_size > 65536
+        ):
+            raise ValueError("private owner-only runtime installation pin required")
+        chunks = bytearray()
+        while len(chunks) <= 65536:
+            part = os.read(descriptor, min(65536, 65537 - len(chunks)))
+            if not part:
+                break
+            chunks.extend(part)
+        after = os.fstat(descriptor)
+
+        def identity(info):
+            return (
+                info.st_dev,
+                info.st_ino,
+                info.st_mode,
+                info.st_uid,
+                info.st_gid,
+                info.st_nlink,
+                info.st_size,
+                info.st_mtime_ns,
+                info.st_ctime_ns,
+            )
+
+        if len(chunks) > 65536 or identity(before) != identity(after):
+            raise ValueError("runtime installation pin changed or exceeded bound")
+    finally:
+        os.close(descriptor)
+
+    def unique(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("duplicate runtime installation pin field")
+            value[key] = item
+        return value
+
+    try:
+        payload = json.loads(chunks, object_pairs_hook=unique)
+    except (UnicodeError, RecursionError) as exc:
+        raise ValueError("invalid bounded runtime installation pin") from exc
+    if (
+        type(payload) is not dict
+        or set(payload)
+        != {
+            "schema_version",
+            "root",
+            "digest",
+            "interpreter",
+            "interpreter_digest",
+            "stdlib_virtual",
+            "pytest_version",
+        }
+        or payload["schema_version"] != "ordin.python_runtime_catalog.v1"
+        or payload["root"] != str(root)
+    ):
+        raise ValueError("runtime installation pin scope differs")
+    if any(type(value) is not str for value in payload.values()):
+        raise ValueError("runtime installation pin requires exact text fields")
+    catalog = PythonRuntimeCatalog(
+        root,
+        payload["digest"],
+        Path(payload["interpreter"]),
+        payload["interpreter_digest"],
+        payload["stdlib_virtual"],
+        payload["pytest_version"],
+    )
+    _verify_catalog(catalog)
+    return catalog
+
+
 def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRuntimeCatalog:
     """Explicit host setup: copy curated installed code, never execute .pth/plugins.
 
@@ -224,6 +353,9 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
         raise ValueError("qualified Linux host operator required for runtime staging")
     root = Path(root).absolute()
     _private_directory(root, empty=True)
+    manifest = _catalog_manifest(root)
+    if os.path.lexists(manifest):
+        raise ValueError("runtime installation pin already exists; refuse rebuild")
     stdlib = Path(sysconfig.get_path("stdlib")).resolve()
     selected: dict[str, bytes] = {}
     total = 0
@@ -299,10 +431,10 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
         with target.open("xb") as output:
             output.write(data)
         target.chmod(0o444)
-    records, _ = _capture(root, MAX_RUNTIME_FILES, MAX_RUNTIME_BYTES)
+    records, _ = _capture(root, MAX_RUNTIME_FILES, MAX_RUNTIME_BYTES, ignored=frozenset())
     for directory, _, _ in os.walk(root, topdown=False):
         Path(directory).chmod(0o555)
-    return PythonRuntimeCatalog(
+    catalog = PythonRuntimeCatalog(
         root,
         _tree_digest(records),
         interpreter,
@@ -310,6 +442,30 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
         str(stdlib),
         settings["pytest_version"],
     )
+    _verify_catalog(catalog)
+    descriptor = os.open(
+        manifest, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600
+    )
+    with os.fdopen(descriptor, "wb") as output:
+        os.fchmod(output.fileno(), 0o600)
+        output.write(
+            _wire(
+                {
+                    "schema_version": "ordin.python_runtime_catalog.v1",
+                    "root": str(root),
+                    "digest": catalog.digest,
+                    **_catalog_settings(catalog),
+                }
+            )
+        )
+        output.flush()
+        os.fsync(output.fileno())
+    descriptor = os.open(root.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    return load_python_runtime_catalog(root, operator=operator)
 
 
 @dataclass(frozen=True, slots=True)
@@ -490,29 +646,11 @@ class LinuxConfinedTestRunner:
         return digest(material)
 
     def _verify_runtime(self, route: TestRoute) -> None:
-        if route.runtime.interpreter != self._engine._interpreter or (
-            _sha(route.runtime.interpreter) != route.runtime.interpreter_digest
+        if (
+            load_python_runtime_catalog(route.runtime.root, operator=self._operator)
+            != route.runtime
         ):
-            raise ValueError("fixed test interpreter differs from original trusted bootstrap")
-        records, _ = _capture(route.runtime.root, MAX_RUNTIME_FILES, MAX_RUNTIME_BYTES)
-        if _tree_digest(records) != route.runtime.digest:
-            raise ValueError("fixed test runtime catalogue changed")
-        if any(
-            Path(row[0]).name in FORBIDDEN_RUNTIME
-            or Path(row[0]).suffix in {".pth", ".pem", ".key", ".p12"}
-            or (row[0] != "catalog.json" and row[0].split("/")[0] not in {"stdlib", "site"})
-            or row[2][2] & 0o222
-            for row in records
-        ):
-            raise ValueError("runtime catalogue contains prohibited bootstrap data")
-        settings = json.loads(_source(route.runtime.root / "catalog.json", 65536))
-        if settings != {
-            "interpreter": str(route.runtime.interpreter),
-            "interpreter_digest": route.runtime.interpreter_digest,
-            "stdlib_virtual": route.runtime.stdlib_virtual,
-            "pytest_version": route.runtime.pytest_version,
-        } or route.runtime.stdlib_virtual != str(Path(sysconfig.get_path("stdlib")).resolve()):
-            raise ValueError("original runtime catalogue metadata differs")
+            raise ValueError("original pinned runtime catalogue differs")
 
     def prepare_action(self, action: ActionEnvelope, *, operator: object) -> ActionEnvelope:
         self._check(operator)
