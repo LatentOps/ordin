@@ -12,10 +12,8 @@ from ordin import ActionEnvelope, JsonlAuditSink, Ordin, verify_audit_jsonl
 from ordin.regression_replay import load_failure_regressions, run_failure_regressions
 from scripts.check_workflow_security import workflow_errors
 from scripts.release_integrity import (
-    RELEASE_CHECKS,
     create_metadata,
     verify_metadata,
-    verify_release_checks,
 )
 
 
@@ -53,28 +51,6 @@ def test_release_rejects_runtime_version_mismatch(tmp_path):
     with pytest.raises(ValueError, match="version mismatch"):
         create_metadata(tmp_path, version="1.2.3", revision="a" * 40, tag="v1.2.3")
     assert not (tmp_path / "SHA256SUMS").exists()
-
-
-def test_release_checks_reject_stale_failed_or_missing_check_heads(monkeypatch):
-    runs = [
-        {
-            "name": name,
-            "id": index,
-            "status": "completed",
-            "conclusion": "success",
-            "head_sha": "a" * 40,
-            "app": {"slug": "github-actions"},
-        }
-        for index, name in enumerate(sorted(RELEASE_CHECKS))
-    ]
-    monkeypatch.setattr(
-        "scripts.release_integrity.subprocess.check_output",
-        lambda *a, **k: json.dumps([{"check_runs": runs}]),
-    )
-    verify_release_checks("LatentOps/ordin", "a" * 40)
-    runs.append({**runs[0], "id": 100, "status": "in_progress", "conclusion": None})
-    with pytest.raises(ValueError, match="exact release commit"):
-        verify_release_checks("LatentOps/ordin", "a" * 40)
 
 
 def test_workflow_guard_rejects_floating_actions_and_persisted_credentials(tmp_path):

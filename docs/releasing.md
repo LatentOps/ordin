@@ -66,6 +66,26 @@ Every `v*` tag:
 
 The workflow refuses to replace an already-existing GitHub Release under the same tag. Published release assets are treated as immutable. Wait for every maintained CI check on the exact merged `main` commit before creating the tag; publication validates those checks again and requires the tagged commit to belong to `main`.
 
+Publication requires all 42 maintained main jobs, bound to the latest exact-source
+execution of their own workflow and GitHub Actions check suite. The release,
+offline Assurance and native runtime workflows require completed manual runs on
+`main`; the tag's own build/attest/publish jobs cannot supply that qualification.
+Only the API-verified current tag attempt's three release jobs may still be in
+progress during their own integrity checks. Their completed failures, new failing
+or pending checks and commit statuses still block publication. Prior run attempts
+are superseded only by a verified later execution in the same workflow scope.
+Partial reruns retain untouched jobs: the latest verified result for each logical
+job replaces only that job's earlier attempts, not the entire run's job set.
+Run qualification is ordered by the start of the API-verified specific attempt,
+so a newer retry of an older run ID cannot hide a failure before jobs start.
+An older attempt's late cancellation does not supersede a later successful start;
+missing, mismatched or ambiguous execution chronology blocks publication.
+The PR-only Dependency review and Advanced Security CodeQL aggregate are not
+required main successes. Main requires its own CodeQL Python job and processed
+Python analysis for the exact source/ref/workflow, without an error or warning.
+Only the verified main Dependency review and manual-release Publish GitHub
+Release jobs may be skipped.
+
 `workflow_dispatch` can exercise build and validation without creating a release.
 
 PRs also run the release build and integrity checks with read permissions.
