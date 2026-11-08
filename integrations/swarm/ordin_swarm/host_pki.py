@@ -78,6 +78,7 @@ def initialize_private_profile(
     ):
         raise ValueError("OpenSSL executable ownership or permissions are unsupported")
     executable = str(binary)
+    check_private_directory(binary.parent, private_leaf=False)
     profile = ToolHostProfile.from_dict(document, configuration_root=directory)
     # A managed host never creates or changes permissions on an existing user workspace.
     if profile.workspace != directory / "workspace":
@@ -87,6 +88,7 @@ def initialize_private_profile(
     pki = directory / "pki"
     pki.mkdir(mode=0o700)
     (directory / "state").mkdir(mode=0o700)
+    (directory / "state" / "workers").mkdir(mode=0o700)
     profile.workspace.mkdir(mode=0o700)
     _openssl(
         executable,
@@ -120,6 +122,8 @@ def initialize_private_profile(
         *(actor.agent_id for actor in profile.actors),
     )
     for name in names:
+        principal = pki / name
+        principal.mkdir(mode=0o700)
         _openssl(
             executable,
             [
@@ -130,13 +134,13 @@ def initialize_private_profile(
                 "-sha256",
                 "-nodes",
                 "-keyout",
-                name + "-key.pem",
+                "key.pem",
                 "-out",
-                name + ".csr",
+                "request.csr",
                 "-subj",
                 "/CN=" + ("localhost" if name == "server" else name),
             ],
-            pki,
+            principal,
         )
         extension = (
             "basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\n"
@@ -145,32 +149,37 @@ def initialize_private_profile(
             + "\n"
             + ("subjectAltName=DNS:localhost\n" if name == "server" else "")
         )
-        _new_file(pki / (name + ".ext"), extension.encode("ascii"))
+        _new_file(principal / "extensions", extension.encode("ascii"))
         _openssl(
             executable,
             [
                 "x509",
                 "-req",
                 "-in",
-                name + ".csr",
+                "request.csr",
                 "-CA",
-                "ca.pem",
+                "../ca.pem",
                 "-CAkey",
-                "ca-key.pem",
+                "../ca-key.pem",
                 "-CAcreateserial",
                 "-out",
-                name + ".pem",
+                "cert.pem",
                 "-days",
                 "1",
                 "-sha256",
                 "-extfile",
-                name + ".ext",
+                "extensions",
             ],
-            pki,
+            principal,
         )
-        (pki / (name + ".csr")).unlink()
-        (pki / (name + ".ext")).unlink()
-    for item in pki.iterdir():
+        (principal / "request.csr").unlink()
+        (principal / "extensions").unlink()
+    for item in (
+        pki / "ca.pem",
+        pki / "ca-key.pem",
+        pki / "ca.srl",
+        *(pki / name / leaf for name in names for leaf in ("cert.pem", "key.pem")),
+    ):
         info = item.lstat()
         if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.geteuid():
             raise ValueError("private host PKI output changed")
@@ -205,13 +214,15 @@ class PrivateHostPKI:
                 *(actor.agent_id for actor in profile.actors),
             )
         )
+        for name in self.names:
+            check_private_directory(self.root / name)
         self._snapshots = {
             name: hashlib.sha256(
                 read_scoped_file(self.root, name, maximum=16384, private=True)
             ).hexdigest()
             for name in (
                 "ca.pem",
-                *(part for actor in self.names for part in (actor + ".pem", actor + "-key.pem")),
+                *(actor + "/" + leaf for actor in self.names for leaf in ("cert.pem", "key.pem")),
             )
         }
         self.server_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -219,7 +230,7 @@ class PrivateHostPKI:
         self.server_context.verify_mode = ssl.CERT_REQUIRED
         self.server_context.load_verify_locations(cafile=str(self.root / "ca.pem"))
         self.server_context.load_cert_chain(
-            str(self.root / "server.pem"), str(self.root / "server-key.pem")
+            str(self.root / "server" / "cert.pem"), str(self.root / "server" / "key.pem")
         )
         self.require_unchanged()
 
@@ -233,7 +244,7 @@ class PrivateHostPKI:
         if name not in self.names or name == "server":
             raise ValueError("unconfigured private TLS workload")
         self.require_unchanged()
-        raw = read_scoped_file(self.root, name + ".pem", maximum=16384, private=True)
+        raw = read_scoped_file(self.root, name + "/cert.pem", maximum=16384, private=True)
         return hashlib.sha256(ssl.PEM_cert_to_DER_cert(raw.decode("ascii"))).hexdigest()
 
     @contextmanager
@@ -252,7 +263,7 @@ class PrivateHostPKI:
             )
             client_context.minimum_version = ssl.TLSVersion.TLSv1_2
             client_context.load_cert_chain(
-                str(self.root / (name + ".pem")), str(self.root / (name + "-key.pem"))
+                str(self.root / name / "cert.pem"), str(self.root / name / "key.pem")
             )
             self.require_unchanged()
             with ThreadPoolExecutor(max_workers=1) as pool:

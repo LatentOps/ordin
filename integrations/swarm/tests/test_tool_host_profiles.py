@@ -10,7 +10,7 @@ import sys
 import pytest
 
 from ordin_swarm.host_pki import PrivateHostPKI, initialize_private_profile
-from ordin_swarm.host_profiles import ToolHostProfile, load_host_profile
+from ordin_swarm.host_profiles import ToolHostProfile, check_private_directory, load_host_profile
 from ordin_swarm.host_protocol import decode_frame, encode_frame
 
 
@@ -242,7 +242,34 @@ def test_private_pki_is_unique_mutual_tls_and_changes_do_not_reuse_identity(tmp_
         assert path.stat().st_mode & 0o077 == 0
     with pytest.raises(ValueError):
         pki.fingerprint("unconfigured")
-    key = target / "pki" / "reader-key.pem"
+    key = target / "pki" / "reader" / "key.pem"
     key.write_bytes(key.read_bytes() + b"\n")
     with pytest.raises(ValueError, match="changed"):
         pki.require_unchanged()
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="real isolated principal PKI layout")
+def test_principal_names_cannot_collide_with_another_principals_key_file(tmp_path):
+    target = tmp_path / "installation"
+    selected = document(target)
+    selected["actors"][0].update(agent_id="server-key", peers=["ca-key"])
+    selected["actors"][1].update(agent_id="ca-key")
+    initialize_private_profile(target, selected)
+    pki = PrivateHostPKI(load_host_profile(target))
+    assert b"PRIVATE KEY" in (target / "pki/server/key.pem").read_bytes()
+    assert b"PRIVATE KEY" in (target / "pki/ca-key.pem").read_bytes()
+    assert b"CERTIFICATE" in (target / "pki/server-key/cert.pem").read_bytes()
+    assert pki.fingerprint("server-key") != pki.fingerprint("ca-key")
+    with pki.pair("server-key") as (server, client):
+        assert server.version() and client.version()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX private ancestor ownership boundary")
+def test_private_leaf_does_not_hide_an_untrusted_writable_parent(tmp_path):
+    parent = tmp_path / "mutable-parent"
+    parent.mkdir(mode=0o700)
+    private = parent / "private"
+    private.mkdir(mode=0o700)
+    parent.chmod(0o777)
+    with pytest.raises(ValueError, match="mutable ancestor"):
+        check_private_directory(private)

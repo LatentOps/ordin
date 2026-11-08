@@ -23,6 +23,7 @@ from ordin.schema import validate_named_schema
 
 
 PROFILE_VERSION = "ordin.swarm_tool_host_profile.v1"
+HOST_TOOL_DATA_BYTES = 16384
 LABELS = frozenset({"public", "private_code", "secret", "pii", "unclassified"})
 _ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}\Z", re.ASCII)
 _RESERVED = frozenset({"broker", "operator", "authority-root", "server", "ca"})
@@ -419,7 +420,7 @@ def load_host_profile(directory: Path) -> ToolHostProfile:
     )
 
 
-def check_private_directory(path: Path) -> None:
+def check_private_directory(path: Path, *, private_leaf: bool = True) -> None:
     """Validate actual ownership/links before live host startup."""
     if not path.is_absolute():
         raise ValueError("private host directory must be absolute")
@@ -431,8 +432,18 @@ def check_private_directory(path: Path) -> None:
             raise ValueError("host directory is linked or is not a directory")
         if getattr(info, "st_file_attributes", 0) & 0x400:
             raise ValueError("host directory reparse point is unsupported")
+        if os.name == "posix" and (
+            info.st_uid not in {0, os.geteuid()}
+            or info.st_mode & 0o022
+            and not (info.st_uid == 0 and info.st_mode & stat.S_ISVTX)
+        ):
+            raise ValueError("host directory has an untrusted mutable ancestor")
     info = path.lstat()
-    if os.name == "posix" and (info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077):
+    if (
+        private_leaf
+        and os.name == "posix"
+        and (info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077)
+    ):
         raise ValueError("host directory requires private owner permissions")
 
 

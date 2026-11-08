@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 from contextlib import ExitStack
+from dataclasses import dataclass, field
 import hashlib
 import json
+import os
+import tempfile
 from pathlib import Path
 import time
 from urllib.parse import urlsplit
 from uuid import uuid4
 
 from ordin import AgentGate, Ordin, ToolResourceBinding, ToolSemanticRule, ToolSemanticsRegistry
+from ordin.action import ActionEnvelope
 from ordin.assurance import (
     AssuranceGate,
     DelegationAuthority,
@@ -47,10 +51,22 @@ from ordin.swarm.operator_auth import SwarmOperatorDirectory
 from ordin.swarm.workload_auth import WorkloadAuthenticator
 
 from .host_pki import PrivateHostPKI, _new_file
-from .host_profiles import ToolHostProfile, check_private_directory
+from .host_profiles import HOST_TOOL_DATA_BYTES, ToolHostProfile, check_private_directory
 
 
 RUNTIME = "ordin-owned"
+
+
+@dataclass(frozen=True, slots=True)
+class HostDispatch:
+    status: str
+    reason_codes: tuple[str, ...]
+    forwarded: bool | None
+    physical_enforcement: bool
+    result: object = field(default=None, repr=False)
+    approval: object = field(default=None, repr=False)
+    action: ActionEnvelope | None = field(default=None, repr=False)
+    lease_id: str | None = field(default=None, repr=False)
 
 
 def host_core() -> Ordin:
@@ -109,7 +125,7 @@ def make_backend(profile: ToolHostProfile, *, operator: object, initialize: bool
                 selected.route_id,
                 selected.url,
                 selected.addresses,
-                max_response_bytes=selected.response_limit_bytes,
+                max_response_bytes=min(selected.response_limit_bytes, HOST_TOOL_DATA_BYTES),
                 ca_file=ca_file,
                 credential_binding=(
                     None
@@ -125,13 +141,24 @@ def make_backend(profile: ToolHostProfile, *, operator: object, initialize: bool
                 allow_http=selected.allow_http,
             )
         )
+    installations = profile.configuration_root / "state" / "workers"
+    check_private_directory(installations)
+    with os.scandir(installations) as entries:
+        for number, _ in enumerate(entries):
+            if number >= 63:
+                raise ValueError(
+                    "managed worker installation history requires operator maintenance"
+                )
+    installation = Path(tempfile.mkdtemp(prefix="worker-", dir=installations))
     return LinuxOwnedToolsBackend(
         profile.workspace,
         tuple(file.name for file in profile.files),
-        profile.configuration_root / "state" / "executor",
+        installation,
         operator=operator,
         tool_runtime=RUNTIME,
         http_routes=tuple(routes),
+        max_payload_bytes=HOST_TOOL_DATA_BYTES,
+        max_write_bytes=HOST_TOOL_DATA_BYTES,
         initialize=initialize,
     )
 
@@ -315,12 +342,12 @@ class HostAuthority:
             self.directory = SwarmOperatorDirectory(
                 self.auth,
                 operator=operator,
-                roles=("approve", "deny", "recover", "policy_admin"),
+                roles=("observe", "approve", "deny", "recover", "policy_admin"),
             )
             self.directory.enroll(
                 principal_id="managed-host-operator",
                 certificate_digest=self.pki.fingerprint("operator"),
-                roles=("approve", "deny", "recover", "policy_admin"),
+                roles=("observe", "approve", "deny", "recover", "policy_admin"),
                 task_ids=(profile.task_id,),
                 operator=operator,
             )
@@ -444,6 +471,7 @@ class HostAuthority:
                 factory_proofs={"managed-host": proof},
             )
             self.governance.initialize(operator=operator, recover=takeover)
+            self.factory_proof = proof
         except BaseException:
             self.stack.close()
             raise
@@ -456,6 +484,126 @@ class HostAuthority:
             control=self.control,
             operator=self.operator,
             expected_owner_fence=self.owner["owner_fence"],
+        )
+
+    def maintenance(self) -> dict:
+        """Renew online ownership, never a caller's approval or delegated lifetime."""
+        self.profile.require_unchanged()
+        if self.clock() >= self.expires_at:
+            raise ValueError("managed task lifetime ended; fresh operator startup required")
+        self.owner = self.coordinator.heartbeat(self.scope, control=self.control)
+        self.refresh_broker_channel()
+        channel = self.auth.authenticate(self.root_socket)
+        lease = self.coordinator.admit(self.scope, channel)
+        if lease.reference is None:
+            raise ValueError("managed parent lease is unavailable")
+        self.coordinator.bind_grant(self.scope, channel, lease.reference, self.root_grant)
+        return self.owner
+
+    def refresh_factory(self) -> None:
+        policy_digest = self.owner["policy_digest"]
+        current = None
+        if self.broker.verify_activation(self.factory_proof, policy_digest=policy_digest):
+            current = self.broker.describe_activation(self.factory_proof)
+        if current is None or current["expires_at"] - self.clock() < 5:
+            proof = self.broker.activation_proof(policy_digest, operator=self.operator)
+            self.governance.refresh_factory_proof(
+                "managed-host",
+                proof,
+                operator=self.operator,
+                expected_owner_fence=self.owner["owner_fence"],
+            )
+            self.factory_proof = proof
+
+    def dispatch(
+        self, actor: str, channel, action: ActionEnvelope, *, request_id: str
+    ) -> HostDispatch:
+        """Use original coordinator/native/broker paths; no callback substitution."""
+        self.maintenance()
+        self.refresh_factory()
+        self.profile.actor(actor)
+        enrollment = self.auth.require(channel, role="workload")
+        if enrollment.enrollment_id != self.enrollments[actor]:
+            raise ValueError("managed transport actor changed")
+        lease = self.coordinator.admit(self.scope, channel)
+        if lease.reference is None:
+            return HostDispatch("denied", ("host.lease_unavailable",), False, False)
+        reference = self.grants[actor]
+        self.coordinator.bind_grant(self.scope, channel, lease.reference, reference)
+        evaluation = self.coordinator.evaluate(
+            self.scope,
+            channel,
+            lease.reference,
+            reference,
+            action,
+            idempotency_key=request_id,
+        )
+        if evaluation.status != "execute":
+            baseline = self.assurance.baseline_gate.evaluate_action(action)
+            if baseline.requires_approval:
+                try:
+                    approval = self.governance.request(
+                        channel,
+                        lease.reference,
+                        reference,
+                        action,
+                        idempotency_key=request_id,
+                    )
+                except (ValueError, OSError, RuntimeError):
+                    return HostDispatch(
+                        "denied",
+                        ("host.independent_requirement_or_approval_unavailable",),
+                        False,
+                        False,
+                    )
+                return HostDispatch(
+                    "requires_approval",
+                    ("host.exact_operator_approval_required",),
+                    False,
+                    False,
+                    approval=approval,
+                    action=action,
+                    lease_id=lease.reference,
+                )
+            return HostDispatch("denied", ("host.current_admission_refused",), False, False)
+        reserved = self.coordinator.reserve(
+            self.scope,
+            channel,
+            lease.reference,
+            evaluation.reference,
+            action,
+            idempotency_key=request_id,
+        )
+        if reserved.status != "reserved" or reserved.reference is None:
+            return HostDispatch("denied", ("host.reservation_refused",), False, False)
+        # These are original protected objects, not imported record JSON. The SDK
+        # uses the same custody boundary to recover the broker's verified result.
+        original = self.coordinator._prepared.get(reserved.reference)
+        if original is None or original.broker is not self.broker:
+            raise ValueError("managed original broker reservation unavailable")
+        dispatched = self.coordinator.guarded_dispatch(
+            self.scope, self.auth.authenticate(self.broker_socket), reserved.reference
+        )
+        pending = self.broker._pending.get(original.authorization)
+        native = pending.result if pending is not None else None
+        if native is None or not self.broker.verify_result(native, original.authorization):
+            return HostDispatch("unknown", ("host.original_outcome_unavailable",), None, False)
+        if dispatched.status != "host_completed" or native.status != "completed":
+            return HostDispatch(
+                "denied" if native.status == "denied" else "unknown",
+                (native.reason_code,),
+                native.forwarded,
+                native.physical_enforcement,
+                result=native,
+                action=action,
+            )
+        return HostDispatch(
+            "completed",
+            (),
+            native.forwarded,
+            native.physical_enforcement,
+            result=native,
+            action=action,
         )
 
     def close(self) -> None:
@@ -475,10 +623,17 @@ def initialize_host_authority_files(profile: ToolHostProfile, *, operator: objec
         profile.configuration_root / "assurance.json",
         json.dumps(content.as_dict(), sort_keys=True).encode("utf-8"),
     )
+    _new_file(profile.configuration_root / "state" / "host.lock", b"")
     backend = make_backend(profile, operator=operator, initialize=True)
     backend.close()
     SQLiteBudgetStore(profile.configuration_root / "state" / "budget.sqlite", create=True)
     SQLiteCoordinatorStore(profile.configuration_root / "state" / "coordinator.sqlite", create=True)
 
 
-__all__ = ["HostAuthority", "RUNTIME", "host_core", "initialize_host_authority_files"]
+__all__ = [
+    "HostAuthority",
+    "HostDispatch",
+    "RUNTIME",
+    "host_core",
+    "initialize_host_authority_files",
+]

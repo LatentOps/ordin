@@ -33,6 +33,19 @@ class HostResource:
     context: object = field(repr=False)
 
 
+@dataclass(frozen=True, slots=True, eq=False)
+class HostCustodyReservation:
+    reservation_id: str
+
+
+@dataclass
+class _Custody:
+    actor: str
+    context: object
+    maximum: int
+    state: str = "reserved"
+
+
 class HostLineage:
     """Host-retained resources; serialized labels and references issue no rights.
 
@@ -87,6 +100,7 @@ class HostLineage:
         self._inboxes = {actor.agent_id: [] for actor in self.profile.actors}
         self._delivered = {}
         self._resources: dict[str, HostResource] = {}
+        self._reservations: dict[HostCustodyReservation, _Custody] = {}
         self._bytes = 0
         self._pending_bytes = 0
         self._pending_slots = 0
@@ -135,6 +149,43 @@ class HostLineage:
             ):
                 raise ValueError("managed byte custody capacity reached")
 
+    def reserve(self, actor: str, maximum: int) -> HostCustodyReservation:
+        with self._lock:
+            self.events._source(self.sources[actor])
+            self.ensure_capacity(maximum)
+            if len(self._reservations) >= self._maximum_resources:
+                raise ValueError("managed custody reservation history is full")
+            handle = HostCustodyReservation(uuid4().hex)
+            self._reservations[handle] = _Custody(actor, self.authority.contexts[actor], maximum)
+            self._pending_bytes += maximum
+            self._pending_slots += 1
+            return handle
+
+    def _reservation(self, handle: HostCustodyReservation) -> _Custody:
+        value = self._reservations.get(handle) if type(handle) is HostCustodyReservation else None
+        if value is None:
+            raise ValueError("original managed custody reservation required")
+        return value
+
+    def cancel(self, handle: HostCustodyReservation) -> bool:
+        """Release only an original reservation known not to have forwarded."""
+        with self._lock:
+            value = self._reservation(handle)
+            if value.state in {"canceled", "consumed"}:
+                return False
+            if value.state != "reserved":
+                raise ValueError("uncertain custody cannot be automatically refunded")
+            value.state = "canceled"
+            self._pending_bytes -= value.maximum
+            self._pending_slots -= 1
+            return True
+
+    def uncertain(self, handle: HostCustodyReservation) -> None:
+        with self._lock:
+            value = self._reservation(handle)
+            if value.state == "reserved":
+                value.state = "uncertain"
+
     def labels_for_file(self, name: str) -> tuple[str, ...]:
         # Writable data never becomes public after restart or a changed body.
         if any(name in actor.write_files for actor in self.profile.actors):
@@ -142,10 +193,31 @@ class HostLineage:
         return (next(file.label for file in self.profile.files if file.name == name),)
 
     def capture(
-        self, actor: str, content: str, labels: tuple[str, ...], *, kind="artifact_read"
+        self,
+        actor: str,
+        content: str,
+        labels: tuple[str, ...],
+        *,
+        kind="artifact_read",
+        origin_kind: str = "repository_file",
+        reservation: HostCustodyReservation | None = None,
     ) -> HostResource:
         with self._lock:
-            count = self._capacity(content)
+            if reservation is None:
+                count = self._capacity(content)
+                reserved = None
+            else:
+                reserved = self._reservation(reservation)
+                if (
+                    type(content) is not str
+                    or reserved.state != "reserved"
+                    or reserved.actor != actor
+                    or reserved.context is not self.authority.contexts[actor]
+                ):
+                    raise ValueError("managed output reservation is foreign or no longer current")
+                count = len(content.encode("utf-8"))
+                if count > reserved.maximum:
+                    raise ValueError("managed output exceeds its original reservation")
             source = self.sources[actor]
             context = self.authority.contexts[actor]
             host = self.authority.sources[actor]
@@ -168,7 +240,7 @@ class HostLineage:
             origin = register_instruction_origin(
                 host,
                 origin_id=event_id,
-                kind="repository_file" if kind.startswith("artifact_") else "mcp_result",
+                kind=origin_kind,
                 classification=(
                     "unknown"
                     if not sensitivity.known
@@ -186,6 +258,10 @@ class HostLineage:
             )
             self._resources[result.reference] = result
             self._bytes += count
+            if reserved is not None:
+                reserved.state = "consumed"
+                self._pending_bytes -= reserved.maximum
+                self._pending_slots -= 1
             return result
 
     def require(self, actor: str, reference: str) -> HostResource:
@@ -211,6 +287,8 @@ class HostLineage:
             self._inboxes[actor].append(message)
 
     def handoff(self, actor: str, reference: str, recipient: str) -> dict:
+        if type(recipient) is not str:
+            raise ValueError("managed peer identity must be exact text")
         with self._lock:
             value = self.require(actor, reference)
             key = (actor, recipient)
@@ -289,16 +367,23 @@ class HostLineage:
 
     def status(self, actor: str) -> dict:
         with self._lock:
+            custody = sum(
+                value.state in {"reserved", "uncertain"} for value in self._reservations.values()
+            )
             return {
                 "retained_resources": sum(
                     value.owner == actor for value in self._resources.values()
                 ),
                 "inbox_messages": len(self._inboxes[actor]),
                 "retained_bytes_total": self._bytes + self._pending_bytes,
-                "uncertain_handoff_holds": self._pending_slots - len(self._delivered),
+                "uncertain_handoff_holds": self._pending_slots - len(self._delivered) - custody,
+                "pending_custody_reservations": custody,
+                "uncertain_custody_holds": sum(
+                    value.state == "uncertain" for value in self._reservations.values()
+                ),
                 "capacity_bytes": self._maximum_bytes,
                 "complete_taint_tracking": False,
             }
 
 
-__all__ = ["HostLineage", "HostResource", "SENSITIVE_OUTPUT"]
+__all__ = ["HostCustodyReservation", "HostLineage", "HostResource", "SENSITIVE_OUTPUT"]

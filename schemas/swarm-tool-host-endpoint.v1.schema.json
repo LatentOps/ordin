@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-tool-host-endpoint.v1.schema.json",
+  "title": "swarm-tool-host-endpoint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "host",
+    "port",
+    "profile_digest",
+    "incarnation",
+    "online_evidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_tool_host_endpoint.v1"
+    },
+    "host": {
+      "const": "127.0.0.1"
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "profile_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "incarnation": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "online_evidence": {
+      "const": false
+    }
+  }
+}

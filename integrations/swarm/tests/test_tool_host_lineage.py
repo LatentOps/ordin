@@ -1,5 +1,6 @@
 """Original resources, real message gateways and bounded retained byte custody."""
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
@@ -10,7 +11,7 @@ from ordin_swarm.host_lineage import HostLineage, SENSITIVE_OUTPUT
 from ordin_swarm.host_profiles import ToolHostProfile
 
 
-def host(tmp_path, *, capacity=1048576):
+def host(tmp_path, *, capacity=1048576, requests=128):
     clock = lambda: 100
     operator = object()
     actors = ("reader", "writer")
@@ -38,7 +39,7 @@ def host(tmp_path, *, capacity=1048576):
             ],
             "http_routes": [],
             "limits": {
-                "requests": 128,
+                "requests": requests,
                 "output_bytes": capacity,
                 "concurrency": 2,
                 "lifetime_seconds": 600,
@@ -142,3 +143,48 @@ def test_original_resource_does_not_survive_policy_generation_fence(tmp_path):
         lineage.require("reader", original.reference)
     with pytest.raises(ValueError):
         lineage.handoff("reader", original.reference, "writer")
+
+
+def test_two_actor_native_output_admissions_cannot_borrow_one_remaining_slot(tmp_path):
+    lineage, _ = host(tmp_path, capacity=128, requests=1)
+    original = lineage.reserve("reader", 64)
+    with pytest.raises(ValueError, match="capacity"):
+        lineage.reserve("writer", 64)
+    value = lineage.capture("reader", "x" * 64, ("private_code",), reservation=original)
+    assert lineage.require("reader", value.reference) is value
+    assert lineage.status("reader")["retained_bytes_total"] == 64
+    with pytest.raises(ValueError):
+        lineage.capture("reader", "x", ("public",), reservation=original)
+    with pytest.raises(ValueError):
+        lineage.capture("reader", "x", ("public",), reservation=replace(original))
+
+
+def test_waiting_write_reservation_survives_other_actor_capacity_consumption(tmp_path):
+    lineage, _ = host(tmp_path, capacity=128, requests=2)
+    lineage.capture("reader", "input" * 12, ("private_code",))
+    waiting = lineage.reserve("writer", 64)
+    with pytest.raises(ValueError, match="capacity"):
+        lineage.capture("reader", "another", ("public",))
+    output = lineage.capture(
+        "writer",
+        "report" * 10,
+        SENSITIVE_OUTPUT,
+        kind="artifact_write",
+        reservation=waiting,
+    )
+    assert output.labels == SENSITIVE_OUTPUT
+    assert lineage.status("writer")["pending_custody_reservations"] == 0
+    assert lineage.status("writer")["retained_bytes_total"] == 120
+
+
+def test_uncertain_output_reservation_cannot_be_refunded_or_replaced_by_late_success(tmp_path):
+    lineage, _ = host(tmp_path, capacity=64)
+    pending = lineage.reserve("reader", 64)
+    lineage.uncertain(pending)
+    with pytest.raises(ValueError, match="refunded"):
+        lineage.cancel(pending)
+    with pytest.raises(ValueError):
+        lineage.capture("reader", "late", ("public",), reservation=pending)
+    with pytest.raises(ValueError, match="capacity"):
+        lineage.reserve("writer", 1)
+    assert lineage.status("reader")["uncertain_custody_holds"] == 1

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-tool-host-result.v1.schema.json",
+  "title": "swarm-tool-host-result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "reason_codes",
+    "forwarded",
+    "physical_enforcement",
+    "data",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_tool_host_result.v1"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "denied",
+        "requires_approval",
+        "unknown",
+        "unsupported"
+      ]
+    },
+    "reason_codes": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "string",
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9_.-]+$"
+      }
+    },
+    "forwarded": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "physical_enforcement": {
+      "type": "boolean"
+    },
+    "data": {
+      "type": "object",
+      "maxProperties": 32,
+      "description": "Bounded application data produced by the host. It is not an approval, runtime witness, or execution permit.",
+      "additionalProperties": true
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

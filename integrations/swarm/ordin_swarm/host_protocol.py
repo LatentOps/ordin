@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from threading import Lock
 from typing import Any, BinaryIO
 
 from .sdk import bounded_json
@@ -10,7 +11,7 @@ from .sdk import bounded_json
 
 SUPPORTED_PROTOCOLS = ("2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25")
 MAX_FRAME_BYTES = 131072
-MAX_REQUESTS = 100000
+MAX_REQUESTS = 4096
 
 
 def _unique(pairs):
@@ -93,14 +94,18 @@ class MCPHostSession:
         self._initialized = False
         self._ready = False
         self._closed = False
+        self._close_lock = Lock()
         self._protocol: str | None = None
         self._ids: set[tuple[type, Any]] = set()
         self._requests = 0
+        self._maximum_requests = min(MAX_REQUESTS, max(64, host.profile.limits.requests * 4))
 
     def close(self) -> None:
-        if not self._closed:
+        with self._close_lock:
+            if self._closed:
+                return
             self._closed = True
-            self._host.close_client(self._client)
+        self._host.close_client(self._client)
 
     def handle(self, value: dict[str, Any]) -> dict[str, Any] | None:
         if self._closed:
@@ -122,8 +127,8 @@ class MCPHostSession:
         key = (type(request_id), request_id)
         if key in self._ids:
             return _error(request_id, -32600, "host.request_replayed")
-        if self._requests >= MAX_REQUESTS:
-            return _error(request_id, -32000, "host.request_capacity")
+        if self._requests >= self._maximum_requests:
+            raise ValueError("host.request_capacity")
         self._ids.add(key)
         self._requests += 1
         if method == "initialize":
@@ -181,10 +186,13 @@ class MCPHostSession:
                 )
             except (ValueError, OSError, RuntimeError):
                 output = {
+                    "schema_version": "ordin.swarm_tool_host_result.v1",
                     "status": "unknown",
                     "reason_codes": ["host.call_unavailable"],
                     "forwarded": None,
-                    "uncertain_effects": True,
+                    "physical_enforcement": False,
+                    "data": {"uncertain_effects": True},
+                    "execution_authority": False,
                 }
             # Only the authorized result body is returned. Diagnostics omit payloads.
             result = {
@@ -200,6 +208,14 @@ class MCPHostSession:
             if params:
                 return _error(request_id, -32602, "host.status_invalid")
             result = self._host.status(self._client)
+        elif method in {
+            "ordin/operator/queue",
+            "ordin/operator/show",
+            "ordin/operator/resolve",
+            "ordin/operator/fulfill",
+            "ordin/operator/shutdown",
+        }:
+            result = self._host.operator_call(self._client, method.rsplit("/", 1)[-1], params)
         else:
             return _error(request_id, -32601, "host.method_unavailable")
         response = {"jsonrpc": "2.0", "id": request_id, "result": result}
