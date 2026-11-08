@@ -144,6 +144,7 @@ class MCPHostSession:
         self._host.reserve_protocol_id(self._client, key)
         self._ids.add(key)
         self._requests += 1
+        result: Any
         if "_meta" in params and type(params["_meta"]) is not dict:
             return _error(request_id, -32602, "host.metadata_invalid")
         params = {key: item for key, item in params.items() if key != "_meta"}

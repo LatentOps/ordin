@@ -138,7 +138,12 @@ def test_live_shared_host_init_handoff_exact_human_write_stop_and_epoch_restart(
                 )["status"]
                 == "denied"
             )
-            _rpc(human, "ordin/operator/shutdown", {})
+            try:
+                _rpc(human, "ordin/operator/shutdown", {})
+            except (ValueError, OSError):
+                # A close can race its final TLS acknowledgement. Observe the
+                # original service state; never retry a possibly applied stop.
+                assert host.shutdown_requested.is_set()
         worker.join(timeout=8)
         assert not worker.is_alive()
     finally:

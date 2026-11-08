@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 import hashlib
 from threading import RLock
 from uuid import uuid4
+from typing import Any
 
 from ordin.assurance import register_instruction_origin
 from ordin.swarm import (
@@ -18,6 +19,7 @@ from ordin.swarm import (
     SwarmSourceFlow,
 )
 from ordin.swarm.messages import DESTINATION_PATH
+from ordin.swarm.source_flow import LineageHandle
 
 
 SENSITIVE_OUTPUT = ("pii", "private_code", "secret")
@@ -29,7 +31,7 @@ class HostResource:
     owner: str
     content: str = field(repr=False)
     labels: tuple[str, ...]
-    lineage: object = field(repr=False)
+    lineage: LineageHandle = field(repr=False)
     context: object = field(repr=False)
 
 
@@ -97,7 +99,7 @@ class HostLineage:
             )
         self.messages = SwarmMessageGateway(self.flow, clock=authority.clock)
         self._lock = RLock()
-        self._inboxes = {actor.agent_id: [] for actor in self.profile.actors}
+        self._inboxes: dict[str, list[Any]] = {actor.agent_id: [] for actor in self.profile.actors}
         self._delivered = {}
         self._resources: dict[str, HostResource] = {}
         self._reservations: dict[HostCustodyReservation, _Custody] = {}
@@ -106,13 +108,20 @@ class HostLineage:
         self._pending_slots = 0
         self._maximum_resources = min(4096, self.profile.limits.requests)
         self._maximum_bytes = self.profile.limits.output_bytes
+
+        def receiver(name):
+            def enqueue(message):
+                self._enqueue(name, message)
+
+            return enqueue
+
         self._peers = {
             actor.agent_id: self.messages.register(
                 authority.contexts[actor.agent_id],
                 self.sources[actor.agent_id],
                 authority.registry_channels[actor.agent_id],
                 authority.adapters[actor.agent_id],
-                lambda message, name=actor.agent_id: self._enqueue(name, message),
+                receiver(actor.agent_id),
             )
             for actor in self.profile.actors
         }

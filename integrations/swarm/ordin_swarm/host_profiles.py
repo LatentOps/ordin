@@ -315,10 +315,10 @@ class ToolHostProfile:
         ):
             raise ValueError("invalid host profile file digest")
         return cls(
-            *(
-                _identifier(row[key], key)
-                for key in ("profile_id", "tenant_id", "swarm_id", "task_id")
-            ),
+            _identifier(row["profile_id"], "profile_id"),
+            _identifier(row["tenant_id"], "tenant_id"),
+            _identifier(row["swarm_id"], "swarm_id"),
+            _identifier(row["task_id"], "task_id"),
             workspace,
             files,
             actors,

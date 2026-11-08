@@ -42,7 +42,8 @@ from ordin.swarm import CoverageManifest, InMemoryAgentRegistry, SwarmGate
 from ordin.swarm.budget_store import SQLiteBudgetStore
 from ordin.swarm.budgets import BudgetLedger, BudgetLimit, BudgetPolicy
 from ordin.swarm.broker import SwarmExecutionBroker
-from ordin.swarm.approval import SwarmApprovalPolicy
+from ordin.swarm.approval import SwarmApprovalPolicy, SwarmApprovalRequest
+from ordin.swarm.authorization import BrokerResult
 from ordin.swarm.approval_service import SwarmApprovalBootstrap, SwarmApprovalService
 from ordin.swarm.coordinator import SwarmCoordinator
 from ordin.swarm.coordinator_store import CoordinatorClock, SQLiteCoordinatorStore
@@ -63,8 +64,8 @@ class HostDispatch:
     reason_codes: tuple[str, ...]
     forwarded: bool | None
     physical_enforcement: bool
-    result: object = field(default=None, repr=False)
-    approval: object = field(default=None, repr=False)
+    result: BrokerResult | None = field(default=None, repr=False)
+    approval: SwarmApprovalRequest | None = field(default=None, repr=False)
     action: ActionEnvelope | None = field(default=None, repr=False)
     lease_id: str | None = field(default=None, repr=False)
 
@@ -106,6 +107,8 @@ def make_backend(profile: ToolHostProfile, *, operator: object, initialize: bool
         from ordin.swarm.owned_tools import OwnedHTTPRoute
 
         parsed = urlsplit(selected.url)
+        if parsed.hostname is None:
+            raise ValueError("managed route hostname unavailable")
         credential = (
             None
             if selected.credential_file is None
@@ -570,6 +573,8 @@ class HostAuthority:
                     lease_id=lease.reference,
                 )
             return HostDispatch("denied", ("host.current_admission_refused",), False, False)
+        if evaluation.reference is None:
+            return HostDispatch("denied", ("host.evaluation_unavailable",), False, False)
         reserved = self.coordinator.reserve(
             self.scope,
             channel,

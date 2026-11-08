@@ -13,6 +13,7 @@ import ssl
 import stat
 import subprocess
 import sys
+from typing import Any
 
 from ordin.assurance._files import read_scoped_file
 
@@ -32,6 +33,7 @@ def _new_file(path: Path, content: bytes) -> None:
 
 
 def _openssl(executable: str, arguments: list[str], directory: Path) -> None:
+    platform_options: dict[str, Any] = {"umask": 0o077} if os.name == "posix" else {}
     subprocess.run(
         [executable, *arguments],
         cwd=directory,
@@ -45,7 +47,7 @@ def _openssl(executable: str, arguments: list[str], directory: Path) -> None:
             for key, value in os.environ.items()
             if key in {"PATH", "SystemRoot", "WINDIR", "TMP", "TEMP", "TMPDIR"}
         },
-        **({"umask": 0o077} if os.name == "posix" else {}),
+        **platform_options,
     )
 
 

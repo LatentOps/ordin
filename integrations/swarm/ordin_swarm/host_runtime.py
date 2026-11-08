@@ -54,6 +54,12 @@ class _Approval:
     result: dict | None = field(default=None, repr=False)
     fulfilling: bool = False
 
+    @property
+    def request(self):
+        if self.effect.approval is None:
+            raise ValueError("original managed approval request unavailable")
+        return self.effect.approval
+
 
 def _result(status, reason_codes=(), *, forwarded=False, physical=False, data=None):
     value = {
@@ -176,6 +182,7 @@ class ManagedToolHost:
             if self._closed or row is None or row.socket.fileno() < 0:
                 raise ValueError("original managed connection is closed")
         self.profile.require_unchanged()
+        current: Any
         if row.actor is None:
             current = self._authority.directory.authenticate(row.socket)
             self._authority.directory.require(
@@ -363,6 +370,7 @@ class ManagedToolHost:
                 "content_digest": hashlib.sha256(text.encode("utf-8")).hexdigest(),
             }
         else:
+            labels: tuple[str, ...]
             if tool == "fetch_url":
                 route = next(
                     r for r in self.profile.http_routes if r.route_id == arguments["route_id"]
@@ -478,7 +486,7 @@ class ManagedToolHost:
                     if (
                         pending.result is None
                         and not pending.fulfilling
-                        and self._authority.clock() >= pending.effect.approval.expires_at
+                        and self._authority.clock() >= pending.request.expires_at
                     ):
                         pending.result = _result("denied", ("host.approval_expired",))
                         if pending.custody is not None:
@@ -555,6 +563,8 @@ class ManagedToolHost:
                 row.actor, row.channel, action, request_id="tool-" + key
             )
             if effect.status == "requires_approval":
+                if effect.approval is None:
+                    raise ValueError("original managed approval request unavailable")
                 reference = effect.approval.request_id
                 with self._lock:
                     if len(self._approvals) >= min(1024, self.profile.limits.requests):
@@ -658,7 +668,7 @@ class ManagedToolHost:
         if pending is None:
             return _result("denied", ("host.original_request_unavailable",))
         current = service.get_request(human, reference)
-        binding = pending.effect.approval.binding.digest
+        binding = pending.request.binding.digest
         if operation == "show":
             content = pending.arguments.get("content")
             return _result(
