@@ -117,11 +117,23 @@ def test_governance_installation_keeps_known_ordinary_allow_without_human_votes(
         reservation = coordinator.reserve(
             scope, channel, lease, evaluated.reference, action, idempotency_key="allow-reserve"
         )
+        with pytest.raises(ValueError):
+            coordinator.broker_result(scope, native[0]._broker_channel, reservation.reference)
         result = coordinator.guarded_dispatch(
             scope, native[0]._broker_channel, reservation.reference
         )
         assert result.status == "host_completed", result.as_dict()
         assert result.value == b"broker-owned-benign-data\n"
+        actual = coordinator.broker_result(scope, native[0]._broker_channel, reservation.reference)
+        assert actual.physical_enforcement and actual.value == result.value
+        assert (
+            coordinator.broker_result(scope, native[0]._broker_channel, reservation.reference)
+            is actual
+        )
+        with pytest.raises(ValueError):
+            coordinator.broker_result(scope, channel, reservation.reference)
+        with pytest.raises(ValueError):
+            coordinator.broker_result(scope, copy(native[0]._broker_channel), reservation.reference)
         assert not service._originals and not service._receipts
         assert service.snapshot(humans["alice"], task_id="task")["requests"] == []
 

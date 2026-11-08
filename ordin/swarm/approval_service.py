@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from threading import RLock
 from typing import Any
 from uuid import uuid4
@@ -12,7 +12,7 @@ from ordin import ActionEnvelope
 from ordin._runtime_json import digest
 from ordin.approval import ApprovalAuthority, ApprovalSource
 from ordin.assurance.host import HostEvidenceSource
-from ordin.runtime_contract import derive_runtime_capability_contract
+from ordin.runtime_contract import CredentialBinding, derive_runtime_capability_contract
 from ordin.session import configuration_digest
 
 from .approval import (
@@ -982,11 +982,9 @@ class SwarmApprovalService:
                 )
                 grant.gate.bind_runtime_source(runtime_source)
                 preview = grant.gate.preview_action(action, host_context=supplied)
-                contract = derive_runtime_capability_contract(preview.review)
+                contract = self._ordinary_contract(preview, native.issuer.profile.digest)
                 if (
                     preview.review.decision != "allow"
-                    or contract.decision != "allow"
-                    or contract.unknowns
                     or preview.assurance.baseline.denied
                     or preview.verification is None
                     or not preview.verification.ok
@@ -1013,6 +1011,44 @@ class SwarmApprovalService:
                     raise CoordinatorRejected(
                         "governance independent ordinary policy denies execution"
                     )
+
+    @staticmethod
+    def _ordinary_contract(preview, profile_digest):
+        """Keep exact REST commitment requirements in their complete typed contract."""
+        from ordin.assurance.rest import (
+            EXACT_REQUIREMENT,
+            RestRequestContract,
+            derive_rest_request_contract,
+        )
+        from ordin.runtime_contract import RuntimeCapabilityContract
+
+        capability = derive_runtime_capability_contract(preview.review)
+        complete: RuntimeCapabilityContract | RestRequestContract
+        credentials = tuple(
+            CredentialBinding(use.binding, use.host, use.port)
+            for use in preview._context.credential_uses
+            if use.action_digest == preview.action_digest and use.profile_digest == profile_digest
+        )
+        if credentials:
+            capability = replace(
+                capability,
+                credentials=tuple(dict.fromkeys((*capability.credentials, *credentials))),
+                contract_id="",
+            )
+        if preview.review.adapter == "network.rest":
+            complete = derive_rest_request_contract(preview.review, capability=capability)
+            if any(
+                unknown.domain != "network" or unknown.reason_code != EXACT_REQUIREMENT
+                for unknown in capability.unknowns
+            ):
+                raise CoordinatorRejected("governance unresolved REST requirements")
+        else:
+            complete = capability
+            if capability.unknowns:
+                raise CoordinatorRejected("governance unresolved ordinary requirements")
+        if complete.digest != preview.contract_digest:
+            raise CoordinatorRejected("governance complete delegated requirements changed")
+        return complete
 
     def _ordinary_pending(self, broker, *, authorization=None, executor=None, job=None):
         """Resolve only an original protected authorization/job, never a caller allow flag."""

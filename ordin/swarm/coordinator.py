@@ -388,6 +388,9 @@ class SwarmCoordinator:
         self._prepared: dict[str, _Prepared] = {}
         self._audit_sources: dict[CoordinatorScope, Any] = {}
         self._retired_prepared: dict[str, _Prepared] = {}
+        # Each entry corresponds to an existing bounded durable reservation;
+        # these original objects are never reconstructed from checkpoint JSON.
+        self._completed_prepared: dict[str, _Prepared] = {}
         self._fence_receipts: dict[CoordinatorFenceReceipt, str] = {}
         self._recovery_verifiers: dict[CoordinatorScope, Any] = {}
         self._budget_views: set[CoordinatorBudgetView] = set()
@@ -721,6 +724,9 @@ class SwarmCoordinator:
             )
             result = self._status(transaction, handle, state)
         with self._lock:
+            for key, prepared in tuple(self._completed_prepared.items()):
+                if prepared.scope is handle:
+                    del self._completed_prepared[key]
             for key, prepared in tuple(self._prepared.items()):
                 if prepared.scope is handle:
                     if prepared.broker is not None and state["reservations"].get(key, {}).get(
@@ -1687,9 +1693,53 @@ class SwarmCoordinator:
                 "committed",
                 reservation["action_digest"],
             )
-        self._prepared.pop(reservation_id, None)
+        with self._lock:
+            prepared = self._prepared.pop(reservation_id, None)
+            if prepared is not None and prepared.broker is not None:
+                self._completed_prepared[reservation_id] = prepared
         self._emit_audit(handle, result)
         return result
+
+    def broker_result(
+        self, handle: CoordinatorScope, broker_channel: AuthorityChannel, reservation_id: str
+    ):
+        """Retrieve one original committed physical outcome under current protected scope."""
+        scope = self._scope(handle)
+        with self._containment_barrier(scope), self._lock, self.store.transaction() as transaction:
+            _, _, reservation = self._broker_reservation(
+                transaction, handle, broker_channel, reservation_id, statuses={"committed"}
+            )
+            enrollment = scope.authenticator.require(broker_channel, role="broker")
+            prepared = self._completed_prepared.get(reservation_id)
+            if (
+                prepared is None
+                or prepared.scope is not handle
+                or prepared.broker is None
+                or prepared.authorization is None
+                or prepared.broker is not scope.brokers.get(enrollment.host_id)
+                or scope.broker_channels.get(enrollment.host_id) is not broker_channel
+                or prepared.broker._service is not scope.native
+                or prepared.action_digest != reservation["action_digest"]
+                or digest(prepared.action.as_dict()) != prepared.action_digest
+            ):
+                raise CoordinatorRejected("coordinator.original_completed_broker_binding_required")
+            broker = prepared.broker
+            with broker._state_lock:
+                authorized = broker._pending_row(prepared.authorization)
+                result = authorized.result
+                if (
+                    result is None
+                    or result.status != "completed"
+                    or not result.physical_enforcement
+                    or result.action_digest != prepared.action_digest
+                    or not broker.verify_result(result, prepared.authorization)
+                    or result.executor_outcome is None
+                    or not broker._executor.verify_outcome(
+                        result.executor_outcome, authorized.scope.plan
+                    )
+                ):
+                    raise CoordinatorRejected("coordinator.original_actual_broker_outcome_required")
+                return result
 
     def guarded_dispatch(
         self,

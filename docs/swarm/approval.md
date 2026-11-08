@@ -49,6 +49,12 @@ condition again against the original action and protected evidence. A previous
 allow cannot authorize a subsequently changed warning. `warn`, `ask`, `block`
 and unresolved requirements cannot use this route.
 
+An explicitly selected REST route keeps the mandatory exact request commitment
+inside its complete `RestRequestContract`. Only that contract's typed request
+verification can account for the specific commitment marker; the capability
+projection remains diagnostic. Method, scheme, destination, path, headers and
+body remain bound, and all other unknown requirements still reject execution.
+
 ## Approve an exact proposal
 
 The workload proposes an action; the human resolves it over a distinct original
@@ -83,6 +89,11 @@ original completed `BrokerResult`. The accessor checks the current owner, scoped
 human role, durable completed request, exact authorization and original executor
 witness. It rejects uncertain or missing outcomes; a serialized report cannot
 restore that object or authorize another execution.
+For an ordinary completed enforcing request, the protected host can use
+`coordinator.broker_result(scope, actual_broker_channel, reservation_reference)`.
+This checks the current pinned broker and committed reservation against the
+retained original preparation and physical executor outcome. Expired leases,
+owner replacement and uncertain effects cannot restore a completed live result.
 
 `request`, queue inspection and review do not reserve quota, consume approval or
 execute. The request binds a detached canonical action, exact context/review/risk,
