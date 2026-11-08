@@ -1269,6 +1269,52 @@ class SwarmApprovalService:
             )
             return self.dispatch(receipt)
 
+    def fulfillment_result(self, operator_channel, request_id: str):
+        """Return the retained original completed broker outcome, never a wire report."""
+        if type(request_id) is not str or not 1 <= len(request_id) <= 64:
+            raise CoordinatorRejected("governance bounded original request required")
+        with self._barrier, self._lock, self._transaction() as transaction:
+            _, _, namespace = self._namespace(transaction, contained=True)
+            original = self._originals.get(request_id)
+            if original is None:
+                raise CoordinatorRejected("governance original completed request required")
+            self.directory.require(
+                operator_channel, task_id=original.task_id, roles=original.request.required_roles
+            )
+            receipt = self._receipt_by_request.get(request_id)
+            if receipt is None:
+                raise CoordinatorRejected("governance retained original receipt unavailable")
+            value = self._approved(receipt)
+            row = namespace["requests"].get(request_id)
+            if (
+                value.original is not original
+                or value.authorization is None
+                or row is None
+                or row["status"] != "completed"
+                or row["request"] != original.request.as_dict()
+                or row["binding_digest"] != original.request.binding.digest
+            ):
+                raise CoordinatorRejected("governance original completed outcome unavailable")
+            broker = original.broker
+            with broker._state_lock:
+                pending = broker._pending_row(value.authorization)
+                result = pending.result
+                if (
+                    result is None
+                    or result.status != "completed"
+                    or not result.physical_enforcement
+                    or not broker.verify_result(result, value.authorization)
+                    or result.action_digest != original.request.binding.action_digest
+                    or result.executor_outcome is None
+                    or not broker._executor.verify_outcome(
+                        result.executor_outcome, pending.scope.plan
+                    )
+                ):
+                    raise CoordinatorRejected(
+                        "governance original actual broker outcome unavailable"
+                    )
+                return result
+
     def dispatch(self, receipt: SwarmApprovalReceipt):
         with self._barrier, self._lock:
             value = self._approved(receipt)

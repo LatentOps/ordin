@@ -15,6 +15,8 @@ def test_human_fulfillment_uses_retained_exact_request_once(tmp_path):
         service, _, _, channel, lease, grant, action, humans, _, native = data
         request = service.request(channel, lease, grant, action, idempotency_key="original")
         with pytest.raises(ValueError):
+            service.fulfillment_result(humans["alice"], request.request_id)
+        with pytest.raises(ValueError):
             service.fulfill(humans["alice"], request.request_id)
         assert not native[0]._pending
         service.resolve(humans["alice"], request.request_id, "approve", idempotency_key="human")
@@ -25,12 +27,50 @@ def test_human_fulfillment_uses_retained_exact_request_once(tmp_path):
         result = service.fulfill(humans["alice"], request.request_id)
         assert result.status == "host_completed"
         assert result.value == b"broker-owned-benign-data\n"
+        actual = service.fulfillment_result(humans["alice"], request.request_id)
+        assert actual.status == "completed" and actual.physical_enforcement
+        assert actual.value == result.value
+        assert service.fulfillment_result(humans["alice"], request.request_id) is actual
+        with pytest.raises(ValueError):
+            service.fulfillment_result(channel, request.request_id)
+        with pytest.raises(ValueError):
+            service.fulfillment_result(copy(humans["alice"]), request.request_id)
         authorization = next(iter(native[0]._pending))
         decision = native[0].authorization_scope(authorization).decision
         assert decision.review.decision == "warn"
         assert decision.disposition == "escalate" and decision.approval_fulfilled
         with pytest.raises(ValueError):
             service.fulfill(humans["alice"], request.request_id)
+
+
+def test_fulfillment_result_requires_durable_completion_and_original_broker_witness(
+    tmp_path, monkeypatch
+):
+    require_kernel()
+    with configured(tmp_path, decision="warn") as data:
+        service, coordinator, scope, channel, lease, grant, action, humans, _, native = data
+        request = service.request(channel, lease, grant, action, idempotency_key="result")
+        service.resolve(humans["alice"], request.request_id, "approve", idempotency_key="yes")
+        service.fulfill(humans["alice"], request.request_id)
+        actual = service.fulfillment_result(humans["alice"], request.request_id)
+        receipt = service._receipt_by_request[request.request_id]
+        authorization = service._approved(receipt).authorization
+        monkeypatch.setitem(native[0]._results, copy(actual), native[0]._results[actual])
+        with native[0]._state_lock:
+            original = native[0]._pending_row(authorization).result
+            native[0]._pending_row(authorization).result = copy(actual)
+        # A separately stored copy cannot stand in for the original pending job outcome.
+        # The executor witness is also checked, independently of report equality.
+        with pytest.raises(ValueError):
+            service.fulfillment_result(humans["alice"], request.request_id)
+        with native[0]._state_lock:
+            native[0]._pending_row(authorization).result = original
+        with coordinator.store.transaction() as transaction:
+            transaction.scope(scope.scope_key)["governance"]["requests"][request.request_id][
+                "status"
+            ] = "uncertain"
+        with pytest.raises(ValueError):
+            service.fulfillment_result(humans["alice"], request.request_id)
 
 
 def test_fulfillment_requires_all_distinct_current_votes(tmp_path):

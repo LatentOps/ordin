@@ -76,6 +76,14 @@ requires the complete current quorum and permits exactly one owned job. The
 operator supplies no replacement action or serialized receipt. The requesting
 workload channel cannot serve as the human operator channel.
 
+`fulfill` returns the existing `CoordinatorDispatch` accounting result. A trusted
+host that needs byte custody or actual physical evidence can call
+`fulfillment_result(human_channel, request.request_id)` to retrieve the retained
+original completed `BrokerResult`. The accessor checks the current owner, scoped
+human role, durable completed request, exact authorization and original executor
+witness. It rejects uncertain or missing outcomes; a serialized report cannot
+restore that object or authorize another execution.
+
 `request`, queue inspection and review do not reserve quota, consume approval or
 execute. The request binds a detached canonical action, exact context/review/risk,
 policy and revocation epochs, owner fence, delegation, operator maximum,
