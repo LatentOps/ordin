@@ -1711,19 +1711,19 @@ class SwarmCoordinator:
             )
             enrollment = scope.authenticator.require(broker_channel, role="broker")
             prepared = self._completed_prepared.get(reservation_id)
+            if prepared is None or prepared.scope is not handle:
+                raise CoordinatorRejected("coordinator.original_completed_broker_binding_required")
+            broker = prepared.broker
             if (
-                prepared is None
-                or prepared.scope is not handle
-                or prepared.broker is None
+                broker is None
                 or prepared.authorization is None
-                or prepared.broker is not scope.brokers.get(enrollment.host_id)
+                or broker is not scope.brokers.get(enrollment.host_id)
                 or scope.broker_channels.get(enrollment.host_id) is not broker_channel
-                or prepared.broker._service is not scope.native
+                or broker._service is not scope.native
                 or prepared.action_digest != reservation["action_digest"]
                 or digest(prepared.action.as_dict()) != prepared.action_digest
             ):
                 raise CoordinatorRejected("coordinator.original_completed_broker_binding_required")
-            broker = prepared.broker
             with broker._state_lock:
                 authorized = broker._pending_row(prepared.authorization)
                 result = authorized.result
