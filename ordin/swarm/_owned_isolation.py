@@ -152,6 +152,27 @@ def isolate(packet, mode):
         (resource.RLIMIT_FSIZE, file_bound),
     ):
         resource.setrlimit(kind, (maximum, maximum))
+    # Read back while prlimit/getrlimit is still available. The subsequent
+    # immutable filter intentionally denies all resource-limit mutation/query
+    # syscalls; it must not be broadened merely to serialize this receipt.
+    limits = {
+        "memory_bytes": list(resource.getrlimit(resource.RLIMIT_AS)),
+        "cpu_seconds": list(resource.getrlimit(resource.RLIMIT_CPU)),
+        "processes": list(resource.getrlimit(resource.RLIMIT_NPROC)),
+        "descriptors": list(resource.getrlimit(resource.RLIMIT_NOFILE)),
+        "file_bytes": list(resource.getrlimit(resource.RLIMIT_FSIZE)),
+        "core_bytes": list(resource.getrlimit(resource.RLIMIT_CORE)),
+    }
+    expected_limits = {
+        "memory_bytes": [memory] * 2,
+        "cpu_seconds": [cpu] * 2,
+        "processes": [1, 1],
+        "descriptors": [descriptors] * 2,
+        "file_bytes": [file_bound] * 2,
+        "core_bytes": [0, 0],
+    }
+    if limits != expected_limits:
+        raise OSError("owned resource limit readback differs")
     signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
     try:
         os.ftruncate(1, file_bound * 2)
@@ -226,12 +247,5 @@ def isolate(packet, mode):
         "network_scope": "denied" if mode == "write" else "one_preconnected_destination",
         "process_creation": "denied",
         "executable_launch": "denied",
-        "limits": {
-            "memory_bytes": list(resource.getrlimit(resource.RLIMIT_AS)),
-            "cpu_seconds": list(resource.getrlimit(resource.RLIMIT_CPU)),
-            "processes": list(resource.getrlimit(resource.RLIMIT_NPROC)),
-            "descriptors": list(resource.getrlimit(resource.RLIMIT_NOFILE)),
-            "file_bytes": list(resource.getrlimit(resource.RLIMIT_FSIZE)),
-            "core_bytes": list(resource.getrlimit(resource.RLIMIT_CORE)),
-        },
+        "limits": limits,
     }
