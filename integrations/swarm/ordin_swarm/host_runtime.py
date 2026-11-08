@@ -670,6 +670,8 @@ class ManagedToolHost:
                         "actor": pending.actor,
                         "tool": pending.tool,
                         "target_name": pending.arguments.get("name"),
+                        "route_id": pending.arguments.get("route_id"),
+                        "test_id": pending.arguments.get("test_id"),
                         "content_bytes": len(content.encode("utf-8"))
                         if type(content) is str
                         else None,
@@ -681,6 +683,11 @@ class ManagedToolHost:
                         "expected_version": pending.arguments.get("expected_version"),
                         "expected_digest": pending.arguments.get("expected_digest"),
                         **({"content": content} if parameters["include_content"] else {}),
+                        **(
+                            {"arguments": pending.arguments}
+                            if parameters["include_content"]
+                            else {}
+                        ),
                     },
                 },
             )

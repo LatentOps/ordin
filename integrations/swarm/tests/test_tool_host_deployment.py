@@ -136,7 +136,7 @@ def test_live_shared_host_init_handoff_exact_human_write_stop_and_epoch_restart(
                 _call(
                     reader, "handoff", {"resource_ref": "resource-forged", "recipient": "writer"}
                 )["status"]
-                == "unknown"
+                == "denied"
             )
             _rpc(human, "ordin/operator/shutdown", {})
         worker.join(timeout=8)
