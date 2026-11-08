@@ -18,6 +18,90 @@ from ._runtime_host import identity_matches
 
 
 @dataclass(frozen=True)
+class ToolRuntimeRequirement:
+    """Host-selected requirements for one exact fixed-tool catalogue entry.
+
+    Matching caller data selects requirements, not permission. The original
+    semantic decision/effects and all capability-maximum checks still apply.
+    """
+
+    runtime: str
+    server: str | None
+    tool: str
+    operation: str
+    test_id: str
+    filesystem: tuple[FilesystemCapability, ...] = ()
+    client_executables: tuple[str, ...] = ()
+    spawn_children: bool | None = False
+
+    def __post_init__(self) -> None:
+        import re
+
+        for value in (self.runtime, self.tool, self.operation, self.test_id):
+            if (
+                type(value) is not str
+                or not 1 <= len(value) <= 128
+                or re.fullmatch(r"[A-Za-z0-9_.:/-]+", value) is None
+            ):
+                raise ValueError("runtime_requirement_tool_selector_invalid")
+        if self.server is not None and (
+            type(self.server) is not str
+            or not 1 <= len(self.server) <= 128
+            or re.fullmatch(r"[A-Za-z0-9_.:/-]+", self.server) is None
+        ):
+            raise ValueError("runtime_requirement_tool_selector_invalid")
+        checked = RuntimeRequirementProfile(
+            "checked-tool-requirements",
+            filesystem=self.filesystem,
+            client_executables=self.client_executables,
+            spawn_children=self.spawn_children,
+        )
+        if len(checked.filesystem) > 8 or len(checked.client_executables) > 4:
+            raise ValueError("runtime_requirement_tool_capacity")
+        object.__setattr__(self, "filesystem", checked.filesystem)
+        object.__setattr__(self, "client_executables", checked.client_executables)
+
+    @property
+    def selector(self) -> tuple[str, str | None, str, str, str]:
+        return self.runtime, self.server, self.tool, self.operation, self.test_id
+
+    def as_dict(self) -> dict:
+        return {
+            "runtime": self.runtime,
+            "server": self.server,
+            "tool": self.tool,
+            "operation": self.operation,
+            "test_id": self.test_id,
+            "filesystem": [item.as_dict() for item in self.filesystem],
+            "client_executables": list(self.client_executables),
+            "spawn_children": self.spawn_children,
+        }
+
+    def matches(self, review: ActionReview) -> bool:
+        parameters = review.action.parameters
+        arguments = parameters.get("arguments")
+        return (
+            review.action.kind in {"tool", "mcp"}
+            and review.action.operation == self.operation
+            and parameters.get("runtime") == self.runtime
+            and parameters.get("server") == self.server
+            and parameters.get("tool") == self.tool
+            and isinstance(arguments, Mapping)
+            and set(arguments) == {"test_id"}
+            and type(arguments["test_id"]) is str
+            and arguments["test_id"] == self.test_id
+        )
+
+    def declaration(self) -> RuntimeRequirementProfile:
+        return RuntimeRequirementProfile(
+            "conditional-tool-" + digest(self.as_dict()),
+            filesystem=self.filesystem,
+            client_executables=self.client_executables,
+            spawn_children=self.spawn_children,
+        )
+
+
+@dataclass(frozen=True)
 class RuntimeRequirementProfile:
     profile_id: str
     filesystem: tuple[FilesystemCapability, ...] = ()
@@ -26,6 +110,7 @@ class RuntimeRequirementProfile:
     client_executables: tuple[str, ...] = ()
     mcp_endpoints: Mapping[str, str] = field(default_factory=dict)
     mcp_versions: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    tool_requirements: tuple[ToolRuntimeRequirement, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.profile_id, str) or not 1 <= len(self.profile_id) <= 128:
@@ -74,6 +159,15 @@ class RuntimeRequirementProfile:
             for f in self.filesystem
         ):
             raise ValueError("runtime_requirement_filesystem_invalid")
+        object.__setattr__(
+            self, "tool_requirements", model_tuple(self.tool_requirements, ToolRuntimeRequirement)
+        )
+        if len(self.tool_requirements) > 16 or len(
+            {item.selector for item in self.tool_requirements}
+        ) != len(self.tool_requirements):
+            raise ValueError("runtime_requirement_tool_capacity_or_duplicate")
+        # The existing per-container bound is unchanged; the optional field is
+        # omitted when empty, preserving old profile bytes and digests exactly.
         freeze(self.as_dict())
 
     def as_dict(self) -> dict:
@@ -89,6 +183,8 @@ class RuntimeRequirementProfile:
             result["mcp_endpoints"] = thaw(self.mcp_endpoints)
         if self.mcp_versions:
             result["mcp_versions"] = thaw(self.mcp_versions)
+        if self.tool_requirements:
+            result["tool_requirements"] = [item.as_dict() for item in self.tool_requirements]
         return result
 
     @property
@@ -183,4 +279,8 @@ class RuntimeRequirementProfile:
                         metadata={"server": server, "profile_digest": self.digest},
                     )
                 )
-        return replace(review, provenance=review.provenance.append(*records))
+        declared = replace(review, provenance=review.provenance.append(*records))
+        for requirement in self.tool_requirements:
+            if requirement.matches(review):
+                declared = requirement.declaration().declare(declared)
+        return declared
