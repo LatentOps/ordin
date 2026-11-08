@@ -117,11 +117,23 @@ class MCPHostSession:
         params = request.get("params", {})
         request_id = request.get("id")
         if "id" not in request:
-            if method == "notifications/initialized" and self._initialized and not params:
+            metadata = params.get("_meta", {})
+            if type(metadata) is not dict:
+                raise ValueError("invalid MCP host notification metadata")
+            if (
+                method == "notifications/initialized"
+                and self._initialized
+                and not set(params) - {"_meta"}
+            ):
                 self._ready = True
                 return None
             # Effectful requests are never executed as notifications.
-            if method == "notifications/cancelled":
+            if (
+                method == "notifications/cancelled"
+                and not set(params) - {"requestId", "reason", "_meta"}
+                and type(params.get("requestId")) in {str, int}
+                and ("reason" not in params or type(params["reason"]) is str)
+            ):
                 return None
             raise ValueError("unsupported MCP host notification")
         key = (type(request_id), request_id)
@@ -129,8 +141,12 @@ class MCPHostSession:
             return _error(request_id, -32600, "host.request_replayed")
         if self._requests >= self._maximum_requests:
             raise ValueError("host.request_capacity")
+        self._host.reserve_protocol_id(self._client, key)
         self._ids.add(key)
         self._requests += 1
+        if "_meta" in params and type(params["_meta"]) is not dict:
+            return _error(request_id, -32602, "host.metadata_invalid")
+        params = {key: item for key, item in params.items() if key != "_meta"}
         if method == "initialize":
             if self._initialized or set(params) != {
                 "protocolVersion",
@@ -171,17 +187,17 @@ class MCPHostSession:
             result = {"tools": self._host.tools(self._client)}
         elif method == "tools/call":
             if (
-                set(params) != {"name", "arguments"}
+                not {"name"} <= set(params) <= {"name", "arguments"}
                 or type(params["name"]) is not str
                 or not 1 <= len(params["name"]) <= 128
-                or type(params["arguments"]) is not dict
+                or type(params.get("arguments", {})) is not dict
             ):
                 return _error(request_id, -32602, "host.tool_arguments_invalid")
             try:
                 output = self._host.call(
                     self._client,
                     params["name"],
-                    params["arguments"],
+                    params.get("arguments", {}),
                     request_id=f"{type(request_id).__name__}:{request_id}",
                 )
             except (ValueError, OSError, RuntimeError):

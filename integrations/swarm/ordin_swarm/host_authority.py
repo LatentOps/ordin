@@ -491,6 +491,8 @@ class HostAuthority:
         self.profile.require_unchanged()
         if self.clock() >= self.expires_at:
             raise ValueError("managed task lifetime ended; fresh operator startup required")
+        for name, context in self.contexts.items():
+            self.registry.heartbeat(context, self.registry_channels[name], self.adapters[name])
         self.owner = self.coordinator.heartbeat(self.scope, control=self.control)
         self.refresh_broker_channel()
         channel = self.auth.authenticate(self.root_socket)

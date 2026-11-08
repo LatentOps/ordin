@@ -8,6 +8,7 @@ from pathlib import Path
 import socket
 import ssl
 import stat
+import time
 from threading import BoundedSemaphore, RLock, Thread
 from uuid import uuid4
 
@@ -201,8 +202,9 @@ class ManagedHostServer:
             except (ValueError, OSError):
                 pass
             connection.close()
+        deadline = time.monotonic() + 5
         for thread in threads:
-            thread.join(timeout=5)
+            thread.join(timeout=max(0, deadline - time.monotonic()))
 
 
 def _unique(pairs):

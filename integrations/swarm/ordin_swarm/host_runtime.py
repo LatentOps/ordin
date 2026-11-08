@@ -137,6 +137,7 @@ class ManagedToolHost:
         self._lock = RLock()
         self._clients: dict[HostClient, _Client] = {}
         self._approvals: dict[str, _Approval] = {}
+        self._protocol_ids: set[str] = set()
         self._closed = False
         self.shutdown_requested = Event()
 
@@ -212,6 +213,7 @@ class ManagedToolHost:
             row.socket.shutdown(socket.SHUT_RDWR)
         except (ValueError, OSError):
             pass
+
         row.socket.close()
         for pending in abandoned:
             if pending.custody is not None:
@@ -223,6 +225,15 @@ class ManagedToolHost:
                 self._authority.auth.close(row.channel)
         except (ValueError, OSError):
             pass
+
+    def reserve_protocol_id(self, client: HostClient, request_id: tuple) -> None:
+        """Lifetime-bounded replay history shared by all actual host connections."""
+        self.require_client(client)
+        key = digest([client.connection_id, request_id[0].__name__, request_id[1]])
+        with self._lock:
+            if key in self._protocol_ids or len(self._protocol_ids) >= 4096:
+                raise ValueError("host.global_request_capacity_or_replay")
+            self._protocol_ids.add(key)
 
     @contextmanager
     def open_local_session(self, actor: str, *, operator: object):
@@ -389,6 +400,26 @@ class ManagedToolHost:
                 "labels": list(resource.labels),
                 "instruction_authority": "data",
             }
+            if tool == "read_file":
+                # This digest names returned bytes, never a write-only lookup.
+                # Snapshot occurs separately: a concurrent update must be
+                # explicit rather than assigning its version to older bytes.
+                returned_digest = hashlib.sha256(native.value).hexdigest()
+                data.update(content_digest=returned_digest, version=None, version_match=False)
+                try:
+                    snapshot = self._authority.backend.snapshot(
+                        str(self.profile.workspace / arguments["name"]), operator=self._operator
+                    )
+                    matches = snapshot["content_digest"] == returned_digest and snapshot[
+                        "bytes"
+                    ] == len(native.value)
+                    data.update(
+                        current_version=snapshot["version"],
+                        version=snapshot["version"] if matches else None,
+                        version_match=matches,
+                    )
+                except (ValueError, OSError, RuntimeError):
+                    data["current_version"] = None
         return _result("completed", forwarded=effect.forwarded, physical=True, data=data)
 
     def call(self, client: HostClient, tool: str, arguments: dict, *, request_id: str) -> dict:
@@ -405,7 +436,13 @@ class ManagedToolHost:
         actor = self.profile.actor(row.actor)
         key = digest([client.connection_id, request_id])
         with self._lock:
-            if row.busy or key in row.requests or len(row.requests) >= self.profile.limits.requests:
+            if (
+                self._closed
+                or self._clients.get(client) is not row
+                or row.busy
+                or key in row.requests
+                or len(row.requests) >= self.profile.limits.requests
+            ):
                 return _result("denied", ("host.busy_replayed_or_at_capacity",))
             row.requests.add(key)
             row.busy = True
@@ -521,6 +558,8 @@ class ManagedToolHost:
                 reference = effect.approval.request_id
                 with self._lock:
                     if len(self._approvals) >= min(1024, self.profile.limits.requests):
+                        if custody is not None:
+                            self._lineage.cancel(custody)
                         return _result("denied", ("host.approval_history_capacity",))
                     self._approvals[reference] = _Approval(
                         client, row.actor, tool, captured, effect, custody=custody
@@ -598,12 +637,17 @@ class ManagedToolHost:
         if operation not in {"show", "resolve", "fulfill"}:
             return _result("denied", ("host.operator_method_unavailable",))
         allowed = (
-            {"request_ref"}
+            {"request_ref", "include_content"}
             if operation == "show"
             else {"request_ref", "expected_binding", "choice", "idempotency_key"}
             if operation == "resolve"
             else {"request_ref", "expected_binding"}
         )
+        if operation == "show":
+            if "include_content" not in parameters:
+                parameters["include_content"] = False
+            if type(parameters["include_content"]) is not bool:
+                return _result("denied", ("host.operator_arguments_invalid",))
         if set(parameters) != allowed:
             return _result("denied", ("host.operator_arguments_invalid",))
         reference = parameters["request_ref"]
@@ -634,6 +678,9 @@ class ManagedToolHost:
                             if type(content) is str
                             else None
                         ),
+                        "expected_version": pending.arguments.get("expected_version"),
+                        "expected_digest": pending.arguments.get("expected_digest"),
+                        **({"content": content} if parameters["include_content"] else {}),
                     },
                 },
             )
