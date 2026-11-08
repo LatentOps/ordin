@@ -163,6 +163,8 @@ class _Process:
     job_id: str
     binding: str
     program: bytes
+    mode: str = "agent"
+    test_settings: dict[str, Any] = field(default_factory=dict)
     root: Path | None = None
     state: str = "queued"
     cancel: Event = field(default_factory=Event)
@@ -268,6 +270,36 @@ class LinuxProtectedProcess:
             self._jobs[job] = _Process(job.job_id, binding, data)
             return job
 
+    def _prepare_test(
+        self, settings: dict, binding: str, *, operator: object
+    ) -> ProtectedProcessJob:
+        self._check(operator)
+        _hex(binding)
+        if type(settings) is not dict or set(settings) != {
+            "project_root",
+            "snapshot",
+            "snapshot_digest",
+            "runtime_root",
+            "runtime_digest",
+            "stdlib_virtual",
+            "selectors",
+        }:
+            raise ValueError("closed fixed-test bootstrap settings required")
+        _hex(settings["snapshot_digest"])
+        _hex(settings["runtime_digest"])
+        with self._lock:
+            if len(self._jobs) >= self._maximum:
+                raise ValueError("protected process history capacity reached")
+            job = ProtectedProcessJob(uuid4().hex)
+            self._jobs[job] = _Process(
+                job.job_id,
+                digest([self.configuration_digest, job.job_id, binding]),
+                b"",
+                mode="pytest",
+                test_settings=json.loads(_wire(settings)),
+            )
+            return job
+
     def _verify_install(self) -> None:
         _private_directory(self.root)
         if (
@@ -366,6 +398,9 @@ class LinuxProtectedProcess:
             jail = root / "jail"
             jail.mkdir(mode=0o755)
             (jail / "tmp").mkdir(mode=0o755)
+            (jail / "scratch").mkdir(mode=0o755)
+            (jail / "pytest.ini").write_text("[pytest]\naddopts =\n", encoding="utf-8")
+            (jail / "pytest.ini").chmod(0o444)
             (jail / "forbidden").write_bytes(b"owned kernel denial canary")
             (jail / "forbidden").chmod(0o444)
             row.output = tempfile.TemporaryFile(mode="w+b")
@@ -376,7 +411,7 @@ class LinuxProtectedProcess:
             row.channel = parent
             packet = {
                 "protocol": PROCESS_PROTOCOL,
-                "mode": "agent",
+                "mode": row.mode,
                 "nonce": secrets.token_hex(32),
                 "binding": row.binding,
                 "jail": str(jail),
@@ -386,6 +421,8 @@ class LinuxProtectedProcess:
                 "limits": self.limits.as_dict(),
                 "program": row.program.decode("utf-8"),
             }
+            if row.mode == "pytest":
+                packet["test"] = row.test_settings
             raw = _wire(packet)
             if len(raw) > MAX_BOOTSTRAP_FRAME:
                 raise ValueError("protected process bootstrap exceeds fixed bound")

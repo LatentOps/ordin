@@ -301,7 +301,25 @@ def isolate(packet):
         raise OSError("private mount/network namespaces unavailable")
     if libc.mount(None, b"/", None, 16384 | (1 << 18), None):
         raise OSError("private mount propagation unavailable")
-    scratch = os.fsencode(packet["jail"] + "/tmp")
+    test = packet.get("test")
+    scratch_name = "/scratch" if test is not None else "/tmp"
+    if test is not None:
+        # Only original parent-selected, presealed roots reach this bootstrap.
+        # Never mount the host/venv root or discover plugins before isolation.
+        mounts = (
+            (test["snapshot"], test["project_root"], True),
+            (test["runtime_root"], test["runtime_root"], False),
+            (test["runtime_root"] + "/stdlib", test["stdlib_virtual"], False),
+        )
+        for source, virtual, noexec in mounts:
+            target = pathlib.Path(packet["jail"]) / virtual.lstrip("/")
+            target.mkdir(mode=0o755, parents=True, exist_ok=True)
+            if libc.mount(os.fsencode(source), os.fsencode(target), None, 4096, None):
+                raise OSError("fixed readonly runtime mount unavailable")
+            flags = 4096 | 32 | 1 | 2 | 4 | (8 if noexec else 0)
+            if libc.mount(None, os.fsencode(target), None, flags, None):
+                raise OSError("fixed runtime readonly remount unavailable")
+    scratch = os.fsencode(packet["jail"] + scratch_name)
     options = (
         "size="
         + str(limits["scratch_bytes"])
@@ -331,15 +349,29 @@ def isolate(packet):
     ruleset = libc.syscall(444, ctypes.byref(rules), ctypes.sizeof(rules), 0)
     if ruleset < 0:
         raise OSError("Landlock ruleset unavailable")
-    parent = os.open("/tmp", os.O_PATH | os.O_DIRECTORY)
     try:
-        rule = Beneath(mask & ~1, parent)  # No executable access, including scratch.
-        if libc.syscall(445, ruleset, 1, ctypes.byref(rule), 0):
-            raise OSError("Landlock scratch scope unavailable")
+        scopes = [(scratch_name, mask & ~1)]
+        if test is not None:
+            scopes.extend(
+                (path, 4 | 8)
+                for path in (
+                    test["project_root"],
+                    test["runtime_root"],
+                    test["stdlib_virtual"],
+                )
+            )
+            scopes.append(("/pytest.ini", 4))
+        for path, access in scopes:
+            parent = os.open(path, os.O_PATH)
+            try:
+                rule = Beneath(access, parent)
+                if libc.syscall(445, ruleset, 1, ctypes.byref(rule), 0):
+                    raise OSError("Landlock fixed process scope unavailable")
+            finally:
+                os.close(parent)
         if libc.syscall(446, ruleset, 0):
             raise OSError("Landlock restriction unavailable")
     finally:
-        os.close(parent)
         os.close(ruleset)
     checks = {}
     # Test before UID drop: ordinary DAC must not masquerade as Landlock.
@@ -353,6 +385,19 @@ def isolate(packet):
         else:
             os.close(fd)
             raise OSError("filesystem denial probe failed")
+    if test is not None:
+        # This is a real attempted write to the mounted project, before DAC
+        # privilege drop. A nonwritable mode bit is not sufficient evidence.
+        try:
+            fd = os.open(
+                test["project_root"] + "/.ordin-write-probe", os.O_WRONLY | os.O_CREAT, 0o600
+            )
+        except OSError as exc:
+            if exc.errno not in (errno.EACCES, errno.EROFS):
+                raise OSError("readonly snapshot probe inconclusive") from None
+        else:
+            os.close(fd)
+            raise OSError("readonly project mount failed")
     os.setgroups([])
     os.setgid(gid)
     os.setuid(uid)
@@ -429,7 +474,7 @@ def isolate(packet):
     if allocation != ctypes.c_void_p(-1).value or ctypes.get_errno() != errno.ENOMEM:
         raise OSError("memory ceiling probe failed")
     checks["memory_limit_enforced"] = True
-    capacity = os.statvfs("/tmp")
+    capacity = os.statvfs(scratch_name)
     if (
         capacity.f_blocks * capacity.f_frsize > limits["scratch_bytes"]
         or capacity.f_files > limits["scratch_inodes"]
@@ -439,7 +484,7 @@ def isolate(packet):
     try:
         block = b"x" * min(limits["output_bytes"], 65536)
         for index in range(limits["scratch_inodes"] + 1):
-            path = "/tmp/bytes-" + str(index)
+            path = scratch_name + "/bytes-" + str(index)
             try:
                 with open(path, "wb") as output:
                     paths.append(path)
@@ -457,7 +502,7 @@ def isolate(packet):
     paths = []
     try:
         for index in range(limits["scratch_inodes"] + 1):
-            path = "/tmp/inode-" + str(index)
+            path = scratch_name + "/inode-" + str(index)
             try:
                 with open(path, "wb"):
                     paths.append(path)
@@ -489,24 +534,46 @@ def main():
     packet = None
     try:
         packet = read_frame(0, 262144)
+        fields = {
+            "protocol",
+            "mode",
+            "nonce",
+            "binding",
+            "jail",
+            "ipc_fd",
+            "uid",
+            "gid",
+            "limits",
+            "program",
+        }
+        if packet.get("mode") == "pytest":
+            fields.add("test")
         if (
-            set(packet)
-            != {
-                "protocol",
-                "mode",
-                "nonce",
-                "binding",
-                "jail",
-                "ipc_fd",
-                "uid",
-                "gid",
-                "limits",
-                "program",
-            }
+            set(packet) != fields
             or packet["protocol"] != PROTOCOL
-            or packet["mode"] != "agent"
+            or packet["mode"] not in {"agent", "pytest"}
         ):
             raise ValueError("closed bootstrap packet required")
+        if packet["mode"] == "pytest":
+            test = packet["test"]
+            if (
+                type(test) is not dict
+                or set(test)
+                != {
+                    "project_root",
+                    "snapshot",
+                    "snapshot_digest",
+                    "runtime_root",
+                    "runtime_digest",
+                    "stdlib_virtual",
+                    "selectors",
+                }
+                or any(
+                    type(test[key]) is not str or not test[key].startswith("/")
+                    for key in ("project_root", "snapshot", "runtime_root", "stdlib_virtual")
+                )
+            ):
+                raise ValueError("closed fixed-test settings required")
         if type(packet["program"]) is not str or len(packet["program"].encode()) > 65536:
             raise ValueError("bounded pinned agent source required")
         isolation = isolate(packet)
@@ -534,6 +601,49 @@ def main():
     # No repository or agent code was imported, compiled or executed before the
     # parent retained actual isolation evidence and acknowledged this transition.
     try:
+        if packet["mode"] == "pytest":
+            os.close(3)  # Tests cannot access the broker at all.
+            test = packet["test"]
+            os.environ.update(
+                {
+                    "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+                    "PYTEST_ADDOPTS": "",
+                    "TMPDIR": "/scratch",
+                    "HOME": "/scratch",
+                }
+            )
+            sys.dont_write_bytecode = True
+            sys.path[:] = [
+                test["project_root"],
+                test["runtime_root"] + "/site",
+                test["stdlib_virtual"],
+                test["stdlib_virtual"] + "/lib-dynload",
+            ]
+            sys.path_importer_cache.clear()
+            os.chdir(test["project_root"])
+            # This is deliberately after isolation, retained readiness and ACK.
+            import pytest
+
+            return int(
+                pytest.main(
+                    [
+                        "-s",
+                        "-q",
+                        "--noconftest",
+                        "-p",
+                        "no:cacheprovider",
+                        "-c",
+                        "/pytest.ini",
+                        "--rootdir",
+                        test["project_root"],
+                        "--confcutdir",
+                        test["project_root"],
+                        "--basetemp",
+                        "/scratch/pytest",
+                        *test["selectors"],
+                    ]
+                )
+            )
         program = compile(packet["program"], "/agent.py", "exec", dont_inherit=True)
         exec(
             program,
