@@ -107,6 +107,11 @@ def test_same_mtls_broker_renews_at_31s_without_renewing_pending_human_request(t
         request = service.request(channel, lease, grant, action, idempotency_key="old")
         service.resolve(humans["alice"], request.request_id, "approve", idempotency_key="vote")
         now[0] += 20
+        for enrollment in tuple(auth._enrollments.values()):
+            if enrollment.role == "workload":
+                native[14].heartbeat(
+                    enrollment.context, enrollment.registry_channel, enrollment.adapter
+                )
         coordinator.heartbeat(scope, control=service._control)
         now[0] += 11
         renewed = auth.authenticate(original_socket)

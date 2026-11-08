@@ -129,6 +129,20 @@ class _Preparation:
     preparation_id: str
 
 
+@dataclass(frozen=True)
+class _OrdinaryJob:
+    broker: Any
+    executor: Any
+    job: Any
+    admission_id: str
+    admission: Any
+    workload_context: Any
+    gate: Any
+    review_inputs: dict[str, Any]
+    session_digest: str
+    runtime_digest: str
+
+
 class SwarmApprovalService:
     """One current protected governance controller, using the coordinator's DB locks.
 
@@ -185,6 +199,7 @@ class SwarmApprovalService:
         self._receipts: dict[SwarmApprovalReceipt, _Approved] = {}
         self._receipt_by_request: dict[str, SwarmApprovalReceipt] = {}
         self._preparing: dict[object, _Approved] = {}
+        self._ordinary_jobs: dict[object, _OrdinaryJob] = {}
         self._recoveries: dict[SwarmRecoveryApproval, Any] = {}
         self._recovery_ids: dict[SwarmRecoveryApproval, str] = {}
         self._recovery_requests: dict[str, Any] = {}
@@ -939,7 +954,15 @@ class SwarmApprovalService:
         return value
 
     def _ordinary_allow(
-        self, channel, reference, action, *, broker=None, context=None, host_context=None
+        self,
+        channel,
+        reference,
+        action,
+        *,
+        broker=None,
+        context=None,
+        host_context=None,
+        original_job=None,
     ):
         """Additional fresh core filter; ordinary authority/policy/budget checks still apply."""
         from .broker import SwarmExecutionBroker
@@ -981,7 +1004,42 @@ class SwarmApprovalService:
                     context_digest=digest([subject.source.key, subject.context.registry_id]),
                 )
                 grant.gate.bind_runtime_source(runtime_source)
-                preview = grant.gate.preview_action(action, host_context=supplied)
+                if original_job is None:
+                    preview = grant.gate.preview_action(action, host_context=supplied)
+                else:
+                    if (
+                        type(original_job) is not _OrdinaryJob
+                        or self._ordinary_jobs.get(original_job.job) is not original_job
+                        or original_job.broker is not original
+                        or original_job.gate is not grant.gate
+                        or original_job.admission.owner_channel is not channel
+                        or original_job.admission.grant_ref != reference
+                        or original_job.admission.action_digest != digest(action.as_dict())
+                    ):
+                        raise CoordinatorRejected("governance original ordinary recheck required")
+                    gate = original_job.gate
+                    with gate._lock, gate._session._lock:
+                        if (
+                            digest(gate._session.snapshot()) != original_job.session_digest
+                            or digest(gate._session.runtime_snapshot())
+                            != original_job.runtime_digest
+                            or not gate.binding_matches(original_job.admission.decision, action)
+                        ):
+                            raise CoordinatorRejected(
+                                "governance ordinary history or binding changed"
+                            )
+                        baseline = replace(
+                            gate.assurance.baseline_gate,
+                            ordin=replace(gate.assurance.ordin, audit=None),
+                        )
+                        current_assurance = replace(gate.assurance, baseline_gate=baseline)
+                        preview = gate._review(
+                            action,
+                            _reserve=False,
+                            _assurance=current_assurance,
+                            _host_context=supplied,
+                            **original_job.review_inputs,
+                        )
                 contract = self._ordinary_contract(preview, native.issuer.profile.digest)
                 if (
                     preview.review.decision != "allow"
@@ -996,7 +1054,10 @@ class SwarmApprovalService:
                     raise CoordinatorRejected(
                         "governance original human preparation or resolved requirements required"
                     )
-                native.issuer._preview_operation(grant.handle, subject.source, contract)
+                if original_job is None:
+                    native.issuer._preview_operation(grant.handle, subject.source, contract)
+                elif not native.issuer._check_operation(contract, grant.handle).ok:
+                    raise CoordinatorRejected("governance current ordinary rights unavailable")
             if native_scope.runtime is not None:
                 provider = native._policy_facts_provider
                 facts = (
@@ -1050,7 +1111,9 @@ class SwarmApprovalService:
             raise CoordinatorRejected("governance complete delegated requirements changed")
         return complete
 
-    def _ordinary_pending(self, broker, *, authorization=None, executor=None, job=None):
+    def _ordinary_pending(
+        self, broker, *, authorization=None, executor=None, job=None, admission_id=None
+    ):
         """Resolve only an original protected authorization/job, never a caller allow flag."""
         from .broker import SwarmExecutionBroker
 
@@ -1063,13 +1126,19 @@ class SwarmApprovalService:
             if authorization is not None:
                 pending = broker._pending_row(authorization)
             else:
-                matches = [row for row in broker._pending.values() if row.owned_job is job]
+                matches = [
+                    row
+                    for row in broker._pending.values()
+                    if (admission_id is not None and row.admission_id == admission_id)
+                    or (job is not None and row.owned_job is job)
+                ]
                 if len(matches) != 1:
                     raise CoordinatorRejected("governance original ordinary owned job required")
                 pending = matches[0]
             if (
                 pending.scope.decision.review.decision != "allow"
                 or pending.scope.decision.approval_fulfilled
+                or pending.state not in {"prepared", "checking", "forwarding"}
                 or executor is not None
                 and executor is not broker._executor
                 or job is not None
@@ -1077,8 +1146,16 @@ class SwarmApprovalService:
             ):
                 raise CoordinatorRejected("governance ordinary route cannot fulfill a warning")
             admission = broker._service._admissions.get(pending.admission_id)
+            original_job = self._ordinary_jobs.get(pending.owned_job)
             if (
                 admission is None
+                or original_job is None
+                or original_job.admission is not admission
+                or original_job.admission_id != pending.admission_id
+                or original_job.broker is not broker
+                or original_job.executor is not broker._executor
+                or original_job.job is not pending.owned_job
+                or original_job.workload_context is not pending.scope.context
                 or admission.owner_channel is not pending.workload_channel
                 or digest(admission.action.as_dict()) != digest(pending.scope.action.as_dict())
             ):
@@ -1090,7 +1167,9 @@ class SwarmApprovalService:
             broker=broker,
             context=pending.scope.context,
             host_context=pending.scope.delegation_scope.review_context,
+            original_job=original_job,
         )
+        return original_job
 
     def require_preparation(
         self, context, broker, channel, reference, action, *, host_context=None
@@ -1176,16 +1255,18 @@ class SwarmApprovalService:
         channel=None,
         reference=None,
         host_context=None,
+        admission_id=None,
     ):
         if context is None:
-            self._ordinary_allow(
-                channel,
-                reference,
-                action,
-                broker=broker,
-                context=workload_context,
-                host_context=host_context,
-            )
+            original_job = self._ordinary_pending(broker, admission_id=admission_id)
+            if (
+                original_job.admission.owner_channel is not channel
+                or original_job.workload_context is not workload_context
+                or original_job.admission.grant_ref != reference
+                or original_job.admission.action_digest != digest(action.as_dict())
+                or host_context is not original_job.admission.decision._context
+            ):
+                raise CoordinatorRejected("governance original native ordinary admission required")
             return
         value = self._preparation(context)
         if (
@@ -1205,10 +1286,7 @@ class SwarmApprovalService:
 
     def bind_owned_job(self, context, broker, executor, job):
         if context is None:
-            # An ordinary allow has no human execution lease to bind. Native,
-            # consumption and effect hooks still require its fresh exact core allow.
-            if executor is not broker._executor:
-                raise CoordinatorRejected("governance original ordinary executor required")
+            self._bind_ordinary_job(broker, executor, job)
             return
         value = self._preparation(context)
         if broker is not value.original.broker:
@@ -1216,6 +1294,68 @@ class SwarmApprovalService:
         value.original.source.bind_job(
             value.execution_lease, broker, executor, job, operator=self._operator
         )
+
+    def _bind_ordinary_job(self, broker, executor, job):
+        """Capture recheck inputs only from a live native ticket and original owned job."""
+        from .broker import SwarmExecutionBroker
+
+        native_scope = self.coordinator._scope(self.scope)
+        if (
+            type(broker) is not SwarmExecutionBroker
+            or broker not in native_scope.brokers.values()
+            or broker._service is not native_scope.native
+            or executor is not broker._executor
+        ):
+            raise CoordinatorRejected("governance original ordinary producer required")
+        native = native_scope.native
+        with self._barrier, self._lock, native._lock, native.issuer._lock, executor._jobs_lock:
+            state = executor._job(job)
+            if state.state != "queued" or job in self._ordinary_jobs:
+                raise CoordinatorRejected("governance original fresh ordinary job required")
+            if (
+                sum(value.broker is broker for value in self._ordinary_jobs.values())
+                >= broker._limit
+            ):
+                raise CoordinatorRejected("governance ordinary witness history exhausted")
+            candidates = []
+            for key, admission in native._admissions.items():
+                if (
+                    admission.state != "pending"
+                    or admission.action_digest != state.binding[1]
+                    or admission.decision.contract_digest != state.binding[2]
+                ):
+                    continue
+                try:
+                    grant, subject = native._grant(admission.owner_channel, admission.grant_ref)
+                except ValueError:
+                    continue
+                if subject.host_id == broker._broker_enrollment.host_id:
+                    candidates.append((key, admission, grant, subject.context))
+            if len(candidates) != 1:
+                raise CoordinatorRejected(
+                    "governance unique original native job admission required"
+                )
+            key, admission, grant, workload_context = candidates[0]
+            if (
+                admission.decision.review.decision != "allow"
+                or admission.decision.approval_fulfilled
+            ):
+                raise CoordinatorRejected("governance ordinary job cannot fulfill a warning")
+            gate = grant.gate
+            with gate._lock, gate._session._lock:
+                inputs = gate.original_review_inputs(admission.decision)
+                self._ordinary_jobs[job] = _OrdinaryJob(
+                    broker,
+                    executor,
+                    job,
+                    key,
+                    admission,
+                    workload_context,
+                    gate,
+                    {"history": admission.decision._history, **inputs},
+                    digest(gate._session.snapshot()),
+                    digest(gate._session.runtime_snapshot()),
+                )
 
     def consume_in_transaction(self, transaction, context, broker, authorization, reservation_id):
         if context is None:

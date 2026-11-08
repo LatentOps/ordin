@@ -48,6 +48,10 @@ human vote. Each admission, consumption and owned-effect boundary checks that
 condition again against the original action and protected evidence. A previous
 allow cannot authorize a subsequently changed warning. `warn`, `ask`, `block`
 and unresolved requirements cannot use this route.
+After admission, rechecks retain the original owned job and native ticket's
+protected review inputs. They do not submit the same action ID as another
+proposal or reserve another ticket. Changed session history, observations,
+configuration or policy invalidate that original job's recheck snapshot.
 
 An explicitly selected REST route keeps the mandatory exact request commitment
 inside its complete `RestRequestContract`. Only that contract's typed request

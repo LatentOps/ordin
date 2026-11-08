@@ -1037,6 +1037,8 @@ class SwarmCoordinator:
         governance_context=None,
     ) -> CoordinatorRecord:
         """Non-authorizing preview; reserve/dispatch recheck original live authority."""
+        from .broker import SwarmExecutionBroker
+
         identifier(idempotency_key, "idempotency_key")
         if type(action) is not ActionEnvelope or action.action_id is None:
             raise ValueError("exact host-correlated action required")
@@ -1077,7 +1079,22 @@ class SwarmCoordinator:
             original, native_subject = scope.native._grant(channel, native_reference)
             if native_subject.context is not enrollment.context or native_subject.source is None:
                 raise CoordinatorRejected("coordinator.native_scope_changed")
-            preview_context = native_subject.source.context()
+            credential_uses = ()
+            registered_broker = scope.brokers.get(enrollment.host_id)
+            if registered_broker is not None:
+                if (
+                    type(registered_broker) is not SwarmExecutionBroker
+                    or registered_broker._service is not scope.native
+                ):
+                    raise CoordinatorRejected("coordinator.original_credential_broker_required")
+                credential_uses = registered_broker.review_credential_uses(
+                    native_subject.source, captured
+                )
+                if not registered_broker.verify_credential_uses(
+                    native_subject.source, captured, credential_uses
+                ):
+                    raise CoordinatorRejected("coordinator.original_credential_proofs_required")
+            preview_context = native_subject.source.context(credential_uses=credential_uses)
             approval_options = {}
             if scope.native._governance is not None:
                 preview_context, approval_options = scope.native._governance.native_options(
@@ -1704,6 +1721,8 @@ class SwarmCoordinator:
         self, handle: CoordinatorScope, broker_channel: AuthorityChannel, reservation_id: str
     ):
         """Retrieve one original committed physical outcome under current protected scope."""
+        from .broker import SwarmExecutionBroker
+
         scope = self._scope(handle)
         with self._containment_barrier(scope), self._lock, self.store.transaction() as transaction:
             _, _, reservation = self._broker_reservation(
@@ -1714,10 +1733,15 @@ class SwarmCoordinator:
             if prepared is None or prepared.scope is not handle:
                 raise CoordinatorRejected("coordinator.original_completed_broker_binding_required")
             broker = prepared.broker
+            registered = scope.brokers.get(enrollment.host_id)
             if (
-                broker is None
-                or prepared.authorization is None
-                or broker is not scope.brokers.get(enrollment.host_id)
+                type(broker) is not SwarmExecutionBroker
+                or type(registered) is not SwarmExecutionBroker
+            ):
+                raise CoordinatorRejected("coordinator.original_completed_broker_binding_required")
+            if (
+                prepared.authorization is None
+                or broker is not registered
                 or scope.broker_channels.get(enrollment.host_id) is not broker_channel
                 or broker._service is not scope.native
                 or prepared.action_digest != reservation["action_digest"]

@@ -30,7 +30,7 @@ def configured(
     now = [100.0]
     store = SQLiteCoordinatorStore(tmp_path / "authority.db", create=True, clock=lambda: now[0])
     clock = CoordinatorClock(store)
-    (tmp_path / "broker").mkdir()
+    (tmp_path / "broker").mkdir(mode=0o700)
     with (
         fixture(
             tmp_path / "broker",

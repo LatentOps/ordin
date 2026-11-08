@@ -1,10 +1,12 @@
 """Protected human fulfillment and selective ordinary-allow execution."""
 
 from copy import copy
+from dataclasses import replace
 
 import pytest
 
 from ordin import ActionPolicyCondition, ActionPolicyRule, ActionPolicySet
+from ordin.execution import ActionObservation
 from tests.test_swarm_approval import configured
 from tests.test_swarm_broker import require_kernel
 
@@ -38,7 +40,9 @@ def test_human_fulfillment_uses_retained_exact_request_once(tmp_path):
         authorization = next(iter(native[0]._pending))
         decision = native[0].authorization_scope(authorization).decision
         assert decision.review.decision == "warn"
-        assert decision.disposition == "escalate" and decision.approval_fulfilled
+        assert decision.disposition == "escalate"
+        # Completion closes live fulfillment authority; the original warning remains.
+        assert not decision.approval_fulfilled
         with pytest.raises(ValueError):
             service.fulfill(humans["alice"], request.request_id)
 
@@ -177,4 +181,47 @@ def test_prior_allow_cannot_be_borrowed_after_core_context_becomes_warning(tmp_p
             pass
         else:
             assert result.status != "host_completed"
+        assert not any(result.physical_enforcement for result in native[0]._results)
+
+
+@pytest.mark.parametrize("change", ["history", "observation", "configuration"])
+def test_original_allow_job_cannot_borrow_changed_session_or_configuration(tmp_path, change):
+    require_kernel()
+    with configured(tmp_path, decision="allow") as data:
+        _, coordinator, scope, channel, lease, grant, action, _, _, native = data
+        evaluated = coordinator.evaluate(
+            scope, channel, lease, grant, action, idempotency_key="before-change"
+        )
+        reservation = coordinator.reserve(
+            scope, channel, lease, evaluated.reference, action, idempotency_key="held"
+        )
+        gate = native[1]._grants[grant].gate
+        if change == "history":
+            subject = native[1].authenticator.require(channel, role="workload")
+            gate.evaluate_action(
+                replace(action, action_id="other-host-proposal"),
+                host_context=subject.source.context(),
+            )
+        elif change == "observation":
+            gate.observe(ActionObservation(action.action_id, exit_code=1))
+        else:
+            # The replacement still ALLOWs reads; configuration identity must remain current.
+            selected = ActionPolicySet(
+                "different-allow-configuration",
+                "1",
+                (
+                    ActionPolicyRule(
+                        "allow", "allow", ActionPolicyCondition(effects_any=("filesystem.read",))
+                    ),
+                ),
+            )
+            object.__setattr__(native[1].assurance.ordin, "action_policy", selected.compile())
+        try:
+            outcome = coordinator.guarded_dispatch(
+                scope, native[0]._broker_channel, reservation.reference
+            )
+        except ValueError:
+            pass
+        else:
+            assert outcome.status != "host_completed"
         assert not any(result.physical_enforcement for result in native[0]._results)
