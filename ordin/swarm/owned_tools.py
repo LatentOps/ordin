@@ -1284,6 +1284,16 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             "executable_launch_denied",
             "memory_ceiling_enforced",
         }
+        if mode == "http":
+            expected_checks.update(
+                {
+                    "preconnected_socket_nonblocking_control",
+                    "wrong_socket_ioctl_descriptor_denied",
+                    "wrong_socket_ioctl_request_denied",
+                    "socket_fcntl_denied",
+                    "socket_connect_denied",
+                }
+            )
         expected_limits = {
             "memory_bytes": [self.memory_mib * 1048576] * 2,
             "cpu_seconds": [self.cpu_seconds] * 2,

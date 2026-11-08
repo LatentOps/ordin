@@ -5,6 +5,7 @@ import json
 
 WRITE_PROTOCOL = "ordin.swarm.linux_managed_write.v1"
 HTTP_PROTOCOL = "ordin.swarm.linux_exact_http.v1"
+FIONBIO = 0x5421  # Fixed Linux x86-64 ioctl ABI; only socket nonblocking state.
 
 
 def wire(value):
@@ -75,6 +76,7 @@ def filter_code(mode):
         restricted(316, ((0, (3,)), (2, (3,)), (4, (1, 2))))
         code.extend(((0x15, 0, 1, 74), (0x06, 0, 0, allow)))
     elif mode == "http":
+        restricted(16, ((0, (3,)), (1, (FIONBIO,))))
         for number in (44, 45, 48, 51, 52, 54, 55):
             restricted(number, ((0, (3,)),))
     else:

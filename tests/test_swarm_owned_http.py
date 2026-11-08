@@ -241,6 +241,16 @@ def test_actual_http_and_verified_https_preserve_complete_request_authority(
                 and evidence["network_scope"] == "one_preconnected_destination"
             )
             assert evidence["complete_request_digest"] == complete.digest
+            assert all(
+                evidence["checks"][key]
+                for key in (
+                    "preconnected_socket_nonblocking_control",
+                    "wrong_socket_ioctl_descriptor_denied",
+                    "wrong_socket_ioctl_request_denied",
+                    "socket_fcntl_denied",
+                    "socket_connect_denied",
+                )
+            )
             assert not backend.verify_outcome(copy.copy(result), compiled.plan)
             assert not backend.compile_action(action, complete).enforceable
             assert seen == [request_bytes(url, route.headers)] and not failures

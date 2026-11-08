@@ -9,7 +9,7 @@ import signal
 import stat
 import sys
 
-from _owned_protocol import filter_code, filter_digest
+from _owned_protocol import FIONBIO, filter_code, filter_digest
 
 
 def file_identity(descriptor):
@@ -228,6 +228,23 @@ def isolate(packet, mode):
                 os.close(result)
             raise OSError("owned syscall denial probe failed")
         checks[label] = True
+    if mode == "http":
+        nonblocking = ctypes.c_int(1)
+        if libc.syscall(16, 3, FIONBIO, ctypes.byref(nonblocking)) != 0:
+            raise OSError("owned preconnected socket nonblocking control unavailable")
+        checks["preconnected_socket_nonblocking_control"] = True
+        for socket_label, socket_number, socket_arguments in (
+            ("wrong_socket_ioctl_descriptor_denied", 16, (0, FIONBIO, ctypes.byref(nonblocking))),
+            ("wrong_socket_ioctl_request_denied", 16, (3, 0x541B, ctypes.byref(nonblocking))),
+            ("socket_fcntl_denied", 72, (3, 3)),
+            ("socket_connect_denied", 42, (3, None, 0)),
+        ):
+            if (
+                libc.syscall(socket_number, *socket_arguments) != -1
+                or ctypes.get_errno() != errno.EPERM
+            ):
+                raise OSError("owned socket restriction probe failed")
+            checks[socket_label] = True
     allocation = mmap(None, memory * 2, 3, 0x22, -1, 0)
     if allocation != ctypes.c_void_p(-1).value or ctypes.get_errno() != errno.ENOMEM:
         if allocation != ctypes.c_void_p(-1).value:
