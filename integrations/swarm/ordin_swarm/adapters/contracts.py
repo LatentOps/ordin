@@ -41,7 +41,7 @@ def require_version(framework):
     return actual
 
 
-def coverage(framework, *, installed=False, connected=False):
+def coverage(framework, *, installed=False, connected=False, synchronous=True, asynchronous=False):
     actual = installed_versions(framework)
     blocked = framework == "crewai"
     return checked(
@@ -65,7 +65,8 @@ def coverage(framework, *, installed=False, connected=False):
             "covered": []
             if blocked
             else [
-                "bound_synchronous_tool_calls",
+                *(["bound_synchronous_tool_calls"] if synchronous else []),
+                *(["bound_asynchronous_tool_calls"] if asynchronous else []),
                 "host_session_identity",
                 "exact_arguments",
                 "post_tool_outcome",
@@ -79,7 +80,7 @@ def coverage(framework, *, installed=False, connected=False):
                 "native_messages",
                 "native_artifact_stores",
                 "remote_plugins",
-                "async_native_tools",
+                *([] if asynchronous else ["async_native_tools"]),
             ],
             "native_approvals": "unavailable_escalation_refused",
             "diagnostics": ["security_blocked_unpatched_chromadb"] if blocked else [],

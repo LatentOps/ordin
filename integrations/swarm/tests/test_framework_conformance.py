@@ -17,7 +17,7 @@ def require_sdk(framework):
 
 
 @pytest.fixture(autouse=True)
-def offline(monkeypatch):
+def offline(monkeypatch, async_loop):
     for name, value in {
         "CREWAI_TELEMETRY_DISABLED": "true",
         "OTEL_SDK_DISABLED": "true",
@@ -39,7 +39,7 @@ def offline(monkeypatch):
     monkeypatch.setattr(socket, "create_connection", denied)
 
 
-def host(native, runtime, tmp_path):
+def host(native, runtime, tmp_path, *, budget=False):
     from ordin import AgentGate, Ordin, ToolSemanticsRegistry, ToolSemanticRule, ToolResourceBinding
     from ordin.swarm import (
         InMemoryAgentRegistry,
@@ -81,7 +81,17 @@ def host(native, runtime, tmp_path):
         ),
     )
     sdk = SwarmSDK(operator=operator)
-    gateway = SwarmToolGateway(events=events, clock=lambda: 100)
+    ledger = None
+    if budget:
+        from ordin.swarm.budgets import BudgetLedger, BudgetLimit, BudgetPolicy
+
+        ledger = BudgetLedger(
+            registry,
+            BudgetPolicy(0, (BudgetLimit("swarm", "requests", 100),)),
+            operator=operator,
+            clock=lambda: 100,
+        )
+    gateway = SwarmToolGateway(events=events, clock=lambda: 100, budget_ledger=ledger)
     sessions = []
     for index, obj in enumerate(native):
         adapter = object()

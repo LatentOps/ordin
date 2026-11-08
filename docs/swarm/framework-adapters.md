@@ -13,7 +13,7 @@ a protection claim from a similar API name.
 
 | Adapter | Tested distributions | Actual boundary | Existing runtime |
 | --- | --- | --- | --- |
-| LangGraph | `langgraph==1.2.20`, `langgraph-prebuilt==1.1.1`, `langchain-core==1.7.6` | ToolNode wrapper plus guarded synchronous StructuredTool callback after native argument validation | Rebuild ToolNode and its compiled graph |
+| LangGraph | `langgraph==1.2.20`, `langgraph-prebuilt==1.1.1`, `langchain-core==1.7.6` | Original ToolNode wrappers plus guarded synchronous/coroutine StructuredTool callbacks after native argument validation | Rebuild ToolNode and its compiled graph |
 | CrewAI — security blocked | Historical hook tests used `crewai==1.15.35`, `crewai-core==1.15.35` | No active coverage; required ChromaDB has unresolved advisories | Setup, adapter construction and fixtures refuse before importing the SDK, including an externally installed matching version |
 | AutoGen legacy | `autogen-core==0.7.5` | Owned SingleThreadedAgentRuntime intervention handler and native synchronous FunctionTool callback | Create a runtime with the original intervention handler |
 | Custom Python | No framework dependency | Original protected SDK session or verified HostSessionEndpoint dispatch table | Live future-call routing where the host provides a verified setter |
@@ -152,12 +152,44 @@ against hostile Python already running inside the trusted host process.
 ### Framework-specific limits
 
 LangGraph authorization occurs inside the guarded function after native
-validation/coercion, so the callback receives the reviewed normalized values.
-The adapter preserves ToolNode's configured error handling. Injected
-state/store/runtime/config arguments, native async tool routes and non-JSON
-Command/Send results require a stronger adapter and return non-success. Removing
-the outer wrapper does not make the guarded inner callback executable without
-its original per-call scope. Arbitrary graph nodes remain uncovered.
+Pydantic v2 validation/coercion, so the callback receives the reviewed normalized
+values. Synchronous `invoke` retains its original route. Native `ainvoke` supports
+coroutine tools and intercepted synchronous tools, with synchronous callbacks
+offloaded to an owned host thread. Dual tools retain their separate synchronous
+and coroutine functions. ToolNode error handling and native validation/tool-error
+flags are preserved; bounded data-only content/artifact pairs remain supported.
+
+Each native invocation must enter its original proxy before a one-use callback
+scope is consumed. Async scopes bind the actual native task, not model fields
+or a copied ContextVar. Inherited child tasks cannot call a guarded coroutine,
+`ainvoke` or `arun` as though they owned its parent permission. Calls for one actor
+are serialized; different enrolled actors can progress independently. SDK,
+gateway, actor and policy thread locks are released before awaiting a callback.
+An async session and adapter retain one original event loop until closed.
+
+The explicit host SDK methods are `register_async_tool`, `async_tool`,
+`prepare_async`, `forward_async` and `invoke_async`. Preparation captures bounded
+arguments and its owning task; another task, copied handle, changed arguments,
+callback/configuration mutation, replay or close cannot consume that permission.
+`invoke_async` can also schedule an existing synchronous host tool. These are
+interception APIs: native callbacks do not become owned physical executors.
+Broker/coordinator sessions retain their synchronous owned route; native
+`ainvoke` on those sessions is unsupported until an original async executor
+boundary is available.
+
+Cancellation after forwarding never refunds an uncertain effect or retries it.
+The hold remains reserved/uncertain and future admission is fenced by the
+gateway gap. A coroutine can suppress cancellation and a thread cannot be
+force-killed; late results cannot publish completion or settle those holds.
+Closing fences queued work and requests cancellation of original active tasks,
+without claiming rollback. Host callback execution/background code remains a
+trusted-host boundary, not a sandbox.
+
+Injected state/store/runtime/config arguments and non-JSON Command/Send results
+remain unsupported. Results must fit the existing 64 KiB/4,096-node JSON bounds;
+foreign objects, returned coroutines and unbounded outputs produce non-success.
+Removing the outer wrapper does not make the guarded inner callback executable.
+Arbitrary graph nodes and unwrapped/background routes remain uncovered.
 
 The quarantined CrewAI implementation is retained for a future verified fix;
 the following describes its historical hook boundary, not available coverage.
