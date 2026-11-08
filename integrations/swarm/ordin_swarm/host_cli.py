@@ -261,6 +261,12 @@ def main(argv=None):
     config.add_argument("--output", type=_absolute, required=True)
     bridge = commands.add_parser("connect")
     bridge.add_argument("--client-directory", type=_absolute, required=True)
+    evaluation = commands.add_parser(
+        "evaluate", help="run the fixed offline two-agent effect evaluation"
+    )
+    evaluation.add_argument("--directory", type=_absolute, required=True)
+    evaluation.add_argument("--output", type=_absolute, required=True)
+    evaluation.add_argument("--openssl", type=_absolute)
     operator = commands.add_parser("operator")
     operator.add_argument("--directory", type=_absolute, required=True)
     actions = operator.add_subparsers(dest="action", required=True)
@@ -294,6 +300,12 @@ def main(argv=None):
             result = _private_output(
                 args.output, client_configuration(args.directory, args.actor, python=args.python)
             )
+        elif args.operation == "evaluate":
+            from .host_evaluation import run_evaluation
+
+            evaluated = run_evaluation(args.directory, openssl=args.openssl)
+            result = _private_output(args.output, evaluated)
+            result["passed"] = evaluated["passed"]
         elif args.operation == "connect":
             from .host_service import bridge_stdio
 
@@ -374,7 +386,7 @@ def main(argv=None):
             if args.action == "show" and args.include_content:
                 result = _private_output(args.preview, result)
         print(json.dumps(result, sort_keys=True, ensure_ascii=True, allow_nan=False), flush=True)
-        return 0
+        return 1 if args.operation == "evaluate" and not result["passed"] else 0
     except (ValueError, OSError, RuntimeError, UnicodeError):
         # Never emit raw exceptions: paths, TLS errors and proposals can contain
         # secrets. An unknown response is never a reason to replay an effect.

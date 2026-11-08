@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-tool-host-evaluation.v1.schema.json",
+  "title": "swarm-tool-host-evaluation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_digest",
+    "scope",
+    "operator_mode",
+    "hosted_models_used",
+    "client_process_confinement",
+    "complete_taint_tracking",
+    "benign_total",
+    "benign_completed",
+    "false_blocks",
+    "attack_total",
+    "attacks_stopped",
+    "false_allows",
+    "duration_ms",
+    "cases",
+    "passed",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_tool_host_evaluation.v1"
+    },
+    "profile_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "scope": {
+      "const": "offline_fixed_two_agent_workflow"
+    },
+    "operator_mode": {
+      "const": "scripted_fixture_exact_authenticated_review"
+    },
+    "hosted_models_used": {
+      "const": false
+    },
+    "client_process_confinement": {
+      "const": "not_established"
+    },
+    "complete_taint_tracking": {
+      "const": false
+    },
+    "benign_total": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 128
+    },
+    "benign_completed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 128
+    },
+    "false_blocks": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 128
+    },
+    "attack_total": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 128
+    },
+    "attacks_stopped": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 128
+    },
+    "false_allows": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 128
+    },
+    "duration_ms": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 3600000
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "execution_authority": {
+      "const": false
+    },
+    "cases": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "kind",
+          "passed",
+          "duration_ms"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]{1,128}$"
+          },
+          "kind": {
+            "enum": [
+              "benign",
+              "attack"
+            ]
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "duration_ms": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 3600000
+          }
+        }
+      }
+    }
+  }
+}

@@ -32,14 +32,13 @@ def main():
             if archive.read(source.relative_to(package).as_posix()) != source.read_bytes():
                 raise ValueError("adapter wheel differs from current source")
     with zipfile.ZipFile(core) as archive:
-        for relative in ("ordin/schema.py", "ordin/swarm/gateway.py"):
-            if archive.read(relative) != (ROOT / relative).read_bytes():
-                raise ValueError(
-                    "trusted core adapter dependency wheel differs from current source"
-                )
-        for source in (ROOT / "ordin/resources/schemas").glob("swarm-framework-*.json"):
+        trusted = [ROOT / "ordin/schema.py", *(ROOT / "ordin/swarm").rglob("*.py")]
+        for source in trusted:
             if archive.read(source.relative_to(ROOT).as_posix()) != source.read_bytes():
-                raise ValueError("framework schema wheel differs from current source")
+                raise ValueError("trusted core host dependency wheel differs from current source")
+        for source in (ROOT / "ordin/resources/schemas").glob("swarm-*.json"):
+            if archive.read(source.relative_to(ROOT).as_posix()) != source.read_bytes():
+                raise ValueError("swarm schema wheel differs from current source")
     environment = workspace / "env"
     if environment.exists():
         raise ValueError("wheel smoke requires a new isolated environment")
@@ -101,6 +100,14 @@ def _verify(args, workspace, environment, core, swarm):
         str(swarm) + ("[" + args.framework + "]" if active_sdk else ""),
     )
     run("-m", "pip", "check")
+    run("-I", "-m", "ordin_swarm.host_cli", "--help")
+    run(
+        "-I",
+        "-c",
+        "from ordin.schema import SCHEMA_FILES; from importlib.resources import files; "
+        "assert all(files('ordin').joinpath('resources/schemas', name).is_file() "
+        "for key,name in SCHEMA_FILES.items() if key.startswith('swarm_tool_host_'))",
+    )
     run(
         "-I",
         "-c",
