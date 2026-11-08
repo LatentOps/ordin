@@ -118,7 +118,8 @@ def main():
         connection = socket.socket(fileno=3)
         connection.settimeout(packet["timeout_ms"] / 1000)
         peer = connection.getpeername()
-        if str(ipaddress.ip_address(peer[0])) != packet["address"] or peer[1] != packet["port"]:
+        peer_address, peer_port = str(ipaddress.ip_address(peer[0])), peer[1]
+        if peer_address != packet["address"] or peer_port != packet["port"]:
             raise ValueError("HTTP preconnected destination differs")
         if packet["tls"]:
             if type(packet["ca_pem"]) is not str or not 1 <= len(packet["ca_pem"]) <= 524288:
@@ -156,9 +157,10 @@ def main():
                 raise ValueError("strict TLS verification unavailable")
         connection.sendall(request)
         body = read_response(connection, packet["max_response_bytes"], require_length=packet["tls"])
-        peer = connection.getpeername()
-        if str(ipaddress.ip_address(peer[0])) != packet["address"] or peer[1] != packet["port"]:
-            raise ValueError("HTTP actual peer differs")
+        # The original peer was checked before TLS or request bytes. The closed
+        # profile denies connect/socket/descriptor replacement, so it cannot
+        # change. TLS teardown may make a later getpeername return ENOTCONN even
+        # after an authenticated complete response; retain the earlier proof.
         value = b'{"completed":true,"credentialed":true}' if credential is not None else body
         response = {
             key: packet[key]
@@ -174,8 +176,8 @@ def main():
         response.update(
             status="completed",
             request_tag=packet["request_tag"],
-            address=packet["address"],
-            port=packet["port"],
+            address=peer_address,
+            port=peer_port,
             tls_verified=packet["tls"],
             delivery="fixed_completion_receipt" if credential is not None else "bounded_body",
             value=base64.b64encode(value).decode("ascii"),

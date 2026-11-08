@@ -367,3 +367,46 @@ def test_actual_http_ambiguous_and_redirect_responses_never_succeed_or_retry(tmp
         finally:
             backend.close()
             install.cleanup()
+
+
+def test_preconnected_peer_mismatch_refuses_before_tls_or_private_request_bytes(
+    tmp_path, monkeypatch
+):
+    from tests.test_swarm_broker import require_kernel
+
+    require_kernel()
+    secret = b"peer-mismatch-private-fixture"
+    with endpoint(tls=True) as (url, seen, _):
+        port = int(url.split(":")[2].split("/")[0])
+        route = OwnedHTTPRoute(
+            "private-docs",
+            url,
+            ("127.0.0.2",),
+            ca_file=CERTS / "ca.pem",
+            allow_private=True,
+            credential=secret,
+            credential_binding=CredentialBinding("fixture-key", "localhost", port),
+        )
+        original_connect = socket.socket.connect
+
+        def redirected_parent_connection(connection, address):
+            # Fault the trusted connector only: the fresh child still measures
+            # the actual kernel peer, rather than trusting the packet's IP.
+            if address == ("127.0.0.2", port):
+                return original_connect(connection, ("127.0.0.1", port))
+            return original_connect(connection, address)
+
+        with configured(tmp_path, http_routes=(route,)) as data:
+            monkeypatch.setattr(socket.socket, "connect", redirected_parent_connection)
+            action = get_action(route)
+            source = data.details["sources"]["child"]
+            data.broker.review_credential_uses(source, action)
+            prepared = data.broker.prepare(
+                data.channel, data.grant, action, idempotency_key="wrong-peer"
+            )
+            assert prepared.disposition == "execute", prepared.as_dict()
+            result = data.broker.dispatch(prepared.authorization)
+            assert result.status == "unknown" and result.value is None
+            assert seen == []  # No TLS handshake/HTTP request reached the endpoint.
+            with pytest.raises(ValueError, match="consumed"):
+                data.broker.review_credential_uses(source, action)
