@@ -24,7 +24,7 @@
       "const": "ordin.swarm_executor_outcome.v1"
     },
     "backend": {
-      "const": "linux-owned-file-read-v1"
+      "enum": ["linux-owned-file-read-v1", "linux-owned-tools-v1"]
     },
     "status": {
       "enum": [

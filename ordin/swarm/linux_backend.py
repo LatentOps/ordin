@@ -84,13 +84,14 @@ class ExecutorOutcome:
     payload_digest: str | None
     value: bytes | None = field(default=None, repr=False)
     observation: RuntimeObservation | None = field(default=None, repr=False)
+    backend: str = "linux-owned-file-read-v1"
 
     def as_dict(self) -> dict[str, Any]:
         from ordin.schema import validate_named_schema
 
         payload = {
             "schema_version": "ordin.swarm_executor_outcome.v1",
-            "backend": "linux-owned-file-read-v1",
+            "backend": self.backend,
             "status": self.status,
             "reason_code": self.reason_code,
             "action_digest": self.action_digest,
@@ -495,6 +496,7 @@ class LinuxFileReadBackend:
             hashlib.sha256(value).hexdigest() if value is not None else None,
             value,
             observation,
+            self.name,
         )
         self._outcomes[outcome] = digest(outcome.as_dict())
         if evidence is not None:
@@ -581,6 +583,9 @@ class LinuxFileReadBackend:
                     "original consumed approval lease for this exact owned job required"
                 )
 
+    def _file_owner(self) -> int:
+        return os.geteuid()
+
     def execute(
         self,
         plan: EnforcementPlan,
@@ -633,7 +638,7 @@ class LinuxFileReadBackend:
                 info = os.fstat(descriptor)
                 if (
                     not stat.S_ISREG(info.st_mode)
-                    or info.st_uid != os.geteuid()
+                    or info.st_uid != self._file_owner()
                     or stat.S_IMODE(info.st_mode) & 0o077
                     or info.st_nlink != 1
                     or info.st_size > self.max_payload_bytes
