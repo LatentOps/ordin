@@ -112,7 +112,13 @@ def initialize_private_profile(
         ],
         pki,
     )
-    names = ("server", "broker", "authority-root", *(actor.agent_id for actor in profile.actors))
+    names = (
+        "server",
+        "broker",
+        "authority-root",
+        "operator",
+        *(actor.agent_id for actor in profile.actors),
+    )
     for name in names:
         _openssl(
             executable,
@@ -191,7 +197,13 @@ class PrivateHostPKI:
         self.root = profile.configuration_root / "pki"
         check_private_directory(self.root)
         self.names = frozenset(
-            ("server", "broker", "authority-root", *(actor.agent_id for actor in profile.actors))
+            (
+                "server",
+                "broker",
+                "authority-root",
+                "operator",
+                *(actor.agent_id for actor in profile.actors),
+            )
         )
         self._snapshots = {
             name: hashlib.sha256(

@@ -91,6 +91,7 @@ class HostHTTPRoute:
     allow_private_network: bool
     allow_http: bool
     response_limit_bytes: int
+    response_label: str
     credential_file: str | None
     ca_file: str | None
 
@@ -105,6 +106,7 @@ class HostHTTPRoute:
                 "allow_private_network",
                 "allow_http",
                 "response_limit_bytes",
+                "response_label",
                 "credential_file",
                 "ca_file",
             },
@@ -176,6 +178,8 @@ class HostHTTPRoute:
             relative_parts(ca_file)
             if parsed.scheme != "https":
                 raise ValueError("host trust material requires HTTPS")
+        if type(row["response_label"]) is not str or row["response_label"] not in LABELS:
+            raise ValueError("host HTTP response requires an operator classification")
         return cls(
             route_id,
             url,
@@ -183,6 +187,7 @@ class HostHTTPRoute:
             private,
             plain,
             _counter(row["response_limit_bytes"], "response limit", 1, 65536),
+            row["response_label"],
             credential,
             ca_file,
         )
@@ -353,6 +358,7 @@ class ToolHostProfile:
                     "allow_private_network": item.allow_private_network,
                     "allow_http": item.allow_http,
                     "response_limit_bytes": item.response_limit_bytes,
+                    "response_label": item.response_label,
                     "credential_file": item.credential_file,
                     "ca_file": item.ca_file,
                 }

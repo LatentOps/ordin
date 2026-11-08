@@ -181,9 +181,10 @@ class MCPHostSession:
                 )
             except (ValueError, OSError, RuntimeError):
                 output = {
-                    "status": "denied",
+                    "status": "unknown",
                     "reason_codes": ["host.call_unavailable"],
-                    "forwarded": False,
+                    "forwarded": None,
+                    "uncertain_effects": True,
                 }
             # Only the authorized result body is returned. Diagnostics omit payloads.
             result = {

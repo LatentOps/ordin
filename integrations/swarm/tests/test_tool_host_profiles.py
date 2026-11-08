@@ -60,6 +60,7 @@ def route():
         "allow_private_network": False,
         "allow_http": False,
         "response_limit_bytes": 4096,
+        "response_label": "public",
         "credential_file": None,
         "ca_file": None,
     }

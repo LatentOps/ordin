@@ -161,6 +161,7 @@
           "allow_private_network",
           "allow_http",
           "response_limit_bytes",
+          "response_label",
           "credential_file",
           "ca_file"
         ],
@@ -220,6 +221,15 @@
                 "minLength": 1,
                 "maxLength": 1024
               }
+            ]
+          },
+          "response_label": {
+            "enum": [
+              "public",
+              "private_code",
+              "secret",
+              "pii",
+              "unclassified"
             ]
           }
         }
