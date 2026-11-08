@@ -13,18 +13,22 @@ from pathlib import Path
 import re
 import secrets
 import signal
+import socket
+import ssl
 import stat
 import subprocess
 import sys
 import tempfile
 import time
 from typing import Any
+from threading import Thread
 from urllib.parse import urlsplit
 from uuid import uuid4
 
 from ordin import ToolCallAdapter
 from ordin.action import ActionEnvelope
 from ordin.assurance.host import HostCredentialUse, HostEvidenceSource
+from ordin.assurance.rest import RestRequestAuthority, RestRequestContract
 from ordin._rest_semantics import HEADER, UNSUPPORTED_HEADERS
 from ordin._runtime_json import digest
 from ordin.enforcement_backend import BackendValidationResult, CompilationResult, EnforcementPlan
@@ -41,9 +45,11 @@ from ordin.runtime_requests import request_endpoint
 from ordin.runtime_observation import RuntimeEvidenceSource
 
 from .events import _hex
-from .linux_backend import ExecutorOutcome, KernelJob, LinuxFileReadBackend, _sha
+from .linux_backend import ExecutorOutcome, KernelJob, LinuxFileReadBackend, _Job, _sha
 from .models import counter, identifier
-from ._owned_protocol import WRITE_PROTOCOL, filter_digest, wire
+from ._owned_protocol import HTTP_PROTOCOL, WRITE_PROTOCOL, filter_digest, wire
+from ._owned_http import OwnedRequestCompilation, OwnedRequestPlan
+from ._owned_http_wire import request_bytes, request_tag
 from ._owned_state import OwnedFileState
 
 
@@ -229,6 +235,7 @@ class _CredentialReview:
     action_digest: str
     receipts: tuple[HostCredentialUse, ...]
     digests: tuple[str, ...]
+    profile: Any
     used: bool = False
 
 
@@ -269,6 +276,8 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
     ):
         if (
             type(initialize) is not bool
+            or type(max_payload_bytes) is not int
+            or not 1 <= max_payload_bytes <= 65536
             or type(max_write_bytes) is not int
             or not 1 <= max_write_bytes <= 65536
             or type(http_routes) is not tuple
@@ -279,6 +288,13 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             raise ValueError("protected finite managed-tool configuration required")
         if type(allowed_files) is not tuple:
             raise ValueError("literal managed file routes required")
+        if any(
+            route.max_response_bytes > max_payload_bytes
+            or route.credential is not None
+            and max_payload_bytes < 40
+            for route in http_routes
+        ):
+            raise ValueError("HTTP delivery must fit the executor payload bound")
         route_materials = [
             digest(
                 {
@@ -305,11 +321,20 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
         self._managed_state: OwnedFileState | None = None
         self._closing = False
         self._write_plans: dict[str, tuple[EnforcementPlan, ActionEnvelope, dict]] = {}
+        self._http_plans: dict[str, tuple] = {}
+        self._http_consumed: set[str] = set()
+        self._factory_http_outcomes: dict[ExecutorOutcome, tuple] = {}
         self._credential_key = secrets.token_bytes(32)
         self._credential_reviews: dict[str, _CredentialReview] = {}
         self._extra_shipped = {
             name: Path(__file__).with_name(name)
-            for name in ("_owned_protocol.py", "_owned_isolation.py", "_write_worker.py")
+            for name in (
+                "_owned_protocol.py",
+                "_owned_isolation.py",
+                "_write_worker.py",
+                "_owned_http_wire.py",
+                "_http_worker.py",
+            )
         }
         self._extra_digests = {name: _sha(path) for name, path in self._extra_shipped.items()}
         self._backend_digest = _sha(Path(__file__))
@@ -626,7 +651,12 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                 binding=route.credential_binding,
             )
             row = _CredentialReview(
-                source, profile.digest, digest(action.as_dict()), (receipt,), (receipt.digest,)
+                source,
+                profile.digest,
+                digest(action.as_dict()),
+                (receipt,),
+                (receipt.digest,),
+                profile,
             )
             self._credential_reviews[key] = row
             return row.receipts
@@ -648,7 +678,443 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
         except (ValueError, TypeError, UnicodeError):
             return False
 
+    @staticmethod
+    def _tls_material(route):
+        if urlsplit(route.url).scheme != "https":
+            return None, None
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        if route.ca_file is None:
+            # Explicit compiled-in system locations, never SSL_CERT_FILE/DIR
+            # environment overrides supplied by an invoking agent.
+            locations = ssl.get_default_verify_paths()
+            context.load_verify_locations(
+                cafile=locations.openssl_cafile, capath=locations.openssl_capath
+            )
+        else:
+            path = route.ca_file
+            if path.resolve(strict=True) != path:
+                raise ValueError("CA file must be canonical without symlink parents")
+            descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+            try:
+                before = os.fstat(descriptor)
+                if (
+                    not stat.S_ISREG(before.st_mode)
+                    or before.st_nlink != 1
+                    or before.st_uid != os.geteuid()
+                    or before.st_mode & 0o022
+                    or before.st_size > 524288
+                ):
+                    raise ValueError("CA file must be protected and bounded")
+                pem_bytes = bytearray()
+                while len(pem_bytes) <= 524288:
+                    chunk = os.read(descriptor, min(8192, 524289 - len(pem_bytes)))
+                    if not chunk:
+                        break
+                    pem_bytes.extend(chunk)
+                if (
+                    owned_file_identity(os.fstat(descriptor)) != owned_file_identity(before)
+                    or len(pem_bytes) > 524288
+                ):
+                    raise ValueError("CA material changed")
+                context.load_verify_locations(cadata=pem_bytes.decode("ascii"))
+            finally:
+                os.close(descriptor)
+        authorities = context.get_ca_certs(binary_form=True)
+        if not 1 <= len(authorities) <= 512:
+            raise ValueError("bounded explicit TLS authority set required")
+        pem = "".join(ssl.DER_cert_to_PEM_cert(item) for item in authorities)
+        if len(pem) > 524288:
+            raise ValueError("TLS authority set exceeds bound")
+        return pem, hashlib.sha256(
+            wire(sorted(hashlib.sha256(item).hexdigest() for item in authorities))
+        ).hexdigest()
+
+    def _http_requirements(self, action, complete, source, receipts):
+        route = self._http_route(action)
+        contract = complete.capability
+        if (
+            complete.request != RestRequestAuthority.from_parameters(action.parameters)
+            or contract.action_digest != digest(action.as_dict())
+            or contract.action_id != action.action_id
+            or contract.filesystem
+            or contract.tools
+            or contract.process.execution is not False
+            or contract.process.executables
+            or contract.process.spawn_children not in {None, False}
+            or contract.privilege.escalation is not False
+            or contract.privilege.required_euid not in {None, self.uid}
+            or contract.credentials
+            != (() if route.credential is None else (route.credential_binding,))
+            or type(receipts) is not tuple
+            or any(type(receipt) is not HostCredentialUse for receipt in receipts)
+        ):
+            raise ValueError(
+                "HTTP action or full authority differs from the exact configured route"
+            )
+        request_bytes(route.url, route.headers, route.credential)
+        review = None
+        if route.credential is None:
+            if receipts:
+                raise ValueError("credentialless route cannot consume credential proofs")
+        else:
+            if type(source) is not HostEvidenceSource or len(receipts) != 1:
+                raise ValueError("original credential source and receipt required")
+            key = digest([source.key, receipts[0].profile_digest, digest(action.as_dict())])
+            review = self._credential_reviews.get(key)
+            if review is None:
+                raise ValueError("original credential admission unavailable")
+            self._verify_review(review, source, review.profile, action, receipts)
+            receipt = receipts[0]
+            if (receipt.binding, receipt.host, receipt.port) != (
+                route.credential_binding.binding,
+                route.credential_binding.host,
+                route.credential_binding.port,
+            ):
+                raise ValueError("credential receipt destination differs")
+        return route, review
+
+    def _compile_http(self, action, complete, source, receipts):
+        try:
+            if not self._supported:
+                raise ValueError("Linux owned request executor unavailable")
+            self._verify_install()
+            route, review = self._http_requirements(action, complete, source, receipts)
+            pem, ca_digest = self._tls_material(route)
+            policy = {
+                "profile": HTTP_PROTOCOL,
+                "configuration_digest": self.configuration_digest,
+                "complete_request_digest": complete.digest,
+                "request_authority_digest": complete.request.digest,
+                "route_id": route.route_id,
+                "addresses": route.addresses,
+                "ca_digest": ca_digest,
+                "request_tag": request_tag(
+                    self._credential_key, request_bytes(route.url, route.headers, route.credential)
+                ),
+                "credential_use_digests": [receipt.digest for receipt in receipts],
+                "response_bytes": route.max_response_bytes,
+                "delivery": "fixed_completion_receipt" if route.credential else "bounded_body",
+                "filter_digest": filter_digest("http"),
+                "filesystem_scope": "no_new_paths",
+                "network_scope": "one_preconnected_destination",
+                "redirects": False,
+                "proxy": False,
+                "query_bytes": 0,
+                "body_bytes": 0,
+                "method": "GET",
+                "startup": "fresh_worker_only",
+            }
+            plan = OwnedRequestPlan(self.name, complete, policy)
+            with self._lock:
+                if plan.plan_id in self._http_consumed or review is not None and review.used:
+                    raise ValueError("original HTTP action already consumed")
+                previous = self._http_plans.get(plan.plan_id)
+                if previous is not None:
+                    if previous[2] is not source or any(
+                        a is not b for a, b in zip(previous[3], receipts)
+                    ):
+                        raise ValueError("HTTP original source or receipt changed")
+                    plan = previous[0]
+                else:
+                    if len(self._http_plans) >= self._limit:
+                        raise ValueError("owned HTTP plan capacity reached")
+                    self._http_plans[plan.plan_id] = (
+                        plan,
+                        ActionEnvelope.from_dict(action.as_dict()),
+                        source,
+                        receipts,
+                        route,
+                        pem,
+                        ca_digest,
+                    )
+            return OwnedRequestCompilation("success", self.name, "broker.owned_http_compiled", plan)
+        except (OSError, ValueError, TypeError, UnicodeError):
+            return OwnedRequestCompilation(
+                "unsupported",
+                self.name,
+                "broker.owned_http_unrepresentable",
+                unsupported_fields=("requests.exact_http",),
+            )
+
+    def _validate_http(self, plan):
+        valid = False
+        try:
+            row = self._http_plans.get(plan.plan_id)
+            if row is None or row[0] is not plan or plan.plan_id in self._http_consumed:
+                raise ValueError("original unconsumed full HTTP plan required")
+            self._verify_install()
+            route, review = self._http_requirements(row[1], plan.complete, row[2], row[3])
+            valid = (
+                plan.policy["configuration_digest"] == self.configuration_digest
+                and self._tls_material(route)[1] == row[6]
+                and (review is None or not review.used)
+            )
+        except (OSError, ValueError, TypeError, KeyError, UnicodeError):
+            pass
+        return BackendValidationResult(
+            "success" if valid else "invalid",
+            self.name,
+            plan.policy_digest,
+            "broker.owned_http_valid" if valid else "broker.owned_http_changed",
+        )
+
+    def create_job(self, plan, *, operator):
+        if type(plan) is not OwnedRequestPlan:
+            with self._jobs_lock:
+                if self._closing:
+                    raise ValueError("owned executor is closing")
+                return super().create_job(plan, operator=operator)
+        if operator is not self._operator or not self._validate_http(plan).ok:
+            raise ValueError("original owner and current complete HTTP plan required")
+        with self._jobs_lock:
+            if self._closing:
+                raise ValueError("owned executor is closing")
+            if len(self._jobs) >= self._limit:
+                raise ValueError("owned executor job capacity reached")
+            job = KernelJob(uuid4().hex)
+            self._jobs[job] = _Job(
+                (plan.plan_id, plan.contract.action_digest, plan.complete.digest)
+            )
+            return job
+
+    def _result(
+        self,
+        plan,
+        status,
+        reason,
+        *,
+        physical=False,
+        evidence=None,
+        stdout_bytes=0,
+        value=None,
+        observation=None,
+        job=None,
+    ):
+        if type(plan) is not OwnedRequestPlan:
+            outcome = super()._result(
+                plan,
+                status,
+                reason,
+                physical=physical,
+                evidence=evidence,
+                stdout_bytes=stdout_bytes,
+                value=value,
+                observation=observation,
+                job=job,
+            )
+            self._retain_live_job_state(job)
+            return outcome
+        outcome = ExecutorOutcome(
+            status,
+            reason,
+            plan.contract.action_digest,
+            plan.complete.digest,
+            plan.policy_digest,
+            physical,
+            digest(evidence) if evidence else None,
+            stdout_bytes,
+            len(value) if value is not None else 0,
+            hashlib.sha256(value).hexdigest() if value is not None else None,
+            value,
+            observation,
+            self.name,
+        )
+        self._outcomes[outcome] = digest(outcome.as_dict())
+        if evidence is not None:
+            from ordin._runtime_json import freeze
+
+            self._evidence[outcome] = freeze(evidence)
+        if job is not None:
+            with self._jobs_lock:
+                row = self._job(job)
+                row.outcome, row.state = outcome, "canceled" if status == "canceled" else "finished"
+        self._retain_live_job_state(job)
+        return outcome
+
+    def verify_outcome(self, outcome, plan):
+        if type(plan) is not OwnedRequestPlan:
+            if not super().verify_outcome(outcome, plan):
+                return False
+            extra = self._factory_http_outcomes.get(outcome)
+            return extra is None or (
+                type(extra[0]) is LinuxOwnedToolsBackend
+                and extra[0].verify_outcome(extra[1], extra[2])
+            )
+        with self._lock:
+            original = self._http_plans.get(plan.plan_id)
+            return (
+                original is not None
+                and original[0] is plan
+                and type(outcome) is ExecutorOutcome
+                and self._outcomes.get(outcome) == digest(outcome.as_dict())
+                and outcome.action_digest == plan.contract.action_digest
+                and outcome.contract_digest == plan.complete.digest
+                and outcome.policy_digest == plan.policy_digest
+            )
+
+    def _execute_http(self, plan, action, source, *, operator, job):
+        if operator is not self._operator or type(source) is not RuntimeEvidenceSource:
+            raise ValueError("original HTTP executor owner and observation source required")
+        with self._lock:
+            if len(self._outcomes) >= self._limit:
+                raise ValueError("executor outcome capacity reached")
+            job = self.create_job(plan, operator=operator) if job is None else job
+            with self._jobs_lock:
+                state = self._job(job)
+                if (
+                    state.binding
+                    != (plan.plan_id, plan.contract.action_digest, plan.complete.digest)
+                    or state.state != "queued"
+                ):
+                    raise ValueError("original queued HTTP job required")
+                if state.cancel.is_set():
+                    return self._result(plan, "canceled", "broker.owned_http_canceled", job=job)
+                state.state = "checking"
+            connection = None
+            try:
+                if not self._validate_http(plan).ok:
+                    raise ValueError("complete HTTP authority changed")
+                row = self._http_plans[plan.plan_id]
+                if type(action) is not ActionEnvelope or action.as_dict() != row[1].as_dict():
+                    raise ValueError("exact HTTP caller action changed")
+                route, review = self._http_requirements(action, plan.complete, row[2], row[3])
+                if state.cancel.is_set():
+                    return self._result(plan, "canceled", "broker.owned_http_canceled", job=job)
+                self._http_consumed.add(plan.plan_id)
+                if review is not None:
+                    review.used = True  # Before SYN/secret bytes; uncertainty never reissues.
+                endpoint = request_endpoint(route.url)
+                if endpoint is None:
+                    raise ValueError("original exact HTTP endpoint unavailable")
+                address = route.addresses[0]  # No DNS or automatic failover/retry.
+                connection = socket.socket(
+                    socket.AF_INET6 if ":" in address else socket.AF_INET, socket.SOCK_STREAM
+                )
+                connection.settimeout(self.timeout_ms / 1000)
+                connection.connect((address, endpoint[1]))
+                peer = connection.getpeername()
+                if str(ipaddress.ip_address(peer[0])) != address or peer[1] != endpoint[1]:
+                    raise ValueError("HTTP actual preconnected peer differs")
+                packet = {
+                    "protocol": HTTP_PROTOCOL,
+                    "nonce": secrets.token_hex(32),
+                    "action_digest": plan.contract.action_digest,
+                    "contract_digest": plan.complete.digest,
+                    "policy_digest": plan.policy_digest,
+                    "resource_descriptor": connection.fileno(),
+                    "uid": self.uid,
+                    "gid": self.gid,
+                    "memory_bytes": self.memory_mib * 1048576,
+                    "cpu_seconds": self.cpu_seconds,
+                    "file_size_bound": self.max_stdout_bytes,
+                    "filter_digest": filter_digest("http"),
+                    "url": route.url,
+                    "host": endpoint[0],
+                    "port": endpoint[1],
+                    "address": address,
+                    "headers": route.headers,
+                    "max_response_bytes": route.max_response_bytes,
+                    "tls": urlsplit(route.url).scheme == "https",
+                    "ca_pem": row[5],
+                    "ca_digest": row[6],
+                    "private_key": base64.b64encode(self._credential_key).decode("ascii"),
+                    "credential": None
+                    if route.credential is None
+                    else base64.b64encode(route.credential).decode("ascii"),
+                    "request_tag": plan.policy["request_tag"],
+                    "timeout_ms": self.timeout_ms,
+                }
+                packet["request_digest"] = hashlib.sha256(
+                    wire(
+                        {
+                            key: value
+                            for key, value in packet.items()
+                            if key not in {"private_key", "credential"}
+                        }
+                    )
+                ).hexdigest()
+                response, frame_size = self._run_owned(
+                    self.install_root / "_http_worker.py", packet, connection.fileno(), state
+                )
+                if set(response) != {
+                    "protocol",
+                    "request_digest",
+                    "nonce",
+                    "action_digest",
+                    "contract_digest",
+                    "policy_digest",
+                    "status",
+                    "request_tag",
+                    "address",
+                    "port",
+                    "tls_verified",
+                    "delivery",
+                    "value",
+                    "isolation",
+                }:
+                    raise ValueError("bounded HTTP receipt shape differs")
+                evidence = self._check_owned_receipt(response, packet, "http")
+                delivery = "fixed_completion_receipt" if route.credential else "bounded_body"
+                if (
+                    response["status"] != "completed"
+                    or response["request_tag"] != packet["request_tag"]
+                    or response["address"] != address
+                    or response["port"] != endpoint[1]
+                    or response["tls_verified"] is not packet["tls"]
+                    or response["delivery"] != delivery
+                ):
+                    raise ValueError("HTTP wire request, TLS or exact peer receipt differs")
+                value = base64.b64decode(response["value"], validate=True)
+                if (route.credential and value != b'{"completed":true,"credentialed":true}') or (
+                    not route.credential and len(value) > route.max_response_bytes
+                ):
+                    raise ValueError("HTTP private delivery bound differs")
+                evidence = {
+                    **evidence,
+                    "complete_request_digest": plan.complete.digest,
+                    "request_tag": packet["request_tag"],
+                    "destination": [address, endpoint[1]],
+                    "tls_verified": packet["tls"],
+                    "delivery": delivery,
+                    "credential_use_digests": [receipt.digest for receipt in row[3]],
+                }
+                observation = source.observe(
+                    plan.contract,
+                    observation_id="owned-http-" + packet["nonce"],
+                    trust="backend_observed",
+                    enforcement_point="network",
+                    outcome="completed",
+                    operation="network.download",
+                    effects=("network.download",),
+                    resources=(ObservedResource("url", route.url),),
+                    reason_code="broker.owned_http_completed",
+                    metadata={
+                        "event_digest": digest(evidence),
+                        "request_id_digest": packet["nonce"],
+                        "source_schema_version": HTTP_PROTOCOL,
+                    },
+                )
+                return self._result(
+                    plan,
+                    "completed",
+                    "broker.owned_http_completed",
+                    physical=True,
+                    evidence=evidence,
+                    stdout_bytes=frame_size,
+                    value=value,
+                    observation=observation,
+                    job=job,
+                )
+            except (OSError, ValueError, TypeError, KeyError, UnicodeError):
+                return self._result(plan, "unknown", "broker.owned_http_uncertain", job=job)
+            finally:
+                if connection is not None:
+                    connection.close()
+
     def compile_action(self, action, complete, *, source=None, credential_uses=()):
+        if type(complete) is RestRequestContract:
+            return self._compile_http(action, complete, source, credential_uses)
         if type(complete) is not RuntimeCapabilityContract:
             return CompilationResult(
                 "unsupported",
@@ -703,6 +1169,8 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             )
 
     def validate(self, plan):
+        if type(plan) is OwnedRequestPlan:
+            return self._validate_http(plan)
         if type(plan) is not EnforcementPlan or plan.backend != self.name:
             raise ValueError("original owned-tool plan required")
         if plan.policy.get("profile") != WRITE_PROTOCOL:
@@ -734,7 +1202,7 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
         process = None
         try:
             data = wire(packet)
-            if len(data) > 131072:
+            if len(data) > (1048576 if packet["protocol"] == HTTP_PROTOCOL else 131072):
                 raise ValueError("owned control frame bound exceeded")
             control = tempfile.TemporaryFile(mode="w+b")
             control.write(data)
@@ -845,39 +1313,6 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             raise ValueError("owned kernel receipt incomplete")
         return isolation
 
-    def create_job(self, plan: EnforcementPlan, *, operator: object) -> KernelJob:
-        with self._jobs_lock:
-            if self._closing:
-                raise ValueError("owned executor is closing")
-            return super().create_job(plan, operator=operator)
-
-    def _result(
-        self,
-        plan,
-        status,
-        reason,
-        *,
-        physical=False,
-        evidence=None,
-        stdout_bytes=0,
-        value=None,
-        observation=None,
-        job: KernelJob | None = None,
-    ):
-        outcome = super()._result(
-            plan,
-            status,
-            reason,
-            physical=physical,
-            evidence=evidence,
-            stdout_bytes=stdout_bytes,
-            value=value,
-            observation=observation,
-            job=job,
-        )
-        self._retain_live_job_state(job)
-        return outcome
-
     def _retain_live_job_state(self, job):
         if job is None:
             return
@@ -935,6 +1370,8 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
     def execute(self, plan, action, source, *, operator, job=None):
         if self._closing:
             raise ValueError("owned executor is closing")
+        if type(plan) is OwnedRequestPlan:
+            return self._execute_http(plan, action, source, operator=operator, job=job)
         if plan.policy.get("profile") != WRITE_PROTOCOL:
             result = super().execute(plan, action, source, operator=operator, job=job)
             if result.status == "completed":
@@ -1007,6 +1444,7 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                     action_digest=plan.contract.action_digest,
                     content_digest=packet["content_digest"],
                 )
+                self._require_approval_job(plan, job)
                 response, frame_size = self._run_owned(
                     self.install_root / "_write_worker.py", packet, self._fd, state
                 )
@@ -1081,12 +1519,27 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
     def permissions_fit(self, permissions):
         maximum = permissions.capability
         paths = {str(self.workspace / name) for name in self.allowed_files}
+        requests = tuple(
+            RestRequestAuthority.from_parameters(route.public_parameters())
+            for route in self.http_routes
+        )
+        from ordin.runtime_contract import NetworkCapability
+
+        networks = {
+            NetworkCapability(request.host, request.port, "rest", "read", ("GET",), (request.path,))
+            for request in requests
+        }
+        credentials = {
+            route.credential_binding
+            for route in self.http_routes
+            if route.credential_binding is not None
+        }
         return (
-            not maximum.network
-            and not maximum.credentials
+            all(value in networks for value in maximum.network)
+            and all(value in credentials for value in maximum.credentials)
             and not permissions.requests
             and not permissions.network_grants
-            and not permissions.rest_requests
+            and all(value in requests for value in permissions.rest_requests)
             and not maximum.allow_any_executable
             and maximum.process.execution is False
             and not maximum.process.executables
@@ -1105,6 +1558,114 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                 for value in maximum.tools
             )
         )
+
+    def _http_factory_probe(self, root, *, operator, policy_digest):
+        """Private controlled loopback, never a configured endpoint or credential."""
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            listener.settimeout(self.timeout_ms / 1000)
+            listener.bind(("127.0.0.1", 0))
+            listener.listen(1)
+            seen = []
+            url = f"http://127.0.0.1:{listener.getsockname()[1]}/owned-probe"
+            route = OwnedHTTPRoute(
+                "owned-factory-http",
+                url,
+                ("127.0.0.1",),
+                max_response_bytes=1,
+                allow_private=True,
+                allow_http=True,
+            )
+        except BaseException:
+            listener.close()
+            raise
+
+        def serve():
+            try:
+                connection, _ = listener.accept()
+                with connection:
+                    connection.settimeout(self.timeout_ms / 1000)
+                    request = bytearray()
+                    while b"\r\n\r\n" not in request and len(request) < 4096:
+                        value = connection.recv(4096 - len(request))
+                        if not value:
+                            break
+                        request.extend(value)
+                    seen.append(bytes(request))
+                    connection.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 1\r\n\r\np")
+            except OSError:
+                pass
+
+        try:
+            thread = Thread(target=serve, daemon=True)
+            thread.start()
+        except BaseException:
+            listener.close()
+            raise
+        child = None
+        try:
+            workspace, install = root / "http-workspace", root / "http-install"
+            workspace.mkdir(mode=0o700)
+            install.mkdir(mode=0o700)
+            uid, gid = self.worker_identity()
+            if (uid, gid) != (self.uid, self.gid):
+                raise ValueError("original factory worker identity changed")
+            if os.geteuid() == 0:
+                os.chown(workspace, uid, gid)
+            child = LinuxOwnedToolsBackend(
+                workspace,
+                ("probe.txt",),
+                install,
+                operator=operator,
+                initialize=True,
+                tool_runtime=self.tool_runtime,
+                read_tool=self.tool_name,
+                write_tool=self.write_tool,
+                http_routes=(route,),
+                max_payload_bytes=self.max_payload_bytes,
+                max_write_bytes=self.max_write_bytes,
+                timeout_ms=self.timeout_ms,
+                memory_mib=self.memory_mib,
+                cpu_seconds=self.cpu_seconds,
+            )
+            from ordin import Ordin
+            from ordin.assurance import RestSemantics
+            from ordin.assurance.rest import derive_rest_request_contract
+
+            action = ActionEnvelope(
+                "network",
+                "http.request",
+                route.public_parameters(),
+                action_id="factory-http-" + uuid4().hex,
+            )
+            complete = derive_rest_request_contract(
+                Ordin(rest_semantics=RestSemantics()).review_action(action)
+            )
+            compiled = child.compile_action(action, complete)
+            if not compiled.enforceable or compiled.plan is None:
+                raise ValueError("owned HTTP factory cannot represent its controlled probe")
+            source = child.evidence_source(
+                session_digest=digest([self._nonce, policy_digest]),
+                policy_digest=compiled.plan.policy_digest,
+                context_digest=digest(self._nonce),
+            )
+            outcome = child.execute(compiled.plan, action, source, operator=operator)
+            thread.join(self.timeout_ms / 1000 + 1)
+            if (
+                thread.is_alive()
+                or seen != [request_bytes(url, ())]
+                or outcome.status != "completed"
+                or outcome.value != b"p"
+                or not outcome.physical_enforcement
+                or not child.verify_outcome(outcome, compiled.plan)
+            ):
+                raise ValueError("owned HTTP factory probe did not complete")
+            return child, outcome, compiled.plan, child.evidence_record(outcome, operator=operator)
+        finally:
+            listener.close()
+            thread.join(self.timeout_ms / 1000 + 1)
+            if child is not None:
+                child.close()
 
     def factory_probe(self, root, *, operator, policy_digest):
         """Operator-owned scratch self-test, never an approval of a workload action."""
@@ -1176,15 +1737,38 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             ):
                 raise ValueError("owned write factory probe did not complete")
             evidence = probe.evidence_record(outcome, operator=operator)
+            if self.http_routes:
+                http_child, http_outcome, http_plan, http_evidence = self._http_factory_probe(
+                    root, operator=operator, policy_digest=policy_digest
+                )
+                evidence = {"managed_write": evidence, "exact_http": http_evidence}
+                outcome = probe._result(
+                    compiled.plan,
+                    "completed",
+                    "broker.owned_factory_profiles_completed",
+                    physical=True,
+                    evidence=evidence,
+                    stdout_bytes=outcome.stdout_bytes + http_outcome.stdout_bytes,
+                    value=outcome.value,
+                    observation=outcome.observation,
+                )
+                probe._factory_http_outcomes[outcome] = (http_child, http_outcome, http_plan)
             description = {
                 "scope": "broker_owned_fresh_managed_worker_route",
                 "capabilities": ["broker.enforce"],
                 "factory": True,
                 "requires_action_admission": True,
                 "physical_policy_applied": False,
-                "supported_action_kinds": ["tool"],
-                "operations": ["call"],
-                "effects": ["filesystem.read", "filesystem.write"],
+                "supported_action_kinds": ["tool", "network"] if self.http_routes else ["tool"],
+                "operations": ["call", "http.request"] if self.http_routes else ["call"],
+                "effects": ["filesystem.read", "filesystem.write", "network.download"]
+                if self.http_routes
+                else ["filesystem.read", "filesystem.write"],
+                "http_routes": [route.route_id for route in self.http_routes],
+                "http_factory_probe": "controlled_loopback_no_credentials"
+                if self.http_routes
+                else None,
+                "tls_verification": "strict_at_original_use" if self.http_routes else None,
                 "tool_runtime": self.tool_runtime,
                 "tool_name": self.tool_name,
                 "write_tool": self.write_tool,

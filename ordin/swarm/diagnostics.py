@@ -304,7 +304,7 @@ class SwarmAuditSource:
             result.physical_enforcement
             and result.forwarded
             and result.executor_outcome is not None
-            and broker._executor.verify_outcome(result.executor_outcome, original.scope.plan)
+            and broker._verify_executor_outcome(result.executor_outcome, original.scope.plan)
         )
         state = result.status if result.status in {"completed", "denied", "canceled"} else "unknown"
         self._append(

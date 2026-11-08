@@ -21,6 +21,7 @@ from ordin import (
 )
 from ordin.action import ActionEnvelope
 from ordin._runtime_json import digest
+from ordin.enforcement_backend import EnforcementPlan
 from ordin.assurance import AssuranceGate, DelegationAuthority
 from ordin.assurance.rest import derive_rest_request_contract
 from ordin.runtime_boundary import RuntimeCapabilityBoundary
@@ -50,6 +51,7 @@ from .events import _hex
 from .gate import SwarmGate
 from .linux_backend import ExecutorOutcome, LinuxFileReadBackend
 from .owned_tools import LinuxOwnedToolsBackend
+from ._owned_http import OwnedRequestPlan
 from .models import SwarmContext
 from .workload_auth import AuthorityChannel
 
@@ -748,11 +750,25 @@ class SwarmExecutionBroker:
         with self._state_lock:
             return self._pending_row(authorization).scope
 
+    def _plan_executor(self, plan):
+        """Closed concrete dispatch; a full request can never reach a read backend."""
+        if type(self._executor) is LinuxOwnedToolsBackend and type(plan) in {
+            EnforcementPlan,
+            OwnedRequestPlan,
+        }:
+            return self._executor
+        if type(self._executor) is LinuxFileReadBackend and type(plan) is EnforcementPlan:
+            return self._executor
+        raise ValueError("exact owned backend and represented original plan required")
+
+    def _verify_executor_outcome(self, outcome, plan):
+        return self._plan_executor(plan).verify_outcome(outcome, plan)
+
     def _finish(self, authorization, row, status, reason, budget_status, outcome=None):
         actual = (
             outcome
             if type(outcome) is ExecutorOutcome
-            and self._executor.verify_outcome(outcome, row.scope.plan)
+            and self._verify_executor_outcome(outcome, row.scope.plan)
             else None
         )
         result = BrokerResult(
@@ -785,6 +801,24 @@ class SwarmExecutionBroker:
                 and authorization in self._pending
                 and self._results.get(result) == (authorization, digest(result.as_dict()))
             )
+
+    def retained_result(
+        self, authorization: BrokerAuthorization, *, operator: object
+    ) -> BrokerResult:
+        """Inspect one original terminal result; no wire-object restoration."""
+        if operator is not self._operator:
+            raise ValueError("original protected broker operator required")
+        with self._execution_lock:
+            with self._state_lock:
+                row = self._pending_row(authorization)
+                result = row.result
+            if result is None or not self.verify_result(result, authorization):
+                raise ValueError("original retained terminal broker result unavailable")
+            if result.executor_outcome is not None and not self._verify_executor_outcome(
+                result.executor_outcome, row.scope.plan
+            ):
+                raise ValueError("original plan-bound owned executor outcome unavailable")
+            return result
 
     def dispatch(
         self, authorization: BrokerAuthorization, *, action: ActionEnvelope | None = None
@@ -836,7 +870,7 @@ class SwarmExecutionBroker:
                     raise ValueError("broker global facts changed")
                 if (
                     self._budget.reservation_status(row.scope.budget_ticket)["status"] != "reserved"
-                    or not self._executor.validate(row.scope.plan).ok
+                    or not self._plan_executor(row.scope.plan).validate(row.scope.plan).ok
                 ):
                     raise ValueError("broker budget or executor binding changed")
                 captured = ActionEnvelope.from_dict(row.scope.action.as_dict())
@@ -865,7 +899,7 @@ class SwarmExecutionBroker:
                             self._executor,
                             row.owned_job,
                         )
-                    return self._executor.execute(
+                    return self._plan_executor(row.scope.plan).execute(
                         row.scope.plan,
                         bound,
                         row.reporting_source,
@@ -884,7 +918,7 @@ class SwarmExecutionBroker:
                 if (
                     dispatch.status != "host_completed"
                     or type(outcome) is not ExecutorOutcome
-                    or not self._executor.verify_outcome(outcome, row.scope.plan)
+                    or not self._verify_executor_outcome(outcome, row.scope.plan)
                 ):
                     raise ValueError("broker did not acquire an original executor outcome")
                 if (

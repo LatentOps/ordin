@@ -341,7 +341,7 @@ def test_real_broker_read_preserved_and_write_never_autoapproves(tmp_path):
         assert data.target.read_bytes() == before
 
 
-def operator_backend(tmp_path):
+def operator_backend(tmp_path, *, http_routes=()):
     """Only caller-owned new fixture paths are chowned; never existing user paths."""
     require_kernel()
     tmp_path.chmod(0o700)
@@ -353,7 +353,12 @@ def operator_backend(tmp_path):
     operator = object()
     install = tempfile.TemporaryDirectory(prefix="ordin-owned-write-test-")
     backend = LinuxOwnedToolsBackend(
-        workspace, ("report.txt",), Path(install.name), operator=operator, initialize=True
+        workspace,
+        ("report.txt",),
+        Path(install.name),
+        operator=operator,
+        initialize=True,
+        http_routes=http_routes,
     )
     return backend, operator, workspace / "report.txt", install
 

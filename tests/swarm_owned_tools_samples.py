@@ -43,7 +43,9 @@ class OwnedConfiguration:
 
 
 @contextmanager
-def configured(tmp_path, *, governance_bootstrap=False, physical=False, shared_clock=None):
+def configured(
+    tmp_path, *, governance_bootstrap=False, physical=False, shared_clock=None, http_routes=()
+):
     """Original TLS actors, real owned backend and full read/write root/child rights.
 
     Default writes naturally remain core WARN/requires approval. This helper
@@ -57,5 +59,6 @@ def configured(tmp_path, *, governance_bootstrap=False, physical=False, shared_c
         physical=physical,
         shared_clock=shared_clock,
         approval_decision="warn" if governance_bootstrap else None,
+        http_routes=http_routes,
     ) as values:
         yield OwnedConfiguration(*values)

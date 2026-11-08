@@ -47,6 +47,7 @@ def fixture(
     executor_timeout_ms=3000,
     approval_decision=None,
     owned_tools=False,
+    http_routes=(),
 ):
     clock = [100]
     clock_fn = shared_clock or (lambda: clock[0])
@@ -85,12 +86,18 @@ def fixture(
             else ()
         ),
     )
-    core = Ordin(tool_semantics=semantics)
+    from ordin.assurance import RestSemantics
+    from ordin.assurance.rest import RestRequestAuthority
+    from ordin.runtime_contract import NetworkCapability
+
+    rest = RestSemantics() if http_routes else None
+    core = Ordin(tool_semantics=semantics, rest_semantics=rest)
     if approval_decision is not None:
         from ordin.action_policy import ActionPolicySet, ActionPolicyRule, ActionPolicyCondition
 
         core = Ordin(
             tool_semantics=semantics,
+            rest_semantics=rest,
             action_policy=ActionPolicySet(
                 "human-review",
                 "1",
@@ -125,7 +132,22 @@ def fixture(
             + ((FilesystemCapability("write", logical_path, "exact"),) if owned_tools else ()),
             tools=(ToolCapability("fixture", None, "read_file"),)
             + ((ToolCapability("fixture", None, "write_artifact"),) if owned_tools else ()),
-        )
+            network=tuple(
+                NetworkCapability(value.host, value.port, "rest", "read", ("GET",), (value.path,))
+                for value in (
+                    RestRequestAuthority.from_parameters(route.public_parameters())
+                    for route in http_routes
+                )
+            ),
+            credentials=tuple(
+                route.credential_binding
+                for route in http_routes
+                if route.credential_binding is not None
+            ),
+        ),
+        rest_requests=tuple(
+            RestRequestAuthority.from_parameters(route.public_parameters()) for route in http_routes
+        ),
     )
     issuer = DelegationIssuer(sources["parent"], profile, rights, rights, clock=clock_fn)
     root = issuer.authorize_root(rights, grant_id="root", expires_at=clock_fn() + 100)
@@ -226,6 +248,7 @@ def fixture(
                 tool_runtime="fixture",
                 initialize=True,
                 timeout_ms=executor_timeout_ms,
+                http_routes=http_routes,
             )
         else:
             backend = LinuxFileReadBackend(

@@ -71,10 +71,51 @@ cleanup leaves the original unknown outcome and uncertain holds unchanged.
 acquiring the execution lock. If cleanup remains unconfirmed it raises while
 retaining process and storage ownership; the protected owner must retry close.
 
-`OwnedHTTPRoute` currently validates an operator-selected exact GET route,
-explicit pinned IPs and private credential configuration. HTTP execution is
-delivered separately; this write checkpoint explicitly refuses request-domain
-execution. It does not project a full HTTP request into TCP permission.
+`OwnedHTTPRoute` selects one exact HTTP(S) GET URL and literal application
+headers, explicit pinned IP addresses, a response byte limit, and optional
+protected CA material. Query and request-body bounds are zero in this initial
+route. An unconfigured URL, method, header, query or body refuses. The backend
+retains the entire original `RestRequestContract` in a closed `OwnedRequestPlan`;
+the original capability retains its explicit REST commitment requirement. It is
+never turned into a TCP grant or a generic enforceable capability plan. Only a
+core-allow request with that one fully accounted REST requirement is supported;
+other uncertainty and warning/approval cases refuse.
+
+The trusted parent connects to the first exact configured IP with no DNS,
+automatic failover, proxy environment, redirects, cookies or ambient credentials.
+The fresh worker receives only that preconnected socket and private control/output
+descriptors, then installs Landlock/seccomp/UID/resource controls before TLS
+handshake or HTTP bytes. Its kernel network scope is that preconnected socket;
+the host parent software binds the selected destination and the worker checks
+the actual peer. This is not a host-wide network firewall. HTTPS verifies the
+hostname and pinned CA set with TLS 1.2 or newer. Default trust uses compiled-in
+system CA locations rather than SSL_CERT_FILE/DIR environment overrides. Plain
+HTTP and private IPs need separate explicit operator opt-ins; link-local,
+unspecified, multicast and unsupported reserved destinations always refuse.
+
+Requests use exact bounded GET/Host/Connection-close/Accept-Encoding-identity
+framing. Application headers cannot replace transport framing or Authorization.
+Response headers have an 8 KiB limit, are ASCII, and cannot contain duplicates,
+folding, chunking or content encodings. Interim responses and redirects refuse.
+Bodies have a route-specific hard limit with at most one overflow-probe byte.
+TLS responses require Content-Length (or the known empty 204 form). Slow,
+ambiguous, oversized or incomplete responses return non-success with no retry.
+When HTTP routes are configured, factory readiness also retains an original
+confined HTTP outcome from a one-shot operator-owned loopback endpoint. It never
+contacts configured external endpoints or uses their credentials. Strict TLS
+and destination/credential checks are verified again at the actual use.
+
+Credentialed routes accept only protected destination-bound bearer bytes and
+retain the same original `HostCredentialUse` through review and use-time checks.
+Copied/wrong-source/wrong-destination proofs refuse. The exact action is consumed
+before any connection effect; uncertain or repeated calls cannot mint another
+proof for it. A keyed wire tag binds Authorization without publishing an
+offline-checkable digest of its secret bytes. No endpoint-controlled response
+body, headers, status or hash is exposed for credentialed calls: after a valid
+bounded response the caller receives only
+`{"completed":true,"credentialed":true}`. Credentialless routes return the
+bounded body. This does not promise zero covert or timing channels; endpoint
+trust and the private credential boundary remain explicit.
 
 `tests/swarm_owned_tools_samples.py::configured` supplies original TLS-enrolled
 actors, read/write delegation rights, core semantics, backend, broker, source
