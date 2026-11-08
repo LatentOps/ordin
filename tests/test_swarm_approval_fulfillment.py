@@ -130,6 +130,9 @@ def test_governance_installation_keeps_known_ordinary_allow_without_human_votes(
         assert result.value == b"broker-owned-benign-data\n"
         actual = coordinator.broker_result(scope, native[0]._broker_channel, reservation.reference)
         assert actual.physical_enforcement and actual.value == result.value
+        original_grant = native[1]._grants[grant].handle.record.grant_id
+        assert native[1].issuer._used[original_grant] == 1
+        assert not any(row[0] == original_grant for row in native[1].issuer._pending.values())
         assert (
             coordinator.broker_result(scope, native[0]._broker_channel, reservation.reference)
             is actual
@@ -138,6 +141,8 @@ def test_governance_installation_keeps_known_ordinary_allow_without_human_votes(
             coordinator.broker_result(scope, channel, reservation.reference)
         with pytest.raises(ValueError):
             coordinator.broker_result(scope, copy(native[0]._broker_channel), reservation.reference)
+        with pytest.raises(ValueError):
+            coordinator.guarded_dispatch(scope, native[0]._broker_channel, reservation.reference)
         assert not service._originals and not service._receipts
         assert service.snapshot(humans["alice"], task_id="task")["requests"] == []
 

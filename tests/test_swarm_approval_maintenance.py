@@ -104,6 +104,16 @@ def test_same_mtls_broker_renews_at_31s_without_renewing_pending_human_request(t
         old_broker = broker._broker_channel
         original_socket = auth._channels[old_broker].socket
         workload_socket = auth._channels[channel].socket
+        parent_channel = next(
+            handle
+            for handle, row in auth._channels.items()
+            if row.enrollment.context is not None
+            and row.enrollment.context.identity.agent_id == "parent"
+        )
+        parent_socket = auth._channels[parent_channel].socket
+        parent_grant = next(
+            reference for reference, row in native[1]._grants.items() if row.parent_ref is None
+        )
         request = service.request(channel, lease, grant, action, idempotency_key="old")
         service.resolve(humans["alice"], request.request_id, "approve", idempotency_key="vote")
         now[0] += 20
@@ -126,6 +136,9 @@ def test_same_mtls_broker_renews_at_31s_without_renewing_pending_human_request(t
             auth.require(old_broker, role="broker")
         with pytest.raises(ValueError):
             service.fulfill(humans["alice"], request.request_id)
+        fresh_parent = auth.authenticate(parent_socket)
+        parent_lease = coordinator.admit(scope, fresh_parent).reference
+        coordinator.bind_grant(scope, fresh_parent, parent_lease, parent_grant)
         fresh_channel = auth.authenticate(workload_socket)
         fresh_lease = coordinator.admit(scope, fresh_channel).reference
         coordinator.bind_grant(scope, fresh_channel, fresh_lease, grant)
