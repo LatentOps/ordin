@@ -547,6 +547,24 @@ class SwarmExecutionBroker:
                     raise ValueError("broker requires a verified current delegation context rebind")
                 if grant.gate.runtime_session_digest != subject.source.session_digest:
                     raise ValueError("broker requires the original planned runtime session mapping")
+                if (
+                    type(self._executor) is LinuxOwnedToolsBackend
+                    and reviewed_action.kind == "tool"
+                    and reviewed_action.parameters.get("tool") == self._executor.test_tool
+                ):
+                    # Check original current maximum before a bounded snapshot
+                    # consumes any protected preparation capacity.
+                    preview = grant.gate.preview_action(
+                        reviewed_action, host_context=subject.source.context()
+                    )
+                    self._service.issuer._preview_operation(
+                        grant.handle,
+                        subject.source,
+                        derive_runtime_capability_contract(preview.review),
+                    )
+                    reviewed_action = self._executor.prepare_action(
+                        reviewed_action, operator=self._operator
+                    )
                 source = self._executor.evidence_source(
                     session_digest=subject.source.session_digest,
                     policy_digest=subject.source.runtime_policy_digest,

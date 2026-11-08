@@ -50,6 +50,9 @@ from .models import counter, identifier
 from ._owned_protocol import HTTP_PROTOCOL, WRITE_PROTOCOL, filter_digest, wire
 from ._owned_http import OwnedRequestCompilation, OwnedRequestPlan
 from ._owned_http_wire import request_bytes, request_tag
+from .confined_tests import LinuxConfinedTestRunner, TestRoute
+from .managed_process import ProtectedProcessLimits
+from ._owned_test_output import TEST_PROTOCOL, bounded_test_value
 from ._owned_state import OwnedFileState
 
 
@@ -267,6 +270,9 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
         read_tool: str = "read_file",
         write_tool: str = "write_artifact",
         http_routes: tuple[OwnedHTTPRoute, ...] = (),
+        test_routes: tuple[TestRoute, ...] = (),
+        test_tool: str = "run_tests",
+        test_limits: ProtectedProcessLimits | None = None,
         max_payload_bytes: int = 65536,
         max_write_bytes: int = 65536,
         timeout_ms: int = 3000,
@@ -288,6 +294,37 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             raise ValueError("protected finite managed-tool configuration required")
         if type(allowed_files) is not tuple:
             raise ValueError("literal managed file routes required")
+        if (
+            type(test_routes) is not tuple
+            or len(test_routes) > 16
+            or any(type(route) is not TestRoute for route in test_routes)
+            or len({route.test_id for route in test_routes}) != len(test_routes)
+            or any(
+                (route.tool_runtime, route.tool_name) != (tool_runtime, test_tool)
+                for route in test_routes
+            )
+            or test_tool in {read_tool, write_tool}
+            or test_limits is not None
+            and type(test_limits) is not ProtectedProcessLimits
+            or test_routes
+            and max_payload_bytes < 8192
+        ):
+            raise ValueError("closed bounded fixed-test configuration required")
+        identifier(test_tool, "owned fixed test tool")
+        limits = test_limits or ProtectedProcessLimits(
+            timeout_ms=30000,
+            cpu_seconds=10,
+            memory_mib=512,
+            output_bytes=max(8192, max_payload_bytes),
+        )
+        if test_routes and limits.output_bytes > max_payload_bytes:
+            raise ValueError("fixed test diagnostics must fit the owned output budget")
+        self.test_routes, self.test_tool, self.test_limits = test_routes, test_tool, limits
+        self._test_runner: LinuxConfinedTestRunner | None = None
+        self._test_plans: dict[str, tuple[EnforcementPlan, EnforcementPlan, ActionEnvelope]] = {}
+        self._test_jobs: dict[KernelJob, Any] = {}
+        self._test_outcomes: dict[ExecutorOutcome, tuple] = {}
+        self._factory_test_outcomes: dict[ExecutorOutcome, tuple] = {}
         if any(
             route.max_response_bytes > max_payload_bytes
             or route.credential is not None
@@ -354,6 +391,8 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                 max_outcomes=max_outcomes,
             )
         except BaseException:
+            if self._test_runner is not None:
+                self._test_runner.close(operator=operator)
             if self._managed_state is not None:
                 self._managed_state.close()
             if getattr(self, "_fd", -1) >= 0:
@@ -438,6 +477,16 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
         )
         for name in self.allowed_files:
             self._record(name)
+        if self.test_routes:
+            test_install = self.install_root / "fixed-tests"
+            test_install.mkdir(mode=0o700)
+            self._test_runner = LinuxConfinedTestRunner(
+                self.test_routes,
+                test_install,
+                operator=self._operator,
+                limits=self.test_limits,
+                maximum_jobs=min(self._limit, 16),
+            )
 
     def _verify_install(self):
         if self._closing:
@@ -457,6 +506,8 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                 or _sha(installed) != self._extra_digests[name]
             ):
                 raise ValueError("owned worker installation changed")
+        if self._test_runner is not None:
+            self._test_runner._engine._verify_install()
 
     @property
     def configuration_digest(self):
@@ -485,6 +536,10 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                 self._extra_digests,
                 self._backend_digest,
                 routes,
+                self.test_tool,
+                [route.as_dict() for route in self.test_routes],
+                self.test_limits.as_dict() if self.test_routes else None,
+                self._test_runner.configuration_digest if self._test_runner is not None else None,
             ]
         )
 
@@ -558,6 +613,12 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
     def validate_action_requirements(self, action, contract):
         if type(contract) is not RuntimeCapabilityContract or type(action) is not ActionEnvelope:
             raise ValueError("complete original owned-tool requirements required")
+        if action.kind == "tool" and action.parameters.get("tool") == self.test_tool:
+            if self._test_runner is None or not self._test_runner.validate_action_requirements(
+                action, contract
+            ):
+                raise ValueError("original sealed test snapshot and complete requirements required")
+            return action.parameters["arguments"]["test_id"]
         if action.kind != "tool" or action.parameters.get("tool") != self.write_tool:
             return super().validate_action_requirements(action, contract)
         path, _, version, expected = _parse_write(
@@ -860,6 +921,23 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
         )
 
     def create_job(self, plan, *, operator):
+        if type(plan) is EnforcementPlan and plan.policy.get("profile") == TEST_PROTOCOL:
+            if (
+                operator is not self._operator
+                or not self.validate(plan).ok
+                or self._test_runner is None
+            ):
+                raise ValueError("original current fixed-test plan required")
+            job = super().create_job(plan, operator=operator)
+            try:
+                self._test_jobs[job] = self._test_runner.create_job(
+                    self._test_plans[plan.plan_id][1], operator=operator
+                )
+            except BaseException:
+                with self._jobs_lock:
+                    self._job(job).state = "canceled"
+                raise
+            return job
         if type(plan) is not OwnedRequestPlan:
             with self._jobs_lock:
                 if self._closing:
@@ -935,6 +1013,28 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
     def verify_outcome(self, outcome, plan):
         if type(plan) is not OwnedRequestPlan:
             if not super().verify_outcome(outcome, plan):
+                return False
+            if plan.policy.get("profile") == TEST_PROTOCOL:
+                original = self._test_plans.get(plan.plan_id)
+                lower = self._test_outcomes.get(outcome)
+                if lower is None:
+                    return (
+                        original is not None
+                        and original[0] is plan
+                        and outcome.status != "completed"
+                        and not outcome.physical_enforcement
+                    )
+                return (
+                    original is not None
+                    and original[0] is plan
+                    and lower is not None
+                    and self._test_runner is not None
+                    and self._test_runner.verify_outcome(lower[0], original[1])
+                )
+            test_probe = self._factory_test_outcomes.get(outcome)
+            if test_probe is not None and not test_probe[0].verify_outcome(
+                test_probe[1], test_probe[2]
+            ):
                 return False
             extra = self._factory_http_outcomes.get(outcome)
             return extra is None or (
@@ -1112,6 +1212,169 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                 if connection is not None:
                     connection.close()
 
+    def prepare_action(self, action, *, operator):
+        if operator is not self._operator or type(action) is not ActionEnvelope:
+            raise ValueError("original operator and typed preparation action required")
+        if action.kind != "tool" or action.parameters.get("tool") != self.test_tool:
+            return action
+        with self._lock:
+            self._verify_install()
+            if self._test_runner is None:
+                raise ValueError("fixed test runner unavailable; no fallback")
+            return self._test_runner.prepare_action(action, operator=operator)
+
+    def _compile_test(self, action, contract):
+        try:
+            if self._test_runner is None or contract.grant_state != "eligible":
+                raise ValueError("original human-approved complete test requirements required")
+            self._verify_install()
+            lower = self._test_runner.compile_action(action, contract)
+            if not lower.enforceable or lower.plan is None:
+                raise ValueError("fixed test scope unavailable")
+            plan = EnforcementPlan(
+                self.name,
+                contract,
+                {
+                    "profile": TEST_PROTOCOL,
+                    "configuration_digest": self.configuration_digest,
+                    "original_test_plan": lower.plan.plan_id,
+                    "snapshot_digest": lower.plan.policy["snapshot_digest"],
+                    "test_id": lower.plan.policy["test_id"],
+                    "test_limits": self.test_limits.as_dict(),
+                    "test_correctness_verified": False,
+                },
+            )
+            with self._lock:
+                previous = self._test_plans.get(plan.plan_id)
+                if previous is not None:
+                    plan = previous[0]
+                else:
+                    if len(self._test_plans) >= self._limit:
+                        raise ValueError("owned test plan capacity reached")
+                    self._test_plans[plan.plan_id] = (
+                        plan,
+                        lower.plan,
+                        ActionEnvelope.from_dict(action.as_dict()),
+                    )
+            return CompilationResult("success", self.name, "broker.owned_test_compiled", plan=plan)
+        except (ValueError, OSError, KeyError, TypeError):
+            return CompilationResult(
+                "unsupported",
+                self.name,
+                "broker.owned_test_unrepresentable",
+                unsupported_fields=("tests.exact_snapshot_and_scope",),
+            )
+
+    def _validate_test(self, plan):
+        valid = False
+        try:
+            row = self._test_plans.get(plan.plan_id)
+            self._verify_install()
+            valid = (
+                row is not None
+                and row[0] is plan
+                and self._test_runner is not None
+                and plan.policy["configuration_digest"] == self.configuration_digest
+                and self._test_runner.validate(row[1]).ok
+                and self._test_runner.validate_action_requirements(row[2], plan.contract)
+            )
+        except (OSError, ValueError, TypeError, KeyError):
+            pass
+        return BackendValidationResult(
+            "success" if valid else "invalid",
+            self.name,
+            plan.policy_digest,
+            "broker.owned_test_valid" if valid else "broker.owned_test_changed",
+        )
+
+    def _execute_test(self, plan, action, source, *, operator, job):
+        if (
+            operator is not self._operator
+            or type(source) is not RuntimeEvidenceSource
+            or plan.contract.grant_state != "eligible"
+        ):
+            raise ValueError("original eligible approved test effect required")
+        self._require_approval_job(plan, job)
+        with self._lock:
+            if len(self._outcomes) >= self._limit:
+                raise ValueError("owned outcome capacity reached")
+            job = self.create_job(plan, operator=operator) if job is None else job
+            with self._jobs_lock:
+                state = self._job(job)
+                if (
+                    state.binding
+                    != (plan.plan_id, plan.contract.action_digest, plan.contract.digest)
+                    or state.state != "queued"
+                ):
+                    raise ValueError("original queued test job required")
+                if state.cancel.is_set():
+                    return self._result(plan, "canceled", "broker.owned_test_canceled", job=job)
+                state.state = "checking"
+            try:
+                if (
+                    not self._validate_test(plan).ok
+                    or type(action) is not ActionEnvelope
+                    or digest(action.as_dict()) != plan.contract.action_digest
+                ):
+                    raise ValueError("original sealed test plan/action changed")
+                runner = self._test_runner
+                if runner is None:
+                    raise ValueError("original test runner unavailable")
+                self._require_approval_job(plan, job)
+                with self._jobs_lock:
+                    if state.cancel.is_set():
+                        return self._result(plan, "canceled", "broker.owned_test_canceled", job=job)
+                    state.state = "running"
+                lower_plan = self._test_plans[plan.plan_id][1]
+                lower = runner.execute(
+                    lower_plan, action, source, operator=operator, job=self._test_jobs[job]
+                )
+                if not runner.verify_outcome(lower, lower_plan):
+                    raise ValueError("original confined test outcome unavailable")
+                value = (
+                    bounded_test_value(lower.value, self.max_payload_bytes)
+                    if lower.status == "completed"
+                    else None
+                )
+                evidence = {
+                    "original_test_outcome": digest(lower.as_dict()),
+                    "original_test_plan": lower_plan.plan_id,
+                    "test_correctness_verified": False,
+                    "confined_test": runner.evidence_record(lower),
+                }
+                result = self._result(
+                    plan,
+                    lower.status,
+                    lower.reason_code,
+                    physical=lower.physical_enforcement,
+                    evidence=evidence,
+                    stdout_bytes=lower.stdout_bytes,
+                    value=value,
+                    observation=lower.observation,
+                    job=job,
+                )
+                self._test_outcomes[result] = (lower,)
+                return result
+            except (OSError, ValueError, KeyError, TypeError, UnicodeError):
+                return self._result(plan, "unknown", "broker.owned_test_uncertain", job=job)
+
+    def request_stop(self, job, *, operator):
+        if operator is not self._operator:
+            raise ValueError("original owned operator required")
+        with self._jobs_lock:
+            state = self._job(job)
+            lower = self._test_jobs.get(job)
+            if lower is None or state.state in {"finished", "canceled"}:
+                return super().request_stop(job, operator=operator)
+            state.cancel.set()
+        if self._test_runner is None:
+            return "unable_to_stop"
+        status = self._test_runner.request_stop(lower, operator=operator)
+        with self._jobs_lock:
+            if state.state == "queued":
+                state.state = "canceled"
+        return status
+
     def compile_action(self, action, complete, *, source=None, credential_uses=()):
         if type(complete) is RestRequestContract:
             return self._compile_http(action, complete, source, credential_uses)
@@ -1122,6 +1385,8 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                 "broker.request_worker_unavailable",
                 unsupported_fields=("requests.complete",),
             )
+        if action.kind == "tool" and action.parameters.get("tool") == self.test_tool:
+            return self._compile_test(action, complete)
         if action.kind != "tool" or action.parameters.get("tool") != self.write_tool:
             return self.compile(complete)
         try:
@@ -1173,6 +1438,8 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             return self._validate_http(plan)
         if type(plan) is not EnforcementPlan or plan.backend != self.name:
             raise ValueError("original owned-tool plan required")
+        if plan.policy.get("profile") == TEST_PROTOCOL:
+            return self._validate_test(plan)
         if plan.policy.get("profile") != WRITE_PROTOCOL:
             return super().validate(plan)
         try:
@@ -1380,6 +1647,8 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
     def execute(self, plan, action, source, *, operator, job=None):
         if self._closing:
             raise ValueError("owned executor is closing")
+        if type(plan) is EnforcementPlan and plan.policy.get("profile") == TEST_PROTOCOL:
+            return self._execute_test(plan, action, source, operator=operator, job=job)
         if type(plan) is OwnedRequestPlan:
             return self._execute_http(plan, action, source, operator=operator, job=job)
         if plan.policy.get("profile") != WRITE_PROTOCOL:
@@ -1529,6 +1798,19 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
     def permissions_fit(self, permissions):
         maximum = permissions.capability
         paths = {str(self.workspace / name) for name in self.allowed_files}
+        test_paths = {
+            str(path)
+            for route in self.test_routes
+            for path in (route.project_root, route.runtime.root)
+        }
+        test_executables = {str(route.runtime.interpreter) for route in self.test_routes}
+        uses_tests = any(
+            value.runtime == self.tool_runtime
+            and value.server is None
+            and value.tool == self.test_tool
+            and value.operation == "call"
+            for value in maximum.tools
+        )
         requests = tuple(
             RestRequestAuthority.from_parameters(route.public_parameters())
             for route in self.http_routes
@@ -1551,19 +1833,43 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             and not permissions.network_grants
             and all(value in requests for value in permissions.rest_requests)
             and not maximum.allow_any_executable
-            and maximum.process.execution is False
-            and not maximum.process.executables
-            and maximum.process.spawn_children in {None, False}
+            and maximum.process.execution is uses_tests
+            and (
+                bool(maximum.process.executables)
+                and set(maximum.process.executables) <= test_executables
+                if uses_tests
+                else not maximum.process.executables
+            )
+            and (
+                maximum.process.spawn_children is False
+                if uses_tests
+                else maximum.process.spawn_children in {None, False}
+            )
             and maximum.privilege.escalation is False
             and maximum.privilege.required_euid in {None, self.uid}
             and all(
-                value.access in {"read", "write"} and value.scope == "exact" and value.path in paths
+                (
+                    value.access in {"read", "write"}
+                    and value.scope == "exact"
+                    and value.path in paths
+                )
+                or (
+                    uses_tests
+                    and value.access == "read"
+                    and value.scope == "prefix"
+                    and value.path in test_paths
+                )
                 for value in maximum.filesystem
             )
             and all(
                 value.runtime == self.tool_runtime
                 and value.server is None
-                and value.tool in {self.tool_name, self.write_tool}
+                and value.tool
+                in {
+                    self.tool_name,
+                    self.write_tool,
+                    self.test_tool if self.test_routes else self.tool_name,
+                }
                 and value.operation == "call"
                 for value in maximum.tools
             )
@@ -1763,6 +2069,40 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                     observation=outcome.observation,
                 )
                 probe._factory_http_outcomes[outcome] = (http_child, http_outcome, http_plan)
+            if self.test_routes:
+                runner = self._test_runner
+                if runner is None:
+                    raise ValueError("original fixed test factory unavailable")
+                test_root = root / "test-probe"
+                test_root.mkdir(mode=0o700)
+                test_probe, test_outcome, test_plan, test_evidence, test_description = (
+                    runner.factory_probe(test_root, operator=operator, policy_digest=policy_digest)
+                )
+                try:
+                    if (
+                        not test_probe.verify_outcome(test_outcome, test_plan)
+                        or not test_outcome.physical_enforcement
+                    ):
+                        raise ValueError("original fixed test factory proof unavailable")
+                    evidence = {"owned_tools": evidence, "fixed_tests": test_evidence}
+                    previous = outcome
+                    outcome = probe._result(
+                        compiled.plan,
+                        "completed",
+                        "broker.owned_factory_profiles_completed",
+                        physical=True,
+                        evidence=evidence,
+                        stdout_bytes=previous.stdout_bytes + test_outcome.stdout_bytes,
+                        value=previous.value,
+                        observation=previous.observation,
+                    )
+                    if previous in probe._factory_http_outcomes:
+                        probe._factory_http_outcomes[outcome] = probe._factory_http_outcomes[
+                            previous
+                        ]
+                    probe._factory_test_outcomes[outcome] = (test_probe, test_outcome, test_plan)
+                finally:
+                    test_probe.close(operator=operator)
             description = {
                 "scope": "broker_owned_fresh_managed_worker_route",
                 "capabilities": ["broker.enforce"],
@@ -1771,9 +2111,12 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                 "physical_policy_applied": False,
                 "supported_action_kinds": ["tool", "network"] if self.http_routes else ["tool"],
                 "operations": ["call", "http.request"] if self.http_routes else ["call"],
-                "effects": ["filesystem.read", "filesystem.write", "network.download"]
-                if self.http_routes
-                else ["filesystem.read", "filesystem.write"],
+                "effects": ["filesystem.read", "filesystem.write"]
+                + (["network.download"] if self.http_routes else [])
+                + (["code.execute"] if self.test_routes else []),
+                "test_ids": [route.test_id for route in self.test_routes],
+                "test_limits": self.test_limits.as_dict() if self.test_routes else None,
+                "test_correctness_verified": False,
                 "http_routes": [route.route_id for route in self.http_routes],
                 "http_factory_probe": "controlled_loopback_no_credentials"
                 if self.http_routes
@@ -1816,6 +2159,8 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             with self._jobs_lock:
                 jobs = tuple(self._jobs)
             self._close_stop_jobs(jobs)
+            if self._test_runner is not None:
+                self._test_runner.close(operator=self._operator)
             if self._managed_state is not None:
                 self._managed_state.close()
                 self._managed_state = None
