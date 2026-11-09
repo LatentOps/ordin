@@ -31,6 +31,20 @@ from ordin.swarm.confined_tests import (
 from ordin.swarm.managed_process import ProtectedProcessLimits
 
 
+_ZLIB_ORIGIN_ASSERTIONS = (
+    "    assert zlib.__spec__.name == 'zlib'\n"
+    "    if zlib.__spec__.origin == 'built-in':\n"
+    "        assert zlib.__spec__.loader is BuiltinImporter\n"
+    "        assert 'zlib' in sys.builtin_module_names\n"
+    "        assert not hasattr(zlib, '__file__')\n"
+    "    else:\n"
+    "        assert isinstance(zlib.__spec__.loader, ExtensionFileLoader)\n"
+    "        assert isinstance(zlib.__file__, str) and Path(zlib.__file__).is_absolute()\n"
+    "        assert zlib.__spec__.origin == zlib.__file__\n"
+    "        assert not Path(zlib.__file__).is_relative_to(Path(__file__).parent)\n"
+)
+
+
 def setup(tmp_path, text="def test_ok():\n    assert 1 + 1 == 2\n", *, portable=False, limits=None):
     operator = object()
     project, runtime, install = (tmp_path / value for value in ("project", "runtime", "install"))
@@ -229,7 +243,8 @@ def test_pinned_framework_outranks_real_project_pytest_py_and_private_package_sh
     selected = str(route.runtime.root / "site")
     (route.project_root / "test_sample.py").write_text(
         "def test_selected_framework_and_project_import():\n"
-        "    import pytest, py, _pytest, project_helper, zlib\n"
+        "    import pytest, py, _pytest, project_helper, zlib, sys\n"
+        "    from importlib.machinery import BuiltinImporter, ExtensionFileLoader\n"
         "    from pathlib import Path\n"
         f"    pinned = Path({selected!r})\n"
         "    assert Path(pytest.__file__).is_relative_to(pinned / 'pytest')\n"
@@ -238,8 +253,8 @@ def test_pinned_framework_outranks_real_project_pytest_py_and_private_package_sh
         f"    assert pytest.__version__ == {route.runtime.pytest_version!r}\n"
         "    assert project_helper.VALUE == 'project still importable'\n"
         "    assert zlib.decompress(zlib.compress(b'bounded pinned zlib')) == b'bounded pinned zlib'\n"
-        "    assert not Path(zlib.__file__).is_relative_to(Path(__file__).parent)\n"
-        "    assert not Path('/scratch/framework-shadow-marker').exists()\n"
+        + _ZLIB_ORIGIN_ASSERTIONS
+        + "    assert not Path('/scratch/framework-shadow-marker').exists()\n"
         "    print('pinned-framework-selected')\n"
     )
     shadow = (
