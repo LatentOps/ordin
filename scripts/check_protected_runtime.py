@@ -302,6 +302,8 @@ def copy_fixture_inputs(destination: Path) -> dict[str, str]:
 
 def runtime_source_preflight() -> dict[str, object]:
     """Record actual runtime ownership without changing or qualifying its inputs."""
+    if sys.platform != "linux":
+        raise ValueError("runtime ownership preflight requires supported Linux")
     selected = {
         "interpreter": Path(sys.executable),
         "base_interpreter": Path(getattr(sys, "_base_executable", sys.executable)),
