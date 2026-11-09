@@ -18,7 +18,7 @@ from ordin import ActionEnvelope, ToolCallAdapter
 from ordin._runtime_json import digest
 from ordin.schema import validate_named_schema
 
-from .host_authority import HostAuthority, HostDispatch, RUNTIME
+from .host_authority import HostAuthority, HostDispatch, RUNTIME, _HostCleanupIncomplete
 from .host_lineage import HostCustodyReservation, HostLineage, SENSITIVE_OUTPUT
 from .host_profiles import HOST_TOOL_DATA_BYTES, ToolHostProfile
 from .sdk import bounded_json
@@ -113,6 +113,14 @@ class ManagedToolHost:
             profile.configuration_root / "state" / "host.lock",
             os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK,
         )
+        self.profile, self._operator = profile, operator
+        self._lock, self._close_lock = RLock(), RLock()
+        self._clients: dict[HostClient, _Client] = {}
+        self._approvals: dict[str, _Approval] = {}
+        self._protocol_ids: set[str] = set()
+        self._closed = self._cleanup_complete = False
+        self._lock_fd: int | None = descriptor
+        self.shutdown_requested = Event()
         try:
             info = os.fstat(descriptor)
             if (
@@ -124,29 +132,36 @@ class ManagedToolHost:
                 raise ValueError("managed host lock file is not private")
             os.set_inheritable(descriptor, False)
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            authority = HostAuthority(
-                profile,
-                operator=operator,
-                policy_epoch=policy_epoch,
-                initialize_scope=initialize_scope,
-                takeover=takeover,
-            )
             try:
-                lineage = HostLineage(authority)
-            except BaseException:
-                authority.close()
+                self._authority = HostAuthority(
+                    profile,
+                    operator=operator,
+                    policy_epoch=policy_epoch,
+                    initialize_scope=initialize_scope,
+                    takeover=takeover,
+                )
+            except _HostCleanupIncomplete as error:
+                self._authority = error.cleanup_owner
+                self._closed = True
+                self.shutdown_requested.set()
+                raise _HostCleanupIncomplete(self) from error.__cause__
+            try:
+                self._lineage = HostLineage(self._authority)
+            except BaseException as construction_error:
+                try:
+                    self.close()
+                except BaseException:
+                    raise _HostCleanupIncomplete(self) from construction_error
                 raise
-        except BaseException:
-            os.close(descriptor)
+        except BaseException as error:
+            self._closed = True
+            self.shutdown_requested.set()
+            if isinstance(error, _HostCleanupIncomplete) and error.cleanup_owner is self:
+                raise
+            if self._lock_fd is not None:
+                os.close(self._lock_fd)
+                self._lock_fd = None
             raise
-        self.profile, self._operator = profile, operator
-        self._authority, self._lineage, self._lock_fd = authority, lineage, descriptor
-        self._lock = RLock()
-        self._clients: dict[HostClient, _Client] = {}
-        self._approvals: dict[str, _Approval] = {}
-        self._protocol_ids: set[str] = set()
-        self._closed = False
-        self.shutdown_requested = Event()
 
     def bind_connection(self, connection: ssl.SSLSocket, *, operator: object) -> HostClient:
         """Bind actual mTLS, without accepting an actor name from the request."""
@@ -885,22 +900,31 @@ class ManagedToolHost:
         )
 
     def close(self) -> None:
-        with self._lock:
-            if self._closed:
+        with self._close_lock:
+            if self._cleanup_complete:
                 return
-            self._closed = True
-            self.shutdown_requested.set()
-            clients = tuple(self._clients)
-        self._authority.auth.fence(operator=self._operator)
-        for authorization in tuple(self._authority.broker._pending):
+            with self._lock:
+                self._closed = True
+                self.shutdown_requested.set()
+                clients = tuple(self._clients)
             try:
-                self._authority.broker.request_stop(authorization)
-            except (ValueError, OSError, RuntimeError):
-                pass
-        for client in clients:
-            self.close_client(client)
-        self._authority.close()
-        os.close(self._lock_fd)
+                if hasattr(self._authority, "auth"):
+                    self._authority.auth.fence(operator=self._operator)
+                if hasattr(self._authority, "broker"):
+                    for authorization in tuple(self._authority.broker._pending):
+                        try:
+                            self._authority.broker.request_stop(authorization)
+                        except (ValueError, OSError, RuntimeError):
+                            pass
+                for client in clients:
+                    self.close_client(client)
+                self._authority.close()
+                if self._lock_fd is not None:
+                    os.close(self._lock_fd)
+                    self._lock_fd = None
+            except BaseException as error:
+                raise _HostCleanupIncomplete(self) from error
+            self._cleanup_complete = True
 
 
 __all__ = ["HostClient", "ManagedToolHost"]

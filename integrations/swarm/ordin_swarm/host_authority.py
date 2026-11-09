@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 import time
 from typing import Mapping
+from threading import RLock
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -58,6 +59,21 @@ from .host_profiles import HOST_TOOL_DATA_BYTES, ToolHostProfile, check_private_
 
 
 RUNTIME = "ordin-owned"
+
+
+class _HostCleanupIncomplete(RuntimeError):
+    """Private original cleanup capability, never reconstructed from data."""
+
+    def __init__(self, owner):
+        super().__init__("managed host cleanup remains incomplete")
+        self.__owner = owner
+
+    @property
+    def cleanup_owner(self):
+        return self.__owner
+
+    def retry_cleanup(self):
+        self.__owner.close()
 
 
 def _budget_policy(profile, policy_epoch):
@@ -341,6 +357,8 @@ class HostAuthority:
         check_private_directory(profile.configuration_root)
         check_private_directory(profile.configuration_root / "state")
         self.stack = ExitStack()
+        self._close_lock = RLock()
+        self._closing = self._cleanup_complete = False
         try:
             self.profile, self.operator = profile, operator
             self.store = SQLiteCoordinatorStore(
@@ -354,7 +372,6 @@ class HostAuthority:
             self.backend = make_backend(
                 profile, operator=operator, initialize=False, test_routes=self.test_routes
             )
-            self.stack.callback(self.backend.close)
             self.core = host_core(self.test_routes)
             self.started_at = clock()
             self.expires_at = self.started_at + min(profile.limits.lifetime_seconds, 600)
@@ -559,8 +576,11 @@ class HostAuthority:
             )
             self.governance.initialize(operator=operator, recover=takeover)
             self.factory_proof = proof
-        except BaseException:
-            self.stack.close()
+        except BaseException as construction_error:
+            try:
+                self.close()
+            except BaseException:
+                raise _HostCleanupIncomplete(self) from construction_error
             raise
 
     def refresh_broker_channel(self) -> None:
@@ -575,6 +595,8 @@ class HostAuthority:
 
     def maintenance(self) -> dict:
         """Renew online ownership, never a caller's approval or delegated lifetime."""
+        if self._closing:
+            raise ValueError("managed authority is draining")
         self.profile.require_unchanged()
         if self.clock() >= self.expires_at:
             raise ValueError("managed task lifetime ended; fresh operator startup required")
@@ -697,8 +719,21 @@ class HostAuthority:
         )
 
     def close(self) -> None:
-        self.auth.fence(operator=self.operator)
-        self.stack.close()
+        with self._close_lock:
+            if self._cleanup_complete:
+                return
+            self._closing = True
+            try:
+                if hasattr(self, "auth"):
+                    self.auth.fence(operator=self.operator)
+                if hasattr(self, "backend"):
+                    # Do not put this retryable owner in ExitStack: callbacks
+                    # are consumed even when a live child cannot be stopped.
+                    self.backend.close()
+                self.stack.close()
+            except BaseException as error:
+                raise _HostCleanupIncomplete(self) from error
+            self._cleanup_complete = True
 
 
 def initialize_host_authority_files(profile: ToolHostProfile, *, operator: object) -> None:

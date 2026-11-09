@@ -21,6 +21,7 @@ from ordin.schema import validate_named_schema
 from .host_cli import _initialize_connection, _rpc, initialize
 from .host_profiles import load_host_profile
 from .host_runtime import ManagedToolHost
+from .host_authority import _HostCleanupIncomplete
 from .host_service import ManagedHostServer, connect
 
 VERSION = "ordin.swarm_tool_host_evaluation.v1"
@@ -616,6 +617,10 @@ def run_evaluation(directory: Path, *, openssl=None, with_tests=False, protected
             protected=protected,
             progress=progress,
         )
+    except _HostCleanupIncomplete:
+        # A JSON report cannot retain an original cleanup owner. Let the
+        # trusted controller keep this private capability and retry it.
+        raise
     except Exception:
         expected = dict(EXPECTED)
         if with_tests:

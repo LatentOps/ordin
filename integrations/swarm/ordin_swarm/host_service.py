@@ -9,7 +9,7 @@ import socket
 import ssl
 import stat
 import time
-from threading import BoundedSemaphore, RLock, Thread
+from threading import BoundedSemaphore, RLock, Thread, current_thread
 from uuid import uuid4
 
 from ordin.assurance._files import read_scoped_file
@@ -18,6 +18,7 @@ from .host_pki import _new_file
 from .host_profiles import check_private_directory
 from .host_protocol import MAX_FRAME_BYTES, MCPHostSession, decode_frame, encode_frame, serve_stdio
 from .host_runtime import ManagedToolHost
+from .host_authority import _HostCleanupIncomplete
 
 
 CLIENT_VERSION = "ordin.swarm_tool_host_client.v1"
@@ -68,6 +69,8 @@ class ManagedHostServer:
         self.port = listener.getsockname()[1]
         self._slots = BoundedSemaphore(32)
         self._lock = RLock()
+        self._close_lock = RLock()
+        self._cleanup_complete = False
         self._sockets: set[socket.socket] = set()
         self._threads: set[Thread] = set()
         try:
@@ -194,21 +197,41 @@ class ManagedHostServer:
             self.close()
 
     def close(self) -> None:
-        self.host.shutdown_requested.set()
-        self.listener.close()
-        self.host.close()
-        with self._lock:
-            connections = tuple(self._sockets)
-            threads = tuple(self._threads)
-        for connection in connections:
+        with self._close_lock:
+            if self._cleanup_complete:
+                return
+            self.host.shutdown_requested.set()
+            error = None
             try:
-                connection.shutdown(socket.SHUT_RDWR)
-            except (ValueError, OSError):
-                pass
-            connection.close()
-        deadline = time.monotonic() + 5
-        for thread in threads:
-            thread.join(timeout=max(0, deadline - time.monotonic()))
+                self.listener.close()
+            except BaseException as failure:
+                error = failure
+            with self._lock:
+                connections = tuple(self._sockets)
+                threads = tuple(self._threads)
+            for connection in connections:
+                try:
+                    connection.shutdown(socket.SHUT_RDWR)
+                except (ValueError, OSError):
+                    pass
+                try:
+                    connection.close()
+                except BaseException as failure:
+                    error = error or failure
+            try:
+                self.host.close()
+            except BaseException as failure:
+                error = error or failure
+            finally:
+                deadline = time.monotonic() + 5
+                for thread in threads:
+                    if thread is not current_thread():
+                        thread.join(timeout=max(0, deadline - time.monotonic()))
+            if error is not None:
+                raise _HostCleanupIncomplete(self) from error
+            if any(thread.is_alive() for thread in threads):
+                raise _HostCleanupIncomplete(self)
+            self._cleanup_complete = True
 
 
 def _unique(pairs):
