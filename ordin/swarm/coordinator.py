@@ -1724,7 +1724,7 @@ class SwarmCoordinator:
         from ordin.enforcement_backend import EnforcementPlan
 
         from .broker import SwarmExecutionBroker
-        from .owned_tools import LinuxOwnedToolsBackend
+        from .owned_tools import LinuxOwnedToolsBackend, OwnedRequestPlan
 
         scope = self._scope(handle)
         with self._containment_barrier(scope), self._lock, self.store.transaction() as transaction:
@@ -1762,7 +1762,10 @@ class SwarmCoordinator:
                         and result.executor_outcome is not None
                         and executor.verify_outcome(result.executor_outcome, original_plan)
                     )
-                elif type(executor) is LinuxOwnedToolsBackend:
+                elif (
+                    type(original_plan) is OwnedRequestPlan
+                    and type(executor) is LinuxOwnedToolsBackend
+                ):
                     witnessed = (
                         result is not None
                         and result.executor_outcome is not None
