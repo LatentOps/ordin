@@ -17,7 +17,7 @@ def test_coordinator_credentialed_https_issues_before_preview_and_returns_fixed_
     from tests.test_swarm_owned_http import CERTS, endpoint, get_action, request_bytes
 
     secret = b"governance-private-credential-fixture"
-    with endpoint(tls=True, body=b"echo: " + secret) as (url, seen, failures):
+    with endpoint(tls=True, body=b"echo: " + secret) as (url, seen, failures, arm):
         route = OwnedHTTPRoute(
             "private-docs",
             url,
@@ -54,6 +54,7 @@ def test_coordinator_credentialed_https_issues_before_preview_and_returns_fixed_
             protected = coordinator._prepared[reservation.reference]
             admitted = broker.authorization_scope(protected.authorization)
             assert admitted.delegation_scope.review_context.credential_uses[0] is uses[0]
+            arm()
             accounting = coordinator.guarded_dispatch(
                 scope, broker._broker_channel, reservation.reference
             )
