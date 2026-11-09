@@ -495,6 +495,14 @@ def main(argv=None):
         return 2
 
 
+def _cleanup_status(value):
+    """Diagnostics never own, interrupt or acknowledge original cleanup."""
+    try:
+        print(json.dumps(value), file=sys.stderr, flush=True)
+    except (OSError, ValueError):
+        pass  # Broken pipes, failed flushes and closed streams are not custody.
+
+
 def entrypoint(argv=None):
     """A cleanup failure keeps this controller alive; effects are never retried.
 
@@ -512,18 +520,14 @@ def entrypoint(argv=None):
                 if number is not None:
                     try:
                         previous[number] = signal.signal(number, lambda *_: None)
-                    except ValueError:
+                    except (OSError, ValueError):
                         pass  # Embedding threads cannot install signal handlers.
-            print(
-                json.dumps(
-                    {
-                        "status": "cleanup_incomplete",
-                        "reason_code": "host.cleanup_incomplete",
-                        "execution_authority": False,
-                    }
-                ),
-                file=sys.stderr,
-                flush=True,
+            _cleanup_status(
+                {
+                    "status": "cleanup_incomplete",
+                    "reason_code": "host.cleanup_incomplete",
+                    "execution_authority": False,
+                }
             )
             while True:
                 try:
@@ -536,21 +540,20 @@ def entrypoint(argv=None):
                         time.sleep(0.25)
                     except KeyboardInterrupt:
                         pass
-            print(
-                json.dumps(
-                    {
-                        "status": "cleanup_complete",
-                        "original_command_failed": True,
-                        "execution_authority": False,
-                    }
-                ),
-                file=sys.stderr,
-                flush=True,
+            _cleanup_status(
+                {
+                    "status": "cleanup_complete",
+                    "original_command_failed": True,
+                    "execution_authority": False,
+                }
             )
             return 2
         finally:
             for number, handler in previous.items():
-                signal.signal(number, handler)
+                try:
+                    signal.signal(number, handler)
+                except (OSError, ValueError):
+                    pass
 
 
 if __name__ == "__main__":

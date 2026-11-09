@@ -305,3 +305,102 @@ def test_cli_api_preserves_owner_and_console_supervises_cleanup_without_effect_r
     messages = [json.loads(line) for line in output.err.splitlines()]
     assert [message["status"] for message in messages] == ["cleanup_incomplete", "cleanup_complete"]
     assert messages[-1]["original_command_failed"] is True
+
+
+@pytest.mark.parametrize(
+    "stream_failure",
+    [
+        "broken_write",
+        "oserror_write",
+        "closed_write",
+        "broken_flush",
+        "closed_flush",
+        "later_write",
+    ],
+)
+def test_cleanup_diagnostics_write_or_flush_failure_never_drops_original_owner(
+    monkeypatch, stream_failure
+):
+    from ordin_swarm import host_cli
+
+    calls, writes, flushes = [], [], []
+    unknown = {"status": "unknown", "held": 8}
+
+    class Owner:
+        attempts = 0
+        result = unknown
+
+        def close(self):
+            self.attempts += 1
+            assert self.result is unknown and unknown == {"status": "unknown", "held": 8}
+            if self.attempts < 3:
+                raise RuntimeError("private original cleanup diagnostic")
+
+    owner = Owner()
+    failure = _HostCleanupIncomplete(owner)
+    cause = ValueError("private original construction cause")
+
+    def command(arguments):
+        calls.append(arguments)
+        raise failure from cause
+
+    class Stream:
+        def write(self, value):
+            writes.append(value)
+            if stream_failure == "broken_write":
+                raise BrokenPipeError("private pipe")
+            if stream_failure == "oserror_write":
+                raise OSError("private stream")
+            if stream_failure == "closed_write":
+                raise ValueError("closed stream")
+            if stream_failure == "later_write" and "cleanup_complete" in value:
+                assert owner.attempts == 3
+                raise BrokenPipeError("late pipe failure")
+
+        def flush(self):
+            flushes.append(True)
+            if stream_failure == "broken_flush":
+                raise BrokenPipeError("private flush")
+            if stream_failure == "closed_flush":
+                raise ValueError("closed flush")
+
+    monkeypatch.setattr(host_cli, "main", command)
+    monkeypatch.setattr(host_cli.time, "sleep", lambda duration: None)
+    monkeypatch.setattr(host_cli.signal, "signal", lambda *args: None)
+    # Restore stderr before pytest produces its own diagnostics.
+    with monkeypatch.context() as output:
+        output.setattr(host_cli.sys, "stderr", Stream())
+        result = host_cli.entrypoint(["explicit-command"])
+    assert result == 2 and owner.attempts == 3 and calls == [["explicit-command"]]
+    assert failure.cleanup_owner is owner and failure.__cause__ is cause
+    assert owner.result is unknown and unknown["status"] == "unknown" and unknown["held"] == 8
+    assert writes and not any("private" in value for value in writes)
+    if "flush" in stream_failure:
+        assert len(flushes) == 2
+
+
+@pytest.mark.parametrize("stage", ["install", "restore"])
+def test_signal_handler_errors_cannot_abort_retained_cleanup(monkeypatch, capsys, stage):
+    from ordin_swarm import host_cli
+
+    attempts, commands = [], []
+    owner = SimpleNamespace(close=lambda: attempts.append("closed"))
+    failure = _HostCleanupIncomplete(owner)
+
+    def command(arguments):
+        commands.append(arguments)
+        raise failure
+
+    def handler(number, action):
+        if stage == "install":
+            raise OSError("private signal installation diagnostic")
+        if callable(action):
+            return 123
+        assert attempts == ["closed"]
+        raise ValueError("private signal restore diagnostic")
+
+    monkeypatch.setattr(host_cli, "main", command)
+    monkeypatch.setattr(host_cli.signal, "signal", handler)
+    assert host_cli.entrypoint(["explicit-command"]) == 2
+    assert attempts == ["closed"] and commands == [["explicit-command"]]
+    assert "private" not in capsys.readouterr().err
