@@ -62,14 +62,13 @@ def qualify_junit(path: Path) -> list[str]:
 
 def verify_wheel_bytes(core: Path, swarm: Path) -> dict[str, str]:
     pairs = [
-        (core, ROOT, ROOT / "ordin/swarm"),
+        (core, ROOT, ROOT / "ordin"),
         (swarm, ROOT / "integrations/swarm", ROOT / "integrations/swarm/ordin_swarm"),
     ]
     checked = {}
     for wheel, base, directory in pairs:
         sources = list(directory.rglob("*.py"))
         if wheel is core:
-            sources.extend([ROOT / "ordin/schema.py", ROOT / "ordin/runtime_requirements.py"])
             sources.extend((ROOT / "ordin/resources/schemas").glob("swarm-*.json"))
         with zipfile.ZipFile(wheel) as archive:
             for source in sorted(sources):

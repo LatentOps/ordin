@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import xml.etree.ElementTree as ET
+import zipfile
 
 import pytest
 import yaml
@@ -60,3 +61,31 @@ def test_missing_root_capability_does_not_create_a_fake_positive_workspace(tmp_p
     with pytest.raises(ValueError, match="privileged Linux"):
         check.main(["--workspace", str(workspace), "--revision", "a" * 40])
     assert not workspace.exists()
+
+
+def test_installed_parity_covers_core_credential_and_runtime_boundaries(tmp_path, monkeypatch):
+    source = tmp_path / "source"
+    core_files = (
+        "ordin/agent.py",
+        "ordin/session.py",
+        "ordin/assurance/delegating_gate.py",
+        "ordin/runtime_requirements.py",
+        "ordin/swarm/managed_process.py",
+        "ordin/resources/schemas/swarm-fixture.json",
+    )
+    optional = "ordin_swarm/__init__.py"
+    for name in (*core_files, "integrations/swarm/" + optional):
+        path = source / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes((name + " exact bytes").encode())
+    core, swarm = tmp_path / "ordin.whl", tmp_path / "ordin_swarm.whl"
+    with zipfile.ZipFile(core, "w") as archive:
+        for name in core_files:
+            archive.writestr(name, (source / name).read_bytes())
+    with zipfile.ZipFile(swarm, "w") as archive:
+        archive.writestr(optional, (source / "integrations/swarm" / optional).read_bytes())
+    monkeypatch.setattr(check, "ROOT", source)
+    assert set(check.verify_wheel_bytes(core, swarm)) == {*core_files, optional}
+    (source / "ordin/agent.py").write_bytes(b"different credential boundary")
+    with pytest.raises(ValueError, match="differs from exact source"):
+        check.verify_wheel_bytes(core, swarm)
