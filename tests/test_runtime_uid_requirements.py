@@ -191,3 +191,32 @@ def test_warning_remains_human_required_and_roundtrips_preserve_exact_uid_and_co
     invalid["runtime_requirements"]["tool_requirements"][0]["actor_uid"] = 0
     with pytest.raises(ValueError):
         _core_from_packet(invalid)
+
+
+@pytest.mark.parametrize("collection", [{}, "", None, True, False])
+def test_malformed_empty_conditional_collection_is_rejected_before_normalization(collection):
+    packet = _core_packet(core(RuntimeRequirementProfile("worker", required_euid=65534)))
+    packet["runtime_requirements"]["tool_requirements"] = collection
+    with pytest.raises(ValueError, match="literal collection"):
+        _core_from_packet(packet)
+
+
+@pytest.mark.parametrize("container", [list, tuple])
+def test_literal_conditional_collection_and_missing_default_keep_exact_uid_and_records(container):
+    original = RuntimeRequirementProfile(
+        "worker",
+        required_euid=65534,
+        tool_requirements=(ToolRuntimeRequirement("fixture", None, "run_tests", "call", "unit"),),
+    )
+    packet = _core_packet(core(original))
+    packet["runtime_requirements"]["tool_requirements"] = container(
+        packet["runtime_requirements"]["tool_requirements"]
+    )
+    restored = _core_from_packet(packet).runtime_requirements
+    assert restored.as_dict() == original.as_dict() and restored.digest == original.digest
+    empty = RuntimeRequirementProfile("empty", required_euid=65534)
+    missing = _core_packet(core(empty))
+    assert "tool_requirements" not in missing["runtime_requirements"]
+    assert _core_from_packet(missing).runtime_requirements.as_dict() == empty.as_dict()
+    missing["runtime_requirements"]["tool_requirements"] = container()
+    assert _core_from_packet(missing).runtime_requirements.digest == empty.digest

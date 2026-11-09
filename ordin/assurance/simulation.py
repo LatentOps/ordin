@@ -106,8 +106,11 @@ def _core_from_packet(packet: Mapping[str, Any]) -> Ordin:
                 "tool_requirements",
             },
         )
+        selected_tools = requirements.get("tool_requirements", ())
+        if type(selected_tools) not in {list, tuple}:
+            raise ValueError("runtime tool requirements must be a literal collection")
         tools = []
-        for item in requirements.get("tool_requirements", []):
+        for item in selected_tools:
             _closed(
                 item,
                 {
