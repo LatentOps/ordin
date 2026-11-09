@@ -94,6 +94,7 @@ class MCPHostSession:
         self._initialized = False
         self._ready = False
         self._closed = False
+        self._cleanup_complete = False
         self._close_lock = Lock()
         self._protocol: str | None = None
         self._ids: set[tuple[type, Any]] = set()
@@ -102,10 +103,11 @@ class MCPHostSession:
 
     def close(self) -> None:
         with self._close_lock:
-            if self._closed:
+            if self._cleanup_complete:
                 return
             self._closed = True
-        self._host.close_client(self._client)
+            self._host.close_client(self._client)
+            self._cleanup_complete = True
 
     def handle(self, value: dict[str, Any]) -> dict[str, Any] | None:
         if self._closed:
