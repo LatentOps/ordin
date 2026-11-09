@@ -23,7 +23,7 @@ from ordin.runtime_contract import (
     RuntimeCapabilityContract,
     derive_runtime_capability_contract,
 )
-from ordin.runtime_requirements import RuntimeRequirementProfile
+from ordin.runtime_requirements import RuntimeRequirementProfile, ToolRuntimeRequirement
 from ordin.session import IntegrationSession, SessionIdentity
 from ordin.temporal import TemporalPolicySet
 from ordin.tool_calls import ToolSemanticsRegistry
@@ -102,8 +102,39 @@ def _core_from_packet(packet: Mapping[str, Any]) -> Ordin:
                 "client_executables",
                 "mcp_endpoints",
                 "mcp_versions",
+                "required_euid",
+                "tool_requirements",
             },
         )
+        tools = []
+        for item in requirements.get("tool_requirements", []):
+            _closed(
+                item,
+                {
+                    "runtime",
+                    "server",
+                    "tool",
+                    "operation",
+                    "test_id",
+                    "filesystem",
+                    "client_executables",
+                    "spawn_children",
+                },
+            )
+            tools.append(
+                ToolRuntimeRequirement(
+                    item["runtime"],
+                    item.get("server"),
+                    item["tool"],
+                    item["operation"],
+                    item["test_id"],
+                    filesystem=tuple(
+                        FilesystemCapability(**value) for value in item.get("filesystem", [])
+                    ),
+                    client_executables=tuple(item.get("client_executables", [])),
+                    spawn_children=item.get("spawn_children", False),
+                )
+            )
         requirements = RuntimeRequirementProfile(
             profile_id=requirements["profile_id"],
             filesystem=tuple(FilesystemCapability(**v) for v in requirements.get("filesystem", [])),
@@ -112,6 +143,8 @@ def _core_from_packet(packet: Mapping[str, Any]) -> Ordin:
             client_executables=tuple(requirements.get("client_executables", [])),
             mcp_endpoints=requirements.get("mcp_endpoints", {}),
             mcp_versions=requirements.get("mcp_versions", {}),
+            required_euid=requirements.get("required_euid"),
+            tool_requirements=tuple(tools),
         )
     selected_rest = packet.get("rest_semantics")
     if selected_rest is not None:

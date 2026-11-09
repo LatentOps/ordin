@@ -30,6 +30,15 @@ tool names. Protect the profile and review artifact; this is context authority,
 not cryptographic authentication or kernel measurement. Conflicting facts remain
 diagnostic, and deployment facts never erase unknown action semantics.
 
+The optional `required_euid` is a host-selected deployment requirement for an
+original executor's literal effective UID, not permission to use that identity.
+It accepts valid Linux UID values and rejects booleans, negatives and the
+all-ones unchanged-identity sentinel. Actor arguments and execution context
+claims cannot activate it. Conflicting UID declarations remain diagnostic;
+escalation and other unknown requirements remain intact. Omitting it preserves
+existing profile bytes and digests. A measured executor outcome must still
+establish that the required identity was actually used.
+
 Pass an explicit profile as `Ordin(runtime_requirements=profile)` to retain it
 across gate/session reviews. Session configuration digests include the profile;
 changing deployment requirements prevents restoring old reporting state under

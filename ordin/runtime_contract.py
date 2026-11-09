@@ -109,6 +109,12 @@ class PrivilegeCapability:
         return {"escalation": self.escalation, "required_euid": self.required_euid}
 
 
+def _valid_euid_requirement(value: Any) -> bool:
+    # Linux uid_t is unsigned; the all-ones sentinel means "unchanged", not
+    # an effective identity that a deployment can require.
+    return type(value) is int and 0 <= value < (1 << 32) - 1
+
+
 @dataclass(frozen=True)
 class CredentialBinding:
     binding: str
@@ -588,6 +594,8 @@ def derive_runtime_capability_contract(
     spawn_children = None
     bindings: dict[str, str] = {}
     child_requirements: set[bool] = set()
+    uid_requirements: set[int] = set()
+    required_euid: int | None = None
     if review.provenance is not None:
         for record in review.provenance.records:
             if record.source != "context" or not record.metadata.get("profile_digest"):
@@ -624,6 +632,16 @@ def derive_runtime_capability_contract(
                 value = record.metadata.get("spawn_children")
                 if type(value) is bool:
                     child_requirements.add(value)
+            elif record.code == "runtime.requirement.euid":
+                value = record.metadata.get("required_euid")
+                if type(value) is int and _valid_euid_requirement(value):
+                    uid_requirements.add(value)
+                else:
+                    unknown(
+                        "privilege",
+                        "runtime_contract_malformed_requirement",
+                        "Runtime effective-UID requirement is not a valid literal identity.",
+                    )
             elif (
                 record.code == "runtime.requirement.client"
                 and record.resource is not None
@@ -642,6 +660,14 @@ def derive_runtime_capability_contract(
             )
         elif child_requirements:
             spawn_children = next(iter(child_requirements))
+        if len(uid_requirements) > 1:
+            unknown(
+                "privilege",
+                "runtime_contract_conflicting_requirement",
+                "Runtime effective-UID requirements conflict.",
+            )
+        elif uid_requirements:
+            required_euid = next(iter(uid_requirements))
     return RuntimeCapabilityContract(
         action_id=review.action.action_id,
         action_digest=action_digest(review),
@@ -666,7 +692,7 @@ def derive_runtime_capability_contract(
         process=ProcessCapability(
             process_execution if review.adapter is not None else None, executables, spawn_children
         ),
-        privilege=PrivilegeCapability(escalation),
+        privilege=PrivilegeCapability(escalation, required_euid),
         unknowns=tuple(sorted(unknowns, key=lambda v: (v.domain, v.reason_code, v.reason))),
         source={
             "kind": review.action.kind,

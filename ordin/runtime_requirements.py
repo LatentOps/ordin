@@ -13,7 +13,7 @@ from typing import Mapping
 from ._runtime_json import digest, freeze, model_tuple, thaw
 from .action import ActionReview
 from .provenance import ProvenanceRecord, ProvenanceResource
-from .runtime_contract import FilesystemCapability, _safe_path
+from .runtime_contract import FilesystemCapability, _safe_path, _valid_euid_requirement
 from ._runtime_host import identity_matches
 
 
@@ -111,8 +111,11 @@ class RuntimeRequirementProfile:
     mcp_endpoints: Mapping[str, str] = field(default_factory=dict)
     mcp_versions: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     tool_requirements: tuple[ToolRuntimeRequirement, ...] = ()
+    required_euid: int | None = None
 
     def __post_init__(self) -> None:
+        if self.required_euid is not None and not _valid_euid_requirement(self.required_euid):
+            raise ValueError("runtime_requirement_uid_invalid")
         if not isinstance(self.profile_id, str) or not 1 <= len(self.profile_id) <= 128:
             raise ValueError("runtime_requirement_profile_identity_invalid")
         object.__setattr__(self, "filesystem", model_tuple(self.filesystem, FilesystemCapability))
@@ -185,6 +188,8 @@ class RuntimeRequirementProfile:
             result["mcp_versions"] = thaw(self.mcp_versions)
         if self.tool_requirements:
             result["tool_requirements"] = [item.as_dict() for item in self.tool_requirements]
+        if self.required_euid is not None:
+            result["required_euid"] = self.required_euid
         return result
 
     @property
@@ -200,6 +205,15 @@ class RuntimeRequirementProfile:
         if not isinstance(review, ActionReview) or review.provenance is None:
             raise ValueError("runtime_requirement_review_invalid")
         records = []
+        if self.required_euid is not None:
+            records.append(
+                ProvenanceRecord(
+                    source="context",
+                    kind="finding",
+                    code="runtime.requirement.euid",
+                    metadata={"required_euid": self.required_euid, "profile_digest": self.digest},
+                )
+            )
         for capability in self.filesystem:
             assert capability.path is not None
             records.append(
