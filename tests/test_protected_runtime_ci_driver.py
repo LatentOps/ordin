@@ -25,10 +25,14 @@ def isolated_os_adapter(monkeypatch):
         paths = {}
         adapter.O_NOFOLLOW = 1 << 28
         adapter.O_DIRECTORY = 1 << 29
+        adapter.O_NONBLOCK = 1 << 27
 
         def open_file(path, flags, *args, **kwargs):
             descriptor = os.open(
-                path, flags & ~(adapter.O_NOFOLLOW | adapter.O_DIRECTORY), *args, **kwargs
+                path,
+                flags & ~(adapter.O_NOFOLLOW | adapter.O_DIRECTORY | adapter.O_NONBLOCK),
+                *args,
+                **kwargs,
             )
             paths[descriptor] = Path(path)
             return descriptor
@@ -39,13 +43,59 @@ def isolated_os_adapter(monkeypatch):
     monkeypatch.setattr(driver, "subprocess", SimpleNamespace(**vars(subprocess)))
 
 
-def test_descriptor_controls_have_no_unsupported_platform_fallback(monkeypatch):
-    monkeypatch.setattr(driver.os, "O_NOFOLLOW", None)
+@pytest.mark.parametrize("flag", ["O_NOFOLLOW", "O_NONBLOCK"])
+def test_descriptor_controls_have_no_unsupported_platform_fallback(monkeypatch, flag):
+    monkeypatch.setattr(driver.os, flag, None)
     with pytest.raises(ValueError, match="unavailable"):
-        driver._posix_flag("O_NOFOLLOW")
+        driver._posix_flag(flag)
     monkeypatch.setattr(driver.os, "fchown", None, raising=False)
     with pytest.raises(ValueError, match="unavailable"):
         driver._set_export_metadata(42, 1001, 1000, 0o644)
+
+
+@pytest.mark.parametrize("reader", ["identity", "runtime"])
+def test_regular_to_fifo_swap_opens_nonblocking_and_is_rejected_before_read(
+    tmp_path, monkeypatch, reader
+):
+    base = tmp_path / "base"
+    path = base / "input"
+    metadata = dict(
+        st_dev=1,
+        st_ino=2,
+        st_mode=0o100600,
+        st_uid=1001,
+        st_gid=1000,
+        st_nlink=1,
+        st_size=1,
+        st_mtime_ns=0,
+        st_ctime_ns=0,
+    )
+    regular = SimpleNamespace(**metadata)
+    fifo = SimpleNamespace(**{**metadata, "st_mode": 0o010600})
+    opened, closed = [], []
+    monkeypatch.setattr(driver, "_lstat", lambda current: regular)
+    monkeypatch.setattr(driver, "_open_directory", lambda current: 44)
+    monkeypatch.setattr(driver.os, "stat", lambda *a, **k: regular)
+
+    def racing_open(name, flags, *args, **kwargs):
+        # A real FIFO substituted here blocks open before fstat unless NONBLOCK is set.
+        if not flags & driver._posix_flag("O_NONBLOCK"):
+            raise AssertionError("simulated FIFO open would block before identity verification")
+        assert flags & driver._posix_flag("O_NOFOLLOW")
+        opened.append((name, flags))
+        return 55
+
+    monkeypatch.setattr(driver.os, "open", racing_open)
+    monkeypatch.setattr(driver.os, "fstat", lambda descriptor: fifo)
+    monkeypatch.setattr(driver.os, "fdopen", lambda *a, **k: pytest.fail("changed FIFO was read"))
+    monkeypatch.setattr(driver.os, "close", closed.append)
+    with pytest.raises(ValueError, match="changed before"):
+        if reader == "identity":
+            driver.read_regular(path, owner=1001)
+        else:
+            driver.read_runtime_file(base, path)
+    assert len(opened) == 1
+    assert closed == ([55] if reader == "identity" else [55, 44])
 
 
 def runtime_fixture(tmp_path):

@@ -115,7 +115,7 @@ def read_regular(path: Path, *, maximum=MAX_FILE, owner=None) -> tuple[bytes, os
         and before.st_uid != owner
     ):
         raise ValueError("bounded original regular file required")
-    fd = os.open(path, os.O_RDONLY | _posix_flag("O_NOFOLLOW"))
+    fd = os.open(path, os.O_RDONLY | _posix_flag("O_NOFOLLOW") | _posix_flag("O_NONBLOCK"))
     try:
         if _identity(os.fstat(fd)) != _identity(before):
             raise ValueError("source changed before capture")
@@ -253,7 +253,11 @@ def read_runtime_file(original: Path, entry: Path, depth=0):
                 or before.st_size > MAX_FILE
             ):
                 raise ValueError("runtime source must be a bounded regular file without hardlinks")
-            fd = os.open(entry.name, os.O_RDONLY | _posix_flag("O_NOFOLLOW"), dir_fd=parent)
+            fd = os.open(
+                entry.name,
+                os.O_RDONLY | _posix_flag("O_NOFOLLOW") | _posix_flag("O_NONBLOCK"),
+                dir_fd=parent,
+            )
             try:
                 if _identity(os.fstat(fd)) != _identity(before):
                     raise ValueError("runtime source changed before read")
@@ -858,7 +862,7 @@ def drive(args) -> int:
             provenance["failure_reason"] = str(error)[:512]
     finally:
         provenance["pre_export_status"] = status
-        provenance["evidence_export"] = "not_yet_completed"
+        provenance["export_snapshot"] = "captured_before_export_attempt"
         if not (private / "preflight.json").exists():
             _json(
                 private / "preflight.json",
