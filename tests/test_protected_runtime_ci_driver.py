@@ -39,6 +39,8 @@ def isolated_os_adapter(monkeypatch):
 
         adapter.open = open_file
         adapter.fstat = lambda descriptor: paths[descriptor].stat()
+        # Model POSIX fd chmod only for tiny Windows fixture files.
+        adapter.fchmod = lambda descriptor, mode: os.chmod(paths[descriptor], mode)
     monkeypatch.setattr(driver, "os", adapter)
     monkeypatch.setattr(driver, "subprocess", SimpleNamespace(**vars(subprocess)))
 
@@ -51,6 +53,131 @@ def test_descriptor_controls_have_no_unsupported_platform_fallback(monkeypatch, 
     monkeypatch.setattr(driver.os, "fchown", None, raising=False)
     with pytest.raises(ValueError, match="unavailable"):
         driver._set_export_metadata(42, 1001, 1000, 0o644)
+
+
+def private_writer_fixture(tmp_path, monkeypatch, *, failure=None):
+    path = tmp_path / "created"
+    events, descriptors = [], []
+    state = {"mode": None}
+    original_open, original_fdopen, original_chmod = (
+        driver.os.open,
+        driver.os.fdopen,
+        driver.os.fchmod,
+    )
+
+    class SelectedPath:
+        def __fspath__(self):
+            return os.fspath(path)
+
+        def chmod(self, mode):
+            pytest.fail("private writer changed permissions by pathname")
+
+    def open_file(selected, flags, mode):
+        assert mode == 0o600
+        assert flags & driver.os.O_CREAT and flags & driver.os.O_EXCL
+        assert flags & driver._posix_flag("O_NOFOLLOW")
+        descriptor = original_open(selected, flags, mode)
+        descriptors.append(descriptor)
+        events.append("create_private")
+        state["mode"] = mode
+        return descriptor
+
+    class File:
+        def __init__(self, descriptor, *, closefd):
+            self.handle = original_fdopen(descriptor, "wb", closefd=closefd)
+
+        def __enter__(self):
+            self.handle.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            events.append("close")
+            result = self.handle.__exit__(*args)
+            if failure == "close":
+                raise OSError("injected stream close failure")
+            return result
+
+        def fileno(self):
+            return self.handle.fileno()
+
+        def write(self, data):
+            events.append("write")
+            if failure in {"write", "short"}:
+                written = self.handle.write(data[:1])
+                if failure == "write":
+                    raise OSError("injected write failure")
+                return written
+            return self.handle.write(data)
+
+        def flush(self):
+            events.append("flush")
+            if failure == "flush":
+                raise OSError("injected flush failure")
+            self.handle.flush()
+
+    def chmod(descriptor, mode):
+        assert descriptor == descriptors[0] and events[-1] == "close"
+        os.fstat(descriptor)  # The original descriptor must remain live after stream close.
+        assert path.read_bytes() == b"complete fixture bytes"
+        events.append("descriptor_chmod")
+        if failure == "chmod":
+            raise OSError("injected descriptor chmod failure")
+        original_chmod(descriptor, mode)
+        state["mode"] = mode
+
+    monkeypatch.setattr(driver.os, "open", open_file)
+    monkeypatch.setattr(
+        driver.os, "fdopen", lambda descriptor, mode, *, closefd: File(descriptor, closefd=closefd)
+    )
+    monkeypatch.setattr(driver.os, "fchmod", chmod)
+    return SelectedPath(), path, events, state
+
+
+@pytest.mark.parametrize("mode", [0o600, 0o444, 0o555])
+def test_private_creation_write_flush_and_descriptor_mode_order(tmp_path, monkeypatch, mode):
+    selected, path, events, state = private_writer_fixture(tmp_path, monkeypatch)
+    driver._write(selected, b"complete fixture bytes", mode)
+    assert events == ["create_private", "write", "flush", "close", "descriptor_chmod"]
+    assert state["mode"] == mode and path.read_bytes() == b"complete fixture bytes"
+
+
+@pytest.mark.parametrize("failure", ["write", "short", "flush", "close", "chmod"])
+def test_incomplete_private_write_never_grants_readonly_runtime_permissions(
+    tmp_path, monkeypatch, failure
+):
+    selected, path, events, state = private_writer_fixture(tmp_path, monkeypatch, failure=failure)
+    with pytest.raises(OSError):
+        driver._write(selected, b"complete fixture bytes", 0o555)
+    assert path.exists() and state["mode"] == 0o600
+    assert ("descriptor_chmod" in events) is (failure == "chmod")
+
+
+@pytest.mark.parametrize("mode", [0o644, 0o666, 0o777, 0o400, 0o500, -1, None, True, 384.0, "384"])
+def test_invalid_final_mode_is_refused_before_creation(tmp_path, monkeypatch, mode):
+    monkeypatch.setattr(
+        driver.os, "open", lambda *a, **k: pytest.fail("invalid mode created a file")
+    )
+    with pytest.raises(ValueError, match="final mode"):
+        driver._write(tmp_path / "must-not-exist", b"data", mode)
+    assert not (tmp_path / "must-not-exist").exists()
+
+
+def test_private_write_has_no_path_permission_fallback(tmp_path, monkeypatch):
+    monkeypatch.setattr(driver.os, "fchmod", None, raising=False)
+    monkeypatch.setattr(
+        driver.os, "open", lambda *a, **k: pytest.fail("unsupported mode control created a file")
+    )
+    with pytest.raises(ValueError, match="unavailable"):
+        driver._write(tmp_path / "must-not-exist", b"data", 0o444)
+
+
+def test_private_writer_never_replaces_an_existing_file(tmp_path):
+    path = tmp_path / "existing"
+    path.write_bytes(b"original bytes")
+    before = path.stat().st_mode
+    with pytest.raises(FileExistsError):
+        driver._write(path, b"new bytes", 0o444)
+    assert path.read_bytes() == b"original bytes" and path.stat().st_mode == before
 
 
 @pytest.mark.parametrize("reader", ["identity", "runtime"])

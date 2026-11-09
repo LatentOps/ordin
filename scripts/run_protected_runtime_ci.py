@@ -133,10 +133,20 @@ def read_regular(path: Path, *, maximum=MAX_FILE, owner=None) -> tuple[bytes, os
 
 
 def _write(path: Path, data: bytes, mode=0o600) -> None:
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | _posix_flag("O_NOFOLLOW"), mode)
-    with os.fdopen(fd, "wb") as handle:
-        handle.write(data)
-    path.chmod(mode)
+    if type(mode) is not int or mode not in {0o600, 0o444, 0o555}:
+        raise ValueError("private CI file final mode must be 0600, 0444 or 0555")
+    chmod = getattr(os, "fchmod", None)
+    if not callable(chmod):
+        raise ValueError("required Linux descriptor permission control is unavailable")
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | _posix_flag("O_NOFOLLOW"), 0o600)
+    try:
+        with os.fdopen(fd, "wb", closefd=False) as handle:
+            if handle.write(data) != len(data):
+                raise OSError("private CI file write was incomplete")
+            handle.flush()
+        chmod(fd, mode)
+    finally:
+        os.close(fd)
 
 
 def _json(path: Path, value) -> None:
