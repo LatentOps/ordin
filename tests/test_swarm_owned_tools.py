@@ -161,6 +161,14 @@ def test_closed_filter_allows_only_managed_directory_atomic_operations():
     for syscall in (44, 45, 48, 51, 52, 54, 55):
         assert run_filter("http", syscall, 3) == allow
         assert run_filter("http", syscall, 4) == deny
+    assert run_filter("http", 16, 3, 0x5421) == allow
+    assert run_filter("write", 16, 3, 0x5421) == deny
+    for descriptor in (0, 1, 2, 4, 255, 0xFFFFFFFF):
+        assert run_filter("http", 16, descriptor, 0x5421) == deny
+    for command in (0, 0x541B, 0x5451, 0xFFFFFFFF):
+        assert run_filter("http", 16, 3, command) == deny
+    for number in (41, 42, 53, 72):
+        assert run_filter("http", number, 3, 3) == deny
 
 
 @pytest.mark.skipif(os.name != "posix", reason="private POSIX flock ownership")
@@ -341,7 +349,7 @@ def test_real_broker_read_preserved_and_write_never_autoapproves(tmp_path):
         assert data.target.read_bytes() == before
 
 
-def operator_backend(tmp_path):
+def operator_backend(tmp_path, *, http_routes=()):
     """Only caller-owned new fixture paths are chowned; never existing user paths."""
     require_kernel()
     tmp_path.chmod(0o700)
@@ -353,7 +361,12 @@ def operator_backend(tmp_path):
     operator = object()
     install = tempfile.TemporaryDirectory(prefix="ordin-owned-write-test-")
     backend = LinuxOwnedToolsBackend(
-        workspace, ("report.txt",), Path(install.name), operator=operator, initialize=True
+        workspace,
+        ("report.txt",),
+        Path(install.name),
+        operator=operator,
+        initialize=True,
+        http_routes=http_routes,
     )
     return backend, operator, workspace / "report.txt", install
 

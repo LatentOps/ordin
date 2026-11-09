@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from ordin._runtime_json import digest
 from ordin.action import ActionEnvelope
@@ -13,6 +13,9 @@ from .budgets import BudgetTicket
 from .delegation import BrokerAdmissionScope
 from .gate import SwarmDecision
 from .models import SwarmContext
+
+if TYPE_CHECKING:
+    from ._owned_http import OwnedRequestPlan
 
 
 def _checked(value: dict[str, Any]) -> dict[str, Any]:
@@ -87,7 +90,7 @@ class BrokerPreparation:
 class BrokerAuthorizationScope:
     action: ActionEnvelope = field(repr=False)
     context: SwarmContext = field(repr=False)
-    plan: EnforcementPlan = field(repr=False)
+    plan: EnforcementPlan | OwnedRequestPlan = field(repr=False)
     decision: SwarmDecision = field(repr=False)
     delegation_scope: BrokerAdmissionScope = field(repr=False)
     budget_ticket: BudgetTicket = field(repr=False)
