@@ -3,6 +3,7 @@
 from contextlib import ExitStack, contextmanager
 from dataclasses import replace
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -45,6 +46,7 @@ def fixture(
     shared_clock=None,
     executor_timeout_ms=3000,
     approval_decision=None,
+    owned_tools=False,
 ):
     clock = [100]
     clock_fn = shared_clock or (lambda: clock[0])
@@ -67,6 +69,20 @@ def fixture(
                 runtime="fixture",
                 resources=(ToolResourceBinding("path", "path"),),
             ),
+        )
+        + (
+            (
+                ToolSemanticRule(
+                    "write",
+                    "tool",
+                    "write_artifact",
+                    ("filesystem.write",),
+                    runtime="fixture",
+                    resources=(ToolResourceBinding("path", "path"),),
+                ),
+            )
+            if owned_tools
+            else ()
         ),
     )
     core = Ordin(tool_semantics=semantics)
@@ -105,8 +121,10 @@ def fixture(
     rights = DelegationAuthority(
         RuntimeCapabilityBoundary(
             "owned-read-root",
-            filesystem=(FilesystemCapability("read", logical_path, "exact"),),
-            tools=(ToolCapability("fixture", None, "read_file"),),
+            filesystem=(FilesystemCapability("read", logical_path, "exact"),)
+            + ((FilesystemCapability("write", logical_path, "exact"),) if owned_tools else ()),
+            tools=(ToolCapability("fixture", None, "read_file"),)
+            + ((ToolCapability("fixture", None, "write_artifact"),) if owned_tools else ()),
         )
     )
     issuer = DelegationIssuer(sources["parent"], profile, rights, rights, clock=clock_fn)
@@ -193,9 +211,26 @@ def fixture(
         install = Path(
             stack.enter_context(tempfile.TemporaryDirectory(prefix="ordin-broker-executor-"))
         ).resolve()
-        backend = LinuxFileReadBackend(
-            workspace, ("data.txt",), install, operator=operator, timeout_ms=executor_timeout_ms
-        )
+        if owned_tools:
+            from ordin.swarm.owned_tools import LinuxOwnedToolsBackend
+
+            uid, gid = LinuxOwnedToolsBackend.worker_identity()
+            if os.geteuid() == 0:
+                os.chown(target, uid, gid)
+                os.chown(workspace, uid, gid)
+            backend = LinuxOwnedToolsBackend(
+                workspace,
+                ("data.txt",),
+                install,
+                operator=operator,
+                tool_runtime="fixture",
+                initialize=True,
+                timeout_ms=executor_timeout_ms,
+            )
+        else:
+            backend = LinuxFileReadBackend(
+                workspace, ("data.txt",), install, operator=operator, timeout_ms=executor_timeout_ms
+            )
         stack.callback(backend.close)
         broker = SwarmExecutionBroker(
             service, broker_channel, gate, ledger, backend, operator=operator
@@ -220,7 +255,21 @@ def fixture(
             target,
             registry,
         )
-        yield values + (bootstrap,) if bootstrap is not None else values
+        if owned_tools:
+            yield values + (
+                bootstrap,
+                {
+                    "core": core,
+                    "sources": sources,
+                    "profile": profile,
+                    "authenticator": auth,
+                    "channels": channels,
+                    "enrollments": enrollments,
+                    "sockets": sockets,
+                },
+            )
+        else:
+            yield values + (bootstrap,) if bootstrap is not None else values
 
 
 def require_kernel():

@@ -18,6 +18,7 @@ _APPLICATION_IDS = {
     "swarm_budget": 0x4F524442,
     "swarm_coordinator": 0x4F524443,
     "swarm_audit": 0x4F524441,
+    "swarm_owned_tools": 0x4F52444F,
 }
 
 
@@ -25,7 +26,13 @@ _APPLICATION_IDS = {
 def private_database(
     path: str | Path,
     kind: Literal[
-        "session", "trace", "runtime", "swarm_budget", "swarm_coordinator", "swarm_audit"
+        "session",
+        "trace",
+        "runtime",
+        "swarm_budget",
+        "swarm_coordinator",
+        "swarm_audit",
+        "swarm_owned_tools",
     ],
     *,
     readonly: bool = False,

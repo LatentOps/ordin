@@ -49,6 +49,7 @@ from .delegation import BrokerAdmissionScope, SwarmDelegationService
 from .events import _hex
 from .gate import SwarmGate
 from .linux_backend import ExecutorOutcome, LinuxFileReadBackend
+from .owned_tools import LinuxOwnedToolsBackend
 from .models import SwarmContext
 from .workload_auth import AuthorityChannel
 
@@ -113,7 +114,7 @@ class SwarmExecutionBroker:
             type(service) is not SwarmDelegationService
             or type(global_gate) is not SwarmGate
             or type(budget) is not BudgetLedger
-            or type(executor) is not LinuxFileReadBackend
+            or type(executor) not in {LinuxFileReadBackend, LinuxOwnedToolsBackend}
             or operator is not service._operator
             or operator is not executor._operator
             or global_gate._registry is not service.authenticator._registry
@@ -128,7 +129,7 @@ class SwarmExecutionBroker:
             raise ValueError(
                 "broker requires shared original authority, global checks, ledger and owned executor"
             )
-        service.authenticator.require(broker_channel, role="broker")
+        self._broker_enrollment = service.authenticator.require(broker_channel, role="broker")
         self._service, self._broker_channel, self._gate, self._budget, self._executor = (
             service,
             broker_channel,
@@ -156,6 +157,47 @@ class SwarmExecutionBroker:
         self._gateway_bindings: dict[BrokerGatewayBinding, tuple] = {}
         self._audit_source: Any = None
         budget.bind_executor(self, operator=operator)
+
+    def refresh_broker_channel(self, channel: AuthorityChannel, *, operator: object) -> None:
+        """Renew TLS transport for the same original broker, never its task/grant lifetime."""
+        if operator is not self._operator or type(channel) is not AuthorityChannel:
+            raise ValueError("original broker owner and current TLS channel required")
+        with self._barrier(), self._execution_lock, self._service._lock, self._service.issuer._lock:
+            self._service._online()
+            authenticator = self._service.authenticator
+            current = authenticator.require(channel, role="broker")
+            if (
+                current is not self._broker_enrollment
+                or authenticator.enrollment(current.enrollment_id) is not self._broker_enrollment
+            ):
+                raise ValueError(
+                    "renewal must retain the original broker enrollment and credential"
+                )
+            self._broker_channel = channel
+
+    def review_credential_uses(self, source, action):
+        """Issue once for an original enrolled host/action; never expose private bytes."""
+        if type(action) is not ActionEnvelope:
+            raise ValueError("exact typed credential action required")
+        with self._service._lock, self._service.issuer._lock:
+            rows = tuple(self._service.authenticator._enrollments.values())
+            matching = [row for row in rows if row.source is source and row.role == "workload"]
+            if not matching or any(
+                self._service.authenticator.enrollment(row.enrollment_id) is not row
+                for row in matching
+            ):
+                raise ValueError("original current workload host source required")
+            if type(self._executor) is LinuxOwnedToolsBackend:
+                return self._executor.credential_uses(source, action, self._service.issuer.profile)
+            return ()
+
+    def verify_credential_uses(self, source, action, uses):
+        """Validate retained original proofs without issuing/replacing any receipt."""
+        if type(self._executor) is LinuxOwnedToolsBackend:
+            return self._executor.verify_credential_uses(
+                source, action, self._service.issuer.profile, uses
+            )
+        return uses == ()
 
     def bind_audit(self, source, *, operator: object) -> None:
         from .diagnostics import SwarmAuditSource
@@ -278,7 +320,7 @@ class SwarmExecutionBroker:
                 ("external_operations", 1),
                 ("processes", 1),
                 ("child_spawns", 1),
-                ("destructive_actions", 0),
+                ("destructive_actions", 1 if type(self._executor) is LinuxOwnedToolsBackend else 0),
                 ("output_bytes", self._executor.max_stdout_bytes),
                 ("tokens", None),
                 ("dollar_micros", None),
@@ -287,9 +329,17 @@ class SwarmExecutionBroker:
 
     def _budget_proof(self, scope, channel, grant_ref):
         complete, capability = self._contract(scope, scope.delegated_decision.assurance.review)
-        if complete.digest != capability.digest:
+        if type(self._executor) is LinuxOwnedToolsBackend:
+            compiled = self._executor.compile_action(
+                scope.action,
+                complete,
+                source=scope.source,
+                credential_uses=scope.review_context.credential_uses,
+            )
+        elif complete.digest != capability.digest:
             raise ValueError("owned executor cannot enforce the complete request domain")
-        compiled = self._executor.compile(capability)
+        else:
+            compiled = self._executor.compile(capability)
         if (
             not compiled.enforceable
             or compiled.plan is None
@@ -484,6 +534,8 @@ class SwarmExecutionBroker:
                 ):
                     raise ValueError("broker workload scope unavailable")
                 context = subject.context
+                credential_uses = self.review_credential_uses(subject.source, reviewed_action)
+                credential_context = subject.source.context(credential_uses=credential_uses)
                 if context.coverage.mode not in {"intercept", "enforce"}:
                     raise ValueError("broker workload route is not mediated")
                 if (
@@ -501,15 +553,31 @@ class SwarmExecutionBroker:
                 grant.gate.bind_runtime_source(source)
             with self._barrier(), self._guard(context), self._execution_lock:
                 if self._governance is not None:
-                    self._governance.require_preparation(
-                        governance_context, self, workload_channel, grant_ref, reviewed_action
-                    )
+                    if credential_uses:
+                        try:
+                            self._governance.require_preparation(
+                                governance_context,
+                                self,
+                                workload_channel,
+                                grant_ref,
+                                reviewed_action,
+                                host_context=credential_context,
+                            )
+                        except TypeError:
+                            raise ValueError(
+                                "governance cannot preserve the original credential context"
+                            ) from None
+                    else:
+                        self._governance.require_preparation(
+                            governance_context, self, workload_channel, grant_ref, reviewed_action
+                        )
                 elif governance_context is not None:
                     raise ValueError("unconfigured governance context")
                 reviewed = self._service.review(
                     workload_channel,
                     grant_ref,
                     reviewed_action,
+                    credential_uses=credential_uses,
                     governance_context=governance_context,
                 )
                 admission_id = reviewed.admission_id
@@ -586,11 +654,19 @@ class SwarmExecutionBroker:
                     scope, decision, subject.registry_channel, subject.adapter
                 )
                 complete, capability = self._contract(scope, decision.review)
-                if getattr(complete, "requests", ()) or decision.review.adapter == "network.rest":
+                if type(self._executor) is LinuxOwnedToolsBackend:
+                    compiled = self._executor.compile_action(
+                        scope.action,
+                        complete,
+                        source=scope.source,
+                        credential_uses=scope.review_context.credential_uses,
+                    )
+                elif getattr(complete, "requests", ()) or decision.review.adapter == "network.rest":
                     raise ValueError(
                         "selected owned executor cannot enforce this complete request domain"
                     )
-                compiled = self._executor.compile(capability)
+                else:
+                    compiled = self._executor.compile(capability)
                 if (
                     not compiled.enforceable
                     or compiled.plan is None
@@ -939,6 +1015,8 @@ class SwarmExecutionBroker:
             raise ValueError("protected broker operator required")
         with self._barrier(), self._execution_lock:
             self._executor._verify_install()
+            if type(self._executor) is LinuxOwnedToolsBackend:
+                return self._owned_activation(policy_digest)
             with tempfile.TemporaryDirectory(prefix="ordin-owned-factory-probe-") as directory:
                 root = Path(directory).resolve()
                 workspace, install = root / "workspace", root / "install"
@@ -1029,13 +1107,15 @@ class SwarmExecutionBroker:
                         "execution_authority": False,
                     }
                     proof = BrokerActivationProof(uuid4().hex)
+                    now = self._service.issuer._now()
                     with self._state_lock:
+                        self._prune_factory_proofs(now)
                         if len(self._proofs) >= 64:
                             raise ValueError("broker activation proof capacity reached")
                         self._proofs[proof] = _Activation(
                             policy_digest,
                             self.factory_configuration_digest,
-                            self._service.issuer._now() + 30,
+                            now + 30,
                             digest(evidence),
                             description,
                             native,
@@ -1045,6 +1125,41 @@ class SwarmExecutionBroker:
                     return proof
                 finally:
                     native.close()
+
+    def _owned_activation(self, policy_digest):
+        executor = self._executor
+        if type(executor) is not LinuxOwnedToolsBackend:
+            raise ValueError("original managed-tool factory required")
+        with tempfile.TemporaryDirectory(prefix="ordin-owned-tools-probe-") as directory:
+            native, outcome, plan, evidence, description = executor.factory_probe(
+                Path(directory).resolve(), operator=self._operator, policy_digest=policy_digest
+            )
+            try:
+                proof = BrokerActivationProof(uuid4().hex)
+                now = self._service.issuer._now()
+                with self._state_lock:
+                    self._prune_factory_proofs(now)
+                    if len(self._proofs) >= 64:
+                        raise ValueError("broker activation proof capacity reached")
+                    self._proofs[proof] = _Activation(
+                        policy_digest,
+                        self.factory_configuration_digest,
+                        now + 30,
+                        digest(evidence),
+                        description,
+                        native,
+                        outcome,
+                        plan,
+                    )
+                return proof
+            finally:
+                native.close()
+
+    def _prune_factory_proofs(self, now):
+        """Only already-expired original readiness proofs can leave this bounded cache."""
+        for proof, row in tuple(self._proofs.items()):
+            if now >= row.expires_at:
+                del self._proofs[proof]
 
     def verify_activation(
         self,
@@ -1107,6 +1222,8 @@ class SwarmExecutionBroker:
         ):
             return False
         maximum = permissions.capability
+        if type(self._executor) is LinuxOwnedToolsBackend:
+            return self._executor.permissions_fit(permissions)
         paths = {str(self._executor.workspace / name) for name in self._executor.allowed_files}
         return (
             not maximum.network
