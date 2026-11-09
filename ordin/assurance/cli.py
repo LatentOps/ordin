@@ -104,9 +104,9 @@ def _diff(before: PolicySimulationReport, after: PolicySimulationReport) -> tupl
     }, simulation_exit_code(after)
 
 
-def _parser() -> argparse.ArgumentParser:
+def _parser(*, prog: str = "ordin-assure", security_cli: bool = False) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="ordin-assure", description="Local, read-only security assurance"
+        prog=prog, description="Ordin Security: local, read-only security assurance"
     )
     groups = parser.add_subparsers(dest="group", required=True)
     profile = groups.add_parser("profile").add_subparsers(dest="command", required=True)
@@ -246,10 +246,17 @@ def _parser() -> argparse.ArgumentParser:
     replay.add_argument("path")
     replay.add_argument("--revision", required=True)
     replay.add_argument("--report")
-    codex = groups.add_parser("codex").add_subparsers(dest="command", required=True)
-    imported = codex.add_parser(
+    security = (
+        groups
+        if security_cli
+        else groups.add_parser(
+            "security", help="import saved scanner and workflow claims"
+        ).add_subparsers(dest="command", required=True)
+    )
+    imported = security.add_parser(
         "import", help="read saved scanner artifacts without credentials or scanner execution"
     )
+    imported.set_defaults(group="security", command="import")
     imported.add_argument("--artifact-root", required=True)
     imported.add_argument("--repository", required=True)
     imported.add_argument("--revision", required=True)
@@ -266,10 +273,11 @@ def _parser() -> argparse.ArgumentParser:
         help="explicit sensitive vendor capture; keep output private",
     )
     imported.add_argument("--report")
-    workflow = codex.add_parser(
+    workflow = security.add_parser(
         "import-workflow",
         help="import saved external validation/patch/fix claims without executing a workflow",
     )
+    workflow.set_defaults(group="security", command="import-workflow")
     workflow.add_argument("--artifact-root", required=True)
     workflow.add_argument("--repository", required=True)
     workflow.add_argument("--revision", required=True)
@@ -289,9 +297,10 @@ def _parser() -> argparse.ArgumentParser:
         help="explicit private reported payload; never upload or log by default",
     )
     workflow.add_argument("--report")
-    mock = codex.add_parser(
+    mock = security.add_parser(
         "mock", help="offline synthetic scanner state; no executable or credentials"
     )
+    mock.set_defaults(group="security", command="mock")
     mock.add_argument("--exit-code", type=int, choices=(0, 1, 2, 130, 143), default=0)
     mock.add_argument(
         "--completeness", choices=("complete", "partial", "unknown"), default="complete"
@@ -335,8 +344,17 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+def main(
+    argv: Sequence[str] | None = None,
+    *,
+    prog: str = "ordin-assure",
+    security_cli: bool = False,
+) -> int:
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    # Accept the former Assurance group for existing scripts without advertising it.
+    if not security_cli and arguments[:1] == ["codex"]:
+        arguments[0] = "security"
+    args = _parser(prog=prog, security_cli=security_cli).parse_args(arguments)
     packet: dict
     result: ChallengeRun | ChallengeSuite
     try:
@@ -513,8 +531,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if triaged.completeness != "complete"
                 else PASS
             )
-        elif args.group == "codex" and args.command == "mock":
-            from .codex_security.scanner import mock_scanner_run
+        elif args.group == "security" and args.command == "mock":
+            from ..security.scanner import mock_scanner_run
 
             mocked = mock_scanner_run(exit_code=args.exit_code, completeness=args.completeness)
             packet = mocked.as_dict()
@@ -527,8 +545,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if mocked.status == "severity_violation"
                 else PARTIAL_OR_MALFORMED
             )
-        elif args.group == "codex" and args.command == "import-workflow":
-            from .codex_security.workflow import WorkflowImportScope, import_workflow_claims
+        elif args.group == "security" and args.command == "import-workflow":
+            from ..security.workflow import WorkflowImportScope, import_workflow_claims
             from .models import RepositoryScope
 
             workflow_scope = WorkflowImportScope(
@@ -546,8 +564,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             packet = imported.as_dict() if args.include_details else imported.public_dict()
             code = PASS if imported.completeness == "complete" else PARTIAL_OR_MALFORMED
-        elif args.group == "codex":
-            from .codex_security import ImportScope, import_codex_json, import_sarif
+        elif args.group == "security":
+            from ..security import ImportScope, import_native_json, import_sarif
             from .models import RepositoryScope
 
             scope = ImportScope(
@@ -557,7 +575,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 expected_plugin_version=args.expected_plugin_version,
             )
             imported_report = (
-                import_codex_json(
+                import_native_json(
                     scope,
                     findings_path=args.findings_path,
                     threat_model_path=args.threat_model_path,

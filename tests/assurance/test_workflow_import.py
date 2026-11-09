@@ -7,13 +7,13 @@ import json
 import pytest
 
 from ordin.assurance import RepositoryScope
-from ordin.assurance.codex_security.workflow import (
+from ordin.security.workflow import (
     WorkflowCapture,
     WorkflowImportScope,
     WorkflowImportReport,
     import_workflow_claims,
 )
-from ordin.assurance.codex_security._validation import validate_document
+from ordin.security._validation import validate_document
 
 REPO = RepositoryScope("fixture/repo", "revision-1")
 
@@ -267,7 +267,7 @@ def test_offline_cli_reports_claims_and_private_details_only_on_request(
         "subprocess.Popen", lambda *a, **k: pytest.fail("CLI executed external workflow")
     )
     args = [
-        "codex",
+        "security",
         "import-workflow",
         "--artifact-root",
         str(tmp_path),
@@ -340,9 +340,8 @@ def test_patch_risk_schema_copies_match_pinned_vendor_bytes():
 
     root = Path(__file__).resolve().parents[2]
     paths = [
-        root / "ordin/resources/codex_security/patch-risk-assessment.schema.json",
-        root
-        / "integrations/codex_security/ordin_codex_security/resources/patch-risk-assessment.schema.json",
+        root / "ordin/resources/security/patch-risk-assessment.schema.json",
+        root / "integrations/security/ordin_security/resources/patch-risk-assessment.schema.json",
     ]
     raw = [path.read_bytes().replace(b"\r\n", b"\n") for path in paths]
     assert raw[0] == raw[1]

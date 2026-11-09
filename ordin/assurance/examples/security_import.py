@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ordin.assurance import RepositoryScope
-from ordin.assurance.codex_security import ImportScope, import_codex_json
+from ordin.security import ImportScope, import_native_json
 
 
 def fixture(directory: Path, *, completeness="partial"):
@@ -74,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
-    report = import_codex_json(fixture(args.output))
+    report = import_native_json(fixture(args.output))
     assert (
         report.findings == () and report.completeness == "partial" and not report.conclusive_import
     )

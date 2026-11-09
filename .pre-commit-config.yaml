@@ -83,9 +83,10 @@ repos:
           ordin/runtime_codec.py
           ordin/runtime_cli.py
           ordin/assurance
+          ordin/security
           ordin/swarm
           integrations/decision_models/ordin_decision_models
-          integrations/codex_security/ordin_codex_security
+          integrations/security/ordin_security
           integrations/openshell/ordin_openshell
         language: system
         pass_filenames: false

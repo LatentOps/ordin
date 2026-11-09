@@ -18,10 +18,10 @@ SUITES = {
         "tests/test_session.py",
     ),
     "decision_models": ("integrations/decision_models/tests",),
-    "codex_security": (
-        "tests/assurance/test_codex_import.py",
+    "security": (
+        "tests/assurance/test_security_import.py",
         "tests/assurance/test_sarif_import.py",
-        "tests/assurance/test_codex_scanner.py",
+        "tests/assurance/test_security_scanner.py",
         "tests/assurance/test_workflow_import.py",
     ),
     "solver": (
@@ -73,7 +73,7 @@ def main() -> int:
     args.basetemp.parent.mkdir(parents=True, exist_ok=True)
     args.junitxml.parent.mkdir(parents=True, exist_ok=True)
     roots = {"ordin": pin_installed_namespace("ordin")}
-    if args.suite in {"decision_models", "codex_security"}:
+    if args.suite in {"decision_models", "security"}:
         namespace = "ordin_" + args.suite
         roots[namespace] = pin_installed_namespace(namespace)
     import pytest

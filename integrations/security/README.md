@@ -1,20 +1,20 @@
-# Ordin Codex Security artifact adapter
+# Ordin Security artifact adapter
 
 The adapter namespace reexports Ordin's built-in zero-dependency offline
 importer. It starts no scanner/provider and requires no account or API key.
 Install this separate adapter only when an application uses the
-`ordin_codex_security` namespace. Ordinary `ordin` also ships the data-only API
-under `ordin.assurance.codex_security` and the `ordin-assure codex import` command.
+`ordin_security` namespace. Ordinary `ordin` also ships the data-only API
+under `ordin.security` and the `ordin security import` command.
 
 ```python
 from pathlib import Path
 from ordin.assurance import RepositoryScope
-from ordin_codex_security import ImportScope, import_codex_json
+from ordin_security import ImportScope, import_native_json
 
 scope = ImportScope(
     Path("/private/scanner-output"), RepositoryScope("example/repo", "reviewed-sha")
 )
-report = import_codex_json(scope)
+report = import_native_json(scope)
 print(report.public_dict())
 ```
 
@@ -26,9 +26,9 @@ loaded. Repository filenames, Markdown, code evidence, validation and remediatio
 are untrusted claim data. Source references and sealed content hashes can be
 verified, but never confer execution permission or finding confirmation.
 
-See [the main integration documentation](../../docs/assurance/codex-security-integration.md)
+See [the main integration documentation](../../docs/assurance/security-integration.md)
 for the import contract, host-only scanner API, configuration/isolation review,
-offline diff triage and privacy limits. `ordin_codex_security.provider` reexports
+offline diff triage and privacy limits. `ordin_security.provider` reexports
 the optional wrapper; importing it never starts a process. The optional
 `examples/private-diff-scan.yml` is outside active workflows and requires a
 separately reviewed private runner, protected environment and installation.

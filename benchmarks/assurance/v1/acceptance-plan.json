@@ -260,7 +260,7 @@
       "id": "AT-23",
       "family": "imported_finding",
       "test_nodes": [
-        "tests/assurance/test_codex_import.py::test_complete_json_preserves_vendor_claim_fields_without_confirmation"
+        "tests/assurance/test_security_import.py::test_complete_json_preserves_vendor_claim_fields_without_confirmation"
       ],
       "coverage": "finite_fixture",
       "limitations": [
@@ -271,7 +271,7 @@
       "id": "AT-24",
       "family": "partial_scan",
       "test_nodes": [
-        "tests/assurance/test_codex_import.py::test_incomplete_zero_findings_never_implies_complete_or_clean"
+        "tests/assurance/test_security_import.py::test_incomplete_zero_findings_never_implies_complete_or_clean"
       ],
       "coverage": "finite_fixture",
       "limitations": [
@@ -282,7 +282,7 @@
       "id": "AT-25",
       "family": "inert_threat_model",
       "test_nodes": [
-        "tests/assurance/test_codex_import.py::test_threatmodel_instructions_remain_inert_and_public_summary_redacts_values"
+        "tests/assurance/test_security_import.py::test_threatmodel_instructions_remain_inert_and_public_summary_redacts_values"
       ],
       "coverage": "finite_fixture",
       "limitations": [
@@ -388,8 +388,8 @@
       "id": "AT-34",
       "family": "scanner_availability",
       "test_nodes": [
-        "tests/assurance/test_codex_scanner.py::test_missing_changed_and_unexecutable_selection",
-        "tests/assurance/test_codex_scanner.py::test_installed_version_and_metadata_refuse_drift"
+        "tests/assurance/test_security_scanner.py::test_missing_changed_and_unexecutable_selection",
+        "tests/assurance/test_security_scanner.py::test_installed_version_and_metadata_refuse_drift"
       ],
       "coverage": "finite_fixture",
       "limitations": [

@@ -98,7 +98,7 @@ class Observer:
             setattr(target, name, observe_call(original, operation))
             self.patches.append((target, name, original))
         for module, name in (
-            ("ordin.assurance.codex_security.importer", "import_codex_json"),
+            ("ordin.security.importer", "import_native_json"),
             ("ordin.assurance.validation", "validate_finding_replay"),
             ("ordin.assurance.validation", "validate_finding_host_observation"),
             ("ordin.assurance.remediation", "verify_fix"),
@@ -147,7 +147,7 @@ class Observer:
             wrapped = observe_function(original, name)
             setattr(target, name, wrapped)
             self.patches.append((target, name, original))
-            for facade in ("ordin.assurance", "ordin.assurance.codex_security"):
+            for facade in ("ordin.assurance", "ordin.security"):
                 exports = importlib.import_module(facade)
                 if getattr(exports, name, None) is original:
                     setattr(exports, name, wrapped)

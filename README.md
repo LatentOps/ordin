@@ -176,6 +176,7 @@ preserved; the guides below retain manual configuration for v0.3 and advanced us
 
 | Integration | Entry point | Guide |
 | --- | --- | --- |
+| Ordin Security | `ordin security` | [Profiles, offline scanner imports, diff triage, and bounded checks](docs/assurance/security-integration.md) |
 | Claude Code hooks | `ordin-claude-hook` | [Hook configuration and supported tools](docs/claude-code-integration.md) |
 | Codex hooks | `ordin-codex-hook` | [Hooks and plugin configuration](docs/codex-integration.md) |
 | Cursor hooks (0.4 development) | `ordin-cursor-hook` | [Native hooks and host limitations](docs/cursor-integration.md) |

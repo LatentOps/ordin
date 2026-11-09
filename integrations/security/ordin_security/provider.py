@@ -1,6 +1,6 @@
 """Explicit host-only scanner wrapper; no invocation during import."""
 
-from ordin.assurance.codex_security.scanner import (
+from ordin.security.scanner import (
     ScannerSelection,
     ScannerRun,
     configuration_review_digest,

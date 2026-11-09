@@ -136,7 +136,8 @@ class ScannerImportReport(JsonRecord):
         ) != len(self.findings):
             raise ValueError("scanner import capture/record identity inconsistent")
         original = loads(raw)
-        if self.format == "codex_json":
+        # Historical records retain their original format label and digest.
+        if self.format in {"native_json", "codex_json"}:
             manifest = original.get("manifest")
             coverage = original.get("coverage")
             scan = manifest["scan"] if manifest is not None else {}

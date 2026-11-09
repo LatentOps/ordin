@@ -11,7 +11,7 @@ import threading
 
 import pytest
 
-from ordin.assurance.codex_security.scanner import (
+from ordin.security.scanner import (
     ScannerSelection,
     configuration_review_digest,
     inspect_scanner,
@@ -24,7 +24,7 @@ from ordin.assurance.host import HostEvidenceSource
 from ordin.assurance.inventory import AuthorizedRepository
 from ordin.assurance.profiles import load_approved_profile
 
-from .test_codex_import import documents
+from .test_security_import import documents
 from .test_profiles import config_profile, selected, POLICY_HASH
 
 
@@ -228,7 +228,7 @@ def test_installed_version_and_metadata_refuse_drift(installation, version, malf
 def test_unconfirmed_process_cleanup_never_yields_scanner_evidence(
     installation, monkeypatch, failure
 ):
-    from ordin.assurance.codex_security import scanner
+    from ordin.security import scanner
 
     launch = scanner.launch_managed_process
     cleanup_attempts = []

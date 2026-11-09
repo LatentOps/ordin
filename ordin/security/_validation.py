@@ -174,7 +174,7 @@ def schema(name: str) -> dict:
     raw = (
         files("ordin")
         .joinpath("resources")
-        .joinpath("codex_security")
+        .joinpath("security")
         .joinpath(name + ".schema.json")
         .read_bytes()
         .replace(b"\r\n", b"\n")

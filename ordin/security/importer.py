@@ -1,4 +1,4 @@
-"""Read-only import of pinned Codex Security JSON and bounded SARIF claim data."""
+"""Ordin Security import of pinned upstream JSON and bounded SARIF claim data."""
 
 from __future__ import annotations
 
@@ -206,7 +206,7 @@ def _finding(
     )
 
 
-def import_codex_json(
+def import_native_json(
     scope: ImportScope,
     *,
     findings_path="findings.json",
@@ -393,7 +393,7 @@ def import_codex_json(
         "scan-import:" + bundle_digest[:24],
         scope.repository,
         bundle_digest,
-        "codex_json",
+        "native_json",
         UPSTREAM_REVISION,
         producer.get("name"),
         producer.get("version"),
@@ -465,7 +465,7 @@ def propose_imported_profile(
     return SecurityProfileDraft(
         "scan-draft:" + report.digest[:24],
         report.repository,
-        "codex_security_import",
+        "security_import",
         source_evidence=verified_refs,
         invariant_suggestions=tuple(suggestions),
         risk_hypotheses=(
@@ -482,3 +482,7 @@ def propose_imported_profile(
         scan_digest=report.artifact_digest,
         completeness="partial" if report.completeness == "complete" else report.completeness,
     )
+
+
+# Keep the callable identity while callers migrate to the neutral public name.
+import_codex_json = import_native_json

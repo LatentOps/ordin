@@ -21,8 +21,8 @@ from ordin.assurance.delegation import (
     verify_delegation_subset,
 )
 from ordin.assurance.delegating_gate import DelegatingAssuranceGate
-from ordin.assurance.codex_security import import_codex_json
-from ordin.assurance.codex_security.scanner import mock_scanner_run
+from ordin.security import import_native_json
+from ordin.security.scanner import mock_scanner_run
 from ordin.assurance.diff_triage import triage_source_diff
 from ordin.runtime_boundary import RuntimeCapabilityBoundary
 from ordin.assurance.origins import (
@@ -79,7 +79,7 @@ def assurance_contract_examples(tmp_path):
         }
     )
     from .test_workflow_import import bundle as workflow_bundle
-    from ordin.assurance.codex_security.workflow import import_workflow_claims
+    from ordin.security.workflow import import_workflow_claims
 
     workflow_directory = tmp_path / "workflow-contracts"
     workflow_directory.mkdir()
@@ -139,12 +139,12 @@ def assurance_contract_examples(tmp_path):
     samples["assurance_contract_authorization"] = record_contract_authorization(
         before[1], backend, event, original_contract
     ).as_dict()
-    from .test_codex_import import bundle
+    from .test_security_import import bundle
 
     scan_directory = tmp_path / "scan-import-fixture"
     scan_directory.mkdir()
     scan_scope, _, _, _ = bundle(scan_directory)
-    imported_scan = import_codex_json(scan_scope)
+    imported_scan = import_native_json(scan_scope)
     samples["assurance_scan_import"] = imported_scan.as_dict()
     samples["assurance_imported_finding"] = imported_scan.findings[0].as_dict()
     scope = AuthorizedRepository(

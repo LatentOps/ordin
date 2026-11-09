@@ -33,8 +33,8 @@ jobs:
       - name: Inspect trusted installation and create private output
         id: inspection
         env:
-          NODE_SHA256: ${{ vars.CODEX_SECURITY_NODE_SHA256 }}
-          CLI_SHA256: ${{ vars.CODEX_SECURITY_CLI_SHA256 }}
+          NODE_SHA256: ${{ vars.ORDIN_SECURITY_NODE_SHA256 }}
+          CLI_SHA256: ${{ vars.ORDIN_SECURITY_CLI_SHA256 }}
           BASE_SHA: ${{ inputs.base_revision }}
         shell: bash
         run: |
@@ -59,7 +59,7 @@ jobs:
       - name: Scan approved pinned diff inside the runner broker
         if: success()
         env:
-          OPENAI_API_KEY: ${{ secrets.CODEX_SECURITY_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.ORDIN_SECURITY_API_KEY }}
           BASE_SHA: ${{ inputs.base_revision }}
           TARGET_SHA: ${{ github.sha }}
           STATE: ${{ steps.inspection.outputs.state }}
@@ -90,14 +90,14 @@ jobs:
         env:
           STATE: ${{ steps.inspection.outputs.state }}
           TARGET_SHA: ${{ github.sha }}
-          REPOSITORY_ID: ${{ vars.CODEX_SECURITY_REPOSITORY_ID }}
+          REPOSITORY_ID: ${{ vars.ORDIN_SECURITY_REPOSITORY_ID }}
         shell: bash
         run: |
           set -euo pipefail
           umask 077
           ulimit -f 2048
           set +e
-          /opt/ordin-scanner/venv/bin/ordin-assure codex import --artifact-root "$STATE/scan" \
+          /opt/ordin-scanner/venv/bin/ordin security import --artifact-root "$STATE/scan" \
             --repository "$REPOSITORY_ID" --revision "$TARGET_SHA" --fail-on-severity high \
             --report "$STATE/ordin-advisory.json" > "$STATE/import.stdout" 2> "$STATE/import.stderr"
           status=$?

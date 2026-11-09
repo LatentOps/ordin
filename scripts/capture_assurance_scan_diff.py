@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from ordin.assurance import AuthorizedRepository, RepositoryScope
-from ordin.assurance.codex_security.scanner import mock_scanner_run
+from ordin.security.scanner import mock_scanner_run
 from ordin.assurance.diff_triage import triage_source_diff
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,7 +35,7 @@ def main() -> int:
             "ordin",
             "schemas",
             "pyproject.toml",
-            "integrations/codex_security",
+            "integrations/security",
             "tests/assurance",
         ],
         cwd=ROOT,

@@ -11,7 +11,7 @@ import sys
 
 
 def _read(limit):
-    from ordin.assurance.codex_security._validation import loads
+    from ordin.security._validation import loads
 
     raw = sys.stdin.buffer.readline(limit + 1)
     if not raw or len(raw) > limit or not raw.endswith(b"\n"):

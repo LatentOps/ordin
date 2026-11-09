@@ -1,14 +1,43 @@
-# Offline Codex Security artifacts
+# Ordin Security
 
-`ordin-assure codex import` reads saved JSON/SARIF and optional threat-model
+`ordin security import` reads saved JSON/SARIF and optional threat-model
 Markdown. It requires no account, API key, Node.js, scanner installation, model
 download, network or subprocess. The data-only API is included in the normal
-wheel at `ordin.assurance.codex_security`; the separate optional
-`ordin_codex_security` adapter namespace reexports it.
+wheel at `ordin.security`; the separate optional
+`ordin_security` adapter namespace reexports it.
+
+`ordin security --help` lists the full local command surface: profile and invariant
+inspection, policy comparison, bounded challenges, source diff triage, finding and
+attack-path review, delegation checks, and offline artifact/workflow imports.
+The protected SDK retains explicit scanner selection and execution APIs; this
+command does not infer live execution authority from imported claims.
+
+## Package migration and retained formats
+
+Project-owned code is in `ordin.security`, optional code in
+`integrations/security/ordin_security`, and the optional distribution is
+`ordin-security`. Schemas live in `data/security` and `ordin/resources/security`.
+Update imports to `from ordin.security import ImportScope, import_native_json`.
+The old package paths and distribution name are no longer shipped.
+
+Existing `ordin-assure` profile and assurance commands remain available. Its
+artifact group is `security`; the former group spelling is accepted privately
+for existing scripts. `import_codex_json` is a non-advertised callable alias in
+the new core/adapter facade and core importer. New reports use `native_json` and
+profile proposals identify `security_import`; historical `codex_json` reports
+retain their exact label and digest and undergo the same metadata checks.
+
+Pinned upstream schema bytes, `$id` URLs, document types, fingerprints, source-tool
+names, provider environment/configuration keys, and patch-risk text delimiters
+retain their upstream protocol spelling. They identify the external producer,
+not this project's product. Upstream licenses and provenance remain intact.
+Historical receipts under `docs/assurance/evidence` are immutable observations of
+their recorded versions; they may contain earlier package paths and schema names.
+They are not evidence that the renamed build has passed new validation.
 
 ```console
-ordin-assure codex import --artifact-root /private/scan-output --repository example/repo --revision reviewed-sha
-ordin-assure codex import --artifact-root /private/exports --repository example/repo --revision reviewed-sha --format sarif --sarif-path results.sarif
+ordin security import --artifact-root /private/scan-output --repository example/repo --revision reviewed-sha
+ordin security import --artifact-root /private/exports --repository example/repo --revision reviewed-sha --format sarif --sarif-path results.sarif
 ```
 
 Default output is redacted advisory JSON: counts, hashes, reported severity/
@@ -79,8 +108,8 @@ No `npx`, package install or live scanner has been invoked in this work.
 
 ## Explicit optional scanner wrapper
 
-`ordin.assurance.codex_security.scanner` (also
-`ordin_codex_security.provider`) exposes `ScannerSelection`, `inspect_scanner`,
+`ordin.security.scanner` (also
+`ordin_security.provider`) exposes `ScannerSelection`, `inspect_scanner`,
 `configuration_review_digest`, `scan_action`, `run_diff_scan` and
 `mock_scanner_run`. Selection requires absolute native runtime and optional
 entrypoint paths, SHA-256 pins, exact CLI version, trusted working directory,
@@ -148,8 +177,8 @@ explicit cancellation remain canceled; other OS exit codes are preserved.
 Ordin vulnerability or execution grant. No live scanner result is claimed here.
 
 ```console
-ordin-assure codex mock --exit-code 1
-ordin-assure codex mock --completeness partial
+ordin security mock --exit-code 1
+ordin security mock --completeness partial
 ```
 
 The built-in mock starts no process and accepts no credentials. The SDK tests use
@@ -184,7 +213,7 @@ delete/add candidates, and absent/excluded files never imply resolved findings.
 
 ## Optional private CI example
 
-[private-diff-scan.yml](../../integrations/codex_security/examples/private-diff-scan.yml)
+[private-diff-scan.yml](../../integrations/security/examples/private-diff-scan.yml)
 is an example, not an enabled workflow. It allows only an explicitly approved
 manual run on the private repository's protected main branch, under a protected
 environment and an ephemeral broker-isolated Linux runner. Fork PRs and public

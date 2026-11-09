@@ -87,7 +87,8 @@ assert rest_example["default_disposition"] == "escalate"
 assert rest_example["selected_disposition"] == "execute"
 assert rest_example["network_called"] is False and rest_example["actions_executed"] is False
 assert all(row["disposition"] == "deny" and not row["old_binding_matches"] for row in rest_example["changes"])
-from ordin.assurance.codex_security import WorkflowCapture, WorkflowImportScope, import_workflow_claims
+from ordin.security import WorkflowCapture, WorkflowImportScope, import_workflow_claims
+from ordin.entrypoint import main as ordin_cli
 from ordin.assurance import (SyntheticPathCase, SyntheticPathSuite, VettedSandboxRuntime,
                              load_vetted_program, load_synthetic_suite, run_sandbox_test)
 import tempfile, threading, hashlib, sys, contextlib, io
@@ -126,7 +127,7 @@ with tempfile.TemporaryDirectory(prefix="ordin-workflow-offline-") as directory:
     assert claims.completeness == "complete" and claims.closure == "not_performed"
     assert claims.claims[0].reported_verdict == "fixed" and claims.claims[0].status == "imported"
     with contextlib.redirect_stdout(io.StringIO()) as stream:
-        assert assure_cli(["codex","import-workflow","--artifact-root",str(workflow_root),
+        assert ordin_cli(["security","import-workflow","--artifact-root",str(workflow_root),
             "--repository",workflow_repo.id,"--revision",workflow_repo.revision,"--workflow","verify_fix",
             "--expected-scan-id","scan-wheel","--expected-identifier","occ-wheel"]) == 0
     assert "Synthetic claimed verification" not in stream.getvalue()
@@ -202,10 +203,10 @@ delegated_read = delegating.evaluate_action(adapter.adapt("read_file", {"path": 
 assert delegated_read.may_execute
 issuer.revoke(root)
 assert not delegating.commit_use(delegated_read, delegated_read.assurance.review.action)
-from ordin.assurance.codex_security import ImportScope, import_codex_json, import_sarif
+from ordin.security import ImportScope, import_native_json, import_sarif
 scan_root = Path.cwd() / "wheel-saved-scan"
 scan_root.mkdir()
-from ordin.assurance.codex_security.scanner import mock_scanner_run
+from ordin.security.scanner import mock_scanner_run
 from ordin.assurance.diff_triage import triage_source_diff
 from ordin.assurance import AuthorizedRepository
 assert mock_scanner_run(exit_code=1).status == "severity_violation"
@@ -226,7 +227,7 @@ for name,packet in (("findings.json",scan_findings),("coverage.json",scan_covera
     (scan_root/name).write_bytes(raw)
     scan_manifest["scan"]["artifacts"].append({"path":name,"sha256":hashlib.sha256(raw).hexdigest(),"mediaType":"application/json"})
 (scan_root/"scan-manifest.json").write_bytes(json.dumps(scan_manifest).encode())
-imported = import_codex_json(ImportScope(scan_root.resolve(),RepositoryScope("fixture/repo","snapshot-1")))
+imported = import_native_json(ImportScope(scan_root.resolve(),RepositoryScope("fixture/repo","snapshot-1")))
 assert imported.completeness == "partial" and not imported.conclusive_import and imported.findings == ()
 (scan_root/"results.sarif").write_bytes(json.dumps({"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Codex Security"}},"results":[]}]}).encode())
 assert import_sarif(ImportScope(scan_root.resolve(),RepositoryScope("fixture/repo","snapshot-1"))).completeness == "unknown"
@@ -288,15 +289,15 @@ def run(wheel: Path, environment: Path) -> dict:
             "ordin/assurance/delegation.py",
             "ordin/assurance/delegating_gate.py",
             "ordin/assurance/delegated_paths.py",
-            "ordin/assurance/codex_security/importer.py",
-            "ordin/assurance/codex_security/sarif.py",
-            "ordin/assurance/codex_security/_validation.py",
-            "ordin/assurance/codex_security/scanner.py",
-            "ordin/assurance/codex_security/_process_tree.py",
+            "ordin/security/importer.py",
+            "ordin/security/sarif.py",
+            "ordin/security/_validation.py",
+            "ordin/security/scanner.py",
+            "ordin/security/_process_tree.py",
             "ordin/assurance/diff_triage.py",
             "ordin/assurance/examples/__init__.py",
             "ordin/assurance/examples/__main__.py",
-            "ordin/resources/codex_security/findings.schema.json",
+            "ordin/resources/security/findings.schema.json",
         }
         if not required <= names:
             raise ValueError("wheel is missing assurance modules")

@@ -1,6 +1,15 @@
-"""Offline scanner artifact parsing; optional live scanner functions are explicit."""
+"""Ordin Security artifacts; importing starts no scanner/provider."""
 
-from .models import ImportedFinding, ImportedLocation, ScannerImportReport
+from .importer import (
+    ImportScope,
+    ImportedFinding,
+    ImportedLocation,
+    ScannerImportReport,
+    import_native_json,
+    import_sarif,
+    propose_imported_profile,
+)
+
 from .workflow import (
     WorkflowCapture,
     ImportedWorkflowClaim,
@@ -8,8 +17,8 @@ from .workflow import (
     WorkflowImportScope,
     import_workflow_claims,
 )
-from .importer import ImportScope, import_codex_json, propose_imported_profile
-from .sarif import import_sarif
+
+import_codex_json = import_native_json
 
 __all__ = [
     "WorkflowCapture",
@@ -17,11 +26,11 @@ __all__ = [
     "WorkflowImportReport",
     "WorkflowImportScope",
     "import_workflow_claims",
+    "ImportScope",
     "ImportedFinding",
     "ImportedLocation",
     "ScannerImportReport",
-    "ImportScope",
-    "import_codex_json",
-    "propose_imported_profile",
+    "import_native_json",
     "import_sarif",
+    "propose_imported_profile",
 ]

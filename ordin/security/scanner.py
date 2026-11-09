@@ -23,7 +23,7 @@ from ordin.assurance.inventory import AuthorizedRepository
 from ordin.assurance.models import ApprovedSecurityProfile, JsonRecord
 
 from ._validation import loads
-from .importer import ImportScope, import_codex_json
+from .importer import ImportScope, import_native_json
 from ._suspended_process import launch_managed_process
 
 
@@ -758,7 +758,7 @@ def run_diff_scan(
     imported = None
     if status in {"completed", "incomplete"}:
         try:
-            imported = import_codex_json(
+            imported = import_native_json(
                 ImportScope(
                     (selection.private_state_root / "scan").absolute(),
                     repository.repository,

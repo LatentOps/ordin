@@ -23,20 +23,20 @@ class NoSocket(socket.socket):
 socket.socket = NoSocket
 socket.create_connection = refuse
 subprocess.Popen = refuse
-import ordin_codex_security as adapter
-assert all(hasattr(adapter, name) for name in ("ImportScope", "import_codex_json", "import_sarif", "WorkflowImportScope", "import_workflow_claims"))
-from ordin_codex_security.workflow import WorkflowImportScope, import_workflow_claims
-from ordin.assurance.codex_security import WorkflowImportScope as CoreWorkflowScope
+import ordin_security as adapter
+assert all(hasattr(adapter, name) for name in ("ImportScope", "import_native_json", "import_sarif", "WorkflowImportScope", "import_workflow_claims"))
+from ordin_security.workflow import WorkflowImportScope, import_workflow_claims
+from ordin.security import WorkflowImportScope as CoreWorkflowScope
 assert WorkflowImportScope is CoreWorkflowScope
-from ordin_codex_security.provider import mock_scanner_run, ScannerSelection
-from ordin.assurance.codex_security._validation import schema
+from ordin_security.provider import mock_scanner_run, ScannerSelection
+from ordin.security._validation import schema
 assert mock_scanner_run(exit_code=1).status == "severity_violation"
 assert mock_scanner_run(exit_code=2).status == "incomplete"
 assert schema("findings")["type"] == "object"
 assert schema("findings")["properties"]["schemaVersion"]["const"] == "1.0"
 assert schema("patch-risk-assessment")["properties"]["schemaVersion"]["const"] == 1
 assert Path(adapter.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
-print(json.dumps({"ok": True, "namespace": "ordin_codex_security", "models_or_scanner_loaded": False,
+print(json.dumps({"ok": True, "namespace": "ordin_security", "models_or_scanner_loaded": False,
                   "namespace_imported": True, "provider_imported": True,
                   "pinned_schema_loaded": True, "real_scanner_invoked": False,
                   "workflow_facade_imported": True,
@@ -61,11 +61,11 @@ def main() -> int:
     with zipfile.ZipFile(args.adapter_wheel) as archive:
         matched = 0
         for name in archive.namelist():
-            if name.startswith("ordin_codex_security/"):
-                if archive.read(name) != (ROOT / "integrations/codex_security" / name).read_bytes():
+            if name.startswith("ordin_security/"):
+                if archive.read(name) != (ROOT / "integrations/security" / name).read_bytes():
                     raise ValueError("adapter wheel differs from source")
                 matched += 1
-        if "ordin_codex_security/provider.py" not in archive.namelist():
+        if "ordin_security/provider.py" not in archive.namelist():
             raise ValueError("adapter lacks explicit provider module")
     venv.EnvBuilder(with_pip=False).create(environment)
     interpreter = environment / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
@@ -100,7 +100,7 @@ def main() -> int:
     if result.returncode:
         raise ValueError("isolated adapter namespace/provider smoke failed")
     report = {
-        "schema_version": "ordin.codex_security_adapter_wheel_check.v1",
+        "schema_version": "ordin.security_adapter_wheel_check.v1",
         "core_wheel_sha256": hashlib.sha256(args.core_wheel.read_bytes()).hexdigest(),
         "adapter_wheel_sha256": hashlib.sha256(args.adapter_wheel.read_bytes()).hexdigest(),
         "adapter_source_files_compared": matched,

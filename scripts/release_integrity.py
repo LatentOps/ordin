@@ -55,7 +55,7 @@ RELEASE_WORKFLOW_CHECKS = {
         ),
         *(
             f"Offline optional {package} Python {version}"
-            for package in ("decision_models", "codex_security")
+            for package in ("decision_models", "security")
             for version in ("3.10", "3.13")
         ),
         *(

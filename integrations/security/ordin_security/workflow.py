@@ -1,6 +1,6 @@
 """Optional package facade for strictly offline saved workflow claims."""
 
-from ordin.assurance.codex_security.workflow import (
+from ordin.security.workflow import (
     WorkflowCapture,
     ImportedWorkflowClaim,
     WorkflowImportReport,

@@ -33,6 +33,8 @@ NEW_LANES = [
     "Installed swarm release evidence (windows-latest)",
     "Offline Assurance ubuntu-latest Python 3.12",
     "Offline optional decision_models Python 3.13",
+    "Offline optional security Python 3.10",
+    "Offline optional security Python 3.13",
     "Finite solver windows-latest Python 3.10",
     "Vetted Linux kernel broker Python 3.13",
     "Native request authority",

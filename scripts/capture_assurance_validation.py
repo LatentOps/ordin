@@ -35,7 +35,7 @@ def main():
             "schemas",
             "tests/assurance",
             "integrations/decision_models",
-            "integrations/codex_security",
+            "integrations/security",
             "pyproject.toml",
             "scripts/check_assurance_wheel.py",
             "scripts/capture_assurance_validation.py",

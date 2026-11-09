@@ -2,6 +2,7 @@
 
 import importlib
 import json
+import asyncio  # Windows stdlib defines Popen subclasses; load before the no-spawn spy.
 
 import pytest
 

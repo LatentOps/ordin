@@ -25,7 +25,7 @@ from ordin.assurance import (
 )
 from ordin.assurance._files import read_scoped_file
 from ordin.assurance._json import canonical_json, digest, freeze, validate
-from ordin.assurance.codex_security._validation import loads
+from ordin.security._validation import loads
 from ordin.assurance.models import ModelAnswer
 
 from .protocol import ProviderDescriptor, SanitizedDecisionState, SecurityQuestionSet, evidence
