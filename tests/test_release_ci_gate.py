@@ -38,6 +38,8 @@ NEW_LANES = [
     "Native request authority",
     "Build release artifacts",
     "Attest tested release artifacts",
+    "Protected execution Python 3.10",
+    "Protected execution Python 3.13",
 ]
 
 
@@ -205,7 +207,7 @@ def api(monkeypatch):
 
 
 def test_current_main_policy_qualifies_all_paginated_evidence(api):
-    assert len(RELEASE_CHECKS) == 42
+    assert len(RELEASE_CHECKS) == 44
     assert set(NEW_LANES) <= RELEASE_CHECKS
     verify_release_checks(REPOSITORY, REVISION)
     assert len([call for call in api.calls if "/jobs?" in call]) == 9

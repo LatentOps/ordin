@@ -40,8 +40,11 @@ RELEASE_WORKFLOW_CHECKS = {
     },
     "swarm-corpus.yml": {"Installed corpus and owned kernel evidence"},
     "swarm-assurance.yml": {
-        f"Installed swarm release evidence ({platform})"
-        for platform in ("ubuntu-24.04", "windows-latest")
+        *(
+            f"Installed swarm release evidence ({platform})"
+            for platform in ("ubuntu-24.04", "windows-latest")
+        ),
+        *(f"Protected execution Python {version}" for version in ("3.10", "3.13")),
     },
     "assurance.yml": {
         *(f"Vetted Linux kernel broker Python {version}" for version in ("3.10", "3.13")),

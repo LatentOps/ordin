@@ -11,6 +11,42 @@ permissions:
   contents: read
 
 jobs:
+  protected-runtime:
+    name: Protected execution Python ${{ matrix.python }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.13"]
+    env:
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+      ORDIN_REQUIRED_PROTECTED_PROCESS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install hash-locked build and validation tooling
+        run: python -m pip install --require-hashes -r requirements/dev-baseline.txt
+      - name: Require installed-wheel kernel positives under controlled root privileges
+        shell: bash
+        run: |
+          runtime_python="$(python -c 'import sys; print(sys.executable)')"
+          sudo env "PATH=$(dirname "$runtime_python"):/usr/local/bin:/usr/bin:/bin" \
+            "$runtime_python" -B scripts/check_protected_runtime.py \
+            --revision "${{ github.sha }}" \
+            --workspace "${{ runner.temp }}/protected-runtime-${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Retain required positive evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: protected-runtime-python-${{ matrix.python }}-${{ github.sha }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/protected-runtime-${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}/evidence/*
+          if-no-files-found: error
+
   installed-release-evidence:
     name: Installed swarm release evidence (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
