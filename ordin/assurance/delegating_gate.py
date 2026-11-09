@@ -22,7 +22,7 @@ from ordin.session import IntegrationSession, SessionIdentity
 from ._json import digest, validate
 from .delegation import DelegationIssuer, DelegationVerification, IssuedDelegation, DOMAINS
 from .gate import AssuranceDecision, AssuranceGate, DISPOSITION_ORDER
-from .host import AssuranceHostContext, HostEvidenceSource
+from .host import AssuranceHostContext, HostCredentialUse, HostEvidenceSource
 from .rest import RestRequestContract, derive_rest_request_contract
 
 
@@ -137,7 +137,7 @@ class _ChildSessionGate(AgentGate):
         decision = self.owner._review(action, **kwargs)
         self.owner._captured.append(decision)
         baseline = decision.assurance.baseline
-        return AgentDecision(
+        result = AgentDecision(
             decision.disposition,
             decision.assurance.review,
             _approval_satisfaction=baseline._approval_satisfaction
@@ -151,6 +151,64 @@ class _ChildSessionGate(AgentGate):
             if decision.approval_fulfilled
             else None,
         )
+        contract = (
+            self.owner._review_contract(decision.assurance, decision._context)
+            if self.owner._session._runtime_active
+            and not decision.denied
+            and decision.contract_digest is not None
+            else None
+        )
+        self.owner._session_runtime_binding = (result, decision, contract)
+        return result
+
+    def _runtime_credential_bindings(
+        self, decision: AgentDecision
+    ) -> tuple[CredentialBinding, ...]:
+        binding = self.owner._session_runtime_binding
+        if (
+            binding is None
+            or binding[0] is not decision
+            or not self.owner._captured
+            or self.owner._captured[-1] is not binding[1]
+            or decision.review is not binding[1].assurance.review
+        ):
+            raise ValueError("original immediate delegated session decision required")
+        original, contract = binding[1], binding[2]
+        # Denied proposals still belong in history. They acquire no credential
+        # correlation or execution rights from an invalid/expired grant.
+        if original.denied or contract is None:
+            return ()
+        context = original._context
+        if (
+            not self.owner.binding_matches(original, original.assurance.review.action)
+            or context._authority is None
+            or context._authority.source_key != self.owner.source.key
+            or context._authority.payload_digest != digest("host_context", context.as_dict())
+            or original.contract_digest != contract.digest
+        ):
+            raise ValueError("original current delegated credential context required")
+        for use in context.credential_uses:
+            if (
+                type(use) is not HostCredentialUse
+                or use._authority is None
+                or use.source_key != self.owner.source.key
+                or use._authority.source_key != use.source_key
+                or use._authority.payload_digest
+                != digest("assurance_host_credential_use", use.as_dict())
+            ):
+                raise ValueError("original sealed credential routing receipt required")
+        capability = (
+            contract if type(contract) is RuntimeCapabilityContract else contract.capability
+        )
+        baseline = derive_runtime_capability_contract(
+            decision.review, approval_execution_lease=decision.approval_execution_lease
+        )
+        if (
+            capability != replace(baseline, credentials=capability.credentials, contract_id="")
+            or capability._approval_lease is not baseline._approval_lease
+        ):
+            raise ValueError("delegated correlation may add only original credential routing")
+        return capability.credentials
 
 
 class DelegatingAssuranceGate:
@@ -186,12 +244,41 @@ class DelegatingAssuranceGate:
         self._issued_inputs: dict[str, tuple[DelegatedDecision, dict[str, Any]]] = {}
         self._next_context: AssuranceHostContext | None = None
         self._next_approval_options: dict[str, Any] = {}
+        self._session_runtime_binding: tuple[AgentDecision, DelegatedDecision, Any] | None = None
         self._lock = threading.RLock()
         session_identity = identity or SessionIdentity(
             "ordin-assurance-child", grant.record.grant_id
         )
         self._session = IntegrationSession(
             session_identity, _ChildSessionGate(assurance.ordin, self)
+        )
+
+    def _review_contract(self, underlying: AssuranceDecision, context: AssuranceHostContext):
+        capability = derive_runtime_capability_contract(
+            underlying.review, approval_execution_lease=underlying.approval_execution_lease
+        )
+        credentials = tuple(
+            CredentialBinding(use.binding, use.host, use.port)
+            for use in context.credential_uses
+            if use.action_digest == underlying.action_digest
+            and use.profile_digest == self.issuer.profile.digest
+        )
+        if credentials:
+            capability = replace(
+                capability,
+                credentials=tuple(dict.fromkeys((*capability.credentials, *credentials))),
+                contract_id="",
+            )
+        request = derive_runtime_request_contract_v2(underlying.review)
+        return (
+            derive_rest_request_contract(underlying.review, capability=capability)
+            if underlying.review.adapter == "network.rest"
+            else (
+                replace(request, capability=capability, request_contract_id="")
+                if request.requests
+                or any(n.protocol in {"graphql", "mcp", "json-rpc"} for n in capability.network)
+                else capability
+            )
         )
 
     def _review(
@@ -229,34 +316,7 @@ class DelegatingAssuranceGate:
         else:
             try:
                 self.issuer.require_current(self.grant, self.source)
-                capability = derive_runtime_capability_contract(
-                    underlying.review, approval_execution_lease=underlying.approval_execution_lease
-                )
-                credentials = tuple(
-                    CredentialBinding(use.binding, use.host, use.port)
-                    for use in context.credential_uses
-                    if use.action_digest == underlying.action_digest
-                    and use.profile_digest == self.issuer.profile.digest
-                )
-                if credentials:
-                    capability = replace(
-                        capability,
-                        credentials=tuple(dict.fromkeys((*capability.credentials, *credentials))),
-                        contract_id="",
-                    )
-                request = derive_runtime_request_contract_v2(underlying.review)
-                contract = (
-                    derive_rest_request_contract(underlying.review, capability=capability)
-                    if underlying.review.adapter == "network.rest"
-                    else (
-                        replace(request, capability=capability, request_contract_id="")
-                        if request.requests
-                        or any(
-                            n.protocol in {"graphql", "mcp", "json-rpc"} for n in capability.network
-                        )
-                        else capability
-                    )
-                )
+                contract = self._review_contract(underlying, context)
                 checked = self.issuer._check_operation(contract, self.grant)
                 coverage = {**dict.fromkeys(DOMAINS, True), **dict(checked.coverage)}
                 verified = DelegationVerification(
@@ -491,6 +551,7 @@ class DelegatingAssuranceGate:
         ):
             raise ValueError("agent JSON cannot supply a child host context")
         with self._lock:
+            captured_count = len(self._captured)
             self._next_context = host_context
             self._next_approval_options = (
                 {
@@ -509,7 +570,17 @@ class DelegatingAssuranceGate:
                     action, contract_check=contract_check, approval_supported=False
                 )
                 return self._captured.pop()
+            except BaseException:
+                # A failed initial append never returned a usable review and
+                # cannot have forwarded. Release only its original pending use.
+                for captured in self._captured[captured_count:]:
+                    if captured._ticket is not None:
+                        self.issuer.cancel_operation(captured._ticket)
+                        self._issued_inputs.pop(captured._ticket, None)
+                raise
             finally:
+                del self._captured[captured_count:]
+                self._session_runtime_binding = None
                 self._next_context = None
                 self._next_approval_options = {}
 

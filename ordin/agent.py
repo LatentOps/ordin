@@ -13,6 +13,7 @@ from .review import CommandReview
 from .trace import ActionTrace
 
 if TYPE_CHECKING:
+    from .runtime_contract import CredentialBinding
     from .runtime_observation import RuntimeObservationHistory, RuntimeReviewBinding
     from .approval import (
         ApprovalSource,
@@ -118,6 +119,12 @@ class AgentGate:
 
             if type(self.approval_source) not in {ApprovalSource, ApprovalAuthority}:
                 raise ValueError("core approval requires its original protected host source")
+
+    def _runtime_credential_bindings(
+        self, decision: AgentDecision
+    ) -> tuple[CredentialBinding, ...]:
+        """Host composition for initial observation correlation; grants no authority."""
+        return ()
 
     def evaluate(
         self,

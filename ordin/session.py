@@ -8,7 +8,7 @@ import os
 import sqlite3
 import threading
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Mapping
 
@@ -20,7 +20,11 @@ from .execution import ActionObservation, ObservationHistory
 from .mcp_contracts import MCPContractCheck
 from .schema import validate_named_schema
 from .temporal import default_temporal_policy
-from .runtime_contract import RuntimeCapabilityContract, derive_runtime_capability_contract
+from .runtime_contract import (
+    CredentialBinding,
+    RuntimeCapabilityContract,
+    derive_runtime_capability_contract,
+)
 from .runtime_observation import (
     RuntimeCorrelationError,
     RuntimeEvidenceSource,
@@ -465,6 +469,21 @@ class IntegrationSession:
                     decision.review,
                     approval_execution_lease=decision.approval_execution_lease,
                 )
+                credentials = self.gate._runtime_credential_bindings(decision)
+                if (
+                    type(credentials) is not tuple
+                    or len(credentials) > 128
+                    or any(type(item) is not CredentialBinding for item in credentials)
+                ):
+                    raise RuntimeCorrelationError("runtime_observation_contract_mismatch")
+                if credentials:
+                    # Retain host-bound routing at the original review. No other
+                    # core requirement, unknown, decision or lease is replaced.
+                    contract = replace(
+                        contract,
+                        credentials=tuple(dict.fromkeys((*contract.credentials, *credentials))),
+                        contract_id="",
+                    )
                 contracts = tuple(
                     c for c in self._runtime_history.contracts if c.action_id in ids
                 ) + (contract,)
