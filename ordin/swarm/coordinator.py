@@ -1721,7 +1721,10 @@ class SwarmCoordinator:
         self, handle: CoordinatorScope, broker_channel: AuthorityChannel, reservation_id: str
     ):
         """Retrieve one original committed physical outcome under current protected scope."""
+        from ordin.enforcement_backend import EnforcementPlan
+
         from .broker import SwarmExecutionBroker
+        from .owned_tools import LinuxOwnedToolsBackend
 
         scope = self._scope(handle)
         with self._containment_barrier(scope), self._lock, self.store.transaction() as transaction:
@@ -1751,6 +1754,22 @@ class SwarmCoordinator:
             with broker._state_lock:
                 authorized = broker._pending_row(prepared.authorization)
                 result = authorized.result
+                original_plan = authorized.scope.plan
+                executor = broker._executor
+                if type(original_plan) is EnforcementPlan:
+                    witnessed = (
+                        result is not None
+                        and result.executor_outcome is not None
+                        and executor.verify_outcome(result.executor_outcome, original_plan)
+                    )
+                elif type(executor) is LinuxOwnedToolsBackend:
+                    witnessed = (
+                        result is not None
+                        and result.executor_outcome is not None
+                        and executor.verify_outcome(result.executor_outcome, original_plan)
+                    )
+                else:
+                    witnessed = False
                 if (
                     result is None
                     or result.status != "completed"
@@ -1758,9 +1777,7 @@ class SwarmCoordinator:
                     or result.action_digest != prepared.action_digest
                     or not broker.verify_result(result, prepared.authorization)
                     or result.executor_outcome is None
-                    or not broker._executor.verify_outcome(
-                        result.executor_outcome, authorized.scope.plan
-                    )
+                    or not witnessed
                 ):
                     raise CoordinatorRejected("coordinator.original_actual_broker_outcome_required")
                 return result
