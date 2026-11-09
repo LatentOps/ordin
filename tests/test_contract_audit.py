@@ -468,6 +468,9 @@ def test_every_registered_schema_has_a_canonical_runtime_or_data_example(tmp_pat
     from tests.swarm_risk_contract_samples import swarm_risk_contract_samples
 
     samples.update(swarm_risk_contract_samples())
+    from tests.swarm_host_contract_samples import host_contract_samples
+
+    samples.update(host_contract_samples(tmp_path))
     assert set(samples) == set(SCHEMA_FILES)
     for name, payload in samples.items():
         assert not validate_named_schema(name, payload), name
@@ -589,6 +592,12 @@ def test_public_export_and_console_inventory_matches_frozen_manifest():
     assert len(ordin.__all__) == len(set(ordin.__all__))
     assert all(hasattr(ordin, name) for name in ordin.__all__)
     assert set(SCHEMA_FILES) == set(manifest["schemas"]) | {
+        "swarm_tool_host_profile",
+        "swarm_tool_host_client",
+        "swarm_tool_host_endpoint",
+        "swarm_tool_host_result",
+        "swarm_tool_host_status",
+        "swarm_tool_host_evaluation",
         "swarm_release_manifest",
         "swarm_approval_policy",
         "swarm_approval",
