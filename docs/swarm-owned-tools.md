@@ -153,7 +153,8 @@ Factory setup executes only a newly created trusted test fixture, never a
 configured project's tests or an implicit approval of a workload.
 
 Default test limits are 30 seconds wall time, 10 CPU seconds, 512 MiB address
-space, 4 MiB scratch and 128 scratch inodes. A supplied exact
+space, 1 MiB scratch and 256 scratch inodes. These defaults satisfy the independent
+quota-probe geometry even with an 8 KiB diagnostic budget. A supplied exact
 `ProtectedProcessLimits` can make other supported finite choices; raw diagnostic
 output cannot exceed the aggregate payload budget. The worker's trusted
 readiness handshake is retained before untrusted code runs, and the original

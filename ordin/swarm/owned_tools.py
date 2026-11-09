@@ -311,13 +311,17 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
         ):
             raise ValueError("closed bounded fixed-test configuration required")
         identifier(test_tool, "owned fixed test tool")
-        limits = test_limits or ProtectedProcessLimits(
-            timeout_ms=30000,
-            cpu_seconds=10,
-            memory_mib=512,
-            output_bytes=max(8192, max_payload_bytes),
-        )
-        if test_routes and limits.output_bytes > max_payload_bytes:
+        limits = None
+        if test_routes:
+            limits = test_limits or ProtectedProcessLimits(
+                timeout_ms=30000,
+                cpu_seconds=10,
+                memory_mib=512,
+                output_bytes=max_payload_bytes,
+                scratch_bytes=1048576,
+                scratch_inodes=256,
+            )
+        if limits is not None and limits.output_bytes > max_payload_bytes:
             raise ValueError("fixed test diagnostics must fit the owned output budget")
         self.test_routes, self.test_tool, self.test_limits = test_routes, test_tool, limits
         self._test_runner: LinuxConfinedTestRunner | None = None
@@ -478,6 +482,8 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
         for name in self.allowed_files:
             self._record(name)
         if self.test_routes:
+            if self.test_limits is None:
+                raise ValueError("configured test limits required")
             test_install = self.install_root / "fixed-tests"
             test_install.mkdir(mode=0o700)
             self._test_runner = LinuxConfinedTestRunner(
@@ -538,7 +544,7 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                 routes,
                 self.test_tool,
                 [route.as_dict() for route in self.test_routes],
-                self.test_limits.as_dict() if self.test_routes else None,
+                self.test_limits.as_dict() if self.test_limits is not None else None,
                 self._test_runner.configuration_digest if self._test_runner is not None else None,
             ]
         )
@@ -1225,7 +1231,11 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
 
     def _compile_test(self, action, contract):
         try:
-            if self._test_runner is None or contract.grant_state != "eligible":
+            if (
+                self._test_runner is None
+                or self.test_limits is None
+                or contract.grant_state != "eligible"
+            ):
                 raise ValueError("original human-approved complete test requirements required")
             self._verify_install()
             lower = self._test_runner.compile_action(action, contract)
@@ -2115,7 +2125,7 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                 + (["network.download"] if self.http_routes else [])
                 + (["code.execute"] if self.test_routes else []),
                 "test_ids": [route.test_id for route in self.test_routes],
-                "test_limits": self.test_limits.as_dict() if self.test_routes else None,
+                "test_limits": self.test_limits.as_dict() if self.test_limits is not None else None,
                 "test_correctness_verified": False,
                 "http_routes": [route.route_id for route in self.http_routes],
                 "http_factory_probe": "controlled_loopback_no_credentials"
