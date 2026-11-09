@@ -265,7 +265,7 @@ def test_untrusted_tests_cannot_bypass_kernel_or_access_broker_and_host(tmp_path
     kernel_only()
     text = """
 def test_kernel_controls():
-    import os, ctypes, errno
+    import os, ctypes, errno, stat, fcntl
     assert 'ORDIN_HOST_SECRET_CANARY' not in os.environ
     for path in ('/etc/passwd', '/proc/self/environ', '/forbidden'):
         try:
@@ -280,13 +280,18 @@ def test_kernel_controls():
         pass
     else:
         raise AssertionError('snapshot writable')
-    for fd in (0, 3, 4, 5, 6):
+    diagnostic = os.fstat(2)
+    private_log = os.stat('/scratch/pytest.log')
+    allowed = {(diagnostic.st_dev, diagnostic.st_ino), (private_log.st_dev, private_log.st_ino)}
+    for fd in (0, *range(3, 16)):
         try:
-            os.fstat(fd)
+            selected = os.fstat(fd)
         except OSError:
             pass
         else:
-            raise AssertionError('inherited descriptor')
+            assert stat.S_ISREG(selected.st_mode)
+            assert (selected.st_dev, selected.st_ino) in allowed
+            assert fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE == os.O_WRONLY
     libc=ctypes.CDLL(None,use_errno=True)
     assert libc.syscall(41,2,1,0)==-1 and ctypes.get_errno()==errno.EPERM
     assert libc.syscall(57)==-1 and ctypes.get_errno()==errno.EPERM
@@ -309,6 +314,37 @@ def test_kernel_controls():
             runner, plan, runner.execute(plan, action, source, operator=operator)
         )
         assert value["exit_code"] == 0 and "1 passed" in value["output"]
+    finally:
+        runner.close(operator=operator)
+
+
+def test_fixed_pytest_logging_and_caplog_use_only_private_quota_scratch(tmp_path):
+    kernel_only()
+    text = """
+def test_logging_fixture(caplog, pytestconfig):
+    import logging
+    from pathlib import Path
+    target = Path('/scratch/pytest.log')
+    assert pytestconfig.option.log_file == str(target)
+    with caplog.at_level(logging.INFO, logger='protected-fixture'):
+        logging.getLogger('protected-fixture').warning('bounded confined logging record')
+    assert 'bounded confined logging record' in caplog.text
+    handlers = [handler for handler in logging.getLogger().handlers if isinstance(handler, logging.FileHandler)]
+    assert handlers
+    for handler in handlers:
+        assert handler.baseFilename == str(target)
+        handler.flush()
+    assert 'bounded confined logging record' in target.read_text()
+    print('confined-logging-caplog-completed')
+"""
+    operator, runner, route, action = setup(tmp_path, text)
+    try:
+        action, plan, source = prepare(runner, route, action, operator)
+        value = assert_kernel_result(
+            runner, plan, runner.execute(plan, action, source, operator=operator)
+        )
+        assert value["exit_code"] == 0 and "1 passed" in value["output"]
+        assert "confined-logging-caplog-completed" in value["output"]
     finally:
         runner.close(operator=operator)
 

@@ -638,6 +638,8 @@ def main():
                         test["project_root"],
                         "--confcutdir",
                         test["project_root"],
+                        "--log-file",
+                        "/scratch/pytest.log",
                         "--basetemp",
                         "/scratch/pytest",
                         *test["selectors"],
