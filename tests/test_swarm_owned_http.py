@@ -8,7 +8,7 @@ import io
 import json
 import socket
 import ssl
-from threading import Thread
+from threading import Event, Thread
 
 import pytest
 
@@ -145,6 +145,7 @@ def endpoint(*, body=b"bounded endpoint data", tls=False, response=None):
     listener.bind(("127.0.0.1", 0))
     listener.listen(1)
     seen, failures = [], []
+    armed, stopping = Event(), Event()
     context = None
     if tls:
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -152,6 +153,13 @@ def endpoint(*, body=b"bounded endpoint data", tls=False, response=None):
         context.load_cert_chain(str(CERTS / "server.pem"), str(CERTS / "server-key.pem"))
 
     def serve():
+        # Binding supplies the exact URL during setup, but the action's accept
+        # deadline begins only after protected preparation has completed.
+        while not armed.wait(0.05):
+            if stopping.is_set():
+                return
+        if stopping.is_set():
+            return
         try:
             connection, _ = listener.accept()
             with connection:
@@ -184,8 +192,11 @@ def endpoint(*, body=b"bounded endpoint data", tls=False, response=None):
             f"{'https://localhost' if tls else 'http://127.0.0.1'}:{listener.getsockname()[1]}/docs",
             seen,
             failures,
+            armed.set,
         )
     finally:
+        stopping.set()
+        armed.set()
         listener.close()
         thread.join(6)
         assert not thread.is_alive(), "owned one-shot endpoint fixture did not terminate"
@@ -203,7 +214,7 @@ def test_actual_http_and_verified_https_preserve_complete_request_authority(
     from tests.test_swarm_broker import require_kernel
 
     require_kernel()
-    with endpoint(tls=tls) as (url, seen, failures):
+    with endpoint(tls=tls) as (url, seen, failures, arm):
         route = OwnedHTTPRoute(
             "docs",
             url,
@@ -228,6 +239,7 @@ def test_actual_http_and_verified_https_preserve_complete_request_authority(
             assert type(compiled.plan) is OwnedRequestPlan and compiled.plan.complete is complete
             assert backend.compile_action(action, complete).plan is compiled.plan
             source = RuntimeEvidenceSource(backend.name, "a" * 64, "owned-http-test", "b" * 64)
+            arm()
             result = backend.execute(compiled.plan, action, source, operator=operator)
             assert result.status == "completed", result.as_dict()
             assert result.value == b"bounded endpoint data" and result.physical_enforcement
@@ -264,7 +276,7 @@ def test_actual_broker_credentialed_https_keeps_original_proof_and_private_respo
 
     require_kernel()
     secret = b"private-credential-fixture"
-    with endpoint(tls=True, body=b"echo: " + secret) as (url, seen, failures):
+    with endpoint(tls=True, body=b"echo: " + secret) as (url, seen, failures, arm):
         route = OwnedHTTPRoute(
             "private-docs",
             url,
@@ -287,6 +299,7 @@ def test_actual_broker_credentialed_https_keeps_original_proof_and_private_respo
             assert prepared.disposition == "execute", prepared.as_dict()
             scope = data.broker.authorization_scope(prepared.authorization)
             assert scope.delegation_scope.review_context.credential_uses[0] is uses[0]
+            arm()
             result = data.broker.dispatch(prepared.authorization)
             assert result.status == "completed", result.as_dict()
             assert result.value == b'{"completed":true,"credentialed":true}'
@@ -308,7 +321,7 @@ def test_tls_hostname_failure_sends_no_private_credential_and_never_reissues(tmp
 
     require_kernel()
     secret = b"private-credential-fixture"
-    with endpoint(tls=True) as (localhost, seen, _):
+    with endpoint(tls=True) as (localhost, seen, _, arm):
         port = int(localhost.split(":")[2].split("/")[0])
         route = OwnedHTTPRoute(
             "private-docs",
@@ -327,6 +340,7 @@ def test_tls_hostname_failure_sends_no_private_credential_and_never_reissues(tmp
                 data.channel, data.grant, action, idempotency_key="wrong-tls"
             )
             assert prepared.disposition == "execute", prepared.as_dict()
+            arm()
             result = data.broker.dispatch(prepared.authorization)
             assert result.status == "unknown" and result.value is None
             assert data.broker.verify_credential_uses(source, action, uses)
@@ -347,7 +361,7 @@ def test_actual_http_ambiguous_and_redirect_responses_never_succeed_or_retry(tmp
     from tests.test_swarm_broker import require_kernel
 
     require_kernel()
-    with endpoint(response=response) as (url, seen, _):
+    with endpoint(response=response) as (url, seen, _, arm):
         route = OwnedHTTPRoute("docs", url, ("127.0.0.1",), allow_private=True, allow_http=True)
         backend, operator, _, install = operator_backend(tmp_path, http_routes=(route,))
         try:
@@ -357,6 +371,7 @@ def test_actual_http_ambiguous_and_redirect_responses_never_succeed_or_retry(tmp
             )
             compiled = backend.compile_action(action, complete)
             source = RuntimeEvidenceSource(backend.name, "a" * 64, "owned-http-test", "b" * 64)
+            arm()
             result = backend.execute(compiled.plan, action, source, operator=operator)
             assert (
                 result.status == "unknown"
@@ -376,7 +391,7 @@ def test_preconnected_peer_mismatch_refuses_before_tls_or_private_request_bytes(
 
     require_kernel()
     secret = b"peer-mismatch-private-fixture"
-    with endpoint(tls=True) as (url, seen, _):
+    with endpoint(tls=True) as (url, seen, _, arm):
         port = int(url.split(":")[2].split("/")[0])
         route = OwnedHTTPRoute(
             "private-docs",
@@ -405,8 +420,30 @@ def test_preconnected_peer_mismatch_refuses_before_tls_or_private_request_bytes(
                 data.channel, data.grant, action, idempotency_key="wrong-peer"
             )
             assert prepared.disposition == "execute", prepared.as_dict()
+            arm()
             result = data.broker.dispatch(prepared.authorization)
             assert result.status == "unknown" and result.value is None
             assert seen == []  # No TLS handshake/HTTP request reached the endpoint.
             with pytest.raises(ValueError, match="consumed"):
                 data.broker.review_credential_uses(source, action)
+
+
+def test_owned_endpoint_accept_window_is_armed_after_protected_preparation():
+    with endpoint(body=b"ready") as (url, seen, failures, arm):
+        port = int(url.split(":")[2].split("/")[0])
+        with socket.create_connection(("127.0.0.1", port), timeout=1) as connection:
+            connection.sendall(b"GET /docs HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            connection.settimeout(0.05)
+            with pytest.raises(TimeoutError):
+                connection.recv(1)
+            assert seen == []
+            arm()
+            connection.settimeout(1)
+            received = bytearray()
+            while True:
+                value = connection.recv(4096)
+                if not value:
+                    break
+                received.extend(value)
+            assert received.endswith(b"ready")
+        assert len(seen) == 1 and not failures
