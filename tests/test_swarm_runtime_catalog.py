@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import sys
 import sysconfig
+from types import SimpleNamespace
 
 import pytest
 
@@ -245,6 +246,76 @@ def test_stdlib_source_alias_cannot_escape_or_use_a_parent_directory_alias(tmp_p
     make_alias(parent, root / "nested", directory=True)
     with pytest.raises((ValueError, OSError)):
         _runtime_source(parent / target.name, root, 1024)
+
+
+@pytest.mark.parametrize(
+    "target", ["nested/../required_module_name.py", "directory_alias/../module.py"]
+)
+def test_stdlib_source_alias_rejects_raw_parent_traversal_even_if_normalized_path_stays_inside(
+    tmp_path, target
+):
+    root, actual, alias = source_fixture(tmp_path)
+    alias.unlink()
+    (root / "module.py").write_bytes(b"lexically normalized bytes")
+    make_alias(alias, target)
+    assert Path(os.path.normpath(root / target)).is_relative_to(root)
+    with pytest.raises(ValueError, match="parent traversal"):
+        _runtime_source(alias, root, 1024)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX symlink-before-dotdot path semantics")
+def test_stdlib_source_alias_never_substitutes_lexical_bytes_for_posix_target(tmp_path):
+    root, actual, alias = source_fixture(tmp_path)
+    deep = root / "nested" / "deep"
+    deep.mkdir(mode=0o755)
+    (root / "module.py").write_bytes(b"lexically normalized bytes")
+    (root / "nested" / "module.py").write_bytes(b"actual POSIX resolution bytes")
+    make_alias(root / "directory_alias", deep, directory=True)
+    alias.unlink()
+    make_alias(alias, "directory_alias/../module.py")
+    assert alias.read_bytes() == b"actual POSIX resolution bytes"
+    assert (root / "module.py").read_bytes() != alias.read_bytes()
+    with pytest.raises(ValueError, match="parent traversal"):
+        _runtime_source(alias, root, 1024)
+
+
+def test_stdlib_source_alias_rejects_raw_parent_traversal_in_later_alias_hops(tmp_path):
+    root, actual, alias = source_fixture(tmp_path)
+    (root / "module.py").write_bytes(b"lexically normalized bytes")
+    second = root / "second_alias.py"
+    make_alias(second, "nested/../module.py")
+    alias.unlink()
+    make_alias(alias, second.name)
+    with pytest.raises(ValueError, match="parent traversal"):
+        _runtime_source(alias, root, 1024)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows path/fd ctime meanings differ")
+def test_stdlib_source_alias_windows_compares_consistent_descriptor_identity(tmp_path, monkeypatch):
+    root, target, alias = source_fixture(tmp_path)
+    original = os.fstat
+
+    def changed_time_semantics(descriptor):
+        info = original(descriptor)
+        fields = {
+            key: getattr(info, key)
+            for key in (
+                "st_dev",
+                "st_ino",
+                "st_mode",
+                "st_uid",
+                "st_gid",
+                "st_nlink",
+                "st_size",
+                "st_mtime_ns",
+                "st_ctime_ns",
+            )
+        }
+        fields["st_ctime_ns"] += 1000000
+        return SimpleNamespace(**fields)
+
+    monkeypatch.setattr(os, "fstat", changed_time_semantics)
+    assert _runtime_source(alias, root, 1024) == target.read_bytes()
 
 
 @pytest.mark.parametrize("mutation", ["alias", "target", "target-before-open"])

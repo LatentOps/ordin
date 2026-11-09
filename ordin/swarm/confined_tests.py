@@ -312,6 +312,8 @@ def _runtime_source(source: Path, trusted_root: Path, maximum: int) -> bytes:
             if stat.S_ISLNK(before.st_mode):
                 trusted(before, link=True)
                 target = os.readlink(name, dir_fd=parent_fd) if anchored else os.readlink(candidate)
+                if ".." in Path(target).parts:
+                    raise ValueError("runtime source alias parent traversal is unsupported")
                 if len(os.fsencode(target)) > 4096:
                     raise ValueError("runtime source alias exceeds bound")
                 leaves.append((parent_fd, candidate, before, target))
@@ -328,7 +330,16 @@ def _runtime_source(source: Path, trusted_root: Path, maximum: int) -> bytes:
                 else os.open(candidate, read_flags)
             )
             descriptors.append(descriptor)
-            if identity(os.fstat(descriptor)) != identity(before):
+            captured = os.fstat(descriptor)
+            # Windows path stat and descriptor stat expose different ctime
+            # meanings. Compare common cross-API fields there, then retain the
+            # complete descriptor identity (including ctime) across the read.
+            # Qualified Linux always compares every field across both APIs.
+            if (
+                identity(captured) != identity(before)
+                if anchored
+                else identity(captured)[:-1] != identity(before)[:-1]
+            ):
                 raise ValueError("runtime source changed before capture")
             chunks = bytearray()
             while len(chunks) <= maximum:
@@ -337,7 +348,7 @@ def _runtime_source(source: Path, trusted_root: Path, maximum: int) -> bytes:
                     break
                 chunks.extend(data)
             leaves.append((parent_fd, candidate, before, None))
-            if len(chunks) > maximum or identity(os.fstat(descriptor)) != identity(before):
+            if len(chunks) > maximum or identity(os.fstat(descriptor)) != identity(captured):
                 raise ValueError("runtime source changed or exceeded byte bound")
             for selected_fd, path, info, link_target in leaves:
                 current = (
