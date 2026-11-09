@@ -101,9 +101,11 @@ def test_actual_privileged_workflow_and_release_policy_require_both_versions():
     assert job["env"]["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
     assert not job.get("continue-on-error") and "if" not in job
     invocation = next(
-        step["run"] for step in job["steps"] if "check_protected_runtime.py" in step.get("run", "")
+        step["run"] for step in job["steps"] if "run_protected_runtime_ci.py" in step.get("run", "")
     )
-    assert "sudo env" in invocation and "||" not in invocation
+    assert "sudo /usr/bin/env -i" in invocation and "||" not in invocation
+    assert "/usr/bin/python3 -I -S -B" in invocation and "--capture-selected" in invocation
+    assert '--private-root "/root/' in invocation and "--runner-uid" in invocation
     required = {job["name"].replace("${{ matrix.python }}", version) for version in versions}
     assert required <= RELEASE_WORKFLOW_CHECKS["swarm-assurance.yml"]
 
