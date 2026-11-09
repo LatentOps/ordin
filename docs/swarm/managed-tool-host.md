@@ -5,6 +5,10 @@ actors. It exposes MCP stdio through a client bridge and uses loopback mutual
 TLS between the bridge and daemon. Tool calls share the existing Ordin native
 delegation, coordinator, durable budgets, human governance and owned workers.
 No model provider is required.
+The daemon declares its original backend's required effective UID before sealing
+the assurance/session configuration. Caller JSON cannot select this deployment
+requirement. It grants no identity or permission; the original native outcome
+must still establish the actual worker and effect.
 
 This service controls its own tools. A normal MCP client can still have other
 tools, sockets and credentials. Its process is outside this boundary unless an

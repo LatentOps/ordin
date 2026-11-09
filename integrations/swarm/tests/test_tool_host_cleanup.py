@@ -14,6 +14,8 @@ from ordin_swarm.host_service import ManagedHostServer
 
 
 class LiveBackend:
+    uid = 65534
+
     def __init__(self):
         self.attempts, self.live, self.database_open = 0, True, True
 
@@ -129,7 +131,8 @@ def test_authority_constructor_preserves_original_cause_and_original_cleanup_own
     monkeypatch.setattr(host_authority, "make_backend", lambda *args, **kwargs: backend)
     cause = ValueError("private original construction cause")
 
-    def fail(*args):
+    def fail(*args, **kwargs):
+        assert kwargs["required_euid"] == backend.uid
         raise cause
 
     monkeypatch.setattr(host_authority, "host_core", fail)

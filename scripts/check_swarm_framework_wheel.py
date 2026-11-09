@@ -32,7 +32,13 @@ def main():
             if archive.read(source.relative_to(package).as_posix()) != source.read_bytes():
                 raise ValueError("adapter wheel differs from current source")
     with zipfile.ZipFile(core) as archive:
-        trusted = [ROOT / "ordin/schema.py", *(ROOT / "ordin/swarm").rglob("*.py")]
+        trusted = [
+            ROOT / "ordin/schema.py",
+            ROOT / "ordin/runtime_requirements.py",
+            ROOT / "ordin/runtime_contract.py",
+            ROOT / "ordin/assurance/simulation.py",
+            *(ROOT / "ordin/swarm").rglob("*.py"),
+        ]
         for source in trusted:
             if archive.read(source.relative_to(ROOT).as_posix()) != source.read_bytes():
                 raise ValueError("trusted core host dependency wheel differs from current source")

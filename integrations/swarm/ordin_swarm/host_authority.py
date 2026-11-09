@@ -99,12 +99,13 @@ class HostDispatch:
     lease_id: str | None = field(default=None, repr=False)
 
 
-def host_core(test_routes=()) -> Ordin:
+def host_core(test_routes=(), *, required_euid=None) -> Ordin:
     return Ordin(
         rest_semantics=RestSemantics(),
         runtime_requirements=(
             RuntimeRequirementProfile(
-                "managed-fixed-tests",
+                "managed-fixed-tests" if test_routes else "managed-owned-tools",
+                required_euid=required_euid,
                 tool_requirements=tuple(
                     ToolRuntimeRequirement(
                         RUNTIME,
@@ -122,7 +123,7 @@ def host_core(test_routes=()) -> Ordin:
                     for route in test_routes
                 ),
             )
-            if test_routes
+            if test_routes or required_euid is not None
             else None
         ),
         tool_semantics=ToolSemanticsRegistry(
@@ -372,7 +373,7 @@ class HostAuthority:
             self.backend = make_backend(
                 profile, operator=operator, initialize=False, test_routes=self.test_routes
             )
-            self.core = host_core(self.test_routes)
+            self.core = host_core(self.test_routes, required_euid=self.backend.uid)
             self.started_at = clock()
             self.expires_at = self.started_at + min(profile.limits.lifetime_seconds, 600)
             self.incarnation = uuid4().hex
@@ -651,6 +652,34 @@ class HostAuthority:
             action = self.backend.prepare_action(action, operator=self.operator)
         reference = self.grants[actor]
         self.coordinator.bind_grant(self.scope, channel, lease.reference, reference)
+        # Intrinsic WARN/ASK actions enter the original human queue before the
+        # ordinary coordinator guard, which intentionally rejects preparation
+        # without a human receipt. request() independently captures/rechecks all
+        # current scope, history, requirements, factory and credential bindings.
+        baseline = self.assurance.baseline_gate.evaluate_action(action)
+        if baseline.denied:
+            return HostDispatch("denied", ("host.core_review_denied",), False, False)
+        if baseline.requires_approval:
+            try:
+                approval = self.governance.request(
+                    channel, lease.reference, reference, action, idempotency_key=request_id
+                )
+            except (ValueError, OSError, RuntimeError):
+                return HostDispatch(
+                    "denied",
+                    ("host.independent_requirement_or_approval_unavailable",),
+                    False,
+                    False,
+                )
+            return HostDispatch(
+                "requires_approval",
+                ("host.exact_operator_approval_required",),
+                False,
+                False,
+                approval=approval,
+                action=action,
+                lease_id=lease.reference,
+            )
         evaluation = self.coordinator.evaluate(
             self.scope,
             channel,
@@ -660,32 +689,6 @@ class HostAuthority:
             idempotency_key=request_id,
         )
         if evaluation.status != "execute":
-            baseline = self.assurance.baseline_gate.evaluate_action(action)
-            if baseline.requires_approval:
-                try:
-                    approval = self.governance.request(
-                        channel,
-                        lease.reference,
-                        reference,
-                        action,
-                        idempotency_key=request_id,
-                    )
-                except (ValueError, OSError, RuntimeError):
-                    return HostDispatch(
-                        "denied",
-                        ("host.independent_requirement_or_approval_unavailable",),
-                        False,
-                        False,
-                    )
-                return HostDispatch(
-                    "requires_approval",
-                    ("host.exact_operator_approval_required",),
-                    False,
-                    False,
-                    approval=approval,
-                    action=action,
-                    lease_id=lease.reference,
-                )
             return HostDispatch("denied", ("host.current_admission_refused",), False, False)
         if evaluation.reference is None:
             return HostDispatch("denied", ("host.evaluation_unavailable",), False, False)

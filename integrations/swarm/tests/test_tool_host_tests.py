@@ -120,7 +120,7 @@ def test_prepare_is_before_coordinator_review_and_never_runs_for_unselected_rout
     )
     authority.assurance = SimpleNamespace(
         baseline_gate=SimpleNamespace(
-            evaluate_action=lambda action: SimpleNamespace(requires_approval=False)
+            evaluate_action=lambda action: SimpleNamespace(requires_approval=False, denied=False)
         )
     )
     action = ToolCallAdapter("ordin-owned").adapt(
