@@ -445,10 +445,31 @@ def test_build_linker_exception_never_excludes_a_selected_outside_extension(
             _runtime_source(source, stdlib, 1048576)
 
 
-@pytest.mark.skipif(sys.platform != "linux", reason="full runtime installation is Linux only")
+def require_catalog_build_privileges():
+    if sys.platform == "linux" and os.geteuid() == 0:
+        return
+    if os.environ.get("ORDIN_REQUIRED_PROTECTED_PROCESS") == "1":
+        pytest.fail("required runtime catalogue build needs qualified privileged Linux")
+    pytest.skip("trusted runtime catalogue source ownership requires privileged Linux")
+
+
+@pytest.mark.parametrize("platform", ["linux", "win32"])
+@pytest.mark.parametrize("required", [False, True])
+def test_catalog_build_precondition_fails_required_lane_and_skips_ordinary_nonroot_lane(
+    monkeypatch, platform, required
+):
+    monkeypatch.setattr(sys, "platform", platform)
+    monkeypatch.setattr(os, "geteuid", lambda: 1000, raising=False)
+    monkeypatch.setenv("ORDIN_REQUIRED_PROTECTED_PROCESS", "1" if required else "0")
+    expected = pytest.fail.Exception if required else pytest.skip.Exception
+    with pytest.raises(expected):
+        require_catalog_build_privileges()
+
+
 def test_catalog_build_pins_exact_linker_curation_and_materializes_stdlib_module_alias(
     tmp_path, monkeypatch
 ):
+    require_catalog_build_privileges()
     stdlib, config, linker, extension, outside = build_linker_fixture(tmp_path, monkeypatch)
     original = sysconfig.get_path
     monkeypatch.setattr(
