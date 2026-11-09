@@ -173,6 +173,7 @@ route; unsupported hosts cannot fall back to a normal host pytest process.
 
 ```console
 ordin-swarm-host evaluate --directory /home/operator/new-evaluation --output /home/operator/evaluation.json
+ordin-swarm-host evaluate --directory /home/operator/new-protected-evaluation --output /home/operator/protected-evaluation.json --with-tests --protected-agent
 ```
 
 This explicitly creates a new private installation, an owned exact loopback
@@ -182,6 +183,14 @@ and a managed report write. Negative cases include actor substitution, traversal
 caller URLs/labels, forged resources, write-only reads, unapproved writes and
 stale compare-and-swap. The aggregate records observed completions, false blocks,
 false allows and local latency, and exits unsuccessfully when a case fails.
+The optional enhanced fixture also stages/reloads the pinned test catalogue,
+reviews and executes the sealed test snapshot, then runs a fresh confined Python
+agent through the same host's private MCP route. That fixture verifies its
+original kernel outcome and independently checks the retained managed report;
+it never substitutes a normal subprocess when confinement is unavailable.
+Its dedicated protected fixture result does not promote the other TLS clients
+into confined processes. Incomplete runs report `complete: false`; unexecuted
+attacks are not counted as either stopped attacks or false allows.
 It contains no fixture contents or keys. These are finite software fixtures;
 they do not measure model effectiveness, universal taint tracking or arbitrary
 client-process containment.

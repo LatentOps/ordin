@@ -14,6 +14,7 @@ from pathlib import Path
 import sys
 from threading import Thread
 import time
+from typing import Any
 
 from ordin.schema import validate_named_schema
 
@@ -44,8 +45,8 @@ EXPECTED = {
 }
 
 
-def evaluation_profile(directory: Path, *, reference_port: int) -> dict:
-    return {
+def evaluation_profile(directory: Path, *, reference_port: int, with_tests=False) -> dict:
+    value: dict[str, Any] = {
         "schema_version": "ordin.swarm_tool_host_profile.v1",
         "profile_id": "workflow-evaluation",
         "tenant_id": "evaluation",
@@ -93,13 +94,21 @@ def evaluation_profile(directory: Path, *, reference_port: int) -> dict:
         },
     }
 
+    if with_tests:
+        value["files"].append({"name": "test_report.py", "label": "private_code"})
+        value["test_routes"] = [{"test_id": "report", "selectors": ["test_report.py::test_report"]}]
+        value["test_runtime"] = "state/test-runtime"
+        value["actors"][1]["test_ids"] = ["report"]
+    return value
 
-def _summary(cases, *, elapsed, profile_digest):
+
+def _summary(cases, *, elapsed, profile_digest, expected=None, protected=False, with_tests=False):
     benign = [case for case in cases if case["kind"] == "benign"]
     attacks = [case for case in cases if case["kind"] == "attack"]
+    expected = EXPECTED if expected is None else expected
     complete = (
-        len(cases) == len(EXPECTED)
-        and {case["case_id"]: case["kind"] for case in cases} == EXPECTED
+        len(cases) == len(expected)
+        and {case["case_id"]: case["kind"] for case in cases} == expected
     )
     value = {
         "schema_version": VERSION,
@@ -109,6 +118,16 @@ def _summary(cases, *, elapsed, profile_digest):
         "hosted_models_used": False,
         "client_process_confinement": "not_established",
         "complete_taint_tracking": False,
+        "protected_fixture": "kernel_enforced"
+        if protected
+        and any(case["case_id"] == "protected_ipc_agent" and case["passed"] for case in cases)
+        else "failed_or_unavailable"
+        if protected
+        else "not_requested",
+        "fixed_tests_exercised": with_tests
+        and any(
+            case["case_id"] == "sealed_fixed_test_process" and case["passed"] for case in cases
+        ),
         "benign_total": len(benign),
         "benign_completed": sum(case["passed"] for case in benign),
         "false_blocks": sum(not case["passed"] for case in benign),
@@ -126,16 +145,34 @@ def _summary(cases, *, elapsed, profile_digest):
     return value
 
 
-def run_evaluation(directory: Path, *, openssl=None) -> dict:
+def run_evaluation(directory: Path, *, openssl=None, with_tests=False, protected=False) -> dict:
     """Create a NEW private installation and run actual finite offline effects."""
     if (
         sys.platform != "linux"
+        or type(with_tests) is not bool
+        or type(protected) is not bool
         or not directory.is_absolute()
         or directory.exists()
         or directory.is_symlink()
     ):
         raise ValueError("evaluation requires a new explicit absolute private installation")
-    cases, started = [], time.perf_counter()
+    cases: list[dict] = []
+    started = time.perf_counter()
+    expected = dict(EXPECTED)
+    if with_tests:
+        expected["sealed_fixed_test_process"] = "benign"
+    if protected:
+        expected["protected_ipc_agent"] = "benign"
+
+    def summary():
+        return _summary(
+            cases,
+            elapsed=(time.perf_counter() - started) * 1000,
+            profile_digest=profile.digest,
+            expected=expected,
+            protected=protected,
+            with_tests=with_tests,
+        )
 
     def record(case_id, kind, passed, start):
         cases.append(
@@ -168,12 +205,22 @@ def run_evaluation(directory: Path, *, openssl=None) -> dict:
         stack.callback(public_thread.join, 5)
         stack.callback(public.server_close)
         stack.callback(public.shutdown)
-        profile_data = evaluation_profile(directory, reference_port=public.server_port)
+        profile_data = evaluation_profile(
+            directory, reference_port=public.server_port, with_tests=with_tests
+        )
         seed = directory.parent / (directory.name + "-fixture-input.txt")
         from .host_pki import _new_file
 
         _new_file(seed, SOURCE.encode("utf-8"))
-        initialize(directory, profile_data, inputs=["source.txt=" + str(seed)], openssl=openssl)
+        inputs = ["source.txt=" + str(seed)]
+        if with_tests:
+            test_seed = directory.parent / (directory.name + "-fixture-test.py")
+            _new_file(
+                test_seed,
+                b"from pathlib import Path\ndef test_report():\n    assert 'Managed report: Private fixture source' in Path(__file__).with_name('report.txt').read_text()\n",
+            )
+            inputs.append("test_report.py=" + str(test_seed))
+        initialize(directory, profile_data, inputs=inputs, openssl=openssl, with_tests=with_tests)
         profile = load_host_profile(directory)
         operator = object()
         host = ManagedToolHost(profile, operator=operator, policy_epoch=0, initialize_scope=True)
@@ -233,9 +280,7 @@ def run_evaluation(directory: Path, *, openssl=None) -> dict:
         )
         record("authorized_private_read", "benign", good_read, start)
         if not good_read:
-            return _summary(
-                cases, elapsed=(time.perf_counter() - started) * 1000, profile_digest=profile.digest
-            )
+            return summary()
         start = time.perf_counter()
         delivered = call(
             reader, "handoff", {"recipient": "writer", "resource_ref": read["data"]["resource_ref"]}
@@ -292,9 +337,73 @@ def run_evaluation(directory: Path, *, openssl=None) -> dict:
             start,
         )
         if not report_file.exists():
-            return _summary(
-                cases, elapsed=(time.perf_counter() - started) * 1000, profile_digest=profile.digest
+            return summary()
+        if with_tests:
+            start = time.perf_counter()
+            tested = approve(call(writer, "run_tests", {"test_id": "report"}))
+            data = tested.get("data", {})
+            record(
+                "sealed_fixed_test_process",
+                "benign",
+                tested["status"] == "completed"
+                and tested["physical_enforcement"]
+                and data.get("exit_code") == 0
+                and data.get("test_correctness_verified") is False
+                and data.get("output_trust") == "untrusted_test_diagnostic",
+                start,
             )
+        if protected:
+            from .protected_launch import ProtectedAgentLauncher
+            from ordin.swarm.managed_process import ProtectedProcessLimits
+
+            start = time.perf_counter()
+            program = directory / "state" / "fixture-agent.py"
+            _new_file(
+                program,
+                (
+                    "import json, os, ctypes, errno\n"
+                    "assert not os.environ\n"
+                    "for path in ('/etc/passwd', '/proc/self/environ', "
+                    + repr(str(directory / "pki" / "operator" / "key.pem"))
+                    + "):\n"
+                    "    try: open(path, 'rb')\n"
+                    "    except OSError: pass\n"
+                    "    else: raise AssertionError('host path was exposed')\n"
+                    "libc=ctypes.CDLL(None,use_errno=True)\n"
+                    "assert libc.syscall(41,2,1,0)==-1 and ctypes.get_errno()==errno.EPERM\n"
+                    "try: os.fork()\nexcept PermissionError: pass\nelse: os._exit(99)\n"
+                    "read=json.loads(mcp.call_tool('read_file', {'name':'source.txt'})['content'][0]['text'])\n"
+                    "assert read['status']=='completed' and read['data']['content']=="
+                    + repr(SOURCE)
+                    + "\n"
+                    "denied=json.loads(mcp.call_tool('read_file', {'name':'../profile.json'})['content'][0]['text'])\n"
+                    "assert denied['status']=='denied'\n"
+                ).encode("utf-8"),
+            )
+            installation = directory / "state" / "fixture-launch"
+            installation.mkdir(mode=0o700)
+            launcher = ProtectedAgentLauncher(
+                host,
+                "reader",
+                program,
+                hashlib.sha256(program.read_bytes()).hexdigest(),
+                installation,
+                operator=operator,
+                limits=ProtectedProcessLimits(timeout_ms=30000),
+            )
+            try:
+                outcome = launcher.run(launcher.prepare(operator=operator), operator=operator)
+                record(
+                    "protected_ipc_agent",
+                    "benign",
+                    outcome.status == "exited"
+                    and outcome.exit_code == 0
+                    and outcome.isolation_digest is not None
+                    and launcher.verify_outcome(outcome),
+                    start,
+                )
+            finally:
+                launcher.close(operator=operator)
         expected_report = hashlib.sha256(report_file.read_bytes()).hexdigest()
         attacks = (
             ("write_only_has_no_read_hash_oracle", writer, "read_file", {"name": "report.txt"}),
@@ -373,9 +482,7 @@ def run_evaluation(directory: Path, *, openssl=None) -> dict:
             not thread.is_alive() and host.shutdown_requested.is_set(),
             start,
         )
-        return _summary(
-            cases, elapsed=(time.perf_counter() - started) * 1000, profile_digest=profile.digest
-        )
+        return summary()
 
 
 __all__ = ["evaluation_profile", "run_evaluation"]

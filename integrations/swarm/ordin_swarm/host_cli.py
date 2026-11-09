@@ -174,6 +174,16 @@ def doctor(directory: Path, *, live=False, actor="operator"):
     from .host_pki import PrivateHostPKI
 
     PrivateHostPKI(profile).require_unchanged()
+    from ordin.swarm.budget_store import SQLiteBudgetStore
+    from ordin.swarm.coordinator_store import SQLiteCoordinatorStore
+
+    check_private_directory(directory / "state")
+    SQLiteBudgetStore(directory / "state" / "budget.sqlite", create=False)
+    SQLiteCoordinatorStore(directory / "state" / "coordinator.sqlite", create=False)
+    if profile.test_routes:
+        from .host_authority import host_test_routes
+
+        host_test_routes(profile, operator=object())
     result = {
         "status": "configuration_valid",
         "profile_digest": profile.digest,
@@ -281,6 +291,8 @@ def main(argv=None):
     evaluation.add_argument("--directory", type=_absolute, required=True)
     evaluation.add_argument("--output", type=_absolute, required=True)
     evaluation.add_argument("--openssl", type=_absolute)
+    evaluation.add_argument("--with-tests", action="store_true")
+    evaluation.add_argument("--protected-agent", action="store_true")
     operator = commands.add_parser("operator")
     operator.add_argument("--directory", type=_absolute, required=True)
     actions = operator.add_subparsers(dest="action", required=True)
@@ -318,7 +330,12 @@ def main(argv=None):
         elif args.operation == "evaluate":
             from .host_evaluation import run_evaluation
 
-            evaluated = run_evaluation(args.directory, openssl=args.openssl)
+            evaluated = run_evaluation(
+                args.directory,
+                openssl=args.openssl,
+                with_tests=args.with_tests,
+                protected=args.protected_agent,
+            )
             result = _private_output(args.output, evaluated)
             result["passed"] = evaluated["passed"]
         elif args.operation == "connect":

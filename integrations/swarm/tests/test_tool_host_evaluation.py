@@ -28,12 +28,17 @@ def test_evaluation_failures_are_counted_without_claiming_broader_security():
     assert report["false_blocks"] == 1 and report["false_allows"] == 1
     assert report["hosted_models_used"] is False
     assert report["client_process_confinement"] == "not_established"
+    assert report["complete"] is False and report["fixed_tests_exercised"] is False
+    unavailable = _summary(cases[:1], elapsed=1.0, profile_digest="a" * 64)
+    assert unavailable["attack_total"] == unavailable["false_allows"] == 0
+    assert unavailable["passed"] is False
 
 
 @pytest.mark.skipif(
     sys.platform != "linux", reason="actual owned HTTP/write and TLS host boundary required"
 )
-def test_actual_offline_two_agent_workflow_and_attack_suite(tmp_path, monkeypatch):
+@pytest.mark.parametrize("enhanced", [False, True])
+def test_actual_offline_two_agent_workflow_and_attack_suite(tmp_path, monkeypatch, enhanced):
     from test_tool_host_deployment import _CONNECT, _CREATE_CONNECTION
     import socket
 
@@ -46,7 +51,9 @@ def test_actual_offline_two_agent_workflow_and_attack_suite(tmp_path, monkeypatc
 
     monkeypatch.setattr(socket.socket, "connect", loopback)
     monkeypatch.setattr(socket, "create_connection", _CREATE_CONNECTION)
-    result = run_evaluation(tmp_path / "evaluation")
+    result = run_evaluation(tmp_path / "evaluation", with_tests=enhanced, protected=enhanced)
     assert result["passed"] is True, result
     assert result["benign_total"] >= 5 and result["attack_total"] >= 8
     assert result["false_blocks"] == result["false_allows"] == 0
+    assert result["fixed_tests_exercised"] is enhanced
+    assert result["protected_fixture"] == ("kernel_enforced" if enhanced else "not_requested")

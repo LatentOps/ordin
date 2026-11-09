@@ -22,6 +22,8 @@
     "cases",
     "passed",
     "complete",
+    "protected_fixture",
+    "fixed_tests_exercised",
     "execution_authority"
   ],
   "properties": {
@@ -83,6 +85,8 @@
       "maximum": 3600000
     },
     "complete": {"type": "boolean"},
+    "protected_fixture": {"enum": ["not_requested", "kernel_enforced", "failed_or_unavailable"]},
+    "fixed_tests_exercised": {"type": "boolean"},
     "passed": {
       "type": "boolean"
     },
