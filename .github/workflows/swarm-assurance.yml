@@ -11,6 +11,45 @@ permissions:
   contents: read
 
 jobs:
+  protected-runtime:
+    name: Protected execution Python ${{ matrix.python }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.13"]
+    env:
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+      ORDIN_REQUIRED_PROTECTED_PROCESS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Require installed-wheel kernel positives under controlled root privileges
+        shell: bash
+        run: |
+          identity="$RUNNER_TEMP/protected-runtime-identity-${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}.json"
+          python -I -S -B scripts/run_protected_runtime_ci.py --capture-selected > "$identity"
+          sudo /usr/bin/env -i PATH=/usr/bin:/bin HOME=/root \
+            /usr/bin/python3 -I -S -B "$GITHUB_WORKSPACE/scripts/run_protected_runtime_ci.py" \
+            --source "$GITHUB_WORKSPACE" --identity "$identity" \
+            --expected-minor "${{ matrix.python }}" \
+            --revision "${{ github.sha }}" \
+            --private-root "/root/ordin-protected-${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}" \
+            --export "$RUNNER_TEMP/protected-runtime-export-${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}" \
+            --runner-uid "$(id -u)" --runner-gid "$(id -g)"
+      - name: Retain required positive evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: protected-runtime-python-${{ matrix.python }}-${{ github.sha }}-attempt-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/protected-runtime-export-${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}/*
+          if-no-files-found: error
+
   installed-release-evidence:
     name: Installed swarm release evidence (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

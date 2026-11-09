@@ -484,6 +484,19 @@ def test_catalog_build_pins_exact_linker_curation_and_materializes_stdlib_module
     operator = object()
     catalog = build_python_runtime_catalog(image, operator=operator)
     assert load_python_runtime_catalog(image, operator=operator) == catalog
+    if sys.version_info < (3, 11):
+        original_typing = Path(
+            str(
+                importlib.metadata.distribution("typing-extensions").locate_file(
+                    "typing_extensions.py"
+                )
+            )
+        )
+        assert (image / "site/typing_extensions.py").read_bytes() == original_typing.read_bytes()
+        records, _ = _capture(image, 4096, 192 * 1048576, ignored=frozenset())
+        assert _tree_digest(records) == catalog.digest
+        pin = json.loads((image.parent / (image.name + ".pinned.json")).read_bytes())
+        assert pin["digest"] == catalog.digest
     assert not (image / "stdlib" / linker.relative_to(stdlib)).exists()
     assert (image / "stdlib/lib-dynload/selected_fixture.so").read_bytes() == extension.read_bytes()
     module = image / "stdlib/_sysconfigdata_required.py"

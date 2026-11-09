@@ -684,7 +684,11 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
         ("pygments", "pygments"),
     )
     if sys.version_info < (3, 11):
-        packages += (("exceptiongroup", "exceptiongroup"), ("tomli", "tomli"))
+        packages += (
+            ("exceptiongroup", "exceptiongroup"),
+            ("tomli", "tomli"),
+            ("typing_extensions", "typing-extensions"),
+        )
     for module, distribution in packages:
         installed = (
             pytest_distribution

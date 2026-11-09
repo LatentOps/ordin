@@ -203,6 +203,15 @@ def install_filter(libc):
     code = [(0x20, 0, 0, 4), (0x15, 1, 0, 0xC000003E), (0x06, 0, 0, 0x80000000), (0x20, 0, 0, 0)]
     for number in allowed:
         code.extend(((0x15, 0, 1, number), (0x06, 0, 0, allow)))
+    # CPython 3.10 sleep uses glibc's empty pselect6 wait. Check both words of
+    # every constrained argument; timeout memory remains kernel validated and
+    # the original parent wall/CPU bounds still stop an indefinite empty wait.
+    empty_wait: list[tuple[int, int, int, int]] = []
+    for argument in (0, 1, 2, 3, 5):
+        for offset in (16 + argument * 8, 20 + argument * 8):
+            empty_wait.extend(((0x20, 0, 0, offset), (0x15, 1, 0, 0), (0x06, 0, 0, refuse)))
+    empty_wait.append((0x06, 0, 0, allow))
+    code.extend(((0x15, 0, len(empty_wait), 270), *empty_wait))
     # Permit descriptor duplication/readback, never F_SETOWN/F_SETSIG/O_ASYNC:
     # those commands could otherwise signal an unrelated same-UID process.
     safe_fcntl = [(0x20, 0, 0, 24)]
@@ -286,6 +295,12 @@ def isolate(packet):
     if (uid, gid) != (65534, 65534):
         raise ValueError("closed non-root process identity required")
     os.environ.clear()
+    if packet["mode"] == "pytest":
+        # The original interpreter starts with -I -S and no project paths.
+        # Resolve this one trusted stdlib extension's libz dependency before
+        # chroot; pytest and all project code still load only after the ACK.
+        import zlib  # noqa: F401
+
     libc = ctypes.CDLL(None, use_errno=True)
     libc.syscall.restype = ctypes.c_long
     libc.prctl.restype = ctypes.c_int

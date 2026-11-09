@@ -47,7 +47,7 @@ def test_new_owned_python_process_has_real_kernel_boundaries_and_no_host_environ
 ):
     monkeypatch.setenv("ORDIN_HOST_SECRET_CANARY", "must-not-enter-the-child")
     program = """
-import os, ctypes, errno
+import os, ctypes, errno, time
 assert 'ORDIN_HOST_SECRET_CANARY' not in os.environ
 for path in ('/etc/passwd', '/proc/self/environ', '/forbidden'):
     try:
@@ -58,6 +58,19 @@ for path in ('/etc/passwd', '/proc/self/environ', '/forbidden'):
         raise AssertionError('host path became readable')
 libc=ctypes.CDLL(None,use_errno=True)
 assert libc.syscall(41,2,1,0)==-1 and ctypes.get_errno()==errno.EPERM
+time.sleep(0.001)
+class Timespec(ctypes.Structure):
+    _fields_=[('seconds',ctypes.c_longlong),('nanoseconds',ctypes.c_longlong)]
+timeout=Timespec(0,1000000)
+def full_syscall(number, arguments):
+    return libc.syscall(ctypes.c_long(number),*(ctypes.c_ulonglong(value) for value in arguments))
+empty=[0,0,0,0,ctypes.addressof(timeout),0]
+assert full_syscall(270,empty)==0
+for index in (0,1,2,3,5):
+    for value in (1,1<<32):
+        changed=empty.copy()
+        changed[index]=value
+        assert full_syscall(270,changed)==-1 and ctypes.get_errno()==errno.EPERM
 try:
     os.fork()
 except PermissionError:

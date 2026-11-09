@@ -40,3 +40,22 @@ Unknown capability states preserve non-success and incomplete coverage. Resource
 budgets produce inconclusive results. Boundary verification is independent of
 semantic approval: a block is rejected and an ask still needs human approval,
 even if its modeled capabilities fit a maximum boundary.
+
+## Fixed tool deployment requirements
+
+An operator may add at most 16 `ToolRuntimeRequirement` entries through
+`RuntimeRequirementProfile.tool_requirements`. Each entry selects an exact
+runtime, optional server, tool, operation and `test_id`; the action arguments
+must contain only that literal `test_id`. Selectors support no wildcards or
+expressions. A matching entry adds minimum filesystem and exact client
+executable requirements, with child spawning disabled for the fixed test route.
+It preserves the original semantic decision and effects and grants no authority.
+
+For `ordin-owned` / `run_tests` / `call`, the protected operator catalogue binds
+the selected project's read prefix, immutable Python runtime and interpreter.
+The host must independently check that the authenticated actor may select that
+test ID before preparing a job. Capability maxima, original approval/job leases,
+snapshot custody and actual confinement checks still apply. A required core
+warning or an unresolved requirement cannot be fulfilled by these declarations.
+An empty `tool_requirements` tuple is omitted from serialized profiles, retaining
+the previous profile bytes and digests.
