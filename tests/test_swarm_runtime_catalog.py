@@ -12,6 +12,7 @@ import pytest
 from ordin.swarm.confined_tests import (
     PythonRuntimeCatalog,
     _capture,
+    _runtime_source,
     _tree_digest,
     build_python_runtime_catalog,
     load_python_runtime_catalog,
@@ -185,3 +186,124 @@ def test_non_linux_catalog_load_and_build_refuse_without_writes(tmp_path):
         with pytest.raises(ValueError, match="Linux"):
             operation(root, operator=object())
     assert list(root.iterdir()) == [] and not (tmp_path / "runtime.pinned.json").exists()
+
+
+def make_alias(alias, target, *, directory=False):
+    try:
+        alias.symlink_to(target, target_is_directory=directory)
+    except OSError as error:
+        if os.name == "nt" and getattr(error, "winerror", None) == 1314:
+            pytest.skip("Windows account lacks file-symlink privilege")
+        raise
+
+
+def source_fixture(tmp_path):
+    root = tmp_path / "trusted-stdlib"
+    root.mkdir(mode=0o755)
+    (root / "nested").mkdir(mode=0o755)
+    target = root / "nested" / "actual.py"
+    target.write_bytes(b"VALUE = 'trusted stdlib alias'\n")
+    target.chmod(0o644)
+    alias = root / "required_module_name.py"
+    make_alias(alias, Path("nested") / "actual.py")
+    return root, target, alias
+
+
+def test_contained_stdlib_source_alias_materializes_regular_bytes_under_module_name(tmp_path):
+    root, target, alias = source_fixture(tmp_path)
+    data = _runtime_source(alias, root, 1024)
+    assert data == target.read_bytes() and alias.is_symlink()
+    image = tmp_path / "private-image"
+    image.mkdir()
+    materialized = image / alias.name
+    materialized.write_bytes(data)
+    records, contents = _capture(image, 8, 1024, ignored=frozenset())
+    assert contents == {alias.name: data}
+    assert materialized.is_file() and not materialized.is_symlink()
+    assert all(kind in {"file", "directory"} for _, kind, _, _ in records)
+    # The private image/project capture path still categorically refuses links.
+    make_alias(image / "forbidden_alias.py", alias)
+    with pytest.raises(ValueError, match="regular"):
+        _capture(image, 8, 1024, ignored=frozenset())
+
+
+def test_stdlib_source_alias_cannot_escape_or_use_a_parent_directory_alias(tmp_path, monkeypatch):
+    root, target, alias = source_fixture(tmp_path)
+    external = tmp_path / "outside.py"
+    external.write_bytes(b"not part of trusted stdlib")
+    alias.unlink()
+    make_alias(alias, external)
+
+    def no_read(*args):
+        pytest.fail("external alias target bytes were read")
+
+    with monkeypatch.context() as selected:
+        selected.setattr(os, "read", no_read)
+        with pytest.raises(ValueError, match="escapes"):
+            _runtime_source(alias, root, 1024)
+    parent = root / "directory_alias"
+    make_alias(parent, root / "nested", directory=True)
+    with pytest.raises((ValueError, OSError)):
+        _runtime_source(parent / target.name, root, 1024)
+
+
+@pytest.mark.parametrize("mutation", ["alias", "target", "target-before-open"])
+def test_stdlib_source_alias_or_target_race_refuses_original_capture(
+    tmp_path, monkeypatch, mutation
+):
+    root, target, alias = source_fixture(tmp_path)
+    second = root / "second.py"
+    second.write_bytes(b"VALUE = 'changed'\n")
+    second.chmod(0o644)
+    read, opened = os.read, os.open
+    mutated = []
+
+    def mutate():
+        if mutated:
+            return
+        mutated.append(True)
+        if mutation == "alias":
+            alias.unlink()
+            alias.symlink_to(second)
+        else:
+            target.write_bytes(b"VALUE = 'changed during capture'\n")
+
+    def racing_read(descriptor, maximum):
+        part = read(descriptor, maximum)
+        mutate()
+        return part
+
+    def racing_open(path, flags, *args, **kwargs):
+        if str(path) in {target.name, str(target)}:
+            mutate()
+        return opened(path, flags, *args, **kwargs)
+
+    if mutation == "target-before-open":
+        monkeypatch.setattr(os, "open", racing_open)
+    else:
+        monkeypatch.setattr(os, "read", racing_read)
+    with pytest.raises(ValueError, match="changed") as failure:
+        _runtime_source(alias, root, 1024)
+    assert mutated == [True], str(failure.value)
+
+
+def test_stdlib_source_alias_retains_byte_and_alias_chain_bounds(tmp_path):
+    root, target, alias = source_fixture(tmp_path)
+    with pytest.raises(ValueError, match="byte"):
+        _runtime_source(alias, root, 1)
+    alias.unlink()
+    make_alias(alias, alias.name)
+    with pytest.raises(ValueError, match="chain"):
+        _runtime_source(alias, root, 1024)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Unix trusted-source ownership/mode rules")
+@pytest.mark.parametrize("change", ["file-mode", "parent-mode", "root-mode"])
+def test_stdlib_source_alias_rejects_writable_source_objects(tmp_path, change):
+    root, target, alias = source_fixture(tmp_path)
+    selected = (
+        target if change == "file-mode" else target.parent if change == "parent-mode" else root
+    )
+    selected.chmod(0o666 if selected.is_file() else 0o777)
+    with pytest.raises(ValueError, match="ownership/mode"):
+        _runtime_source(alias, root, 1024)

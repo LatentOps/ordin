@@ -226,6 +226,150 @@ def _catalog_settings(catalog: PythonRuntimeCatalog) -> dict:
     }
 
 
+def _runtime_source(source: Path, trusted_root: Path, maximum: int) -> bytes:
+    """Read trusted stdlib file aliases; never preserve links in the private image.
+
+    Only leaf aliases wholly within the original canonical stdlib root are
+    admitted. Directory aliases, external hops, mutable/unowned source objects,
+    replacement during capture, and excessive alias/depth/byte counts refuse.
+    Linux opens are anchored to retained no-follow directory descriptors.
+    """
+    if (
+        not source.is_absolute()
+        or not trusted_root.is_absolute()
+        or trusted_root.resolve(strict=True) != trusted_root
+        or type(maximum) is not int
+        or not 0 <= maximum <= MAX_RUNTIME_BYTES
+    ):
+        raise ValueError("canonical bounded trusted runtime source required")
+
+    def identity(info):
+        return (
+            info.st_dev,
+            info.st_ino,
+            info.st_mode,
+            info.st_uid,
+            info.st_gid,
+            info.st_nlink,
+            info.st_size,
+            info.st_mtime_ns,
+            info.st_ctime_ns,
+        )
+
+    def trusted(info, *, directory=False, link=False):
+        expected = stat.S_ISDIR if directory else stat.S_ISLNK if link else stat.S_ISREG
+        if (
+            not expected(info.st_mode)
+            or (not directory and info.st_nlink != 1)
+            or (
+                os.name == "posix"
+                and (
+                    info.st_uid not in {0, os.geteuid()}
+                    or (not link and stat.S_IMODE(info.st_mode) & 0o022)
+                )
+            )
+        ):
+            raise ValueError("trusted immutable runtime source ownership/mode required")
+
+    anchored = os.name == "posix"
+    directories: list[tuple[int | None, Path, os.stat_result]] = []
+    leaves: list[tuple[int | None, Path, os.stat_result, str | None]] = []
+    descriptors = []
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    root_info = trusted_root.lstat()
+    trusted(root_info, directory=True)
+    try:
+        root_fd = os.open(trusted_root, flags | os.O_DIRECTORY) if anchored else None
+        if root_fd is not None:
+            descriptors.append(root_fd)
+            if identity(os.fstat(root_fd)) != identity(root_info):
+                raise ValueError("trusted runtime root changed before capture")
+        directories.append((root_fd, trusted_root, root_info))
+        candidate = source
+        for _ in range(9):
+            if ".." in candidate.parts or not candidate.is_relative_to(trusted_root):
+                raise ValueError("runtime source alias escapes trusted root")
+            relative = candidate.relative_to(trusted_root)
+            if not 1 <= len(relative.parts) <= 16:
+                raise ValueError("runtime source nesting exceeds bound")
+            parent_fd, parent_path = root_fd, trusted_root
+            for part in relative.parts[:-1]:
+                parent_path /= part
+                if anchored:
+                    parent_fd = os.open(part, flags | os.O_DIRECTORY, dir_fd=parent_fd)
+                    descriptors.append(parent_fd)
+                    info = os.fstat(parent_fd)
+                else:
+                    info = parent_path.lstat()
+                trusted(info, directory=True)
+                directories.append((parent_fd, parent_path, info))
+            name = relative.name
+            before = (
+                os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+                if anchored
+                else candidate.lstat()
+            )
+            if stat.S_ISLNK(before.st_mode):
+                trusted(before, link=True)
+                target = os.readlink(name, dir_fd=parent_fd) if anchored else os.readlink(candidate)
+                if len(os.fsencode(target)) > 4096:
+                    raise ValueError("runtime source alias exceeds bound")
+                leaves.append((parent_fd, candidate, before, target))
+                resolved = Path(target) if Path(target).is_absolute() else candidate.parent / target
+                candidate = Path(os.path.normpath(resolved))
+                continue
+            trusted(before)
+            if before.st_size > maximum:
+                raise ValueError("runtime source byte count exceeds bound")
+            read_flags = flags | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
+            descriptor = (
+                os.open(name, read_flags, dir_fd=parent_fd)
+                if anchored
+                else os.open(candidate, read_flags)
+            )
+            descriptors.append(descriptor)
+            if identity(os.fstat(descriptor)) != identity(before):
+                raise ValueError("runtime source changed before capture")
+            chunks = bytearray()
+            while len(chunks) <= maximum:
+                data = os.read(descriptor, min(65536, maximum + 1 - len(chunks)))
+                if not data:
+                    break
+                chunks.extend(data)
+            leaves.append((parent_fd, candidate, before, None))
+            if len(chunks) > maximum or identity(os.fstat(descriptor)) != identity(before):
+                raise ValueError("runtime source changed or exceeded byte bound")
+            for selected_fd, path, info, link_target in leaves:
+                current = (
+                    os.stat(path.name, dir_fd=selected_fd, follow_symlinks=False)
+                    if anchored
+                    else path.lstat()
+                )
+                if identity(current) != identity(info) or (
+                    link_target is not None
+                    and link_target
+                    != (
+                        os.readlink(path.name, dir_fd=selected_fd)
+                        if anchored
+                        else os.readlink(path)
+                    )
+                ):
+                    raise ValueError("runtime source alias changed during capture")
+            for selected_fd, path, info in directories:
+                current = os.fstat(selected_fd) if selected_fd is not None else path.lstat()
+                if identity(current) != identity(info):
+                    raise ValueError("runtime source directory changed during capture")
+            if trusted_root.resolve(strict=True) != trusted_root or identity(
+                trusted_root.lstat()
+            ) != identity(root_info):
+                raise ValueError("trusted runtime root changed during capture")
+            return bytes(chunks)
+        raise ValueError("runtime source alias chain exceeds bound")
+    finally:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+
+
 def _verify_catalog(catalog: PythonRuntimeCatalog) -> None:
     interpreter = Path(getattr(sys, "_base_executable", sys.executable)).resolve()
     if catalog.interpreter != interpreter or _sha(interpreter) != catalog.interpreter_digest:
@@ -360,11 +504,15 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
     selected: dict[str, bytes] = {}
     total = 0
 
-    def add(relative: str, source: Path) -> None:
+    def add(relative: str, source: Path, *, standard_library: bool = False) -> None:
         nonlocal total
         if len(selected) >= MAX_RUNTIME_FILES:
             raise ValueError("runtime catalogue item count exceeds bound")
-        data = _source(source, MAX_RUNTIME_BYTES - total)
+        data = (
+            _runtime_source(source, stdlib, MAX_RUNTIME_BYTES - total)
+            if standard_library
+            else _source(source, MAX_RUNTIME_BYTES - total)
+        )
         total += len(data)
         selected[relative] = data
 
@@ -383,7 +531,9 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
         for name in sorted(files):
             source = Path(directory) / name
             if source.suffix in {".py", ".so"} and name not in FORBIDDEN_RUNTIME:
-                add("stdlib/" + source.relative_to(stdlib).as_posix(), source)
+                add(
+                    "stdlib/" + source.relative_to(stdlib).as_posix(), source, standard_library=True
+                )
     packages: tuple[tuple[str, str], ...] = (
         ("pytest", "pytest"),
         ("_pytest", "pytest"),
