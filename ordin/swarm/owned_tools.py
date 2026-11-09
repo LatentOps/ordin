@@ -1368,15 +1368,19 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             except (OSError, ValueError, KeyError, TypeError, UnicodeError):
                 return self._result(plan, "unknown", "broker.owned_test_uncertain", job=job)
 
-    def request_stop(self, job, *, operator):
+    def request_stop(self, job: KernelJob, *, operator: object) -> str:
         if operator is not self._operator:
             raise ValueError("original owned operator required")
         with self._jobs_lock:
             state = self._job(job)
             lower = self._test_jobs.get(job)
-            if lower is None or state.state in {"finished", "canceled"}:
-                return super().request_stop(job, operator=operator)
-            state.cancel.set()
+            if lower is not None:
+                # An upper result is not lower process termination proof.
+                # Retry its original runner even for retained unknown/terminal
+                # history, preserving the runner's truthful stop status.
+                state.cancel.set()
+        if lower is None:
+            return self._stop_retained_owned_job(job, operator=operator)
         if self._test_runner is None:
             return "unable_to_stop"
         status = self._test_runner.request_stop(lower, operator=operator)
@@ -1650,9 +1654,6 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
                 return "canceled"
             row.state = "finished"
             return "completed" if row.outcome.status in {"completed", "denied"} else "unknown"
-
-    def request_stop(self, job: KernelJob, *, operator: object) -> str:
-        return self._stop_retained_owned_job(job, operator=operator)
 
     def execute(self, plan, action, source, *, operator, job=None):
         if self._closing:

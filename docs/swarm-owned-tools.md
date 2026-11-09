@@ -164,3 +164,6 @@ bounded `output`, `output_truncated`, `snapshot_digest`,
 `output_trust="untrusted_test_diagnostic"` and
 `test_correctness_verified=false`. Exit zero does not prove test correctness.
 The final JSON byte bound applies even when escaping expands the diagnostic.
+Every retained test job continues to use its original lower runner for stop
+requests, including after the aggregate records an unknown or terminal result.
+A later successful cleanup retains that original unknown history and its holds.
