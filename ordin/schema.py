@@ -307,6 +307,24 @@ def _validation_key(value: Any) -> Any:
     return (type(value).__name__, value)
 
 
+def _json_equal(left: Any, right: Any) -> bool:
+    """Compare JSON values without Python's boolean/number coercion.
+
+    Walk containers lazily so bounded diagnostics do not allocate a second
+    representation of an arbitrarily large instance just to compare a value.
+    JSON numbers still compare by value, including integer/float equivalents.
+    """
+    if isinstance(left, bool) or isinstance(right, bool):
+        return isinstance(left, bool) and isinstance(right, bool) and left == right
+    if isinstance(left, dict) and isinstance(right, dict):
+        return len(left) == len(right) and all(
+            key in right and _json_equal(value, right[key]) for key, value in left.items()
+        )
+    if isinstance(left, list) and isinstance(right, list):
+        return len(left) == len(right) and all(_json_equal(a, b) for a, b in zip(left, right))
+    return left == right
+
+
 def _iter_bounded_schema_errors(
     instance: Any, schema: dict[str, Any], path: str, text: _SchemaErrorText
 ) -> Iterator[str]:
@@ -317,9 +335,9 @@ def _iter_bounded_schema_errors(
         if not any(isinstance(item, str) and _type_matches(instance, item) for item in expected):
             yield text.message(path, "expected type " + text.representation(expected_type))
             return
-    if "const" in schema and instance != schema["const"]:
+    if "const" in schema and not _json_equal(instance, schema["const"]):
         yield text.message(path, "expected constant " + text.representation(schema["const"]))
-    if "enum" in schema and instance not in schema["enum"]:
+    if "enum" in schema and not any(_json_equal(instance, value) for value in schema["enum"]):
         yield text.message(path, "value " + text.representation(instance) + " is not in enum")
     if isinstance(instance, str):
         minimum, maximum = schema.get("minLength"), schema.get("maxLength")
@@ -447,9 +465,9 @@ def validate_instance(
             errors.append(f"{path}: expected type {expected_type!r}")
             return errors
 
-    if "const" in schema and instance != schema["const"]:
+    if "const" in schema and not _json_equal(instance, schema["const"]):
         errors.append(f"{path}: expected constant {schema['const']!r}")
-    if "enum" in schema and instance not in schema["enum"]:
+    if "enum" in schema and not any(_json_equal(instance, value) for value in schema["enum"]):
         errors.append(f"{path}: value {instance!r} is not in enum")
 
     if isinstance(instance, str):
