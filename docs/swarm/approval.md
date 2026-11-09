@@ -59,6 +59,14 @@ verification can account for the specific commitment marker; the capability
 projection remains diagnostic. Method, scheme, destination, path, headers and
 body remain bound, and all other unknown requirements still reject execution.
 
+The deployed host can use a physically enforced broker-local ledger alongside
+coordinator accounting. The original broker outcome proves its measured kernel
+tool effect; the coordinator's accounting report keeps
+`physical_enforcement: false`. Coordinated physical-budget receipts are a
+separate unsupported mode: a coordinator policy requesting
+`require_physical_enforcement=True` rejects reservation before a broker effect.
+Local kernel evidence does not implement or waive that distributed requirement.
+
 ## Approve an exact proposal
 
 The workload proposes an action; the human resolves it over a distinct original

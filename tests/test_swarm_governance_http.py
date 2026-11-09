@@ -30,7 +30,12 @@ def test_coordinator_credentialed_https_issues_before_preview_and_returns_fixed_
             allow_private=True,
         )
         with configured(
-            tmp_path, decision="allow", owned_tools=True, http_routes=(route,), physical=True
+            tmp_path,
+            decision="allow",
+            owned_tools=True,
+            http_routes=(route,),
+            physical=True,
+            coordinated_physical=False,
         ) as data:
             governance, coordinator, scope, channel, lease, grant, _, _, _, native = data
             broker = native[0]
@@ -59,6 +64,7 @@ def test_coordinator_credentialed_https_issues_before_preview_and_returns_fixed_
                 scope, broker._broker_channel, reservation.reference
             )
             assert accounting.status == "host_completed", accounting.as_dict()
+            assert accounting.as_dict()["physical_enforcement"] is False
             actual = coordinator.broker_result(scope, broker._broker_channel, reservation.reference)
             assert (
                 actual.physical_enforcement
@@ -80,3 +86,42 @@ def test_coordinator_credentialed_https_issues_before_preview_and_returns_fixed_
                     scope, channel, lease, grant, wrong, idempotency_key="wrong-route"
                 )
             assert len(seen) == 1
+
+
+def test_coordinated_physical_budget_mode_refuses_before_broker_or_endpoint(tmp_path, monkeypatch):
+    require_kernel()
+    from ordin.swarm.owned_tools import OwnedHTTPRoute
+    from tests.test_swarm_owned_http import CERTS, endpoint, get_action
+
+    with endpoint(tls=True) as (url, seen, failures, _arm):
+        route = OwnedHTTPRoute(
+            "docs", url, ("127.0.0.1",), ca_file=CERTS / "ca.pem", allow_private=True
+        )
+        with configured(
+            tmp_path,
+            decision="allow",
+            owned_tools=True,
+            http_routes=(route,),
+            physical=True,
+            coordinated_physical=True,
+        ) as data:
+            _, coordinator, scope, channel, lease, grant, _, _, _, native = data
+            action = get_action(route)
+            evaluated = coordinator.evaluate(
+                scope, channel, lease, grant, action, idempotency_key="unsupported-preview"
+            )
+            monkeypatch.setattr(
+                native[0],
+                "prepare",
+                lambda *args, **kwargs: pytest.fail("coordinated receipt guard was bypassed"),
+            )
+            with pytest.raises(ValueError, match="physical_budget_receipt_unavailable"):
+                coordinator.reserve(
+                    scope,
+                    channel,
+                    lease,
+                    evaluated.reference,
+                    action,
+                    idempotency_key="unsupported-reserve",
+                )
+            assert not seen and not failures

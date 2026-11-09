@@ -28,6 +28,7 @@ def configured(
     owned_tools=False,
     http_routes=(),
     physical=False,
+    coordinated_physical=None,
 ):
     now = [100.0]
     store = SQLiteCoordinatorStore(tmp_path / "authority.db", create=True, clock=lambda: now[0])
@@ -58,6 +59,10 @@ def configured(
                 ),
             )
         )
+        if coordinated_physical is not None:
+            coordinated_budget = replace(
+                coordinated_budget, require_physical_enforcement=coordinated_physical
+            )
         scope = coordinator.register_scope(
             native,
             coordinated_budget,
