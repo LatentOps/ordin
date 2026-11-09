@@ -343,11 +343,31 @@ def test_export_bounds_and_fresh_destination_are_enforced(tmp_path, monkeypatch)
     [(0, False, 0), (7, False, 7), (7, True, 7), (0, True, 1)],
 )
 @pytest.mark.parametrize("preflight_mismatch", [False, True])
+@pytest.mark.parametrize(
+    "source_uid,runner_uid,runner_gid", [(501, 501, 20), (1001, 1001, 1000), (0, 1001, 0)]
+)
 def test_driver_uses_empty_probe_env_fresh_venv_and_preserves_collector_failures(
-    tmp_path, monkeypatch, collector_status, export_fails, expected, preflight_mismatch
+    tmp_path,
+    monkeypatch,
+    collector_status,
+    export_fails,
+    expected,
+    preflight_mismatch,
+    source_uid,
+    runner_uid,
+    runner_gid,
+    owner_refusal=False,
 ):
     original, selected = runtime_fixture(tmp_path)
-    source = tmp_path / "source"
+
+    class SourcePath(type(tmp_path)):
+        # Model only this argument's owner; pathlib/pytest retain the real host OS.
+        def stat(self, *args, **kwargs):
+            actual = super().stat(*args, **kwargs)
+            fields = {name: getattr(actual, name) for name in dir(actual) if name.startswith("st_")}
+            return SimpleNamespace(**{**fields, "st_uid": source_uid, "st_gid": runner_gid})
+
+    source = SourcePath(tmp_path / "source")
     source.mkdir()
     identity = tmp_path / "identity.json"
     identity.write_text(json.dumps(selected))
@@ -358,8 +378,8 @@ def test_driver_uses_empty_probe_env_fresh_venv_and_preserves_collector_failures
         private_root=private,
         revision="a" * 40,
         expected_minor="3.13",
-        runner_uid=1001,
-        runner_gid=1000,
+        runner_uid=runner_uid,
+        runner_gid=runner_gid,
         export=tmp_path / "export",
     )
     monkeypatch.setattr(driver, "verify_bootstrap", lambda: None)
@@ -368,7 +388,8 @@ def test_driver_uses_empty_probe_env_fresh_venv_and_preserves_collector_failures
 
     def read(path, **kwargs):
         if path == identity:
-            return path.read_bytes(), SimpleNamespace(st_uid=1001)
+            assert kwargs["owner"] == runner_uid
+            return path.read_bytes(), SimpleNamespace(st_uid=runner_uid, st_gid=runner_gid)
         return real_read(path, **kwargs)
 
     monkeypatch.setattr(driver, "read_regular", read)
@@ -405,7 +426,13 @@ def test_driver_uses_empty_probe_env_fresh_venv_and_preserves_collector_failures
         return []
 
     monkeypatch.setattr(driver, "export_evidence", export)
-    assert driver.drive(args) == (1 if preflight_mismatch else expected)
+    assert driver.drive(args) == (1 if preflight_mismatch or owner_refusal else expected)
+    if owner_refusal:
+        assert not commands and not final
+        assert json.loads((private / "driver-provenance.json").read_text())["failure_reason"] == (
+            "source checkout owner differs from explicit runner"
+        )
+        return
     probe = next(row for row in commands if "-c" in row[0])
     assert probe[1] == {} and probe[0][1:4] == ["-I", "-S", "-B"]
     if preflight_mismatch:
@@ -417,6 +444,21 @@ def test_driver_uses_empty_probe_env_fresh_venv_and_preserves_collector_failures
     assert "LD_LIBRARY_PATH" not in final[0][1]["env"]
     assert final[0][1]["env"]["SUDO_UID"] == str(source.stat().st_uid)
     assert final[0][0][-2:] == ["--workspace", str(private / "collector")]
+
+
+def test_foreign_source_owner_is_refused_before_git_probe_or_collector(tmp_path, monkeypatch):
+    test_driver_uses_empty_probe_env_fresh_venv_and_preserves_collector_failures(
+        tmp_path,
+        monkeypatch,
+        collector_status=0,
+        export_fails=False,
+        expected=0,
+        preflight_mismatch=False,
+        source_uid=502,
+        runner_uid=501,
+        runner_gid=20,
+        owner_refusal=True,
+    )
 
 
 def test_production_collector_contract_is_not_relaxed():
