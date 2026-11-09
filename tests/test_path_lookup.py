@@ -189,6 +189,126 @@ def test_missing_directory_fallback_remains_fresh_within_search(tmp_path, monkey
     lookup.verify()
 
 
+def test_missing_local_directory_avoids_per_executable_probes(tmp_path, monkeypatch):
+    missing, present = tmp_path / "missing", tmp_path / "present"
+    present.mkdir()
+    target = present / ("desired.exe" if os.name == "nt" else "desired")
+    program(target)
+    monkeypatch.setenv("PATH", str(missing) + os.pathsep + str(present))
+    monkeypatch.setenv("PATHEXT", ".EXE;.CMD;.COM")
+    probes = []
+    access = shutil._access_check
+
+    def checked(path, mode):
+        if os.path.dirname(path) == str(missing):
+            probes.append(path)
+        return access(path, mode)
+
+    monkeypatch.setattr(shutil, "_access_check", checked)
+    expected = shutil.which("desired")
+    assert probes, "stdlib control did not probe the missing directory"
+    probes.clear()
+    lookup = _Lookup()
+    assert lookup.which("desired") == expected
+    assert os.path.samefile(expected, target)
+    assert probes == []
+    lookup.verify()
+
+
+@pytest.mark.parametrize("with_executable", [False, True])
+def test_directory_appearing_during_resolution_refuses_result(
+    tmp_path, monkeypatch, with_executable
+):
+    missing, present = tmp_path / "missing", tmp_path / "present"
+    present.mkdir()
+    monkeypatch.setenv("PATH", str(missing) + os.pathsep + str(present))
+    resolver = shutil.which
+
+    def changed(command, *, path):
+        missing.mkdir()
+        if with_executable:
+            program(missing / (command + ".exe" if os.name == "nt" else command))
+        return resolver(command, path=path)
+
+    monkeypatch.setattr(shutil, "which", changed)
+    lookup = _Lookup()
+    with pytest.raises(CatalogChanged):
+        lookup.which("newtool")
+
+
+def test_unconfirmed_absence_after_resolution_refuses_result(tmp_path, monkeypatch):
+    import ordin._path_lookup as module
+
+    missing = str(tmp_path / "missing")
+    monkeypatch.setenv("PATH", missing)
+    stat, checks = os.stat, []
+
+    def changing_stat(path, *args, **kwargs):
+        if path == missing:
+            checks.append(path)
+            if len(checks) == 1:
+                raise FileNotFoundError("owned missing-directory fixture")
+            raise PermissionError("owned directory became unobservable")
+        return stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(module.os, "stat", changing_stat)
+    monkeypatch.setattr(shutil, "which", lambda command, *, path: None)
+    lookup = _Lookup()
+    with pytest.raises(CatalogChanged):
+        lookup.which("newtool")
+    assert len(checks) == 2
+
+
+def test_unreadable_directory_keeps_original_resolver_path(tmp_path, monkeypatch):
+    import ordin._path_lookup as module
+
+    unreadable = str(tmp_path / "unreadable")
+    monkeypatch.setenv("PATH", unreadable)
+    stat, calls = os.stat, []
+
+    def denied_stat(path, *args, **kwargs):
+        if path == unreadable:
+            raise PermissionError("owned unreadable-directory fixture")
+        return stat(path, *args, **kwargs)
+
+    def resolver(command, *, path):
+        calls.append((command, path))
+        return None
+
+    monkeypatch.setattr(module.os, "stat", denied_stat)
+    monkeypatch.setattr(shutil, "which", resolver)
+    lookup = _Lookup()
+    assert lookup.which("newtool") is None
+    assert calls == [("newtool", unreadable)]
+    lookup.verify()
+
+
+@pytest.mark.parametrize(
+    "directory", ["//server/share", "\\\\server\\share", "\\\\?\\C:\\owned", "/mnt/c/Windows"]
+)
+def test_remote_device_and_wsl_directory_absence_is_never_inspected(monkeypatch, directory):
+    import ordin._path_lookup as module
+
+    monkeypatch.setattr(module.sys, "platform", "linux")
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("PATH optimization inspected a remote/device/mounted directory")
+
+    monkeypatch.setattr(module.os, "stat", forbidden)
+    assert not module._missing(directory)
+
+
+def test_all_missing_directories_keep_stdlib_cwd_semantics(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    program(tmp_path / "local.exe")
+    monkeypatch.setenv("PATH", str(tmp_path / "missing"))
+    monkeypatch.setenv("PATHEXT", ".EXE;.CMD;.COM")
+    monkeypatch.delenv("NoDefaultCurrentDirectoryInExePath", raising=False)
+    lookup = _Lookup()
+    assert lookup.which("local") == shutil.which("local")
+    lookup.verify()
+
+
 def test_decorated_search_refuses_mutation_before_return(paths, monkeypatch):
     first, _ = paths
 
