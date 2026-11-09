@@ -87,6 +87,12 @@ class _Lookup:
         self.directories = (
             directories if 0 < len(directories) <= MAX_DIRECTORIES and all(directories) else ()
         )
+        # Match stdlib which's first-spelling duplicate elimination before
+        # filtering: a later alias must not replace an earlier excluded entry.
+        distinct: dict[str, str] = {}
+        for directory in self.directories:
+            distinct.setdefault(os.path.normcase(directory), directory)
+        self.directories = tuple(distinct.values())
         self.index: dict[str, frozenset[str] | None] = {}
         self.folded: dict[str, tuple[str, ...]] = {}
 

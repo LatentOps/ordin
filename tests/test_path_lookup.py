@@ -309,6 +309,107 @@ def test_all_missing_directories_keep_stdlib_cwd_semantics(tmp_path, monkeypatch
     lookup.verify()
 
 
+def test_normcase_duplicates_are_inspected_once_in_first_spelling_order(monkeypatch):
+    import ordin._path_lookup as module
+
+    first, alias, last = "Owned/First", "owned/first", "Owned/Last"
+    monkeypatch.setenv("PATH", os.pathsep.join((first, alias, first, last)))
+    monkeypatch.setattr(module.os.path, "normcase", str.casefold)
+    enumerated, inspected, resolved = [], [], []
+
+    def names(directory):
+        enumerated.append(directory)
+        return None
+
+    def missing(directory):
+        inspected.append(directory)
+        return False
+
+    def resolver(command, *, path):
+        resolved.append((command, path))
+        return None
+
+    monkeypatch.setattr(module, "_names", names)
+    monkeypatch.setattr(module, "_missing", missing)
+    monkeypatch.setattr(shutil, "which", resolver)
+    lookup = _Lookup()
+    assert lookup.which("newtool") is None
+    lookup.verify()
+    assert enumerated == inspected == [first, last]
+    assert resolved == [("newtool", os.pathsep.join((first, last)))]
+    assert lookup.directories == (first, last)
+
+
+def test_filtering_cannot_promote_a_later_normcase_alias_ignored_by_stdlib(monkeypatch):
+    """Model Windows case-sensitive directories with stdlib's normcase deduplication."""
+    import ordin._path_lookup as module
+
+    first, alias = "Owned/First", "owned/first"
+    monkeypatch.setenv("PATH", os.pathsep.join((first, alias)))
+    monkeypatch.setattr(module.os.path, "normcase", str.casefold)
+
+    def names(directory):
+        return frozenset({"newtool.exe"}) if directory == alias else frozenset()
+
+    def resolver(command, *, path=None):
+        seen = set()
+        for directory in (os.environ["PATH"] if path is None else path).split(os.pathsep):
+            key = os.path.normcase(directory)
+            if key in seen:
+                continue
+            seen.add(key)
+            if directory == alias:
+                return alias + "/newtool.exe"
+        return None
+
+    monkeypatch.setattr(module, "_names", names)
+    monkeypatch.setattr(shutil, "which", resolver)
+    expected = shutil.which("newtool")
+    lookup = _Lookup()
+    assert lookup.which("newtool") == expected is None
+    lookup.verify()
+
+
+def test_native_duplicate_spellings_match_stdlib_resolution(paths, monkeypatch):
+    first, second = paths
+    program(first / ("desired.exe" if os.name == "nt" else "desired"))
+    program(second / ("later.exe" if os.name == "nt" else "later"))
+    spellings = (str(first), str(first).swapcase(), str(first).replace("\\", "/"), str(second))
+    monkeypatch.setenv("PATH", os.pathsep.join((*spellings, str(first))))
+    for command in ("desired", "desired.exe", "later", "entirely-absent"):
+        lookup = _Lookup()
+        assert lookup.directories[0] == str(first)
+        assert lookup.which(command) == shutil.which(command)
+        lookup.verify()
+
+
+def test_normcase_deduplication_preserves_membership_and_raw_path_fences(paths, monkeypatch):
+    first, second = paths
+    monkeypatch.setenv("PATH", os.pathsep.join((str(first), str(first), str(second))))
+    lookup = _Lookup()
+    lookup.which("newtool")
+    program(first / ("newtool.exe" if os.name == "nt" else "newtool"))
+    with pytest.raises(CatalogChanged):
+        lookup.verify()
+    lookup = _Lookup()
+    lookup.which("newtool")
+    monkeypatch.setenv("PATH", os.pathsep.join((str(first), str(second))))
+    with pytest.raises(CatalogChanged):
+        lookup.verify()
+
+
+@pytest.mark.parametrize("setting", ["owned" + os.pathsep, os.pathsep.join(["owned"] * 129)])
+def test_raw_path_bounds_apply_before_deduplication(monkeypatch, setting):
+    monkeypatch.setenv("PATH", setting)
+    assert _Lookup().directories == ()
+
+
+def test_deduplication_does_not_normalize_paths_or_resolve_aliases(monkeypatch):
+    first, relative, last = "owned/first", "owned/other/../first", "owned/alias"
+    monkeypatch.setenv("PATH", os.pathsep.join((first, relative, last)))
+    assert _Lookup().directories == (first, relative, last)
+
+
 def test_decorated_search_refuses_mutation_before_return(paths, monkeypatch):
     first, _ = paths
 
