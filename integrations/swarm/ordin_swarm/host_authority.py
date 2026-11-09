@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
+from functools import wraps
 from dataclasses import dataclass, field
 import hashlib
 import json
@@ -10,7 +11,7 @@ import os
 import tempfile
 from pathlib import Path
 import time
-from typing import Mapping
+from typing import Mapping, Any, Callable, Concatenate, ParamSpec, TypeVar
 from threading import RLock
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -74,6 +75,21 @@ class _HostCleanupIncomplete(RuntimeError):
 
     def retry_cleanup(self):
         self.__owner.close()
+
+
+_ControlP = ParamSpec("_ControlP")
+_ControlR = TypeVar("_ControlR")
+
+
+def _authority_control(
+    method: Callable[Concatenate[Any, _ControlP], _ControlR],
+) -> Callable[Concatenate[Any, _ControlP], _ControlR]:
+    @wraps(method)
+    def controlled(self: Any, *args: _ControlP.args, **kwargs: _ControlP.kwargs) -> _ControlR:
+        with self.control_phase():
+            return method(self, *args, **kwargs)
+
+    return controlled
 
 
 def _budget_policy(profile, policy_epoch):
@@ -359,6 +375,7 @@ class HostAuthority:
         check_private_directory(profile.configuration_root / "state")
         self.stack = ExitStack()
         self._close_lock = RLock()
+        self._control_lock = RLock()
         self._closing = self._cleanup_complete = False
         try:
             self.profile, self.operator = profile, operator
@@ -584,6 +601,25 @@ class HostAuthority:
                 raise _HostCleanupIncomplete(self) from construction_error
             raise
 
+    @contextmanager
+    def control_phase(self, *, blocking=True, allow_closing=False):
+        """Serialize original synchronous auth/clock/metadata and job phases.
+
+        Waiting never renews a deadline. Admission fencing and original stop
+        requests do not acquire this guard, so cleanup remains preemptive.
+        """
+        acquired = self._control_lock.acquire(blocking=blocking)
+        if not acquired:
+            yield False
+            return
+        try:
+            if self._closing and not allow_closing:
+                raise ValueError("managed authority is draining")
+            yield True
+        finally:
+            self._control_lock.release()
+
+    @_authority_control
     def refresh_broker_channel(self) -> None:
         # Reauthenticate actual live TLS, without extending a task/grant lifetime.
         self.coordinator.refresh_broker_channel(
@@ -594,6 +630,7 @@ class HostAuthority:
             expected_owner_fence=self.owner["owner_fence"],
         )
 
+    @_authority_control
     def maintenance(self) -> dict:
         """Renew online ownership, never a caller's approval or delegated lifetime."""
         if self._closing:
@@ -612,6 +649,7 @@ class HostAuthority:
         self.coordinator.bind_grant(self.scope, channel, lease.reference, self.root_grant)
         return self.owner
 
+    @_authority_control
     def refresh_factory(self) -> None:
         policy_digest = self.owner["policy_digest"]
         current = None
@@ -627,6 +665,7 @@ class HostAuthority:
             )
             self.factory_proof = proof
 
+    @_authority_control
     def dispatch(
         self, actor: str, channel, action: ActionEnvelope, *, request_id: str
     ) -> HostDispatch:
@@ -721,19 +760,34 @@ class HostAuthority:
             action=action,
         )
 
+    def request_stop(self) -> None:
+        """Original local operator path: fence and signal without a DB/phase wait."""
+        self._closing = True
+        if hasattr(self, "auth"):
+            self.auth.fence(operator=self.operator)
+        if hasattr(self, "broker"):
+            with self.broker._state_lock:
+                authorizations = tuple(self.broker._pending)
+            for authorization in authorizations:
+                try:
+                    self.broker.request_stop(authorization)
+                except (ValueError, OSError, RuntimeError):
+                    pass  # Original close still verifies actual child termination.
+
     def close(self) -> None:
         with self._close_lock:
             if self._cleanup_complete:
                 return
-            self._closing = True
             try:
-                if hasattr(self, "auth"):
-                    self.auth.fence(operator=self.operator)
-                if hasattr(self, "backend"):
-                    # Do not put this retryable owner in ExitStack: callbacks
-                    # are consumed even when a live child cannot be stopped.
-                    self.backend.close()
-                self.stack.close()
+                self.request_stop()
+                with self.control_phase(blocking=False, allow_closing=True) as acquired:
+                    if not acquired:
+                        raise _HostCleanupIncomplete(self)
+                    if hasattr(self, "backend"):
+                        # Control/storage/TLS custody remains intact until an
+                        # in-flight phase leaves and original children stop.
+                        self.backend.close()
+                    self.stack.close()
             except BaseException as error:
                 raise _HostCleanupIncomplete(self) from error
             self._cleanup_complete = True

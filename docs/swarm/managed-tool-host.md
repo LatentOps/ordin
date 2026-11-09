@@ -10,6 +10,16 @@ the assurance/session configuration. Caller JSON cannot select this deployment
 requirement. It grants no identity or permission; the original native outcome
 must still establish the actual worker and effect.
 
+The synchronous shared host serializes authentication and authority phases,
+including owned jobs. Queued requests are checked against fresh original clock,
+role and lease state when admitted; waiting never renews an approval or other
+deadline. Periodic maintenance/checkpoint work skips a busy phase. Original
+job, RPC and lease bounds remain in force, so a long job can cause a queued RPC
+or expired proposal to fail. Remote shutdown retains normal fresh authentication;
+local signals and the original operator capability still fence admission and
+request stops without waiting for that phase. Cleanup retains storage and TLS
+custody until the phase leaves and original children have actually stopped.
+
 This service controls its own tools. A normal MCP client can still have other
 tools, sockets and credentials. Its process is outside this boundary unless an
 explicit supported protected launch establishes confinement. Loading a profile

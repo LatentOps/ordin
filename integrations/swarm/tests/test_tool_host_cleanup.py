@@ -29,6 +29,7 @@ class LiveBackend:
 def authority():
     original = object.__new__(HostAuthority)
     original._close_lock = RLock()
+    original._control_lock = RLock()
     original._closing = original._cleanup_complete = False
     original.operator = object()
     original.backend = LiveBackend()
@@ -86,6 +87,7 @@ def test_service_host_authority_retry_preserves_live_backend_controls_lock_and_u
 
     server = object.__new__(ManagedHostServer)
     server.host, server.listener = host, SimpleNamespace(close=lambda: closed.append("listener"))
+    server._operator = original.operator
     server._lock, server._close_lock = RLock(), RLock()
     server._cleanup_complete = False
     server._sockets, server._threads = {Connection()}, {Worker()}

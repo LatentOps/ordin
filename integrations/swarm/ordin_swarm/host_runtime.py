@@ -5,13 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 import hashlib
+from functools import wraps
 import json
 import os
 import ssl
 import socket
 import stat
 from threading import Event, RLock
-from typing import Any
+from typing import Any, Callable, Concatenate, ParamSpec, TypeVar
 from uuid import uuid4
 
 from ordin import ActionEnvelope, ToolCallAdapter
@@ -90,6 +91,24 @@ def _text(value: Any) -> str:
     return value
 
 
+_ControlP = ParamSpec("_ControlP")
+_ControlR = TypeVar("_ControlR")
+
+
+def _host_control(
+    method: Callable[Concatenate[Any, _ControlP], _ControlR],
+) -> Callable[Concatenate[Any, _ControlP], _ControlR]:
+    @wraps(method)
+    def controlled(self: Any, *args: _ControlP.args, **kwargs: _ControlP.kwargs) -> _ControlR:
+        with self._lock:
+            if self._closed:
+                raise ValueError("original managed connection is closed")
+        with self._authority.control_phase():
+            return method(self, *args, **kwargs)
+
+    return controlled
+
+
 class ManagedToolHost:
     """One host/ledger shared by separately authenticated actor connections.
 
@@ -166,6 +185,7 @@ class ManagedToolHost:
                 self._lock_fd = None
             raise
 
+    @_host_control
     def bind_connection(self, connection: ssl.SSLSocket, *, operator: object) -> HostClient:
         """Bind actual mTLS, without accepting an actor name from the request."""
         if operator is not self._operator or type(connection) is not ssl.SSLSocket:
@@ -195,6 +215,7 @@ class ManagedToolHost:
             self._clients[client] = _Client(connection, actor, channel, human)
             return client
 
+    @_host_control
     def require_client(self, client: HostClient) -> _Client:
         with self._lock:
             row = self._clients.get(client) if type(client) is HostClient else None
@@ -303,6 +324,7 @@ class ManagedToolHost:
             finally:
                 session.close()
 
+    @_host_control
     def tools(self, client: HostClient) -> list[dict]:
         row = self.require_client(client)
         if row.actor is None:
@@ -528,6 +550,7 @@ class ManagedToolHost:
                     data["current_version"] = None
         return _result("completed", forwarded=effect.forwarded, physical=True, data=data)
 
+    @_host_control
     def call(self, client: HostClient, tool: str, arguments: dict, *, request_id: str) -> dict:
         row = self.require_client(client)
         if row.actor is None:
@@ -582,10 +605,14 @@ class ManagedToolHost:
                     pending = self._approvals.get(captured["request_ref"])
                     if pending is None or pending.actor != row.actor:
                         return _result("denied", ("host.foreign_approval_reference",))
+                    eligible = pending.result is None and not pending.fulfilling
+                current_time = self._authority.clock() if eligible else None
+                with self._lock:
                     if (
                         pending.result is None
                         and not pending.fulfilling
-                        and self._authority.clock() >= pending.request.expires_at
+                        and current_time is not None
+                        and current_time >= pending.request.expires_at
                     ):
                         pending.result = _result("denied", ("host.approval_expired",))
                         if pending.custody is not None:
@@ -709,6 +736,7 @@ class ManagedToolHost:
             with self._lock:
                 row.busy = False
 
+    @_host_control
     def operator_call(self, client: HostClient, operation: str, arguments: dict) -> dict:
         row = self.require_client(client)
         if row.actor is not None or row.human_channel is None:
@@ -744,7 +772,7 @@ class ManagedToolHost:
             self.shutdown_requested.set()
             # Local admission closes immediately. Original jobs are stopped by
             # owned handles during close; already-started effects are not undone.
-            self._authority.auth.fence(operator=self._operator)
+            self.request_shutdown(operator=self._operator)
             return _result(
                 "completed",
                 data={
@@ -883,6 +911,7 @@ class ManagedToolHost:
             pending.result = result
         return _result("completed", data={"fulfillment": result})
 
+    @_host_control
     def status(self, client: HostClient) -> dict:
         row = self.require_client(client)
         current = self._authority.coordinator.status(
@@ -909,21 +938,44 @@ class ManagedToolHost:
 
     def maintenance(self) -> None:
         if self._closed or self.shutdown_requested.is_set():
-            raise ValueError("managed host is draining")
-        self._authority.maintenance()
+            return
+        try:
+            with self._authority.control_phase(blocking=False) as acquired:
+                if not acquired:
+                    return  # Busy is not permission to extend any original lease.
+                self._authority.maintenance()
+                with self._lock:
+                    candidates = tuple(
+                        pending
+                        for pending in self._approvals.values()
+                        if pending.result is None and not pending.fulfilling
+                    )
+                for pending in candidates:
+                    current_time = self._authority.clock()
+                    with self._lock:
+                        if (
+                            pending.result is None
+                            and not pending.fulfilling
+                            and current_time >= pending.request.expires_at
+                        ):
+                            pending.result = _result("denied", ("host.approval_expired",))
+                            if pending.custody is not None:
+                                self._lineage.cancel(pending.custody)
+                self._authority.coordinator.checkpoint(
+                    self._authority.scope, control=self._authority.control
+                )
+        except ValueError:
+            if not self._closed and not self.shutdown_requested.is_set():
+                raise
+
+    def request_shutdown(self, *, operator: object) -> None:
+        """Preemptive local capability, never a caller-supplied wire identity."""
+        if operator is not self._operator:
+            raise ValueError("original managed shutdown operator required")
         with self._lock:
-            for pending in self._approvals.values():
-                if (
-                    pending.result is None
-                    and not pending.fulfilling
-                    and self._authority.clock() >= pending.request.expires_at
-                ):
-                    pending.result = _result("denied", ("host.approval_expired",))
-                    if pending.custody is not None:
-                        self._lineage.cancel(pending.custody)
-        self._authority.coordinator.checkpoint(
-            self._authority.scope, control=self._authority.control
-        )
+            self._closed = True
+            self.shutdown_requested.set()
+        self._authority.request_stop()
 
     def close(self) -> None:
         with self._close_lock:

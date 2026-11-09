@@ -129,18 +129,20 @@ class ManagedHostServer:
     def _connection(self, raw: socket.socket) -> None:
         connection = None
         session = None
+        client = None
         try:
             raw.settimeout(5)
             connection = self.host._authority.pki.server_context.wrap_socket(raw, server_side=True)
             with self._lock:
                 self._sockets.discard(raw)
                 self._sockets.add(connection)
-            remaining = self.host._authority.expires_at - self.host._authority.clock()
-            if remaining <= 0:
-                return
-            connection.settimeout(min(600, max(1, remaining)))
-            client = self.host.bind_connection(connection, operator=self._operator)
-            session = MCPHostSession(self.host, client)
+            with self.host._authority.control_phase():
+                remaining = self.host._authority.expires_at - self.host._authority.clock()
+                if remaining <= 0:
+                    return
+                connection.settimeout(min(600, max(1, remaining)))
+                client = self.host.bind_connection(connection, operator=self._operator)
+                session = MCPHostSession(self.host, client)
             with connection.makefile("rb") as incoming, connection.makefile("wb") as outgoing:
                 serve_stdio(session, incoming, outgoing)
         except (ValueError, OSError, RuntimeError, ssl.SSLError):
@@ -149,6 +151,8 @@ class ManagedHostServer:
         finally:
             if session is not None:
                 session.close()
+            elif client is not None:
+                self.host.close_client(client)
             if connection is not None:
                 connection.close()
             raw.close()
@@ -161,8 +165,27 @@ class ManagedHostServer:
     def run(self) -> int:
         next_maintenance = 0.0
         try:
+
+            def stop_on_request():
+                self.host.shutdown_requested.wait()
+                try:
+                    self.host.request_shutdown(operator=self._operator)
+                except (ValueError, OSError, RuntimeError):
+                    pass  # close() retains custody until actual cleanup succeeds.
+
+            watcher = Thread(target=stop_on_request, name="ordin-managed-host-stop", daemon=True)
+            with self._lock:
+                self._threads.add(watcher)
+            try:
+                watcher.start()
+            except BaseException:
+                with self._lock:
+                    self._threads.discard(watcher)
+                raise
             while not self.host.shutdown_requested.is_set():
-                now = self.host._authority.clock()
+                # Scheduling uses monotonic time only; authority timestamps
+                # remain original CoordinatorClock samples inside the phase.
+                now = time.monotonic()
                 if now >= next_maintenance:
                     self.host.maintenance()
                     next_maintenance = now + 5
@@ -203,9 +226,13 @@ class ManagedHostServer:
             self.host.shutdown_requested.set()
             error = None
             try:
-                self.listener.close()
+                self.host.request_shutdown(operator=self._operator)
             except BaseException as failure:
                 error = failure
+            try:
+                self.listener.close()
+            except BaseException as failure:
+                error = error or failure
             with self._lock:
                 connections = tuple(self._sockets)
                 threads = tuple(self._threads)
@@ -218,15 +245,14 @@ class ManagedHostServer:
                     connection.close()
                 except BaseException as failure:
                     error = error or failure
+            deadline = time.monotonic() + 5
+            for thread in threads:
+                if thread is not current_thread():
+                    thread.join(timeout=max(0, deadline - time.monotonic()))
             try:
                 self.host.close()
             except BaseException as failure:
                 error = error or failure
-            finally:
-                deadline = time.monotonic() + 5
-                for thread in threads:
-                    if thread is not current_thread():
-                        thread.join(timeout=max(0, deadline - time.monotonic()))
             if error is not None:
                 raise _HostCleanupIncomplete(self) from error
             if any(thread.is_alive() for thread in threads):

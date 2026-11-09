@@ -3,6 +3,7 @@
 from pathlib import PurePosixPath
 from threading import RLock
 from types import SimpleNamespace
+from contextlib import nullcontext
 
 from ordin import ActionEnvelope, ToolCallAdapter
 from ordin.runtime_contract import derive_runtime_capability_contract
@@ -64,6 +65,7 @@ def test_public_unknown_test_ids_and_extra_arguments_never_reserve_custody_or_pr
     row = SimpleNamespace(actor="tester", busy=False, closing=False, requests=set())
     host.profile = SimpleNamespace(actor=lambda name: actor, limits=SimpleNamespace(requests=128))
     host._lock, host._closed = RLock(), False
+    host._authority = SimpleNamespace(control_phase=lambda **kwargs: nullcontext(True))
     client = HostClient("original")
     host._clients = {client: row}
     host.require_client = lambda current: row
@@ -83,6 +85,7 @@ def test_public_unknown_test_ids_and_extra_arguments_never_reserve_custody_or_pr
 
 def test_prepare_is_before_coordinator_review_and_never_runs_for_unselected_route():
     authority = object.__new__(HostAuthority)
+    authority._control_lock, authority._closing = RLock(), False
     authority.operator = object()
     actor = HostActor("tester", (), (), (), (), ("report",))
     authority.profile = SimpleNamespace(actor=lambda name: actor)

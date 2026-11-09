@@ -3,6 +3,7 @@
 from dataclasses import replace
 from types import SimpleNamespace
 from threading import RLock, Event
+from contextlib import nullcontext
 
 import pytest
 
@@ -201,6 +202,7 @@ def test_host_maintenance_expires_only_original_known_unforwarded_queue_custody(
     managed._closed, managed.shutdown_requested, managed._lock = False, Event(), RLock()
     authority.clock = lambda: 101
     authority.maintenance = lambda: None
+    authority.control_phase = lambda **kwargs: nullcontext(True)
     authority.scope, authority.control = object(), object()
     authority.coordinator = SimpleNamespace(checkpoint=lambda *args, **kwargs: None)
     reservations = [lineage.reserve("writer", 32) for _ in range(4)]

@@ -2,6 +2,7 @@
 
 from pathlib import PurePosixPath
 from types import SimpleNamespace
+from threading import RLock
 
 import pytest
 
@@ -14,6 +15,7 @@ from ordin_swarm.host_profiles import HostActor
 
 def setup_host():
     host = object.__new__(HostAuthority)
+    host._control_lock, host._closing = RLock(), False
     actor = HostActor("agent", ("document.txt",), ("report.txt",), (), ())
     profile = SimpleNamespace(
         actor=lambda name: actor,
