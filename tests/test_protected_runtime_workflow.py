@@ -9,7 +9,6 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 import pytest
-import yaml
 
 from scripts import check_protected_runtime as check
 from scripts.release_integrity import RELEASE_WORKFLOW_CHECKS
@@ -91,6 +90,7 @@ def test_installed_input_copy_refuses_package_or_parent_escape_paths(tmp_path, m
 
 
 def test_actual_privileged_workflow_and_release_policy_require_both_versions():
+    yaml = pytest.importorskip("yaml")
     root = Path(__file__).resolve().parents[1]
     workflow = yaml.safe_load((root / ".github/workflows/swarm-assurance.yml").read_text())
     job = workflow["jobs"]["protected-runtime"]
