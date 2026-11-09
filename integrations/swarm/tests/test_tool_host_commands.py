@@ -9,6 +9,8 @@ import sys
 
 import pytest
 
+pytest.importorskip("ordin_swarm")
+
 from test_tool_host_profiles import document
 
 

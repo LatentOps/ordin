@@ -8,6 +8,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytest.importorskip("ordin_swarm")
+
 from ordin_swarm.host_authority import HostAuthority, _HostCleanupIncomplete
 from ordin_swarm.host_runtime import ManagedToolHost, HostClient
 from ordin_swarm.host_service import ManagedHostServer

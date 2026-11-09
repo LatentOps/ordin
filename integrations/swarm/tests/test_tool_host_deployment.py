@@ -8,6 +8,8 @@ from threading import Thread
 
 import pytest
 
+pytest.importorskip("ordin_swarm")
+
 from ordin_swarm.host_cli import _initialize_connection, _rpc, initialize
 from ordin_swarm.host_profiles import load_host_profile
 from ordin_swarm.host_runtime import ManagedToolHost

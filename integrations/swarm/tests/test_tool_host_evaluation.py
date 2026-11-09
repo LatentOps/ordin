@@ -4,6 +4,8 @@ import sys
 
 import pytest
 
+pytest.importorskip("ordin_swarm")
+
 from ordin_swarm.host_evaluation import _summary, evaluation_profile, run_evaluation
 from ordin_swarm.host_profiles import ToolHostProfile
 

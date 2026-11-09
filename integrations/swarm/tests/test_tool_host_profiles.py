@@ -9,6 +9,8 @@ import sys
 
 import pytest
 
+pytest.importorskip("ordin_swarm")
+
 from ordin_swarm.host_pki import PrivateHostPKI, initialize_private_profile
 from ordin_swarm.host_profiles import ToolHostProfile, check_private_directory, load_host_profile
 from ordin_swarm.host_protocol import decode_frame, encode_frame

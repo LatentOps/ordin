@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytest.importorskip("ordin_swarm")
+
 from ordin_swarm.host_protocol import MCPHostSession
 from ordin_swarm.host_runtime import HostClient, ManagedToolHost
 

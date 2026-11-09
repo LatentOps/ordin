@@ -6,6 +6,10 @@ from types import SimpleNamespace
 from contextlib import nullcontext
 import json
 
+import pytest
+
+pytest.importorskip("ordin_swarm")
+
 from ordin import ActionEnvelope, ToolCallAdapter
 from ordin.runtime_contract import derive_runtime_capability_contract
 from ordin_swarm.host_authority import HostAuthority, HostDispatch, _authority, host_core

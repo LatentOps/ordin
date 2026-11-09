@@ -8,6 +8,8 @@ from contextlib import nullcontext
 
 import pytest
 
+pytest.importorskip("ordin_swarm")
+
 from ordin_swarm.host_authority import HostDispatch
 from ordin_swarm.host_cli import _inputs, _private_output, main
 from ordin_swarm.host_runtime import ManagedToolHost

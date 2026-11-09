@@ -11,6 +11,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytest.importorskip("ordin_swarm")
+
 from ordin.swarm.coordinator_store import CoordinatorClock, SQLiteCoordinatorStore
 from ordin_swarm.host_authority import HostAuthority, _HostCleanupIncomplete
 from ordin_swarm.host_runtime import HostClient, ManagedToolHost, _Client

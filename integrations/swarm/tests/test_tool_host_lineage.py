@@ -7,6 +7,8 @@ from contextlib import nullcontext
 
 import pytest
 
+pytest.importorskip("ordin_swarm")
+
 from ordin.assurance import HostEvidenceSource, RepositoryScope
 from ordin.swarm import CoverageManifest, InMemoryAgentRegistry
 from ordin_swarm.host_lineage import HostLineage, SENSITIVE_OUTPUT

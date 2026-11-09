@@ -7,6 +7,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytest.importorskip("ordin_swarm")
+
 from ordin import ActionEnvelope
 from ordin.swarm._owned_test_output import bounded_test_value
 from ordin_swarm.host_authority import HostDispatch

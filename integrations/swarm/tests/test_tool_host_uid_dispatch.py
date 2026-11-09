@@ -6,6 +6,8 @@ from threading import RLock
 
 import pytest
 
+pytest.importorskip("ordin_swarm")
+
 from ordin import ActionEnvelope, AgentGate, ToolCallAdapter
 from ordin.assurance.delegation import _verify_operation_authority
 from ordin.runtime_contract import derive_runtime_capability_contract

@@ -4,6 +4,10 @@ import json
 import os
 from types import SimpleNamespace
 
+import pytest
+
+pytest.importorskip("ordin_swarm")
+
 from ordin import ActionEnvelope
 from ordin.swarm import CoverageManifest, InMemoryAgentRegistry
 from ordin.swarm.budget_store import SQLiteBudgetStore
