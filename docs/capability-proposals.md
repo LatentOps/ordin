@@ -13,7 +13,7 @@ Strong denial/source files must be explicit private host-owned evidence;
 ordinary agent JSON cannot self-declare backend enforcement. The original
 review's decision and uncertainty remain authoritative.
 
-The optional `propose_openshell_delta` helper in `ordin_openshell.deltas` retains
+The optional `propose_runtime_delta` helper in `ordin_runtime.deltas` retains
 the narrow core delta while constructing a whole backend candidate with the
 reviewed startup requirements. It checks the candidate capability boundary,
 compilation/validation, and configured standalone-prover result/input digests.

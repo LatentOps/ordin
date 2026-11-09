@@ -2,7 +2,7 @@
 
 This implements the repository's `ORDIN_OPENSHELL_RUNTIME_ENFORCEMENT_IMPLEMENTATION.md`
 in phases. Ordin remains an execution-free semantic reviewer. An optional,
-separately packaged OpenShell adapter translates supported capabilities into
+separately packaged Ordin Runtime adapter translates supported capabilities into
 policy; the external runtime owns enforcement, execution, and credentials.
 
 ## Contracts and identity
@@ -46,7 +46,7 @@ policies, audit hash chaining, and existing session identities. New artifacts
 are additive. Core required dependencies remain empty; the package version
 remains `0.4.0.dev0`. Export the new APIs only after their tests are stable.
 
-OpenShell code lives in `integrations/openshell/ordin_openshell/`. It owns
+Ordin Runtime code lives in `integrations/runtime/ordin_runtime/`. It owns
 optional YAML serialization, policy compilation/validation, prover invocation,
 event ingestion, private correlation records, shadow reports, doctor, and
 explicit named-sandbox policy application. Core contains a compile/validate
@@ -55,7 +55,7 @@ are confined to explicit integration commands and never run reviewed actions.
 
 ## Representability and unsupported cases
 
-Use the checked OpenShell source/docs and record its revision/version. Compile
+Use the checked pinned upstream runtime source/docs and record its revision/version. Compile
 structured mappings first, serialize using an optional YAML library, and retain
 semantic provenance. Unknown protocols, missing binary identity, ambiguous
 filesystem scope, unsupported request/tool restrictions, credential bindings
@@ -81,7 +81,7 @@ rules or switch into enforce mode automatically.
    additive temporal signals, provenance, and trust-boundary tests; rerun the suite.
 3. Implement the backend protocol, boundary checker, and minimal proposals;
    verify subset, unknown, approval, and mismatch invariants.
-4. Implement the OpenShell compiler with structured golden and adversarial
+4. Implement the Ordin Runtime compiler with structured golden and adversarial
    fixtures using the actual upstream schema.
 5. Add the prover adapter with typed compatibility errors and full coverage checks.
 6. Add structured OCSF ingestion, private bounded correlation, and fixture tests.
@@ -93,8 +93,8 @@ rules or switch into enforce mode automatically.
     runtime integration scenarios. Audit every requirement against actual results.
 
 Required final report: Summary; Architecture implemented; Public APIs added;
-Schemas added; Core files changed; OpenShell integration files changed; Safety
+Schemas added; Core files changed; Ordin Runtime integration files changed; Safety
 invariants; Unsupported cases; Tests run; Test results; Benchmark results;
-OpenShell versions tested; Threat-model changes; Known limitations; Follow-up work.
+upstream runtime versions tested; Threat-model changes; Known limitations; Follow-up work.
 Report exact commands/counts and measured percentiles. No completion claim is
 made until the full document's core, integration, and enforcement gates are met.

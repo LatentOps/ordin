@@ -24,5 +24,5 @@ authority or cannot represent a required restriction. REST/tool capabilities
 must not fall back to unrestricted TCP. Credential references need explicit
 operator configuration; implementations must never emit credential values.
 
-The first optional backend is OpenShell. Future backends can implement the same
+The first optional backend is Ordin Runtime. Future backends can implement the same
 compile/validate protocol without adding runtime dependencies to Ordin core.

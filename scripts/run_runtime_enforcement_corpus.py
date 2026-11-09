@@ -5,9 +5,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(ROOT), str(ROOT / "integrations/openshell")]
+sys.path[:0] = [str(ROOT), str(ROOT / "integrations/runtime")]
 from ordin.runtime_codec import read_runtime_json
-from ordin_openshell.corpus import evaluate_runtime_corpus
+from ordin_runtime.corpus import evaluate_runtime_corpus
 
 
 def main():

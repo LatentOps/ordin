@@ -125,7 +125,7 @@ A `JsonlAuditSink` instance serializes its own writes with a local lock. Applica
 
 Runtime capability contracts bind the canonical action digest to a
 content-derived contract ID and retain the original semantic provenance digest.
-Optional OpenShell plans retain contract and canonical policy digests. Prover
+Optional Ordin Runtime plans retain contract and canonical policy digests. Prover
 results retain exact input-byte digests, coverage, and counterexamples;
 canonical policy digests and file-byte digests identify different representations.
 Private event bindings retain the original action/contract/session/sandbox/policy
@@ -139,7 +139,7 @@ Shadow reports retain digest linkage and mismatch codes while omitting plaintext
 resource values and action parameters. An event-to-policy binding is a claim
 through the trusted collector; it is not proof of active runtime policy or
 successful action execution. See [runtime evidence](runtime-evidence.md) and
-[OpenShell integration](openshell-integration.md).
+[Ordin Runtime integration](runtime-integration.md).
 
 ## Schemas
 

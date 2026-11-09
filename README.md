@@ -257,7 +257,7 @@ cover patterns across multiple actions.
 
 Reviews expose structured provenance and advisory execution-capability profiles.
 Ordin can also derive a [versioned runtime capability contract](docs/runtime-capabilities.md).
-The [optional OpenShell integration](docs/openshell-integration.md) compiles supported
+The [optional Ordin Runtime integration](docs/runtime-integration.md) compiles supported
 contracts without widening authority and returns correlated runtime evidence.
 Local audit persistence is optional and disabled by default. Read
 [audit and provenance](docs/audit-and-provenance.md) and

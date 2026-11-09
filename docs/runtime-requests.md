@@ -92,12 +92,12 @@ additional `requests` coverage flag does not alter the original verification
 result's six-domain contract.
 
 ```sh
-ordin-openshell derive-requests --review review.json
-ordin-openshell compile-requests --request-contract requests.json \
+ordin-runtime derive-requests --review review.json
+ordin-runtime compile-requests --request-contract requests.json \
     --uid 1000 --gid 1000 --output policy.json
-ordin-openshell verify-requests --request-contract requests.json \
+ordin-runtime verify-requests --request-contract requests.json \
     --request-boundary request-boundary.json
-ordin-openshell apply --sandbox named-demo --contract capability.json \
+ordin-runtime apply --sandbox named-demo --contract capability.json \
     --request-contract requests.json --request-boundary request-boundary.json \
     --policy policy.json --uid 1000 --gid 1000 --audit private/apply.jsonl
 ```
@@ -115,7 +115,7 @@ The pinned [OpenShell 0.1.2 network model](https://github.com/NVIDIA/OpenShell/b
 supports these enforcement rules. Its [standalone prover](https://github.com/NVIDIA/OpenShell/blob/v0.1.2/crates/openshell-prover/src/containment.rs)
 models only TCP and REST. Supplying a backend prover boundary therefore returns
 `unsupported` for GraphQL/MCP and refuses apply. Local request-boundary checks
-are distinctly labeled; they are not an OpenShell prover result. Credentialed
+are distinctly labeled; they are not an pinned upstream prover result. Credentialed
 protocol policies, private-address expansion, and mixed MCP/non-MCP endpoints
 on one host/port are also rejected.
 

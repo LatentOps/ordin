@@ -4,7 +4,7 @@ The host can explicitly attach a private audit journal and an authenticated
 operator endpoint to original coordinator, gate, broker and containment objects.
 Imports start no service and send no telemetry. The core package has no telemetry
 dependency. The optional `ordin-swarm[telemetry]` extra supports explicit local
-OpenTelemetry SDK exports. OCSF export works without that extra or OpenShell.
+OpenTelemetry SDK exports. OCSF export works without that extra or Ordin Runtime.
 
 ## Host configuration and custody
 

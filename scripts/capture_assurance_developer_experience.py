@@ -83,7 +83,7 @@ def main():
     source, host, openshell = (
         junit(args.source_junit),
         junit(args.host_junit),
-        junit(args.openshell_junit),
+        junit(args.runtime_junit),
     )
     if source["failed"] or openshell["failed"]:
         raise ValueError("mandatory source/OpenShell gate failed")

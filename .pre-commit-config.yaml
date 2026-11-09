@@ -87,7 +87,7 @@ repos:
           ordin/swarm
           integrations/decision_models/ordin_decision_models
           integrations/security/ordin_security
-          integrations/openshell/ordin_openshell
+          integrations/runtime/ordin_runtime
         language: system
         pass_filenames: false
         always_run: true

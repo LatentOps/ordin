@@ -112,7 +112,7 @@ until explicit reconciliation.
 | [`ordin/assurance/delegation.py`](../../ordin/assurance/delegation.py) and [`delegating_gate.py`](../../ordin/assurance/delegating_gate.py) | Reuse subset checks, generation/expiry checks and action-bound single-use tickets | Existing issuer locks are local, not a multihost transaction service |
 | [`ordin/assurance/source_flow.py`](../../ordin/assurance/source_flow.py) | Carry authenticated source scope and conservative lineage findings | Complete collected bytes do not establish model persuasion or missing causal edges |
 | [`ordin/assurance/adapters.py`](../../ordin/assurance/adapters.py), [`ordin/mcp_proxy.py`](../../ordin/mcp_proxy.py), [`ordin/mcp_http.py`](../../ordin/mcp_http.py) and native hooks | Add enrollment context at existing host interception points | Hooks cover only calls the host actually mediates |
-| [`integrations/openshell`](../../integrations/openshell/README.md) | Reuse capability compilation, authority proof, application/readback and trusted event correlation | Advisory compilation is not runtime admission; broker coverage must be independently verified |
+| [`integrations/runtime`](../../integrations/runtime/README.md) | Reuse capability compilation, authority proof, application/readback and trusted event correlation | Advisory compilation is not runtime admission; broker coverage must be independently verified |
 | [`ordin/assurance/linux_sandbox.py`](../../ordin/assurance/linux_sandbox.py) | Reuse vetted Linux fixture isolation and evidence boundaries | Fixture acceptance does not prove arbitrary running processes are contained |
 
 The current v0.3 APIs, schema meanings and default local behavior remain intact.

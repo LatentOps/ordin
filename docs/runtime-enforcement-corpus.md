@@ -20,7 +20,7 @@ approval/attention status and specific evidence; green counts alone are not a
 runtime enforcement claim.
 
 The corpus uses non-secret synthetic evidence and host-owned source objects.
-It complements [actual runtime observations](openshell-runtime-demo.md), kernel
+It complements [actual runtime observations](runtime-demo.md), kernel
 positive/negative controls, the compiler/prover adversaries, and existing Ordin
 safety/trajectory corpora. It does not infer malicious intent or weaken existing
 semantic danger when supplied observations disagree.

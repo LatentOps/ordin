@@ -106,7 +106,7 @@ The additive runtime path preserves the review plane:
 
 ```text
 ActionReview -> RuntimeCapabilityContract -> caller-owned capability boundary
-                                          -> optional OpenShell policy compiler/prover
+                                          -> optional Ordin Runtime policy compiler/prover
 external enforcement runtime -> trusted collector -> RuntimeObservation
                                                   -> IntegrationSession -> later review
 ```
@@ -133,7 +133,7 @@ the reporting trust boundary, not remote attestation. Local shadow reports
 compare supplied facts without installing policy or executing an action.
 See [runtime capabilities](runtime-capabilities.md), [runtime evidence](runtime-evidence.md),
 [capability boundaries](runtime-boundaries.md), and
-[OpenShell integration](openshell-integration.md).
+[Ordin Runtime integration](runtime-integration.md).
 
 ## Project boundaries
 
