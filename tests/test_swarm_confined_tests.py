@@ -229,7 +229,7 @@ def test_pinned_framework_outranks_real_project_pytest_py_and_private_package_sh
     selected = str(route.runtime.root / "site")
     (route.project_root / "test_sample.py").write_text(
         "def test_selected_framework_and_project_import():\n"
-        "    import pytest, py, _pytest, project_helper\n"
+        "    import pytest, py, _pytest, project_helper, zlib\n"
         "    from pathlib import Path\n"
         f"    pinned = Path({selected!r})\n"
         "    assert Path(pytest.__file__).is_relative_to(pinned / 'pytest')\n"
@@ -237,6 +237,8 @@ def test_pinned_framework_outranks_real_project_pytest_py_and_private_package_sh
         "    assert Path(py.__file__) == pinned / 'py.py'\n"
         f"    assert pytest.__version__ == {route.runtime.pytest_version!r}\n"
         "    assert project_helper.VALUE == 'project still importable'\n"
+        "    assert zlib.decompress(zlib.compress(b'bounded pinned zlib')) == b'bounded pinned zlib'\n"
+        "    assert not Path(zlib.__file__).is_relative_to(Path(__file__).parent)\n"
         "    assert not Path('/scratch/framework-shadow-marker').exists()\n"
         "    print('pinned-framework-selected')\n"
     )
@@ -245,7 +247,7 @@ def test_pinned_framework_outranks_real_project_pytest_py_and_private_package_sh
         "Path('/scratch/framework-shadow-marker').write_text('shadow executed')\n"
         "raise RuntimeError('untrusted project replaced pinned framework')\n"
     )
-    for name in ("pytest.py", "py.py"):
+    for name in ("pytest.py", "py.py", "zlib.py"):
         (route.project_root / name).write_text(shadow)
     (route.project_root / "_pytest").mkdir()
     (route.project_root / "_pytest/__init__.py").write_text(shadow)
