@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from contextlib import nullcontext
 
 import pytest
 
@@ -92,3 +93,114 @@ def test_cli_help_is_available_without_starting_or_importing_native_backend(caps
         main(["--help"])
     assert stopped.value.code == 0
     assert "client-config" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "action,status,fulfillment,expected",
+    [
+        ("approve", "denied", None, 2),
+        ("approve", "completed", None, 0),
+        ("deny", "completed", None, 0),
+        ("fulfill", "completed", "unknown", 2),
+        ("fulfill", "completed", "denied", 2),
+        ("fulfill", "completed", "completed", 0),
+    ],
+)
+def test_operator_cli_exit_status_tracks_actual_resolution_and_fulfillment(
+    tmp_path, monkeypatch, capsys, action, status, fulfillment, expected
+):
+    from ordin_swarm import host_cli, host_service
+    from ordin_swarm.host_runtime import _result
+
+    monkeypatch.setattr(
+        host_cli, "load_host_profile", lambda path: SimpleNamespace(configuration_root=tmp_path)
+    )
+    monkeypatch.setattr(host_service, "connect", lambda path: nullcontext(object()))
+    monkeypatch.setattr(host_cli, "_initialize_connection", lambda connection: None)
+    data = (
+        {
+            "fulfillment": _result(
+                fulfillment, data={"output": "private diagnostic", "content": "private body"}
+            )
+        }
+        if fulfillment
+        else {}
+    )
+    monkeypatch.setattr(host_cli, "_rpc", lambda *args: _result(status, data=data))
+    arguments = [
+        "operator",
+        "--directory",
+        str(tmp_path),
+        action,
+        "--request-ref",
+        "original",
+        "--expected-binding",
+        "a" * 64,
+    ]
+    if action != "fulfill":
+        arguments += ["--idempotency-key", "explicit-review"]
+    assert main(arguments) == expected
+    output = capsys.readouterr().out
+    assert "private diagnostic" not in output and "private body" not in output
+
+
+def test_cli_private_fulfillment_keeps_failure_status_without_public_payload(
+    tmp_path, monkeypatch, capsys
+):
+    from ordin_swarm import host_cli, host_service
+    from ordin_swarm.host_runtime import _result
+
+    if __import__("os").name == "posix":
+        tmp_path.chmod(0o700)
+    monkeypatch.setattr(
+        host_cli, "load_host_profile", lambda path: SimpleNamespace(configuration_root=tmp_path)
+    )
+    monkeypatch.setattr(host_service, "connect", lambda path: nullcontext(object()))
+    monkeypatch.setattr(host_cli, "_initialize_connection", lambda connection: None)
+    monkeypatch.setattr(
+        host_cli,
+        "_rpc",
+        lambda *args: _result(
+            "completed",
+            data={"fulfillment": _result("unknown", data={"output": "private diagnostic"})},
+        ),
+    )
+    output = tmp_path / "result.json"
+    assert (
+        main(
+            [
+                "operator",
+                "--directory",
+                str(tmp_path),
+                "fulfill",
+                "--request-ref",
+                "original",
+                "--expected-binding",
+                "a" * 64,
+                "--private-result",
+                str(output),
+            ]
+        )
+        == 2
+    )
+    assert "private diagnostic" not in capsys.readouterr().out
+    assert (
+        json.loads(output.read_text())["data"]["fulfillment"]["data"]["output"]
+        == "private diagnostic"
+    )
+
+
+def test_live_doctor_offline_or_unsupported_returns_failure(tmp_path, monkeypatch, capsys):
+    from ordin_swarm import host_cli
+
+    monkeypatch.setattr(
+        host_cli,
+        "doctor",
+        lambda *args, **kwargs: {
+            "status": "live_verified",
+            "supported_platform": True,
+            "online_verified": False,
+        },
+    )
+    assert main(["doctor", "--directory", str(tmp_path), "--live"]) == 2
+    assert json.loads(capsys.readouterr().out)["online_verified"] is False

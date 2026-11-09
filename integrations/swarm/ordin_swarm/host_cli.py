@@ -150,6 +150,8 @@ def _rpc(connection, method, parameters=None):
     )
     if type(value) is not dict or "error" in value or "result" not in value:
         raise ValueError("authenticated managed request did not complete")
+    if type(value["result"]) is not dict:
+        raise ValueError("bounded managed object result required")
     return value["result"]
 
 
@@ -198,8 +200,10 @@ def doctor(directory: Path, *, live=False, actor="operator"):
         with connect(directory / "clients" / actor) as connection:
             _initialize_connection(connection)
             current = _rpc(connection, "ordin/status")
-        if current["profile_digest"] != profile.digest or current["actor"] != (
-            None if actor == "operator" else actor
+        if (
+            validate_named_schema("swarm_tool_host_status", current)
+            or current.get("profile_digest") != profile.digest
+            or current.get("actor") != (None if actor == "operator" else actor)
         ):
             raise ValueError("live managed profile or original actor differs")
         result.update(status="live_verified", online_verified=current["online"], host=current)
@@ -257,6 +261,40 @@ def _private_output(path: Path, value: dict):
     }
 
 
+def _operator_success(action, result):
+    if result.get("status") != "completed":
+        return False
+    if action == "fulfill":
+        fulfilled = result.get("data", {}).get("fulfillment")
+        return type(fulfilled) is dict and fulfilled.get("status") == "completed"
+    return True
+
+
+def _public_fulfillment(result):
+    """Ordinary operator logs omit tool bodies and untrusted test diagnostics."""
+    value = dict(result)
+    fulfilled = result.get("data", {}).get("fulfillment")
+    fields = {
+        "schema_version",
+        "status",
+        "reason_codes",
+        "forwarded",
+        "physical_enforcement",
+        "execution_authority",
+    }
+    value["data"] = (
+        {
+            "fulfillment": {
+                **{key: item for key, item in fulfilled.items() if key in fields},
+                "data": {},
+            }
+        }
+        if type(fulfilled) is dict
+        else {}
+    )
+    return value
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="ordin-swarm-host")
     commands = parser.add_subparsers(dest="operation", required=True)
@@ -309,9 +347,12 @@ def main(argv=None):
         command.add_argument("--expected-binding", required=True)
         if name != "fulfill":
             command.add_argument("--idempotency-key", required=True)
+        else:
+            command.add_argument("--private-result", type=_absolute)
     actions.add_parser("stop")
     args = parser.parse_args(argv)
     try:
+        exit_code = 0
         if args.operation == "init":
             result = initialize(
                 args.directory,
@@ -323,6 +364,8 @@ def main(argv=None):
             )
         elif args.operation == "doctor":
             result = doctor(args.directory, live=args.live, actor=args.actor)
+            if not result["supported_platform"] or args.live and not result["online_verified"]:
+                exit_code = 2
         elif args.operation == "client-config":
             result = _private_output(
                 args.output, client_configuration(args.directory, args.actor, python=args.python)
@@ -415,10 +458,20 @@ def main(argv=None):
             with connect(profile.configuration_root / "clients" / "operator") as connection:
                 _initialize_connection(connection)
                 result = _rpc(connection, "ordin/operator/" + operation, parameters)
+            if validate_named_schema("swarm_tool_host_result", result):
+                raise ValueError("invalid authenticated operator outcome")
+            if not _operator_success(args.action, result):
+                exit_code = 2
             if args.action == "show" and args.include_content:
                 result = _private_output(args.preview, result)
+            elif args.action == "fulfill":
+                result = (
+                    _private_output(args.private_result, result)
+                    if args.private_result is not None
+                    else _public_fulfillment(result)
+                )
         print(json.dumps(result, sort_keys=True, ensure_ascii=True, allow_nan=False), flush=True)
-        return 1 if args.operation == "evaluate" and not result["passed"] else 0
+        return 1 if args.operation == "evaluate" and not result["passed"] else exit_code
     except (ValueError, OSError, RuntimeError, UnicodeError):
         # Never emit raw exceptions: paths, TLS errors and proposals can contain
         # secrets. An unknown response is never a reason to replay an effect.
