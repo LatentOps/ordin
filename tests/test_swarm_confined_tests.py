@@ -40,6 +40,7 @@ _ZLIB_ORIGIN_ASSERTIONS = (
     "    else:\n"
     "        assert isinstance(zlib.__spec__.loader, ExtensionFileLoader)\n"
     "        assert isinstance(zlib.__file__, str) and Path(zlib.__file__).is_absolute()\n"
+    "        assert '..' not in Path(zlib.__file__).parts\n"
     "        assert zlib.__spec__.origin == zlib.__file__\n"
     "        assert not Path(zlib.__file__).is_relative_to(Path(__file__).parent)\n"
 )

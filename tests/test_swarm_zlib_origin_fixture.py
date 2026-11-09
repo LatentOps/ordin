@@ -116,6 +116,7 @@ def test_original_fragment_accepts_external_extension(origin_check):
             __spec__=SimpleNamespace(name="other", origin="built-in", loader=BuiltinImporter)
         ),
         extension_module(str(Path("/project/zlib.so").absolute())),
+        extension_module(str(Path("/outside/../project/zlib.so").absolute())),
         extension_module("relative-zlib.so"),
         extension_module(origin="unknown"),
         extension_module(loader=False),
