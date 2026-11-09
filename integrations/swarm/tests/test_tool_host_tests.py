@@ -4,6 +4,7 @@ from pathlib import PurePosixPath
 from threading import RLock
 from types import SimpleNamespace
 from contextlib import nullcontext
+import json
 
 from ordin import ActionEnvelope, ToolCallAdapter
 from ordin.runtime_contract import derive_runtime_capability_contract
@@ -172,7 +173,12 @@ def test_test_output_is_bounded_snapshot_bound_sensitive_data_never_correctness(
         "run_tests",
         {"test_id": "report"},
         HostDispatch(
-            "completed", (), True, True, result=SimpleNamespace(value=value), action=action
+            "completed",
+            (),
+            True,
+            True,
+            result=SimpleNamespace(value=json.dumps(value).encode("utf-8")),
+            action=action,
         ),
     )
     assert result["data"]["test_correctness_verified"] is False
@@ -184,7 +190,12 @@ def test_test_output_is_bounded_snapshot_bound_sensitive_data_never_correctness(
         "run_tests",
         {"test_id": "report"},
         HostDispatch(
-            "completed", (), True, True, result=SimpleNamespace(value=value), action=action
+            "completed",
+            (),
+            True,
+            True,
+            result=SimpleNamespace(value=json.dumps(value).encode("utf-8")),
+            action=action,
         ),
     )
     assert refused["status"] == "unknown" and len(captured) == 1

@@ -12,7 +12,7 @@ import ssl
 import socket
 import stat
 from threading import Event, RLock
-from typing import Any, Callable, Concatenate, ParamSpec, TypeVar
+from typing import Any, Callable, Concatenate, Mapping, ParamSpec, TypeVar
 from uuid import uuid4
 
 from ordin import ActionEnvelope, ToolCallAdapter
@@ -88,6 +88,60 @@ def _text(value: Any) -> str:
         ord(character) < 32 and character not in "\r\n\t" for character in value
     ):
         raise ValueError("managed tool text exceeds its supported bound")
+    return value
+
+
+def _unique_test_members(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate native test result member")
+        value[key] = item
+    return value
+
+
+def _reject_test_constant(value):
+    raise ValueError("nonfinite native test result")
+
+
+def _decode_test_result(raw: Any, expected_snapshot: Any) -> dict[str, Any]:
+    """Decode original bounded native bytes as data, never as an outcome permit."""
+    if type(raw) is not bytes or not 1 <= len(raw) <= MAX_DATA_BYTES:
+        raise ValueError("bounded original native test bytes required")
+    try:
+        value = bounded_json(
+            json.loads(
+                raw.decode("utf-8"),
+                object_pairs_hook=_unique_test_members,
+                parse_constant=_reject_test_constant,
+            )
+        )
+    except (ValueError, UnicodeError, RecursionError, TypeError):
+        raise ValueError("invalid bounded native test JSON") from None
+    expected = {
+        "exit_code",
+        "output",
+        "output_truncated",
+        "output_trust",
+        "test_correctness_verified",
+        "snapshot_digest",
+    }
+    if (
+        type(value) is not dict
+        or set(value) != expected
+        or type(value["exit_code"]) is not int
+        or type(value["output"]) is not str
+        or len(value["output"]) > 8192
+        or type(value["output_truncated"]) is not bool
+        or value["output_trust"] != "untrusted_test_diagnostic"
+        or value["test_correctness_verified"] is not False
+        or type(value["snapshot_digest"]) is not str
+        or len(value["snapshot_digest"]) != 64
+        or any(character not in "0123456789abcdef" for character in value["snapshot_digest"])
+        or type(expected_snapshot) is not str
+        or value["snapshot_digest"] != expected_snapshot
+    ):
+        raise ValueError("native test result schema or original snapshot differs")
     return value
 
 
@@ -427,29 +481,15 @@ class ManagedToolHost:
             return _result("unknown", ("host.original_physical_outcome_missing",), forwarded=None)
         labels: tuple[str, ...]
         if tool == "run_tests":
-            value = bounded_json(native.value)
-            expected = {
-                "exit_code",
-                "output",
-                "output_truncated",
-                "output_trust",
-                "test_correctness_verified",
-                "snapshot_digest",
-            }
-            if (
-                type(value) is not dict
-                or set(value) != expected
-                or type(value["exit_code"]) is not int
-                or type(value["output"]) is not str
-                or type(value["output_truncated"]) is not bool
-                or value["output_trust"] != "untrusted_test_diagnostic"
-                or value["test_correctness_verified"] is not False
-                or effect.action is None
-                or value["snapshot_digest"]
-                != effect.action.parameters["host_test_snapshot"]["digest"]
-                or len(json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
-                > MAX_DATA_BYTES
-            ):
+            snapshot = (
+                None
+                if effect.action is None
+                else effect.action.parameters.get("host_test_snapshot")
+            )
+            expected_snapshot = snapshot.get("digest") if isinstance(snapshot, Mapping) else None
+            try:
+                value = _decode_test_result(native.value, expected_snapshot)
+            except ValueError:
                 return _result("unknown", ("host.test_output_unrepresented",), forwarded=True)
             labels = tuple(
                 sorted(
