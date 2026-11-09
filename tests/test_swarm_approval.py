@@ -25,13 +25,24 @@ def configured(
     initialize=True,
     hard_limit=None,
     operator_roles=("approve", "observe", "break_glass", "recover"),
+    owned_tools=False,
+    http_routes=(),
+    physical=False,
+    coordinated_physical=None,
 ):
     now = [100.0]
     store = SQLiteCoordinatorStore(tmp_path / "authority.db", create=True, clock=lambda: now[0])
     clock = CoordinatorClock(store)
-    (tmp_path / "broker").mkdir()
+    (tmp_path / "broker").mkdir(mode=0o700)
     with (
-        fixture(tmp_path / "broker", shared_clock=clock, approval_decision=decision) as data,
+        fixture(
+            tmp_path / "broker",
+            shared_clock=clock,
+            approval_decision=decision,
+            physical=physical,
+            **({"owned_tools": True} if owned_tools else {}),
+            **({"http_routes": http_routes} if http_routes else {}),
+        ) as data,
         ExitStack() as stack,
     ):
         broker, native, ledger, _, action, channel, grant, _, _, _, _, operator, *_ = data
@@ -48,6 +59,10 @@ def configured(
                 ),
             )
         )
+        if coordinated_physical is not None:
+            coordinated_budget = replace(
+                coordinated_budget, require_physical_enforcement=coordinated_physical
+            )
         scope = coordinator.register_scope(
             native,
             coordinated_budget,

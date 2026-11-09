@@ -39,6 +39,8 @@ def configured(
     epoch=0,
     lease=10,
     journal_lag=128,
+    initialize=True,
+    takeover=False,
 ):
     tmp_path.mkdir(parents=True, exist_ok=True)
     now = [100.0]
@@ -123,8 +125,9 @@ def configured(
             control=control,
             broker_channels=(channels["broker-a"], channels["broker-b"]),
         )
-        coordinator.initialize_scope(scope, control=control)
-        coordinator.start(scope, control=control)
+        if initialize:
+            coordinator.initialize_scope(scope, control=control)
+        coordinator.start(scope, control=control, takeover=takeover)
         leases = {name: coordinator.admit(scope, channels[name]) for name in ("parent", "child")}
         references = {"parent": root_ref.grant_id, "child": child.grant_id}
         for name in references:

@@ -896,7 +896,14 @@ class SwarmDelegationService:
                     self._containment.require_current(subject.context, captured)
                 if self._governance is not None:
                     self._governance.require_native_dispatch(
-                        admission.governance_context, subject.context, captured, policy_broker
+                        admission.governance_context,
+                        subject.context,
+                        captured,
+                        policy_broker,
+                        channel=admission.owner_channel,
+                        reference=admission.grant_ref,
+                        host_context=admission.decision._context,
+                        admission_id=admission_id,
                     )
                 if self._policy_runtime is not None:
                     policy_guard.enter_context(

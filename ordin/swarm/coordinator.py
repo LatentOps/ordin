@@ -388,6 +388,9 @@ class SwarmCoordinator:
         self._prepared: dict[str, _Prepared] = {}
         self._audit_sources: dict[CoordinatorScope, Any] = {}
         self._retired_prepared: dict[str, _Prepared] = {}
+        # Each entry corresponds to an existing bounded durable reservation;
+        # these original objects are never reconstructed from checkpoint JSON.
+        self._completed_prepared: dict[str, _Prepared] = {}
         self._fence_receipts: dict[CoordinatorFenceReceipt, str] = {}
         self._recovery_verifiers: dict[CoordinatorScope, Any] = {}
         self._budget_views: set[CoordinatorBudgetView] = set()
@@ -721,6 +724,9 @@ class SwarmCoordinator:
             )
             result = self._status(transaction, handle, state)
         with self._lock:
+            for key, prepared in tuple(self._completed_prepared.items()):
+                if prepared.scope is handle:
+                    del self._completed_prepared[key]
             for key, prepared in tuple(self._prepared.items()):
                 if prepared.scope is handle:
                     if prepared.broker is not None and state["reservations"].get(key, {}).get(
@@ -746,6 +752,63 @@ class SwarmCoordinator:
                 maximum=self._limit,
             )
             return self._status(transaction, handle, state)
+
+    def refresh_broker_channel(
+        self,
+        handle: CoordinatorScope,
+        channel: AuthorityChannel,
+        *,
+        control: CoordinatorControlSource,
+        operator: object,
+        expected_owner_fence: int,
+    ) -> None:
+        """Refresh original broker transport without renewing workload or approval authority."""
+        from .broker import SwarmExecutionBroker
+
+        self._control_check(control)
+        if (
+            operator is not self._operator
+            or type(expected_owner_fence) is not int
+            or expected_owner_fence < 1
+        ):
+            raise CoordinatorRejected("original broker refresh owner control required")
+        scope = self._scope(handle)
+        enrolled = scope.authenticator.require(channel, role="broker")
+        broker = scope.brokers.get(enrolled.host_id)
+        if (
+            type(broker) is not SwarmExecutionBroker
+            or broker._operator is not operator
+            or broker._service is not scope.native
+        ):
+            raise CoordinatorRejected("original registered broker refresh required")
+        with self._containment_barrier(scope), broker._barrier(), broker._execution_lock:
+            with broker._state_lock:
+                if any(
+                    row.state in {"prepared", "checking", "forwarding"}
+                    for row in broker._pending.values()
+                ):
+                    raise CoordinatorRejected("broker transport refresh requires no pending work")
+            with self.store.transaction() as transaction:
+                _, state = self._owner(transaction, handle)
+                current = scope.authenticator.require(channel, role="broker")
+                if (
+                    state["owner"]["fence"] != expected_owner_fence
+                    or current is not enrolled
+                    or current is not broker._broker_enrollment
+                    or scope.authenticator.enrollment(current.enrollment_id) is not current
+                    or scope.broker_channels.get(current.host_id) is not broker._broker_channel
+                ):
+                    raise CoordinatorRejected("broker refresh identity, pin or owner fence changed")
+                transaction.append(
+                    handle.scope_key,
+                    "broker_transport_refreshed",
+                    digest(current.enrollment_id),
+                    {"host_digest": digest(current.host_id), "owner_fence": expected_owner_fence},
+                    maximum=self._limit,
+                )
+            # Both live transport pins move together only after durable ACK.
+            broker.refresh_broker_channel(channel, operator=operator)
+            scope.broker_channels[current.host_id] = channel
 
     def _subject(self, handle, channel):
         scope = self._scope(handle)
@@ -974,6 +1037,8 @@ class SwarmCoordinator:
         governance_context=None,
     ) -> CoordinatorRecord:
         """Non-authorizing preview; reserve/dispatch recheck original live authority."""
+        from .broker import SwarmExecutionBroker
+
         identifier(idempotency_key, "idempotency_key")
         if type(action) is not ActionEnvelope or action.action_id is None:
             raise ValueError("exact host-correlated action required")
@@ -1014,7 +1079,22 @@ class SwarmCoordinator:
             original, native_subject = scope.native._grant(channel, native_reference)
             if native_subject.context is not enrollment.context or native_subject.source is None:
                 raise CoordinatorRejected("coordinator.native_scope_changed")
-            preview_context = native_subject.source.context()
+            credential_uses = ()
+            registered_broker = scope.brokers.get(enrollment.host_id)
+            if registered_broker is not None:
+                if (
+                    type(registered_broker) is not SwarmExecutionBroker
+                    or registered_broker._service is not scope.native
+                ):
+                    raise CoordinatorRejected("coordinator.original_credential_broker_required")
+                credential_uses = registered_broker.review_credential_uses(
+                    native_subject.source, captured
+                )
+                if not registered_broker.verify_credential_uses(
+                    native_subject.source, captured, credential_uses
+                ):
+                    raise CoordinatorRejected("coordinator.original_credential_proofs_required")
+            preview_context = native_subject.source.context(credential_uses=credential_uses)
             approval_options = {}
             if scope.native._governance is not None:
                 preview_context, approval_options = scope.native._governance.native_options(
@@ -1630,9 +1710,80 @@ class SwarmCoordinator:
                 "committed",
                 reservation["action_digest"],
             )
-        self._prepared.pop(reservation_id, None)
+        with self._lock:
+            prepared = self._prepared.pop(reservation_id, None)
+            if prepared is not None and prepared.broker is not None:
+                self._completed_prepared[reservation_id] = prepared
         self._emit_audit(handle, result)
         return result
+
+    def broker_result(
+        self, handle: CoordinatorScope, broker_channel: AuthorityChannel, reservation_id: str
+    ):
+        """Retrieve one original committed physical outcome under current protected scope."""
+        from ordin.enforcement_backend import EnforcementPlan
+
+        from .broker import SwarmExecutionBroker
+        from .owned_tools import LinuxOwnedToolsBackend, OwnedRequestPlan
+
+        scope = self._scope(handle)
+        with self._containment_barrier(scope), self._lock, self.store.transaction() as transaction:
+            _, _, reservation = self._broker_reservation(
+                transaction, handle, broker_channel, reservation_id, statuses={"committed"}
+            )
+            enrollment = scope.authenticator.require(broker_channel, role="broker")
+            prepared = self._completed_prepared.get(reservation_id)
+            if prepared is None or prepared.scope is not handle:
+                raise CoordinatorRejected("coordinator.original_completed_broker_binding_required")
+            broker = prepared.broker
+            registered = scope.brokers.get(enrollment.host_id)
+            if (
+                type(broker) is not SwarmExecutionBroker
+                or type(registered) is not SwarmExecutionBroker
+            ):
+                raise CoordinatorRejected("coordinator.original_completed_broker_binding_required")
+            if (
+                prepared.authorization is None
+                or broker is not registered
+                or scope.broker_channels.get(enrollment.host_id) is not broker_channel
+                or broker._service is not scope.native
+                or prepared.action_digest != reservation["action_digest"]
+                or digest(prepared.action.as_dict()) != prepared.action_digest
+            ):
+                raise CoordinatorRejected("coordinator.original_completed_broker_binding_required")
+            with broker._state_lock:
+                authorized = broker._pending_row(prepared.authorization)
+                result = authorized.result
+                original_plan = authorized.scope.plan
+                executor = broker._executor
+                if type(original_plan) is EnforcementPlan:
+                    witnessed = (
+                        result is not None
+                        and result.executor_outcome is not None
+                        and executor.verify_outcome(result.executor_outcome, original_plan)
+                    )
+                elif (
+                    type(original_plan) is OwnedRequestPlan
+                    and type(executor) is LinuxOwnedToolsBackend
+                ):
+                    witnessed = (
+                        result is not None
+                        and result.executor_outcome is not None
+                        and executor.verify_outcome(result.executor_outcome, original_plan)
+                    )
+                else:
+                    witnessed = False
+                if (
+                    result is None
+                    or result.status != "completed"
+                    or not result.physical_enforcement
+                    or result.action_digest != prepared.action_digest
+                    or not broker.verify_result(result, prepared.authorization)
+                    or result.executor_outcome is None
+                    or not witnessed
+                ):
+                    raise CoordinatorRejected("coordinator.original_actual_broker_outcome_required")
+                return result
 
     def guarded_dispatch(
         self,

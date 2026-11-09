@@ -41,6 +41,32 @@ Configuring the approval source arms native admission immediately: an
 unacknowledged or partially bound installation cannot fall back to ordinary
 `allow` admission. Explicit installation recovery must complete the binding.
 
+After acknowledged installation, an ordinary action whose fresh core review,
+complete capability contract, mandatory requirements and independent policy all
+allow execution can use the original native/coordinator/broker route without a
+human vote. Each admission, consumption and owned-effect boundary checks that
+condition again against the original action and protected evidence. A previous
+allow cannot authorize a subsequently changed warning. `warn`, `ask`, `block`
+and unresolved requirements cannot use this route.
+After admission, rechecks retain the original owned job and native ticket's
+protected review inputs. They do not submit the same action ID as another
+proposal or reserve another ticket. Changed session history, observations,
+configuration or policy invalidate that original job's recheck snapshot.
+
+An explicitly selected REST route keeps the mandatory exact request commitment
+inside its complete `RestRequestContract`. Only that contract's typed request
+verification can account for the specific commitment marker; the capability
+projection remains diagnostic. Method, scheme, destination, path, headers and
+body remain bound, and all other unknown requirements still reject execution.
+
+The deployed host can use a physically enforced broker-local ledger alongside
+coordinator accounting. The original broker outcome proves its measured kernel
+tool effect; the coordinator's accounting report keeps
+`physical_enforcement: false`. Coordinated physical-budget receipts are a
+separate unsupported mode: a coordinator policy requesting
+`require_physical_enforcement=True` rejects reservation before a broker effect.
+Local kernel evidence does not implement or waive that distributed requirement.
+
 ## Approve an exact proposal
 
 The workload proposes an action; the human resolves it over a distinct original
@@ -59,6 +85,27 @@ if resolution["status"] == "approved":
     reservation = governance.prepare(receipt, workload_channel, lease_id, action)
     outcome = governance.dispatch(receipt)
 ```
+
+A protected operator service can instead call
+`governance.fulfill(human_channel, request.request_id)` after approval. This
+facade checks the current scoped human role and uses the service's retained
+original receipt, caller action, workload channel, lease and grant. It still
+requires the complete current quorum and permits exactly one owned job. The
+operator supplies no replacement action or serialized receipt. The requesting
+workload channel cannot serve as the human operator channel.
+
+`fulfill` returns the existing `CoordinatorDispatch` accounting result. A trusted
+host that needs byte custody or actual physical evidence can call
+`fulfillment_result(human_channel, request.request_id)` to retrieve the retained
+original completed `BrokerResult`. The accessor checks the current owner, scoped
+human role, durable completed request, exact authorization and original executor
+witness. It rejects uncertain or missing outcomes; a serialized report cannot
+restore that object or authorize another execution.
+For an ordinary completed enforcing request, the protected host can use
+`coordinator.broker_result(scope, actual_broker_channel, reservation_reference)`.
+This checks the current pinned broker and committed reservation against the
+retained original preparation and physical executor outcome. Expired leases,
+owner replacement and uncertain effects cannot restore a completed live result.
 
 `request`, queue inspection and review do not reserve quota, consume approval or
 execute. The request binds a detached canonical action, exact context/review/risk,
@@ -90,8 +137,13 @@ Core `block`, mandatory unknowns, required independent policy escalations,
 unrepresented requests/prover/runtime domains, revoked delegation, operator
 maximum and hard budget failures remain restrictive even with a valid approval.
 Generic callback gateways cannot execute an approved core warning. The concrete
-supported route is the original finite Linux `read_file` worker, with its fixed
-resource and output bounds. Custom cost providers are rejected because their
+supported routes use the original finite Linux read worker or managed-tools
+backend, with their exact action validation, fixed resource bounds and original
+job leases. Managed writes retain their core warning and compare-and-swap
+requirements through approval and the final write boundary. Credentialed HTTP
+actions retain the same original host credential-use receipts through review,
+preparation and effect checks; approval cannot supply missing credential proof.
+Custom cost providers are rejected because their
 represented cost binding is not supported by this approval producer.
 
 ## Break-glass
@@ -181,6 +233,32 @@ Missing or corrupt initialized namespaces are never silently recreated. Partial
 installation rejects dispatch until explicit protected installation recovery.
 There is no file-based restoration of executable approvals or approval-bearing
 runtime sessions.
+
+Keep one `CoordinatorClock(store)` object shared by the registry, authenticator,
+issuer, budgets, coordinator and approval bootstrap. Create the private database
+only during explicit initialization; restart opens the intact existing database.
+Reconstructing the approval authority changes its original configuration
+binding. A protected operator restart therefore selects a fresh monotonic policy
+epoch for all components and calls `coordinator.start(scope, control=control,
+takeover=True)`. Reusing the old epoch with a changed configuration fails closed.
+Keep the same scope and budget dimensions: takeover retains spent quota and
+forwarded uncertain holds, fences old leases/evaluations and cancels only known
+unforwarded reservations. Never recreate a database or rename actors to reset
+that history. `coordinator.checkpoint(scope, control=control)` persists historical
+projection state, without restoring live authority.
+
+Authenticated transport and readiness proofs have their own finite lifetimes.
+Before admitting fresh work, the protected host may renew an actual broker TLS
+channel using `coordinator.refresh_broker_channel(scope, channel, control=control,
+operator=installation_capability, expected_owner_fence=fence)`. This requires the
+same original broker enrollment, certificate, host and current database owner,
+with no pending broker work. It moves the coordinator and broker pins together
+after durable acknowledgement. A fresh actual activation probe can then supply
+`governance.refresh_factory_proof(host_id, proof,
+operator=installation_capability, expected_owner_fence=fence)` for the same
+registered enforcing factory and selected policy. These operations extend no
+grant, workload lease, approval deadline or vote. A request whose original
+workload channel or lease expired needs a fresh proposal and fresh human votes.
 
 This is scoped mediation of represented owned-worker jobs. Unmediated paths,
 general filesystem/process control, arbitrary other agents and uncapped remote
