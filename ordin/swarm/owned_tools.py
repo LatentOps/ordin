@@ -303,6 +303,7 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
         )
         self._initialize_owned = initialize
         self._managed_state: OwnedFileState | None = None
+        self._closing = False
         self._write_plans: dict[str, tuple[EnforcementPlan, ActionEnvelope, dict]] = {}
         self._credential_key = secrets.token_bytes(32)
         self._credential_reviews: dict[str, _CredentialReview] = {}
@@ -414,6 +415,8 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             self._record(name)
 
     def _verify_install(self):
+        if self._closing:
+            raise ValueError("owned executor is closing")
         super()._verify_install()
         if _sha(Path(__file__)) != self._backend_digest:
             raise ValueError("owned backend code changed")
@@ -842,7 +845,96 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             raise ValueError("owned kernel receipt incomplete")
         return isolation
 
+    def create_job(self, plan: EnforcementPlan, *, operator: object) -> KernelJob:
+        with self._jobs_lock:
+            if self._closing:
+                raise ValueError("owned executor is closing")
+            return super().create_job(plan, operator=operator)
+
+    def _result(
+        self,
+        plan,
+        status,
+        reason,
+        *,
+        physical=False,
+        evidence=None,
+        stdout_bytes=0,
+        value=None,
+        observation=None,
+        job: KernelJob | None = None,
+    ):
+        outcome = super()._result(
+            plan,
+            status,
+            reason,
+            physical=physical,
+            evidence=evidence,
+            stdout_bytes=stdout_bytes,
+            value=value,
+            observation=observation,
+            job=job,
+        )
+        self._retain_live_job_state(job)
+        return outcome
+
+    def _retain_live_job_state(self, job):
+        if job is None:
+            return
+        with self._jobs_lock:
+            row = self._job(job)
+            if row.process is not None:
+                try:
+                    live = row.process.poll() is None
+                except OSError:
+                    live = True
+                if live:
+                    row.state = "unable_to_stop"
+
+    def _stop_retained_owned_job(self, job, *, operator):
+        """Retry only the original child; cleanup cannot resolve past effects."""
+        if operator is not self._operator:
+            raise ValueError("original owned operator required")
+        with self._jobs_lock:
+            row = self._job(job)
+            row.cancel.set()
+            process, pidfd = row.process, row.pidfd
+            if process is None:
+                if row.outcome is not None and row.outcome.status == "unknown":
+                    return "unknown"
+                return super().request_stop(job, operator=operator)
+        pinned_pidfd = None
+        try:
+            # Producers close this fd only AFTER this same Popen is terminal.
+            # A duplicate pins a still-live original; if close/reuse happened
+            # first, _terminate's initial poll sees terminal Popen and sends no
+            # signal through the possibly recycled duplicate.
+            pinned_pidfd = os.dup(pidfd) if pidfd is not None else None
+            stopped = self._terminate(process, pinned_pidfd)
+        except OSError:
+            try:
+                stopped = process.poll() is not None
+            except OSError:
+                stopped = False
+        finally:
+            if pinned_pidfd is not None:
+                os.close(pinned_pidfd)
+        with self._jobs_lock:
+            if not stopped:
+                row.state = "unable_to_stop"
+                return "unable_to_stop"
+            if row.outcome is None or row.outcome.status == "canceled":
+                row.state = "canceled"
+                return "canceled"
+            row.state = "finished"
+            return "completed" if row.outcome.status in {"completed", "denied"} else "unknown"
+
+    def request_stop(self, job: KernelJob, *, operator: object) -> str:
+        return self._stop_retained_owned_job(job, operator=operator)
+
     def execute(self, plan, action, source, *, operator, job=None):
+        if self._closing:
+            raise ValueError("owned executor is closing")
         if plan.policy.get("profile") != WRITE_PROTOCOL:
             result = super().execute(plan, action, source, operator=operator, job=job)
             if result.status == "completed":
@@ -1119,8 +1211,31 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
             raise
 
     def close(self):
+        # Fence admission before waiting on an active forwarding thread. Stop
+        # again after acquiring the execution lock to cover child publication
+        # between the first snapshot and the forwarding thread observing cancel.
+        with self._jobs_lock:
+            self._closing = True
+            jobs = tuple(self._jobs)
+        self._close_stop_jobs(jobs)
         with self._lock:
+            with self._jobs_lock:
+                jobs = tuple(self._jobs)
+            self._close_stop_jobs(jobs)
             if self._managed_state is not None:
                 self._managed_state.close()
                 self._managed_state = None
             super().close()
+
+    def _close_stop_jobs(self, jobs):
+        unable = False
+        for job in jobs:
+            try:
+                unable = (
+                    self.request_stop(job, operator=self._operator) == "unable_to_stop" or unable
+                )
+            except (OSError, ValueError, RuntimeError):
+                unable = True
+        if unable:
+            # Keep original process/pidfd and parent storage custody for retry.
+            raise RuntimeError("owned worker cleanup remains uncertain; close must be retried")

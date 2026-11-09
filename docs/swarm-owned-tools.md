@@ -63,6 +63,14 @@ destination can leave an uncertain effect; the history then blocks subsequent
 operations pending operator reconciliation. No automatic retry or fallback can
 overwrite that uncertainty. Unsupported kernels return non-success.
 
+An unknown result retains the original child/job custody when termination is
+unconfirmed. `request_stop(original_job, operator=operator)` retries only that
+original process, using its retained descriptor when available. Later successful
+cleanup leaves the original unknown outcome and uncertain holds unchanged.
+`close()` fences new work before stopping existing jobs and checks again after
+acquiring the execution lock. If cleanup remains unconfirmed it raises while
+retaining process and storage ownership; the protected owner must retry close.
+
 `OwnedHTTPRoute` currently validates an operator-selected exact GET route,
 explicit pinned IPs and private credential configuration. HTTP execution is
 delivered separately; this write checkpoint explicitly refuses request-domain
