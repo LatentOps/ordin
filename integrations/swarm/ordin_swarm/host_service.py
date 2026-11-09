@@ -149,18 +149,31 @@ class ManagedHostServer:
             # No raw request, payload, credential or transport exception is logged.
             pass
         finally:
-            if session is not None:
-                session.close()
-            elif client is not None:
-                self.host.close_client(client)
-            if connection is not None:
-                connection.close()
-            raw.close()
-            with self._lock:
-                self._sockets.discard(raw)
-                if connection is not None:
-                    self._sockets.discard(connection)
-            self._slots.release()
+            error = None
+            try:
+                try:
+                    if session is not None:
+                        session.close()
+                    elif client is not None:
+                        self.host.close_client(client)
+                except BaseException as failure:
+                    # The original host retains failed client cleanup custody.
+                    error = failure
+                for transport in (connection, raw):
+                    if transport is None:
+                        continue
+                    try:
+                        transport.close()
+                    except BaseException as failure:
+                        # Keep failed transports tracked for server.close().
+                        error = error or failure
+                    else:
+                        with self._lock:
+                            self._sockets.discard(transport)
+            finally:
+                self._slots.release()
+            if error is not None:
+                raise error
 
     def run(self) -> int:
         next_maintenance = 0.0
