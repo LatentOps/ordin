@@ -12,8 +12,10 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import stat
 import subprocess
 import sys
+import sysconfig
 import xml.etree.ElementTree as ET
 import zipfile
 
@@ -298,6 +300,28 @@ def copy_fixture_inputs(destination: Path) -> dict[str, str]:
     return checked
 
 
+def runtime_source_preflight() -> dict[str, object]:
+    """Record actual runtime ownership without changing or qualifying its inputs."""
+    selected = {
+        "interpreter": Path(sys.executable),
+        "base_interpreter": Path(getattr(sys, "_base_executable", sys.executable)),
+        "stdlib": Path(sysconfig.get_path("stdlib")),
+        "sysconfig_module": Path(getattr(sysconfig, "__file__", sys.executable)),
+    }
+    paths: dict[str, dict[str, str | int]] = {}
+    for name, path in selected.items():
+        resolved = path.resolve(strict=True)
+        info = resolved.stat()
+        paths[name] = {
+            "selected": str(path),
+            "resolved": str(resolved),
+            "owner_uid": info.st_uid,
+            "owner_gid": info.st_gid,
+            "mode": oct(stat.S_IMODE(info.st_mode)),
+        }
+    return {"effective_uid": os.geteuid(), "runtime_paths": paths}
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workspace", type=Path, required=True)
@@ -310,6 +334,8 @@ def main(argv=None) -> int:
         or not re.fullmatch(r"[a-f0-9]{40}", args.revision)
     ):
         raise ValueError("required privileged Linux x86-64 installed fixture unavailable")
+    preflight = runtime_source_preflight()
+    print(json.dumps({"actual_runtime_source_preflight": preflight}), flush=True)
     actual = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     if actual != args.revision:
         raise ValueError("protected-runtime source revision mismatch")
@@ -322,6 +348,7 @@ def main(argv=None) -> int:
     wheels, evidence, copied = (workspace / name for name in ("wheels", "evidence", "tests"))
     for directory in (wheels, evidence, copied):
         directory.mkdir(mode=0o700)
+    (evidence / "runtime-source-preflight.json").write_text(json.dumps(preflight, indent=2) + "\n")
     settings = {
         **os.environ,
         "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
@@ -422,6 +449,7 @@ def main(argv=None) -> int:
         raise ValueError("protected-runtime source changed during installed qualification")
     report = {
         "revision": actual,
+        "runtime_source_preflight": preflight,
         "installed_wheel": True,
         "required_actual_positives": verified,
         "source_wheel_sha256": parity,
