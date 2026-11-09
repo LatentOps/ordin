@@ -404,6 +404,7 @@ def _run(
         return "error", None, b"", b"", 0
     stdout, stderr = bytearray(), bytearray()
     overflow = threading.Event()
+    reader_error = threading.Event()
     if cancel is not None and cancel.is_set():
         return "canceled", None, b"", b"", 0
     try:
@@ -427,20 +428,31 @@ def _run(
                 if len(chunk) > remaining:
                     overflow.set()
                     break
+        except (OSError, ValueError):
+            reader_error.set()
         finally:
-            pipe.close()
+            try:
+                pipe.close()
+            except (OSError, ValueError):
+                reader_error.set()
 
-    readers = [
-        threading.Thread(target=drain, args=(process.stdout, stdout), daemon=True),
-        threading.Thread(target=drain, args=(process.stderr, stderr), daemon=True),
-    ]
-    for reader in readers:
-        reader.start()
+    readers = []
+    owned_pipes = []
     status = None
     try:
+        # Thread construction/start can fail after launch. Retain each pipe's
+        # owner before starting it, under the same lifetime cleanup as polling.
+        for pipe, buffer in ((process.stdout, stdout), (process.stderr, stderr)):
+            reader = threading.Thread(target=drain, args=(pipe, buffer), daemon=True)
+            readers.append(reader)
+            owned_pipes.append((reader, pipe))
+            reader.start()
         while process.poll() is None:
             if overflow.is_set():
                 status = "output_limit"
+                break
+            if reader_error.is_set():
+                status = "error"
                 break
             if cancel is not None and cancel.is_set():
                 status = "canceled"
@@ -451,6 +463,8 @@ def _run(
             time.sleep(0.01)
     except KeyboardInterrupt:
         status = "canceled"
+    except (OSError, ValueError, RuntimeError):
+        status = "error"
     finally:
         # End descendants, including a background child after normal exit.
         try:
@@ -463,10 +477,21 @@ def _run(
             process.wait(timeout=2)
         except (OSError, subprocess.TimeoutExpired):
             status = "error"
-    for reader in readers:
-        reader.join(timeout=1)
-    if any(reader.is_alive() for reader in readers):
-        status = status or "error"
+        for reader in readers:
+            if reader.ident is not None:
+                reader.join(timeout=1)
+        if any(reader.is_alive() for reader in readers):
+            status = status or "error"
+        for pipe in (process.stdout, process.stderr):
+            if not any(reader.is_alive() and owned is pipe for reader, owned in owned_pipes):
+                # A live reader may hold the buffered stream lock. It owns its
+                # close; untouched and stopped-reader pipes can close here.
+                try:
+                    pipe.close()
+                except (OSError, ValueError):
+                    status = "error"
+        if reader_error.is_set():
+            status = status or "error"
     if overflow.is_set():
         status = "output_limit"
     return (
