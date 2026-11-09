@@ -16,9 +16,24 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 TEST_FILES = (
-    "test_swarm_managed_process.py",
-    "test_swarm_confined_tests.py",
-    "test_swarm_runtime_catalog.py",
+    "tests/test_swarm_managed_process.py",
+    "tests/test_swarm_confined_tests.py",
+    "tests/test_swarm_runtime_catalog.py",
+    "tests/test_swarm_owned_tests.py",
+    "tests/test_swarm_owned_stop.py",
+    "tests/test_swarm_owned_test_stop.py",
+    "tests/test_swarm_owned_defaults.py",
+    "integrations/swarm/tests/test_tool_host_profiles.py",
+    "integrations/swarm/tests/test_tool_host_lineage.py",
+    "integrations/swarm/tests/test_tool_host_protocol.py",
+    "integrations/swarm/tests/test_tool_host_initialization.py",
+    "integrations/swarm/tests/test_tool_host_tests.py",
+    "integrations/swarm/tests/test_tool_host_uid_dispatch.py",
+    "integrations/swarm/tests/test_tool_host_cleanup.py",
+    "integrations/swarm/tests/test_tool_host_cli.py",
+    "integrations/swarm/tests/test_tool_host_commands.py",
+    "integrations/swarm/tests/test_tool_host_deployment.py",
+    "integrations/swarm/tests/test_tool_host_evaluation.py",
 )
 REQUIRED_POSITIVES = frozenset(
     {
@@ -29,6 +44,13 @@ REQUIRED_POSITIVES = frozenset(
         "test_installation_probe_does_not_execute_configured_project",
         "test_owned_test_timeout_is_unknown_without_retry",
         "test_catalog_restart_reverifies_same_identity_without_rebuild_or_code_execution",
+        "test_catalog_build_pins_exact_linker_curation_and_materializes_stdlib_module_alias",
+        "test_pinned_framework_outranks_real_project_pytest_py_and_private_package_shadows",
+        "test_fixed_pytest_logging_and_caplog_use_only_private_quota_scratch",
+        "test_original_confined_runner_result_is_aggregated_and_bound_to_its_job",
+        "test_live_shared_host_init_handoff_exact_human_write_stop_and_epoch_restart",
+        "test_actual_offline_two_agent_workflow_and_attack_suite[False]",
+        "test_actual_offline_two_agent_workflow_and_attack_suite[True]",
     }
 )
 
@@ -82,6 +104,38 @@ def verify_wheel_bytes(core: Path, swarm: Path) -> dict[str, str]:
     return checked
 
 
+def copy_fixture_inputs(destination: Path) -> dict[str, str]:
+    """Retain tracked helper/fixture paths while importing only installed packages."""
+    paths = subprocess.check_output(
+        ["git", "ls-files", "-z", "--", "tests", "integrations/swarm/tests"], cwd=ROOT
+    ).split(b"\0")
+    checked = {}
+    for raw in paths:
+        if not raw:
+            continue
+        name = raw.decode("utf-8")
+        relative = Path(name)
+        if (
+            relative.is_absolute()
+            or ".." in relative.parts
+            or not name.startswith(("tests/", "integrations/swarm/tests/"))
+        ):
+            raise ValueError("installed fixture input must remain in tracked test trees")
+        source = ROOT / relative
+        if source.is_symlink() or not source.resolve().is_relative_to(ROOT.resolve()):
+            raise ValueError("installed fixture input cannot follow an external or linked source")
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        checked[name] = hashlib.sha256(target.read_bytes()).hexdigest()
+    if not checked:
+        raise ValueError("installed fixture dependencies are absent")
+    package = destination / "tests/__init__.py"
+    if not package.exists():
+        package.write_text("")
+    return checked
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workspace", type=Path, required=True)
@@ -97,6 +151,8 @@ def main(argv=None) -> int:
     actual = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     if actual != args.revision:
         raise ValueError("protected-runtime source revision mismatch")
+    if subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT).strip():
+        raise ValueError("protected-runtime source checkout must be clean")
     workspace = args.workspace.resolve()
     if workspace == ROOT or ROOT in workspace.parents:
         raise ValueError("installed fixture workspace must be outside the source checkout")
@@ -108,6 +164,7 @@ def main(argv=None) -> int:
         **os.environ,
         "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
         "ORDIN_REQUIRED_PROTECTED_PROCESS": "1",
+        "ORDIN_REQUIRE_SWARM_BROKER": "1",
         "LANGCHAIN_TRACING_V2": "false",
         "LANGSMITH_TRACING": "false",
         "PYTHONDONTWRITEBYTECODE": "1",
@@ -158,7 +215,7 @@ def main(argv=None) -> int:
             "install",
             "--no-build-isolation",
             str(core) + "[assurance-dev]",
-            swarm,
+            str(swarm) + "[test-runtime]",
         ]
     )
     run([python, "-m", "pip", "check"])
@@ -169,9 +226,19 @@ def main(argv=None) -> int:
         "print('installed protected-runtime origins',ordin.__file__,ordin_swarm.__file__)"
     )
     run([python, "-I", "-c", origin_code])
-    for name in TEST_FILES:
-        shutil.copyfile(ROOT / "tests" / name, copied / name)
-    (copied / "__init__.py").write_text("")
+    entrypoint_code = (
+        "from importlib.metadata import distribution; "
+        "entry=next(e for e in distribution('ordin-swarm').entry_points "
+        "if e.group=='console_scripts' and e.name=='ordin-swarm-host'); "
+        "assert entry.value=='ordin_swarm.host_cli:entrypoint'; print(entry.value)"
+    )
+    run([python, "-I", "-c", entrypoint_code])
+    console = environment / "bin/ordin-swarm-host"
+    run([console, "--help"])
+    run([python, "-I", "-m", "ordin_swarm.host_cli", "--help"])
+    inputs = copy_fixture_inputs(copied)
+    if any(not (copied / name).is_file() for name in TEST_FILES):
+        raise ValueError("required installed runtime or host fixture file is missing")
     junit = evidence / "junit.xml"
     run(
         [
@@ -181,6 +248,8 @@ def main(argv=None) -> int:
             "-m",
             "pytest",
             "-q",
+            "-W",
+            "error::pytest.PytestUnhandledThreadExceptionWarning",
             *[copied / name for name in TEST_FILES],
             "--basetemp",
             workspace / "pytest-temp",
@@ -189,6 +258,11 @@ def main(argv=None) -> int:
         ]
     )
     verified = qualify_junit(junit)
+    if (
+        subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip() != actual
+        or subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT).strip()
+    ):
+        raise ValueError("protected-runtime source changed during installed qualification")
     report = {
         "revision": actual,
         "installed_wheel": True,
@@ -200,8 +274,13 @@ def main(argv=None) -> int:
         "tests_sha256": {
             name: hashlib.sha256((copied / name).read_bytes()).hexdigest() for name in TEST_FILES
         },
+        "fixture_inputs_sha256": inputs,
+        "installed_console": str(console),
+        "installed_console_target": "ordin_swarm.host_cli:entrypoint",
+        "installed_module_help_passed": True,
+        "collector_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "pytest_junit": str(junit),
-        "scope": "finite privileged Linux agent and fixed pytest fixtures; test results are diagnostics, not execution authority",
+        "scope": "finite privileged Linux agent, aggregate, human workflow and host fixtures; test diagnostics are not execution authority",
     }
     (evidence / "protected-runtime.json").write_text(json.dumps(report, indent=2) + "\n")
     return 0

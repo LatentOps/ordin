@@ -27,7 +27,7 @@ def junit(tmp_path, *, change=None):
 
 
 def test_required_agent_and_pytest_positives_must_all_run(tmp_path):
-    assert len(check.REQUIRED_POSITIVES) == 7
+    assert len(check.REQUIRED_POSITIVES) == 14
     assert set(check.qualify_junit(junit(tmp_path))) == check.REQUIRED_POSITIVES
 
 
@@ -35,6 +35,55 @@ def test_required_agent_and_pytest_positives_must_all_run(tmp_path):
 def test_skipped_missing_failed_or_errored_physical_fixture_is_not_qualified(tmp_path, change):
     with pytest.raises(ValueError):
         check.qualify_junit(junit(tmp_path, change=change))
+
+
+def test_non_enhanced_workflow_cannot_substitute_for_required_protected_human_test_flow(tmp_path):
+    target = junit(tmp_path)
+    tree = ET.parse(target)
+    root = tree.getroot()
+    enhanced = next(
+        case
+        for case in root
+        if case.get("name") == "test_actual_offline_two_agent_workflow_and_attack_suite[True]"
+    )
+    root.remove(enhanced)
+    tree.write(target)
+    with pytest.raises(ValueError, match="attack_suite\\[True\\]"):
+        check.qualify_junit(target)
+
+
+def test_installed_input_copy_retains_helper_and_fixture_trees_without_source_packages(
+    tmp_path, monkeypatch
+):
+    source, copied = tmp_path / "source", tmp_path / "copied"
+    paths = (
+        "tests/helpers.py",
+        "tests/fixtures/swarm_tls/ca.pem",
+        "integrations/swarm/tests/test_tool_host_profiles.py",
+    )
+    for name in paths:
+        path = source / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(name)
+    monkeypatch.setattr(check, "ROOT", source)
+    monkeypatch.setattr(
+        check.subprocess,
+        "check_output",
+        lambda *args, **kwargs: b"\0".join(p.encode() for p in paths),
+    )
+    assert set(check.copy_fixture_inputs(copied)) == set(paths)
+    assert (copied / "tests/__init__.py").is_file()
+    assert not (copied / "ordin").exists() and not (copied / "ordin_swarm").exists()
+    for name in paths:
+        assert (copied / name).read_bytes() == (source / name).read_bytes()
+
+
+@pytest.mark.parametrize("name", ["ordin/__init__.py", "tests/../../escape.py"])
+def test_installed_input_copy_refuses_package_or_parent_escape_paths(tmp_path, monkeypatch, name):
+    monkeypatch.setattr(check, "ROOT", tmp_path)
+    monkeypatch.setattr(check.subprocess, "check_output", lambda *args, **kwargs: name.encode())
+    with pytest.raises(ValueError, match="tracked test trees"):
+        check.copy_fixture_inputs(tmp_path / "copied")
 
 
 def test_actual_privileged_workflow_and_release_policy_require_both_versions():
