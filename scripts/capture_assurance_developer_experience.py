@@ -52,7 +52,11 @@ def main():
     parser.add_argument("--revision", required=True)
     parser.add_argument("--source-junit", type=Path, required=True)
     parser.add_argument("--host-junit", type=Path, required=True)
-    parser.add_argument("--openshell-junit", type=Path, required=True)
+    runtime_evidence = parser.add_mutually_exclusive_group(required=True)
+    runtime_evidence.add_argument("--runtime-junit", dest="runtime_junit", type=Path)
+    runtime_evidence.add_argument(
+        "--openshell-junit", dest="runtime_junit", type=Path, help=argparse.SUPPRESS
+    )
     parser.add_argument("--wheel-check", type=Path, required=True)
     parser.add_argument("--installed-runtime", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -86,7 +90,7 @@ def main():
         junit(args.runtime_junit),
     )
     if source["failed"] or openshell["failed"]:
-        raise ValueError("mandatory source/OpenShell gate failed")
+        raise ValueError("mandatory source/runtime gate failed")
     raw = args.wheel_check.read_bytes()
     if len(raw) > 131072:
         raise ValueError("wheel check exceeds bounded evidence contract")

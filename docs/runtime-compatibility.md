@@ -14,6 +14,11 @@ The Python API now exports `OrdinRuntimeBackend`, `compile_runtime_policy`,
 legacy `--openshell` executable option remains accepted; current help and examples
 use `--runtime-executable`. Native test selection prefers `ORDIN_RUNTIME_PROVER`
 and accepts the legacy `ORDIN_OPENSHELL_PROVER` variable as compatibility input.
+The developer-experience evidence capture script advertises `--runtime-junit`;
+the legacy `--openshell-junit` option is accepted without appearing in help.
+Both select the same required runtime input, and ambiguous dual inputs refuse.
+Existing report keys `openshell_gate` and `openshell_passed` remain compatible;
+the migration neither rewrites archived reports nor changes their no-effect claims.
 
 The verified engine is the pinned NVIDIA OpenShell upstream, revision
 `6648bd0c290efbc41ba131ee9831ee45cd431f94`, build version `0.1.2`. This rename does
