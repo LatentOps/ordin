@@ -2,6 +2,7 @@
 
 import json
 import sqlite3
+from contextlib import closing
 
 import pytest
 
@@ -36,7 +37,7 @@ def test_legacy_audit_and_trace_anchors_detect_edits_but_do_not_make_observation
         bundle = source.journal.export(operator=data["operator"])
         assert all(row["evidence"] == "diagnostic" for row in bundle["events"])
         assert "SYNTHETIC_PRIVATE_PAYLOAD" not in json.dumps(bundle)
-        with sqlite3.connect(recorder.path) as connection:
+        with closing(sqlite3.connect(recorder.path)) as connection, connection:
             connection.execute("DELETE FROM events")
         assert not verify_trace_checkpoint(recorder.path, trace_anchor)
         sink.record(Ordin().review_action(ActionEnvelope.shell("pwd", action_id="different")))

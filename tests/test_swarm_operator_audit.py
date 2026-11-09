@@ -1,6 +1,7 @@
 """Tenant-keyed redaction, anchored chains and honest bounded retention."""
 
 from copy import deepcopy
+from contextlib import closing
 import json
 import sqlite3
 
@@ -79,7 +80,7 @@ def test_explicit_reopen_never_reinitializes_corrupt_or_wrong_key_history(tmp_pa
         SwarmAuditJournal(selected.path, key=b"Z" * 32, tenant_id="tenant", operator=object())
     with pytest.raises((ValueError, OSError)):
         SwarmAuditJournal(selected.path, key=b"K" * 32, tenant_id="other", operator=object())
-    with sqlite3.connect(selected.path) as connection:
+    with closing(sqlite3.connect(selected.path)) as connection, connection:
         connection.execute("DELETE FROM audit_events")
     with pytest.raises(ValueError):
         selected.export(operator=operator)
@@ -133,7 +134,7 @@ def test_backwards_clock_and_sql_index_tampering_fail_closed(tmp_path):
     with pytest.raises(ValueError):
         selected.export(operator=operator)
     now[0] = 100
-    with sqlite3.connect(selected.path) as connection:
+    with closing(sqlite3.connect(selected.path)) as connection, connection:
         connection.execute("UPDATE audit_events SET admitted_at=101")
     with pytest.raises(ValueError):
         selected.export(operator=operator)

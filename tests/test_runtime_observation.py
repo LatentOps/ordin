@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from contextlib import closing
 from dataclasses import FrozenInstanceError, replace
 
 import pytest
@@ -455,7 +456,7 @@ def test_sqlite_persists_both_parts_atomically_and_requires_trusted_sources(tmp_
             changed.observe_runtime(observation)
     with store.transaction(identity, gate, runtime_sources=(source,)) as restored:
         assert restored.snapshot_bundle() == original
-    with sqlite3.connect(store.path) as connection:
+    with closing(sqlite3.connect(store.path)) as connection, connection:
         assert connection.execute("SELECT COUNT(*) FROM runtime_sessions").fetchone()[0] == 1
 
 

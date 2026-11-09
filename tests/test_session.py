@@ -5,6 +5,7 @@ import sqlite3
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from dataclasses import replace
 
 import pytest
@@ -267,7 +268,7 @@ def test_store_missing_config_mismatch_and_corruption_fail_closed(tmp_path):
     with pytest.raises(ValueError, match="mismatch"):
         with store.transaction(identity, AgentGate(Ordin(policy=ReviewPolicy(fail_on="block")))):
             pass
-    with sqlite3.connect(store.path) as connection:
+    with closing(sqlite3.connect(store.path)) as connection, connection:
         connection.execute(
             "UPDATE sessions SET snapshot=?", ('{"schema_version":1,"schema_version":2}',)
         )

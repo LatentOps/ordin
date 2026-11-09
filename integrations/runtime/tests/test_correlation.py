@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+from contextlib import closing
 from dataclasses import replace
 
 import pytest
@@ -30,7 +31,7 @@ def test_atomic_private_bounded_binding_storage_and_round_trip(tmp_path):
 def test_local_checksum_detects_corruption(tmp_path):
     store = CorrelationStore(tmp_path / "mapping.db")
     binding = register_event(store, event_fixture(), supported_contract(), source_context())
-    with sqlite3.connect(store.path) as db:
+    with closing(sqlite3.connect(store.path)) as db, db:
         db.execute("UPDATE event_bindings SET payload='{}'")
     with pytest.raises(ValueError, match="corrupt"):
         store.lookup(binding.event_id_digest)

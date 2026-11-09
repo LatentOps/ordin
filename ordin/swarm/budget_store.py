@@ -7,6 +7,7 @@ import re
 import sqlite3
 from threading import RLock
 from typing import Iterator, Protocol
+from weakref import finalize
 
 from ordin._private_storage import private_database
 
@@ -115,6 +116,10 @@ class InMemoryBudgetStore:
             self._connection.execute("BEGIN IMMEDIATE")
             _initialize_schema(self._connection)
             self._connection.commit()
+            self._closed = False
+            # The callback retains only the original connection, not its store.
+            # Shared ledger views keep the store alive until its last owner leaves.
+            self._finalizer = finalize(self, self._connection.close)
         except BaseException:
             try:
                 # Closing an unreturned connection also rolls back partial setup.
@@ -124,9 +129,23 @@ class InMemoryBudgetStore:
                 pass
             raise
 
+    def close(self) -> None:
+        """Close the original store after active transactions, without resetting it."""
+        with self._lock:
+            if self._closed:
+                return
+            if self._connection.in_transaction:
+                raise ValueError("cannot close an active budget transaction")
+            # Preserve finalizer custody if an explicit close fails and needs retry.
+            self._connection.close()
+            self._closed = True
+            self._finalizer.detach()
+
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
         with self._lock:
+            if self._closed:
+                raise ValueError("budget store is closed")
             if self._connection.in_transaction:
                 raise ValueError("nested budget transaction refused")
             previously_allowed = self._allow_initialize
