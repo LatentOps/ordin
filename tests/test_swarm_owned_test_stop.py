@@ -96,3 +96,46 @@ def test_retained_terminal_test_jobs_still_consult_lower_proof_idempotently(
     assert row.outcome is upper and runner._engine.finish(lower_job, operator=operator) is native
     assert backend.verify_outcome(upper, plan)
     runner.close(operator=operator)
+
+
+def test_closing_fence_rejects_test_jobs_before_validation_or_execution(monkeypatch):
+    backend, operator, old_plan, _, _ = retained_backend()
+    plan = EnforcementPlan(backend.name, old_plan.contract, {"profile": TEST_PROTOCOL})
+    backend._closing = True
+
+    def unreachable(*args, **kwargs):
+        pytest.fail("closed aggregate reached test validation or execution")
+
+    monkeypatch.setattr(backend, "validate", unreachable)
+    monkeypatch.setattr(backend, "_execute_test", unreachable)
+    with pytest.raises(ValueError, match="closing"):
+        backend.create_job(plan, operator=operator)
+    with pytest.raises(ValueError, match="closing"):
+        backend.execute(plan, None, None, operator=operator)
+
+
+def test_close_retains_parent_storage_until_original_lower_cleanup_completes(tmp_path):
+    backend, operator, plan, job, row, runner, lower_job, native, lower, upper = retained_runner(
+        tmp_path
+    )
+
+    class Storage:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    storage = backend._managed_state = Storage()
+    backend._fd = -1
+    original = upper.as_dict(), lower.as_dict(), native.as_dict()
+    with pytest.raises(RuntimeError):
+        backend.close()
+    assert backend._closing and not storage.closed and backend._managed_state is storage
+    assert runner._engine._jobs[lower_job].process.poll() is None
+    runner._engine._jobs[lower_job].process.refuse_stop = False
+    backend.close()
+    assert storage.closed and backend._managed_state is None
+    assert runner._engine._jobs[lower_job].process.poll() == -9
+    assert row.outcome is upper and runner._engine.finish(lower_job, operator=operator) is native
+    assert original == (upper.as_dict(), lower.as_dict(), native.as_dict())
+    assert backend.verify_outcome(upper, plan)

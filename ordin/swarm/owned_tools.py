@@ -928,22 +928,24 @@ class LinuxOwnedToolsBackend(LinuxFileReadBackend):
 
     def create_job(self, plan, *, operator):
         if type(plan) is EnforcementPlan and plan.policy.get("profile") == TEST_PROTOCOL:
-            if (
-                operator is not self._operator
-                or not self.validate(plan).ok
-                or self._test_runner is None
-            ):
-                raise ValueError("original current fixed-test plan required")
-            job = super().create_job(plan, operator=operator)
-            try:
-                self._test_jobs[job] = self._test_runner.create_job(
-                    self._test_plans[plan.plan_id][1], operator=operator
-                )
-            except BaseException:
-                with self._jobs_lock:
+            with self._jobs_lock:
+                if self._closing:
+                    raise ValueError("owned executor is closing")
+                if (
+                    operator is not self._operator
+                    or not self.validate(plan).ok
+                    or self._test_runner is None
+                ):
+                    raise ValueError("original current fixed-test plan required")
+                job = super().create_job(plan, operator=operator)
+                try:
+                    self._test_jobs[job] = self._test_runner.create_job(
+                        self._test_plans[plan.plan_id][1], operator=operator
+                    )
+                except BaseException:
                     self._job(job).state = "canceled"
-                raise
-            return job
+                    raise
+                return job
         if type(plan) is not OwnedRequestPlan:
             with self._jobs_lock:
                 if self._closing:
