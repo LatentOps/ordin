@@ -60,6 +60,17 @@ from .host_profiles import HOST_TOOL_DATA_BYTES, ToolHostProfile, check_private_
 RUNTIME = "ordin-owned"
 
 
+def _budget_policy(profile, policy_epoch):
+    return BudgetPolicy(
+        policy_epoch,
+        (
+            BudgetLimit("swarm", "requests", profile.limits.requests),
+            BudgetLimit("swarm", "concurrency", profile.limits.concurrency),
+            BudgetLimit("swarm", "output_bytes", profile.limits.output_bytes),
+        ),
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class HostDispatch:
     status: str
@@ -493,14 +504,7 @@ class HostAuthority:
             broker_channel = self.auth.authenticate(self.broker_socket)
             self.ledger = BudgetLedger(
                 self.registry,
-                BudgetPolicy(
-                    policy_epoch,
-                    (
-                        BudgetLimit("swarm", "requests", profile.limits.requests),
-                        BudgetLimit("swarm", "concurrency", profile.limits.concurrency),
-                        BudgetLimit("swarm", "output_bytes", profile.limits.output_bytes),
-                    ),
-                ),
+                _budget_policy(profile, policy_epoch),
                 store=SQLiteBudgetStore(
                     profile.configuration_root / "state" / "budget.sqlite", create=False
                 ),
@@ -712,8 +716,23 @@ def initialize_host_authority_files(profile: ToolHostProfile, *, operator: objec
     _new_file(profile.configuration_root / "state" / "host.lock", b"")
     backend = make_backend(profile, operator=operator, initialize=True)
     backend.close()
-    SQLiteBudgetStore(profile.configuration_root / "state" / "budget.sqlite", create=True)
-    SQLiteCoordinatorStore(profile.configuration_root / "state" / "coordinator.sqlite", create=True)
+    store = SQLiteCoordinatorStore(
+        profile.configuration_root / "state" / "coordinator.sqlite", create=True
+    )
+    clock = CoordinatorClock(store)
+    registry = InMemoryAgentRegistry(profile.tenant_id, profile.swarm_id, clock=clock)
+    # Store creation alone creates a schema. Only its original one-time handle
+    # may initialize ledger meta/history; startup must subsequently attach with
+    # create=False, which correctly rejects absent or incomplete accounting.
+    BudgetLedger(
+        registry,
+        _budget_policy(profile, 0),
+        store=SQLiteBudgetStore(
+            profile.configuration_root / "state" / "budget.sqlite", create=True
+        ),
+        clock=clock,
+        operator=operator,
+    )
 
 
 __all__ = [
