@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import signal
 import sys
+import time
 from uuid import uuid4
 
 from ordin.assurance._files import read_scoped_file, relative_parts
@@ -21,6 +22,7 @@ from .host_profiles import (
     load_host_profile,
 )
 from .sdk import bounded_json
+from .host_authority import _HostCleanupIncomplete
 
 
 def _absolute(value: str) -> Path:
@@ -472,6 +474,10 @@ def main(argv=None):
                 )
         print(json.dumps(result, sort_keys=True, ensure_ascii=True, allow_nan=False), flush=True)
         return 1 if args.operation == "evaluate" and not result["passed"] else exit_code
+    except _HostCleanupIncomplete:
+        # Trusted in-process callers must keep the ORIGINAL retry capability.
+        # The actual console/module entry point supervises it in foreground.
+        raise
     except (ValueError, OSError, RuntimeError, UnicodeError):
         # Never emit raw exceptions: paths, TLS errors and proposals can contain
         # secrets. An unknown response is never a reason to replay an effect.
@@ -489,5 +495,63 @@ def main(argv=None):
         return 2
 
 
+def entrypoint(argv=None):
+    """A cleanup failure keeps this controller alive; effects are never retried.
+
+    main() is the embedding API and preserves the original exception/cause.
+    Console execution retains that exact owner until cleanup really succeeds,
+    then still reports failure of the original command with exit status two.
+    """
+    try:
+        return main(argv)
+    except _HostCleanupIncomplete as failure:
+        previous = {}
+        try:
+            for name in ("SIGINT", "SIGTERM"):
+                number = getattr(signal, name, None)
+                if number is not None:
+                    try:
+                        previous[number] = signal.signal(number, lambda *_: None)
+                    except ValueError:
+                        pass  # Embedding threads cannot install signal handlers.
+            print(
+                json.dumps(
+                    {
+                        "status": "cleanup_incomplete",
+                        "reason_code": "host.cleanup_incomplete",
+                        "execution_authority": False,
+                    }
+                ),
+                file=sys.stderr,
+                flush=True,
+            )
+            while True:
+                try:
+                    failure.retry_cleanup()
+                    break
+                except (Exception, KeyboardInterrupt):
+                    # Cleanup-only retries retain original jobs/custody and do
+                    # not resubmit any agent action or reset uncertain holds.
+                    try:
+                        time.sleep(0.25)
+                    except KeyboardInterrupt:
+                        pass
+            print(
+                json.dumps(
+                    {
+                        "status": "cleanup_complete",
+                        "original_command_failed": True,
+                        "execution_authority": False,
+                    }
+                ),
+                file=sys.stderr,
+                flush=True,
+            )
+            return 2
+        finally:
+            for number, handler in previous.items():
+                signal.signal(number, handler)
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(entrypoint())

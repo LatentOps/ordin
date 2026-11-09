@@ -42,6 +42,9 @@ class _Client:
     human_channel: Any = None
     busy: bool = False
     requests: set[str] = field(default_factory=set)
+    closing: bool = False
+    close_lock: Any = field(default_factory=RLock)
+    abandoned: tuple[Any, ...] | None = None
 
 
 @dataclass
@@ -195,7 +198,7 @@ class ManagedToolHost:
     def require_client(self, client: HostClient) -> _Client:
         with self._lock:
             row = self._clients.get(client) if type(client) is HostClient else None
-            if self._closed or row is None or row.socket.fileno() < 0:
+            if self._closed or row is None or row.closing or row.socket.fileno() < 0:
                 raise ValueError("original managed connection is closed")
         self.profile.require_unchanged()
         current: Any
@@ -222,32 +225,54 @@ class ManagedToolHost:
 
     def close_client(self, client: HostClient) -> None:
         with self._lock:
-            row = self._clients.pop(client, None) if type(client) is HostClient else None
-            abandoned = [
-                pending
-                for pending in self._approvals.values()
-                if pending.client is client and not pending.fulfilling and pending.result is None
-            ]
-            for pending in abandoned:
-                pending.result = _result("denied", ("host.original_connection_closed",))
+            row = self._clients.get(client) if type(client) is HostClient else None
+            if row is not None:
+                row.closing = True
         if row is None:
             return
-        try:
-            row.socket.shutdown(socket.SHUT_RDWR)
-        except (ValueError, OSError):
-            pass
-
-        row.socket.close()
-        for pending in abandoned:
-            if pending.custody is not None:
-                self._lineage.cancel(pending.custody)
-        try:
-            if row.actor is None:
-                self._authority.directory.close(row.human_channel)
-            else:
-                self._authority.auth.close(row.channel)
-        except (ValueError, OSError):
-            pass
+        with row.close_lock:
+            with self._lock:
+                if self._clients.get(client) is not row:
+                    return
+                if row.abandoned is None:
+                    row.abandoned = tuple(
+                        pending
+                        for pending in self._approvals.values()
+                        if pending.client is client
+                        and not pending.fulfilling
+                        and pending.result is None
+                    )
+                    for pending in row.abandoned:
+                        pending.result = _result("denied", ("host.original_connection_closed",))
+            error = None
+            try:
+                row.socket.shutdown(socket.SHUT_RDWR)
+            except (ValueError, OSError):
+                pass
+            try:
+                row.socket.close()
+                if row.socket.fileno() >= 0:
+                    raise RuntimeError("managed client transport remains open")
+            except BaseException as failure:
+                error = failure
+            for pending in row.abandoned:
+                if pending.custody is not None:
+                    try:
+                        self._lineage.cancel(pending.custody)
+                    except BaseException as failure:
+                        error = error or failure
+            try:
+                if row.actor is None:
+                    self._authority.directory.close(row.human_channel)
+                else:
+                    self._authority.auth.close(row.channel)
+            except (ValueError, OSError):
+                pass
+            if error is not None:
+                raise _HostCleanupIncomplete(self) from error
+            with self._lock:
+                if self._clients.get(client) is row:
+                    del self._clients[client]
 
     def reserve_protocol_id(self, client: HostClient, request_id: tuple) -> None:
         """Lifetime-bounded replay history shared by all actual host connections."""
@@ -520,6 +545,7 @@ class ManagedToolHost:
             if (
                 self._closed
                 or self._clients.get(client) is not row
+                or row.closing
                 or row.busy
                 or key in row.requests
                 or len(row.requests) >= self.profile.limits.requests
@@ -907,18 +933,36 @@ class ManagedToolHost:
                 self._closed = True
                 self.shutdown_requested.set()
                 clients = tuple(self._clients)
+            error = None
             try:
                 if hasattr(self._authority, "auth"):
                     self._authority.auth.fence(operator=self._operator)
+            except BaseException as failure:
+                error = failure
+            try:
                 if hasattr(self._authority, "broker"):
                     for authorization in tuple(self._authority.broker._pending):
                         try:
                             self._authority.broker.request_stop(authorization)
                         except (ValueError, OSError, RuntimeError):
                             pass
-                for client in clients:
+            except BaseException as failure:
+                error = error or failure
+            for client in clients:
+                try:
                     self.close_client(client)
+                except BaseException as failure:
+                    error = error or failure
+            try:
                 self._authority.close()
+            except BaseException as failure:
+                error = error or failure
+            if error is not None:
+                raise _HostCleanupIncomplete(self) from error
+            try:
+                with self._lock:
+                    if self._clients:
+                        raise RuntimeError("original managed clients remain open")
                 if self._lock_fd is not None:
                     os.close(self._lock_fd)
                     self._lock_fd = None

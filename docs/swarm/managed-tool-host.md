@@ -137,6 +137,14 @@ ordin-swarm-host serve --directory /home/operator/ordin-task --port 9443 --polic
 
 Stopping closes admission and requests stopping original active jobs; it cannot
 undo effects already started. A final acknowledgement can race transport close.
+If an original child or client cannot close, the host keeps its original cleanup
+handles and installation lock and remains fenced. An embedding caller of
+`host_cli.main` receives the original private cleanup exception and must retain
+it for `retry_cleanup()`. The actual console/module entry point instead remains
+in the foreground supervising **cleanup only** until it succeeds; Ctrl-C and
+SIGTERM do not silently abandon that cleanup. It then exits nonzero for the
+original failed command. Fixed messages omit private causes and contents. No
+tool action is replayed, and prior unknown outcomes/holds remain unknown/held.
 SIGINT/SIGTERM also stop the foreground daemon, including when protocol capacity
 has been exhausted. Restart requires the same intact databases and scopes plus
 an explicit fresh monotonic policy epoch. Old handles, votes and approvals are

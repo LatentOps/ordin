@@ -42,7 +42,10 @@ def host_with_lock(tmp_path, original):
     host._lock, host._close_lock = RLock(), RLock()
     host._closed = host._cleanup_complete = False
     host._operator, host._authority = original.operator, original
-    host._clients, host._approvals = {}, {"unknown": SimpleNamespace(result={"status": "unknown"})}
+    host._clients, host._approvals = (
+        {},
+        {"unknown": SimpleNamespace(client=None, fulfilling=False, result={"status": "unknown"})},
+    )
     host.shutdown_requested = Event()
     host._lock_fd = os.open(tmp_path / "host.lock", os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
     return host
@@ -208,3 +211,97 @@ def test_evaluator_cannot_replace_a_live_cleanup_owner_with_a_json_failure_repor
     assert observed.value is failure and observed.value.cleanup_owner is owner
     observed.value.retry_cleanup()
     assert attempts == ["cleanup"]
+
+
+def test_failed_client_is_retained_while_other_clients_and_authority_are_attempted(tmp_path):
+    from ordin_swarm.host_runtime import _Client
+
+    original, controls = authority()
+    original.auth.close = lambda channel: None
+    host = host_with_lock(tmp_path, original)
+    descriptor = host._lock_fd
+    prior_result = host._approvals["unknown"].result
+
+    class Socket:
+        def __init__(self, fail=False):
+            self.fail, self.alive, self.attempts = fail, True, 0
+
+        def shutdown(self, how):
+            pass
+
+        def close(self):
+            self.attempts += 1
+            if self.fail and self.attempts == 1:
+                raise OSError("original socket still alive")
+            self.alive = False
+
+        def fileno(self):
+            return 99 if self.alive else -1
+
+    broken, healthy = Socket(True), Socket()
+    first, second = HostClient("broken"), HostClient("healthy")
+    row = _Client(broken, "reader", object())
+    host._clients = {first: row, second: _Client(healthy, "writer", object())}
+    with pytest.raises(_HostCleanupIncomplete) as failed:
+        host.close()
+    assert host._clients.get(first) is row and row.closing and broken.alive
+    assert second not in host._clients and not healthy.alive
+    assert original.backend.attempts == 1 and controls == []
+    os.fstat(descriptor)
+    with pytest.raises(ValueError):
+        host.require_client(first)
+    failed.value.retry_cleanup()
+    assert broken.attempts == 2 and not broken.alive and not host._clients
+    assert healthy.attempts == 1 and original.backend.attempts == 2
+    assert host._cleanup_complete and host._lock_fd is None and controls == ["released"]
+    assert host._approvals["unknown"].result is prior_result
+    host.close()
+    assert broken.attempts == 2 and healthy.attempts == 1
+
+
+def test_cli_api_preserves_owner_and_console_supervises_cleanup_without_effect_replay(
+    tmp_path, monkeypatch, capsys
+):
+    import json
+    from ordin_swarm import host_cli
+
+    calls = []
+
+    class Owner:
+        attempts = 0
+
+        def close(self):
+            self.attempts += 1
+            if self.attempts == 1:
+                raise KeyboardInterrupt
+            if self.attempts < 3:
+                raise _HostCleanupIncomplete(self) from RuntimeError("private child diagnostic")
+
+    owner = Owner()
+    cause = ValueError("private construction cause")
+    failure = _HostCleanupIncomplete(owner)
+
+    def fail_doctor(*args, **kwargs):
+        calls.append("effect")
+        raise failure from cause
+
+    monkeypatch.setattr(host_cli, "doctor", fail_doctor)
+    arguments = ["doctor", "--directory", str(tmp_path)]
+    with pytest.raises(_HostCleanupIncomplete) as propagated:
+        host_cli.main(arguments)
+    assert propagated.value is failure and propagated.value.__cause__ is cause
+    assert propagated.value.cleanup_owner is owner and owner.attempts == 0
+    assert capsys.readouterr().err == ""
+    pauses = []
+    monkeypatch.setattr(host_cli.time, "sleep", pauses.append)
+    monkeypatch.setattr(host_cli.signal, "signal", lambda *args: None)
+    before = len(calls)
+    assert host_cli.entrypoint(arguments) == 2
+    assert calls[before:] == ["effect"]  # One command; only cleanup repeats.
+    assert owner.attempts == 3 and calls == ["effect", "effect"]
+    assert pauses == [0.25, 0.25]
+    output = capsys.readouterr()
+    assert output.out == "" and "private" not in output.err
+    messages = [json.loads(line) for line in output.err.splitlines()]
+    assert [message["status"] for message in messages] == ["cleanup_incomplete", "cleanup_complete"]
+    assert messages[-1]["original_command_failed"] is True

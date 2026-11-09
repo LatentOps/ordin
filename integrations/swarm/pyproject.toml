@@ -17,7 +17,7 @@ telemetry = ["opentelemetry-sdk>=1.45.1,<2"]
 
 [project.scripts]
 ordin-swarm-adapter = "ordin_swarm.cli:main"
-ordin-swarm-host = "ordin_swarm.host_cli:main"
+ordin-swarm-host = "ordin_swarm.host_cli:entrypoint"
 
 [tool.setuptools.packages.find]
 include = ["ordin_swarm*"]

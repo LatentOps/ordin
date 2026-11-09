@@ -61,7 +61,7 @@ def test_actor_native_maximum_cannot_borrow_another_actors_test_prefix_or_interp
 def test_public_unknown_test_ids_and_extra_arguments_never_reserve_custody_or_prepare():
     host = object.__new__(ManagedToolHost)
     actor = HostActor("tester", (), (), (), (), ("report",))
-    row = SimpleNamespace(actor="tester", busy=False, requests=set())
+    row = SimpleNamespace(actor="tester", busy=False, closing=False, requests=set())
     host.profile = SimpleNamespace(actor=lambda name: actor, limits=SimpleNamespace(requests=128))
     host._lock, host._closed = RLock(), False
     client = HostClient("original")
