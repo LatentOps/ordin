@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ordin.dev/schemas/swarm-tool-host-status.v1.schema.json",
+  "title": "swarm-tool-host-status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "online",
+    "profile_digest",
+    "policy_epoch",
+    "owner_fence",
+    "actor",
+    "execution_boundary",
+    "client_process_confinement",
+    "unmediated_tools",
+    "max_tool_data_bytes",
+    "current_task_expires_at",
+    "retained_data",
+    "execution_authority"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ordin.swarm_tool_host_status.v1"
+    },
+    "online": {
+      "type": "boolean"
+    },
+    "profile_digest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "policy_epoch": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "owner_fence": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "actor": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 64
+    },
+    "execution_boundary": {
+      "const": "managed_owned_tools"
+    },
+    "client_process_confinement": {
+      "enum": [
+        "not_established",
+        "kernel_enforced"
+      ]
+    },
+    "unmediated_tools": {
+      "const": "uncovered"
+    },
+    "max_tool_data_bytes": {
+      "const": 16384
+    },
+    "current_task_expires_at": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000000000000000000
+    },
+    "retained_data": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "retained_resources",
+            "inbox_messages",
+            "retained_bytes_total",
+            "uncertain_handoff_holds",
+            "capacity_bytes",
+            "complete_taint_tracking",
+            "pending_custody_reservations",
+            "uncertain_custody_holds"
+          ],
+          "properties": {
+            "retained_resources": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            },
+            "inbox_messages": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 64
+            },
+            "retained_bytes_total": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 16777216
+            },
+            "uncertain_handoff_holds": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2147483647
+            },
+            "capacity_bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 16777216
+            },
+            "complete_taint_tracking": {
+              "const": false
+            },
+            "pending_custody_reservations": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4096
+            },
+            "uncertain_custody_holds": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4096
+            }
+          }
+        }
+      ]
+    },
+    "execution_authority": {
+      "const": false
+    }
+  }
+}

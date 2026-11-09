@@ -182,6 +182,7 @@ preserved; the guides below retain manual configuration for v0.3 and advanced us
 | Hermes Agent hooks (0.4 development) | `ordin-hermes-hook` | [Pinned hook contract and profile setup](docs/hermes-integration.md) |
 | An MCP client and stdio server | `ordin-mcp-proxy` | [Proxy setup and tool semantics](docs/mcp-safety-proxy.md) |
 | An MCP client and HTTP server | `ordin-mcp-http` | [Streamable HTTP setup](docs/mcp-http-proxy.md) |
+| Optional Linux managed tool host (0.4 development) | `ordin-swarm-host` | [Shared host setup and supported coverage](docs/swarm/managed-tool-host.md) |
 | Bash or Zsh | `ordin shell-init` and `orun` | [Reviewed shell execution](docs/shell-integration.md) |
 | Your own runtime | Python API or JSON CLI | [Runnable integration examples](examples/integrations/README.md) |
 
@@ -189,6 +190,12 @@ The MCP proxy reviews `tools/call` requests before forwarding them to its
 configured server. Unknown tools require approval by default. Claude Code hooks
 map decisions to the runtime's permission flow and can record post-tool
 observations.
+
+The optional `ordin-swarm` package also exposes a shared Linux managed host for
+owned reads, governed artifact writes, pinned fetch routes and configured fixed
+tests, using native coordination, budgets and exact operator review. Ordinary
+MCP client processes remain outside its confinement boundary; supported fresh
+agent launch is a separate explicit path described in the guide above.
 
 From a matching checkout and activated Ordin environment, try these harmless
 hook requests before configuring a host:

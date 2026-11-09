@@ -4,6 +4,13 @@ Install this package alongside Ordin 0.4 development to import
 ordin_swarm.SwarmMCPAdapter and ordin_swarm.SwarmHookAdapter. Both reexport the
 same tested core host adapters; they do not start services or discover clients.
 
+`ordin-swarm-host` provides an explicit optional Linux managed MCP deployment
+with shared coordination, budgets and exact operator review for supported owned
+tools. See [managed host setup and coverage](../../docs/swarm/managed-tool-host.md)
+for reads, artifact writes, pinned fetch routes and configured fixed tests.
+Ordinary MCP client processes remain outside confinement; supported fresh-agent
+launch is a separate explicit path.
+
 See [tool gateway documentation](../../docs/swarm/gateway.md). Keep enrollment,
 source handles and executor/transport callbacks in the trusted host. Calls routed
 around the adapter remain uncovered. No framework planner is replaced and no
