@@ -102,6 +102,10 @@ ordin-swarm-host operator --directory /home/operator/ordin-task show --request-r
 ```
 
 The default view contains identities, target, version and content commitment.
+It also displays the original `expires_at`. Review **and fulfill before that
+deadline**: it is bounded by the original workload lease (at most 30 seconds),
+not the task's 600-second lifetime. Expiration requires a fresh proposal and
+fresh review; an approval never migrates to or extends a renewed lease.
 Use the opt-in preview to inspect the exact retained content in a **new private
 0600 file**. Content is never printed to ordinary command output. After review,
 use the `expected_binding` from that exact view:
@@ -117,6 +121,12 @@ verified broker outcome. An expired or disconnected request cannot migrate to
 a fresh caller. Reservations cover queued output custody before approval;
 unknown effects retain uncertain holds. A missing reply is not permission to
 replay an action.
+Denied or uncertain operator outcomes return a nonzero command status,
+including an outer acknowledgement whose actual fulfillment is unknown. A
+successful explicit `deny` resolution returns zero. Ordinary fulfillment output
+omits tool bodies and test diagnostics; use `fulfill ... --private-result
+/absolute/new-receipt.json` to opt into a private 0600 full receipt. This does
+not change the command's success/failure status or retry the effect.
 
 ## Stop and restart
 
@@ -191,6 +201,11 @@ it never substitutes a normal subprocess when confinement is unavailable.
 Its dedicated protected fixture result does not promote the other TLS clients
 into confined processes. Incomplete runs report `complete: false`; unexecuted
 attacks are not counted as either stopped attacks or false allows.
-It contains no fixture contents or keys. These are finite software fixtures;
-they do not measure model effectiveness, universal taint tracking or arbitrary
+The aggregate contains no fixture contents or keys.
+The source includes a concrete malicious tool/actor/URL directive. Its exact
+bytes survive the handoff as data; scripted attempts to follow that directive
+cannot self-approve a replacement report or select an arbitrary endpoint.
+The fixture verifies source/report bytes and attempts admission through both
+the original transport and opaque binding after authenticated shutdown.
+These finite scripted policy cases do not measure model effectiveness, universal taint tracking or arbitrary
 client-process containment.

@@ -24,6 +24,7 @@
     "complete",
     "protected_fixture",
     "fixed_tests_exercised",
+    "failure_reason",
     "execution_authority"
   ],
   "properties": {
@@ -31,7 +32,7 @@
       "const": "ordin.swarm_tool_host_evaluation.v1"
     },
     "profile_digest": {
-      "type": "string",
+      "type": ["string", "null"],
       "pattern": "^[a-f0-9]{64}$"
     },
     "scope": {
@@ -87,6 +88,7 @@
     "complete": {"type": "boolean"},
     "protected_fixture": {"enum": ["not_requested", "kernel_enforced", "failed_or_unavailable"]},
     "fixed_tests_exercised": {"type": "boolean"},
+    "failure_reason": {"enum": [null, "host.evaluation_incomplete", "host.fixture_case_failed"]},
     "passed": {
       "type": "boolean"
     },

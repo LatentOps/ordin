@@ -34,6 +34,31 @@ def test_evaluation_failures_are_counted_without_claiming_broader_security():
     assert unavailable["passed"] is False
 
 
+def test_evaluation_exception_preserves_partial_failed_evidence_without_raw_payload(
+    tmp_path, monkeypatch
+):
+    import json
+    from ordin_swarm import host_evaluation
+
+    def interrupted(directory, *, progress, **kwargs):
+        progress["cases"].append(
+            {
+                "case_id": "authorized_private_read",
+                "kind": "benign",
+                "passed": True,
+                "duration_ms": 1.0,
+            }
+        )
+        raise RuntimeError("private diagnostic must never be logged")
+
+    monkeypatch.setattr(host_evaluation, "_run_evaluation", interrupted)
+    report = run_evaluation(tmp_path / "new")
+    assert report["passed"] is report["complete"] is False
+    assert report["benign_completed"] == 1 and report["attack_total"] == 0
+    assert report["profile_digest"] is None
+    assert "private diagnostic" not in json.dumps(report)
+
+
 @pytest.mark.skipif(
     sys.platform != "linux", reason="actual owned HTTP/write and TLS host boundary required"
 )

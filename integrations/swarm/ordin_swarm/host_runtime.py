@@ -763,6 +763,7 @@ class ManagedToolHost:
                 data={
                     "request": current,
                     "expected_binding": binding,
+                    "expires_at": pending.request.expires_at,
                     "proposal": {
                         "actor": pending.actor,
                         "tool": pending.tool,
