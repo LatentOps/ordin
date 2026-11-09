@@ -29,6 +29,7 @@ TEST_FILES = (
     "integrations/swarm/tests/test_tool_host_initialization.py",
     "integrations/swarm/tests/test_tool_host_tests.py",
     "integrations/swarm/tests/test_tool_host_uid_dispatch.py",
+    "integrations/swarm/tests/test_tool_host_control_phase.py",
     "integrations/swarm/tests/test_tool_host_cleanup.py",
     "integrations/swarm/tests/test_tool_host_cli.py",
     "integrations/swarm/tests/test_tool_host_commands.py",
