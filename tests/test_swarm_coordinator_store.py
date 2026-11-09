@@ -7,6 +7,7 @@ import sqlite3
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from uuid import uuid4
 
 import pytest
@@ -109,7 +110,7 @@ def test_missing_corrupt_or_changed_history_is_never_recreated(tmp_path, corrupt
     backend = store(tmp_path)
     with backend.transaction() as transaction:
         transaction.append(SCOPE, "reserved", "reservation", {})
-    with sqlite3.connect(backend.path) as connection:
+    with closing(sqlite3.connect(backend.path)) as connection, connection:
         if corruption == "root":
             connection.execute("DELETE FROM coordinator_meta")
         elif corruption == "scope":

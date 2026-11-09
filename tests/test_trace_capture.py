@@ -4,6 +4,7 @@ import os
 import sqlite3
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from dataclasses import replace
 
 import pytest
@@ -235,7 +236,7 @@ def test_capture_capacity_type_mode_schema_and_observation_guards(tmp_path, monk
     monkeypatch.setattr("ordin.trace_capture.MAX_TRACE_EVENTS", 2)
     with pytest.raises(ValueError, match="full"):
         gate.evaluate_action(replace(action, action_id="full"))
-    with sqlite3.connect(recorder.path) as connection:
+    with closing(sqlite3.connect(recorder.path)) as connection, connection:
         connection.execute(
             "UPDATE events SET payload=?",
             ('{"schema_version":"ordin.trace_event.v1","event":"review"}',),

@@ -1,6 +1,7 @@
 """Protected causal sources, task isolation and preemptive operator fences."""
 
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from copy import copy
 from threading import Event
 import json
@@ -248,7 +249,7 @@ def test_operator_pause_commits_fence_before_inflight_callback_releases(tmp_path
 def test_budget_projection_rejects_tampered_accounting(tmp_path):
     with operator_fixture(tmp_path) as (data, _, _, _, human, api, *_):
         prepare(data)
-        with sqlite3.connect(data["store"].path) as connection:
+        with closing(sqlite3.connect(data["store"].path)) as connection, connection:
             connection.execute("UPDATE coordinator_buckets SET maximum=999999")
         snapshot = api.handle(human, request("status"))
         assert snapshot["budgets"] == [] and "coordinator_unavailable" in snapshot["proof_gaps"]
