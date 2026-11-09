@@ -3,16 +3,24 @@
 from __future__ import annotations
 
 import argparse
+from email.parser import BytesParser
+from fnmatch import fnmatchcase
 import hashlib
+import inspect
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import shutil
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
 import zipfile
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 uses the hash-locked development tool.
+    import tomli as tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 TEST_FILES = (
@@ -85,26 +93,177 @@ def qualify_junit(path: Path) -> list[str]:
     return verified
 
 
+def _glob_matches(name: str, pattern: str) -> bool:
+    """Match setuptools package-data globs without allowing '*' across a slash."""
+    parts, selectors = name.split("/"), pattern.split("/")
+    if any(part in {"", ".", ".."} for part in selectors) or "\\" in pattern:
+        raise ValueError("packaged source pattern must be a relative POSIX path")
+
+    def match(current, selected):
+        if not selected:
+            return not current
+        if selected[0] == "**":
+            return match(current, selected[1:]) or bool(current) and match(current[1:], selected)
+        return (
+            bool(current)
+            and fnmatchcase(current[0], selected[0])
+            and match(current[1:], selected[1:])
+        )
+
+    return match(parts, selectors)
+
+
+def _tracked_files() -> dict[str, Path]:
+    names = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT).split(b"\0")
+    tracked = {}
+    for raw in names:
+        if not raw:
+            continue
+        name = raw.decode("utf-8")
+        if any(part in {"", ".", ".."} for part in name.split("/")) or "\\" in name:
+            raise ValueError("tracked source must have a relative POSIX path")
+        tracked[name] = ROOT / name
+    return tracked
+
+
+def _source_bytes(path: Path) -> bytes:
+    if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(ROOT.resolve()):
+        raise ValueError("packaged source must be a regular contained file: " + str(path))
+    return path.read_bytes()
+
+
+def _project_inventory(base: Path, tracked: dict[str, Path]):
+    prefix = base.relative_to(ROOT).as_posix()
+    prefix = "" if prefix == "." else prefix + "/"
+    files = {name[len(prefix) :]: path for name, path in tracked.items() if name.startswith(prefix)}
+    if "pyproject.toml" not in files:
+        raise ValueError("packaged project configuration must be tracked")
+    config = tomllib.loads(_source_bytes(files["pyproject.toml"]).decode("utf-8"))
+    project = config["project"]
+    normalized = re.sub(r"[-_.]+", "_", project["name"]).lower()
+    metadata = f"{normalized}-{project['version']}.dist-info"
+    if "/" in metadata or "\\" in metadata:
+        raise ValueError("invalid packaged project identity")
+    settings = config["tool"]["setuptools"]
+    declared = settings["packages"]
+    if isinstance(declared, list):
+        packages = {name: name.replace(".", "/") for name in declared}
+    else:
+        discovery = declared["find"]
+        if discovery.get("namespaces", True):
+            raise ValueError("protected wheel inventory requires explicit ordinary packages")
+        packages = {}
+        for where in discovery.get("where", ["."]):
+            where = "" if where == "." else where.rstrip("/") + "/"
+            for name in files:
+                if name.startswith(where) and name.endswith("/__init__.py"):
+                    package = name[len(where) : -len("/__init__.py")].replace("/", ".")
+                    if any(
+                        fnmatchcase(package, pattern) for pattern in discovery.get("include", ["*"])
+                    ) and not any(
+                        fnmatchcase(package, pattern) for pattern in discovery.get("exclude", [])
+                    ):
+                        packages[package] = where + package.replace(".", "/")
+    package_data = settings.get("package-data", {})
+    excluded_data = settings.get("exclude-package-data", {})
+    payload = {}
+    for package, directory in packages.items():
+        patterns = [*package_data.get("*", []), *package_data.get(package, [])]
+        excluded = [*excluded_data.get("*", []), *excluded_data.get(package, [])]
+        for name, path in files.items():
+            if not name.startswith(directory + "/"):
+                continue
+            relative = name[len(directory) + 1 :]
+            python = "/" not in relative and relative.endswith(".py")
+            data = any(_glob_matches(relative, pattern) for pattern in patterns) and not any(
+                _glob_matches(relative, pattern) for pattern in excluded
+            )
+            if python or data:
+                payload[name] = _source_bytes(path)
+    if not payload:
+        raise ValueError("tracked packaged source inventory is empty")
+    licenses = project.get(
+        "license-files",
+        settings.get("license-files", ["LICEN[CS]E*", "COPYING*", "NOTICE*", "AUTHORS*"]),
+    )
+    for name, path in files.items():
+        if any(_glob_matches(name, pattern) for pattern in licenses):
+            payload[f"{metadata}/licenses/{name}"] = _source_bytes(path)
+    generated = {
+        f"{metadata}/{name}"
+        for name in ("METADATA", "WHEEL", "RECORD", "entry_points.txt", "top_level.txt")
+    }
+    return payload, generated, project, metadata
+
+
 def verify_wheel_bytes(core: Path, swarm: Path) -> dict[str, str]:
-    pairs = [
-        (core, ROOT, ROOT / "ordin"),
-        (swarm, ROOT / "integrations/swarm", ROOT / "integrations/swarm/ordin_swarm"),
-    ]
+    tracked = _tracked_files()
     checked = {}
-    for wheel, base, directory in pairs:
-        sources = list(directory.rglob("*.py"))
-        if wheel is core:
-            sources.extend((ROOT / "ordin/resources/schemas").glob("swarm-*.json"))
+    for wheel, base in ((core, ROOT), (swarm, ROOT / "integrations/swarm")):
+        payload, generated, project, metadata = _project_inventory(base, tracked)
         with zipfile.ZipFile(wheel) as archive:
-            for source in sorted(sources):
-                relative = source.relative_to(base).as_posix()
-                expected = source.read_bytes()
+            names = [entry.filename for entry in archive.infolist()]
+            if len(names) != len(set(names)):
+                raise ValueError("protected runtime wheel contains duplicate paths")
+            if any(
+                entry.is_dir()
+                or "\\" in entry.filename
+                or any(part in {"", ".", ".."} for part in entry.filename.split("/"))
+                or PurePosixPath(entry.filename).is_absolute()
+                or (entry.external_attr >> 16) & 0o170000 not in {0, 0o100000}
+                for entry in archive.infolist()
+            ):
+                raise ValueError("protected runtime wheel member must be a regular relative file")
+            if set(names) != set(payload) | generated:
+                raise ValueError(
+                    "protected runtime wheel packaged inventory differs from tracked source"
+                )
+            identity = BytesParser().parsebytes(archive.read(f"{metadata}/METADATA"))
+            if identity["Name"] != project["name"] or identity["Version"] != project["version"]:
+                raise ValueError("protected runtime wheel metadata identity differs from source")
+            for relative, expected in sorted(payload.items()):
                 if archive.read(relative) != expected:
                     raise ValueError(
                         "protected runtime wheel differs from exact source: " + relative
                     )
                 checked[relative] = hashlib.sha256(expected).hexdigest()
     return checked
+
+
+def verify_installed_origins(
+    environment: Path, prefix: str, sites: tuple[str, ...], origins: dict[str, str]
+):
+    """Check the fresh interpreter and resolved imports, including symlink escapes."""
+    environment = environment.resolve(strict=True)
+    roots = tuple(Path(site).resolve(strict=True) for site in sites)
+    if (
+        Path(prefix).resolve(strict=True) != environment
+        or not roots
+        or any(
+            not root.is_dir() or root == environment or not root.is_relative_to(environment)
+            for root in roots
+        )
+    ):
+        raise ValueError("protected runtime interpreter must use the fresh environment")
+    if set(origins) != {"ordin", "ordin_swarm"} or any(
+        not any(Path(origin).resolve(strict=True).is_relative_to(root) for root in roots)
+        for origin in origins.values()
+    ):
+        raise ValueError("protected runtime imports must be inside fresh environment site-packages")
+
+
+def _installed_origin_probe(environment: Path) -> str:
+    # Run the same tested stdlib-only check in the fresh isolated interpreter.
+    return (
+        "from pathlib import Path\nimport sys,sysconfig,ordin,ordin_swarm\n"
+        + inspect.getsource(verify_installed_origins)
+        + "\nverify_installed_origins(Path("
+        + repr(str(environment))
+        + "),sys.prefix,"
+        "(sysconfig.get_path('purelib'),sysconfig.get_path('platlib')),"
+        "{'ordin':ordin.__file__,'ordin_swarm':ordin_swarm.__file__})\n"
+        "print('installed protected-runtime origins',ordin.__file__,ordin_swarm.__file__)"
+    )
 
 
 def copy_fixture_inputs(destination: Path) -> dict[str, str]:
@@ -222,12 +381,7 @@ def main(argv=None) -> int:
         ]
     )
     run([python, "-m", "pip", "check"])
-    origin_code = (
-        "from pathlib import Path; import ordin,ordin_swarm; "
-        "root=Path.cwd(); assert not Path(ordin.__file__).is_relative_to(" + repr(str(ROOT)) + "); "
-        "assert not Path(ordin_swarm.__file__).is_relative_to(" + repr(str(ROOT)) + "); "
-        "print('installed protected-runtime origins',ordin.__file__,ordin_swarm.__file__)"
-    )
+    origin_code = _installed_origin_probe(environment)
     run([python, "-I", "-c", origin_code])
     entrypoint_code = (
         "from importlib.metadata import distribution; "
