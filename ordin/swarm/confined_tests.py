@@ -1167,7 +1167,7 @@ class LinuxConfinedTestRunner:
                     ),
                 ),
                 reason_code="tests.original_confined_process_exited",
-                metadata={"event_digest": digest(evidence), "test_correctness_verified": False},
+                metadata={"event_digest": digest(evidence)},
             )
             if completed
             else None
