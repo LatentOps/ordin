@@ -9,7 +9,7 @@ import time
 
 import pytest
 
-from ordin.assurance.codex_security import _process_tree, _suspended_process
+from ordin.security import _process_tree, _suspended_process
 
 
 pytestmark = pytest.mark.skipif(os.name != "nt", reason="Windows primary thread handles")

@@ -1,8 +1,9 @@
 # Assurance CLI and Python reference
 
-All commands are under the independent `ordin-assure` entrypoint. Ordinary Ordin
-commands keep their existing configuration and behavior. The equivalent module
-invocation is `python -m ordin.assurance.cli`. JSON is the deterministic default;
+Use `ordin security` followed by the commands below. The equivalent module
+invocation is `python -m ordin.security.cli`. The independent `ordin-assure`
+entrypoint also supports the same assurance groups, with artifact commands under
+its `security` group. JSON is the deterministic default;
 `--json` is accepted explicitly. `--report`/`--output` creates a new report only,
 refusing existing files. JSON input paths can be `-` for bounded stdin; native
 scanner/workflow artifacts remain explicit files in a scoped artifact root.
@@ -20,9 +21,9 @@ Malformed input produces a coarse diagnostic without source/secret echo.
 | `challenge replay` / `counterexample replay PATH --revision REV` | Reproduce the exact saved checker failure, not an unsafe action |
 | `counterexample regression-propose PATH --case-id ID --revision REV` | Prepare a reproduced failure plus benign control for host review; no adoption |
 | `counterexample regression-replay PATH --revision REV` | Recheck a saved boundary regression and its exact code/revision/control bindings |
-| `codex import` | Offline findings/SARIF ingestion |
-| `codex import-workflow` | Offline external validation/patch/fix/risk claims |
-| `codex mock` | Synthetic scanner lifecycle/status examples |
+| `import` | Offline findings/SARIF ingestion |
+| `import-workflow` | Offline external validation/patch/fix/risk claims |
+| `mock` | Synthetic scanner lifecycle/status examples |
 | `source diff` | Read-only source/configuration triage |
 | `attack-path analyze --evidence PATH` | Inspect imported graph data; strong labels are not authenticated |
 | `delegation verify --parent PATH --child PATH` | Compare declared rights; operator/task maxima are separate inputs |
@@ -54,7 +55,9 @@ gate and host facts, simulation/counterexamples, source origins/graphs, delegati
 finding/fix workflows and deterministic adapter composition. Offline helpers
 include `inspect_profile_content`, `preview_invariants`, `inspect_attack_path`,
 `compare_delegation_data` and `review_static_candidate`. Optional namespaces are
-`ordin_codex_security` and `ordin_decision_models`; core dependencies remain empty.
+`ordin_security` and `ordin_decision_models`; core dependencies remain empty.
+The scanner/workflow artifact API is in `ordin.security` and uses
+`import_native_json`, `import_sarif`, and `import_workflow_claims`.
 
 `SecurityProfile.from_dict()` produces validated content.
 `load_approved_profile()` requires a `ProtectedProfileSelection` with exact file/

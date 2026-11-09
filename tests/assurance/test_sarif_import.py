@@ -5,8 +5,8 @@ import json
 import pytest
 
 from ordin.assurance import RepositoryScope
-from ordin.assurance.codex_security.importer import ImportScope
-from ordin.assurance.codex_security.sarif import import_sarif
+from ordin.security.importer import ImportScope
+from ordin.security.sarif import import_sarif
 
 
 def document(results=None):

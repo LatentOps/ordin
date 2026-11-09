@@ -14,7 +14,7 @@ import tempfile
 
 EXAMPLES = (
     "attack_path",
-    "codex_import",
+    "security_import",
     "delegation",
     "gate_review",
     "policy_simulation",
@@ -50,7 +50,7 @@ def run_examples(*, scratch_root: Path | None = None) -> dict:
         for name in EXAMPLES:
             module = importlib.import_module(__package__ + "." + name)
             arguments = None
-            if name in {"codex_import", "delegation", "gate_review", "source_diff"}:
+            if name in {"security_import", "delegation", "gate_review", "source_diff"}:
                 arguments = ["--output", str(root / name)]
             elif name == "profile_inventory":
                 arguments = [
@@ -102,7 +102,7 @@ def _check_result(name: str, output: dict) -> None:
             and output["reachability"] == "blocked"
             and bool(output["proof_gaps"])
         ),
-        "codex_import": lambda: (
+        "security_import": lambda: (
             output["completeness"] == "partial"
             and output["finding_count"] == 0
             and output["finding_confirmation"] == "not_performed"

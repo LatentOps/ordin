@@ -49,6 +49,6 @@ attaches no running process and enables no automatic incident response.
 
 The owned Linux read-file worker proves enforcement for its exact fresh child
 route. It does not confine an existing host process or all of its tools,
-credentials, descriptors and sockets. Applied OpenShell policy admission,
+credentials, descriptors and sockets. Applied Ordin Runtime policy admission,
 authenticated host callbacks and observed kernel outcomes remain separate
 evidence categories. The release manifest must retain those distinctions.

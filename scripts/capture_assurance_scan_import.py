@@ -5,8 +5,8 @@ import json
 import subprocess
 from pathlib import Path
 
-from ordin.assurance.codex_security import import_codex_json, import_sarif
-from examples.assurance.codex_import import fixture
+from ordin.security import import_native_json, import_sarif
+from examples.assurance.security_import import fixture
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -26,7 +26,7 @@ def main() -> int:
             args.revision,
             "--",
             "ordin",
-            "data/codex_security",
+            "data/security",
             "schemas",
             "pyproject.toml",
         ],
@@ -37,9 +37,9 @@ def main() -> int:
     if pinned.returncode:
         raise ValueError("offline importer differs from pinned source")
     args.fixture_dir.mkdir(parents=True, exist_ok=False)
-    partial = import_codex_json(fixture(args.fixture_dir / "partial"))
+    partial = import_native_json(fixture(args.fixture_dir / "partial"))
     complete_scope = fixture(args.fixture_dir / "complete", completeness="complete")
-    complete = import_codex_json(complete_scope)
+    complete = import_native_json(complete_scope)
     (complete_scope.artifact_root / "results.sarif").write_bytes(
         json.dumps(
             {

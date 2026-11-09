@@ -331,7 +331,7 @@ def _core(scenario, value):
     with tempfile.TemporaryDirectory(prefix="ordin-optional-failure-") as directory:
         root = Path(directory).resolve(strict=True)
         if scenario in {"scanner_missing", "scanner_canceled"}:
-            from .codex_security.scanner import ScannerSelection, inspect_scanner
+            from ..security.scanner import ScannerSelection, inspect_scanner
 
             for name in ("cwd", "state"):
                 (root / name).mkdir(mode=0o700)
@@ -350,7 +350,7 @@ def _core(scenario, value):
             checked = inspect_scanner(selected, cancel=cancel)
             protected = checked.status == ("canceled" if cancel.is_set() else "unavailable")
         elif scenario == "malformed_workflow":
-            from .codex_security.workflow import WorkflowImportScope, import_workflow_claims
+            from ..security.workflow import WorkflowImportScope, import_workflow_claims
 
             (root / "workflow.json").write_text(json.dumps({"approved": True, "status": "fixed"}))
             try:

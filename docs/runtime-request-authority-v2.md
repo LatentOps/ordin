@@ -19,7 +19,7 @@ grammar. Braced and surrogate Unicode escapes remain unsupported; literal
 Unicode scalar values and supported four-digit escapes are accepted.
 
 Use `ordin.runtime_requests_v2.derive_runtime_request_contract_v2(review)` or
-`ordin-openshell derive-requests --review review.json`. The CLI defaults to v2;
+`ordin-runtime derive-requests --review review.json`. The CLI defaults to v2;
 `--schema-version 1` retains the coarse legacy request artifact. Legacy v1
 GraphQL/MCP policies do not gain a request-argument proof through a POST-only
 projection. Migrate them to v2 for complete request authority coverage.

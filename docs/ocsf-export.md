@@ -1,6 +1,6 @@
 # Optional OCSF finding export
 
-`ordin_openshell.ocsf_export` emits deterministic OCSF 1.8.0 Detection Findings
+`ordin_runtime.ocsf_export` emits deterministic OCSF 1.8.0 Detection Findings
 for blocked actions, security-policy approval requests, trajectory bypass
 patterns, capability/request boundary exceedance, compiler widening rejection,
 and runtime correlation failures. It is a pure optional API with explicit UTC
@@ -19,8 +19,8 @@ fixed finding kinds and integrity digests. Allowed actions and ordinary
 unclassified `ask` reviews do not automatically become security alerts.
 
 ```sh
-ordin-openshell export-ocsf --review review.json --time-ms 1791280000000
-ordin-openshell export-ocsf --boundary-result verification.json \
+ordin-runtime export-ocsf --review review.json --time-ms 1791280000000
+ordin-runtime export-ocsf --boundary-result verification.json \
     --compilation-result compilation.json --correlation-result correlation.json \
     --time-ms 1791280000000
 ```
@@ -29,6 +29,6 @@ The direct APIs are `export_review_findings`, `export_boundary_findings`,
 `export_compiler_findings`, and `export_correlation_findings`. Output is portable
 finding data, not runtime evidence or an approval. It does not label semantic
 decisions `backend_enforced`, replace the local hash-chained audit, authenticate
-the event producer, upload a transcript or configure a SIEM. The OpenShell event
-ingester intentionally refuses these Ordin findings as native OpenShell runtime
+the event producer, upload a transcript or configure a SIEM. The Ordin Runtime event
+ingester intentionally refuses these Ordin findings as native Ordin Runtime runtime
 observations.

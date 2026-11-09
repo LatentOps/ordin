@@ -24,8 +24,8 @@ from ordin.assurance import (
 )
 from ordin.assurance._files import directory_entries
 from ordin.assurance._json import canonical_json, digest, validate
-from ordin.assurance.codex_security._suspended_process import launch_managed_process
-from ordin.assurance.codex_security._validation import loads
+from ordin.security._suspended_process import launch_managed_process
+from ordin.security._validation import loads
 from ordin.assurance.models import ModelAnswer
 
 from .checkpoints import LocalCheckpoint, hash_local_file

@@ -88,7 +88,7 @@ python -I -m ordin.assurance.examples.profile_inventory \
   --virtual-root /fixture/payment --output .assurance-work/profile-example
 python -I -m ordin.assurance.examples.gate_review --output .assurance-work/gate-example
 python -I -m ordin.assurance.examples.delegation --output .assurance-work/delegation-example
-python -I -m ordin.assurance.examples.codex_import --output .assurance-work/import-example
+python -I -m ordin.assurance.examples.security_import --output .assurance-work/import-example
 python -I -m ordin.assurance.examples.source_diff --output .assurance-work/diff-example
 python -I -m ordin.assurance.examples.policy_simulation
 python -I -m ordin.assurance.examples.property_challengers

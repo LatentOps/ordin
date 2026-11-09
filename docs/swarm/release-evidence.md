@@ -39,7 +39,7 @@ unknown/uncovered counts remain in the linked benchmark artifacts.
 
 `local_gate_passed` covers only the declared required checks for that platform.
 `complete_conformance` remains false while other-platform or external SDK,
-PostgreSQL and OpenShell entries are unmeasured. Their workflow/lock references
+PostgreSQL and Ordin Runtime entries are unmeasured. Their workflow/lock references
 are explicit; a reference is not an observed passing test. Imported arbitrary
 JSON, a recomputed hash or a claimed physical flag cannot restore an original
 broker observation, grant, approval or runtime authority. Artifact verification

@@ -61,7 +61,7 @@ assertions and write JUnit results. Shared quality hooks also cover both optiona
 packages and the Assurance typed boundaries.
 
 The existing full-suite, safety, trajectory, replay, integration, runtime,
-OpenShell/native prover, packaging and exact release-candidate gates remain
+Ordin Runtime/native prover, packaging and exact release-candidate gates remain
 mandatory. Their original thresholds, including the failed predeclared Assurance
 latency budget, are unchanged. Use the [implementation ledger](implementation-report.md)
 for actual revision/environment/results; use the [release gate](../release-candidate-gate.md)

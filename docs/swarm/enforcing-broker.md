@@ -68,7 +68,7 @@ records both a mediated denial and a separate successful raw host read. An
 operator must isolate or remove those other channels before making a wider
 deployment claim.
 
-## Gateway and OpenShell
+## Gateway and Ordin Runtime
 
 `broker.bind_gateway(..., operator=...)` creates an original protected route
 binding. `SwarmToolGateway.bind_broker_agent(broker, binding, routes=...)` uses
@@ -77,9 +77,9 @@ host-normalized canonical action ID. The actual compilation and execution use
 the canonical scope action. `forward()` accepts no callback on a broker route.
 Ordinary DelegatingAssuranceGate enrollment still refuses unmediated execution.
 
-The optional `ordin_swarm.openshell_backend.SwarmOpenShellBackend` preserves
+The optional `ordin_swarm.runtime_backend.SwarmRuntimeBackend` preserves
 the complete supported capability/v1/v2 request contract, explicit capability
-maximum and native backend maximum through the existing OpenShell compiler,
+maximum and native backend maximum through the existing Ordin Runtime compiler,
 prover, approval and readback pipeline. Exact REST composites or missing exact
 request domains return unsupported; they are not reduced to raw TCP. Missing
 runtime identity/prover domains and live startup filesystem/process changes

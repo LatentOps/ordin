@@ -618,7 +618,7 @@ and wheel/sdist metadata checks pass. Capture/example mypy also passes. No live
 credentials, OS permission grant, physical execution boundary, scanner/model,
 publication or deployment occurred. All checkpoint handles are terminal.
 
-## M8 offline Codex Security importer
+## M8 offline Ordin Security importer
 
 Official OpenAI documentation was searched and opened first using the OpenAI Docs
 skill. The referenced repository commit
@@ -631,8 +631,8 @@ positional export shape. These are distinct inspected contracts, not guessed CLI
 flags. No scanner, Node install, API key or provider call occurred.
 
 The normal wheel includes the zero-dependency data-only API at
-`ordin.assurance.codex_security`; the requested adapter path
-`integrations/codex_security/ordin_codex_security/importer.py` reexports it in a
+`ordin.security`; the requested adapter path
+`integrations/security/ordin_security/importer.py` reexports it in a
 separate optional namespace. Native documents and sealed byte hashes are checked
 under a bounded, unlinked authorized output root. JSON duplicate/nonfinite/
 depth/unsafe-control/unknown-field checks, reference/link validation, scan identity,
@@ -644,7 +644,7 @@ links and metadata. Public summaries omit raw narrative, paths, vendor IDs and
 threat-model instructions. Imported findings remain `imported`/`imported_claim`
 with no independent verification; a vendor `confirmed` field cannot close one.
 
-`ordin-assure codex import` runs without scanner/credentials/network. Complete
+`ordin security import` runs without scanner/credentials/network. Complete
 valid import is exit 0; partial/unknown/malformed is 2. An explicit reported
 severity threshold can return 1 for complete imports without claiming Ordin
 confirmation. Missing/renamed source references and failed/partial/unknown scans
@@ -665,18 +665,18 @@ Actual checks:
 | Core API/agent/schema/package compatibility, `.assurance-work/m8-source-resource-parity` | 19 passed, 7.55 s |
 | Linux-target mypy importer/CLI | 6 source files clean |
 | Ruff/diff checks | Passed |
-| `python -m examples.assurance.codex_import --output .assurance-work/m8-offline-example` | Zero findings with partial coverage remains partial/unconfirmed |
+| `python -m examples.assurance.security_import --output .assurance-work/m8-offline-example` | Zero findings with partial coverage remains partial/unconfirmed |
 
 Initial native mapping exposed that the finding schema lacked the explicitly
 required `imported` status; it was added while confirmation remains private-host
 gated. The Markdown comparison initially differed due to Windows CRLF writes;
 the test now compares the exact bytes supplied, without text normalization.
 Core resource parity initially found three extra packaged vendor schemas; exact
-source copies were added under `data/codex_security` and the core gate rechecked
+source copies were added under `data/security` and the core gate rechecked
 green. No validation limit was relaxed or failure hidden. That importer checkpoint
 had **27 Assurance contracts / 67 registered schemas**. The subsequent scanner/
 diff/CI slice is recorded below; its external live boundary remains unverified.
-See [the integration contract](codex-security-integration.md).
+See [the integration contract](security-integration.md).
 
 The [pinned offline import capture](evidence/m8-offline-import.json) records source
 `7fa6d65c646619986d4e96043a3209ea8ad44e81`. Zero-finding partial native artifacts
@@ -688,8 +688,8 @@ byte-matches **276** packaged Python/JSON files to that source and verifies
 import with socket/subprocess construction rejected in the SDK smoke.
 
 The [separate adapter wheel check](evidence/m8-adapter-wheel.json) installs only
-the local core and `ordin-codex-security` wheels with `--no-index --no-deps`, then
-imports `ordin_codex_security` under `-I` outside the checkout. The namespace and
+the local core and `ordin-security` wheels with `--no-index --no-deps`, then
+imports `ordin_security` under `-I` outside the checkout. The namespace and
 pinned schema load succeed with subprocess/network calls rejected; no scanner
 or model package is loaded. Both wheel/sdist pairs pass twine metadata checks.
 Capture/check helpers pass Linux-target mypy. All checkpoint handles are terminal;
@@ -713,7 +713,7 @@ this host. Ordinary descendants end after timeout/cancel/overflow and normal
 completion. Native exit 1 with a complete matched import remains severity
 violation. Partial/unknown/malformed exports never become success. Routine
 reports retain actual exit states and hashes/counts without raw source/tokens.
-The separate adapter exposes this API as `ordin_codex_security.provider`.
+The separate adapter exposes this API as `ordin_security.provider`.
 
 Offline `triage_source_diff`/`source diff` compare authorized bounded snapshots,
 profiles and optional typed policy/authority. Protected surfaces, new subprocess/
@@ -722,7 +722,7 @@ review. Authority deltas reuse the existing full-domain comparator; unsupported
 algebra and inspection gaps remain partial. Documentation-only and policy-only
 fixtures are distinct. These finite heuristics can miss aliases/dynamic dispatch
 and prove neither reachability nor exploitation. Profiles remain inspection
-data. `codex mock` preserves 0/1/2/130/143 without launching a process.
+data. `ordin security mock` preserves 0/1/2/130/143 without launching a process.
 
 The private CI example remains outside active workflows. It permits only an
 explicitly approved manual source upload on private protected main/environment,
@@ -743,7 +743,7 @@ Actual checks:
 | Linux-target mypy, Assurance/adapter/example/wheel helper | 35 files clean; capture helper also clean |
 | Ruff/diff/workflow checks | Passed |
 | Synthetic `examples.assurance.source_diff` | Documentation edit and new subprocess sink separately flagged; no target execution |
-| Actual `codex mock --exit-code 1` CLI | Exit 1, advisory severity-violation JSON, no process/network |
+| Actual `ordin security mock --exit-code 1` CLI | Exit 1, advisory severity-violation JSON, no process/network |
 
 The initial sandbox run could not pin Windows user/runtime ancestors (20 setup
 errors); authorized local tests with Windows handle access reached the cases.
@@ -769,7 +769,7 @@ matches eight package files and verifies namespace/provider/pinned-schema/mock
 imports under `-I` with only local wheels and no index/dependencies.
 All checkpoint handles are terminal. No real scanner, model, account, upload,
 execution grant, publication, deployment or remote runner was used.
-See [the integration contract](codex-security-integration.md).
+See [the integration contract](security-integration.md).
 
 ## M9 protocol, privacy, routing and TypeSafe contract
 
@@ -1182,7 +1182,7 @@ acceptance, M11/M12 and the original full release/performance gates remain open.
 
 Source `17423386c9662cfc85a0ed1a4dbb66ba85e9572c` adds saved external
 validation, patch, fix-verification and patch-risk import through the core SDK,
-optional adapter facade and `ordin-assure codex import-workflow`. It starts no
+optional adapter facade and `ordin security import-workflow`. It starts no
 scanner, model, exploit, reported command, patch, PR or upload. Native labels
 including `reportable`, `verified`, `fixed`, `merge` and `auto_merge_candidate`
 remain imported claims, with `closure=not_performed` and `authority_change=none`.
@@ -1237,7 +1237,7 @@ Actual gates:
 | Fresh optional adapter wheel | 10 source files matched; workflow facade/pinned schema import passed with network/process rejection; no real scanner/model |
 
 The initial compatibility run had **45 passed, 2 failed, 2 skips** because the
-new risk schema was packaged without its matching `data/codex_security` source
+new risk schema was packaged without its matching `data/security` source
 copy. The source copy repaired parity and the unchanged compatibility assertions
 passed. The core sdist contains the packaged schema; its source `data/` tree is
 excluded by the existing packaging layout, as with previous resources. No rule,

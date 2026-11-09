@@ -94,12 +94,12 @@ jobs:
       fail-fast: false
       matrix:
         python: ["3.10", "3.13"]
-        integration: [decision_models, codex_security]
+        integration: [decision_models, security]
         include:
           - integration: decision_models
             tests: integrations/decision_models/tests
-          - integration: codex_security
-            tests: tests/assurance/test_codex_import.py tests/assurance/test_sarif_import.py tests/assurance/test_codex_scanner.py tests/assurance/test_workflow_import.py
+          - integration: security
+            tests: tests/assurance/test_security_import.py tests/assurance/test_sarif_import.py tests/assurance/test_security_scanner.py tests/assurance/test_workflow_import.py
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

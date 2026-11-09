@@ -19,7 +19,7 @@ entries, and never grants execution authority.
 | Legacy AutoGen | Archived AutoGen Core 0.7.5, Pydantic 2.14.2; Protobuf 5.29.6 under the upstream `~=5.29.3` constraint | Legacy compatibility fixture only; Protobuf 5.x is upstream EOL, with no maintenance, patched-closure or future-version guarantee |
 | Coordinator restart/epochs | This release's real mTLS protocol over owned SQLite development fixtures | Takeover, retained uncertain holds, stale epochs and authenticated host scopes; no PostgreSQL consensus claim |
 | PostgreSQL | Exact driver lock and owned-cluster gate at the same source commit | Separate coordinator workflow; not-evaluated in a local release collection until that actual gate runs |
-| Optional OpenShell | Exact supported compiler/runtime/prover combination tested by its own gate | Not-evaluated when not configured; no automatic runtime/prover install or inferred confinement |
+| Optional Ordin Runtime | Exact supported compiler/runtime/prover combination tested by its own gate | Not-evaluated when not configured; no automatic runtime/prover install or inferred confinement |
 
 These are **tested-version windows**, not a promise about future SDK releases,
 arbitrary host configurations, upstream support duration, or a service SLA.

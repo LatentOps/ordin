@@ -138,7 +138,7 @@ def wheel_fixture(tmp_path, monkeypatch, *, renamed=False):
             "resources/schemas/runtime-fixture.json",
             "resources/swarm/tls/ca.pem",
             "resources/swarm/tls/README.md",
-            "resources/codex_security/LICENSE.upstream",
+            "resources/security/LICENSE.upstream",
             "plugin_assets/brand/.codex-plugin/plugin.json",
             "plugin_assets/brand/hooks/hooks.json",
             "plugin_assets/brand/scripts/hook.py",
@@ -165,7 +165,7 @@ version = "0.4.0.dev0"
 [tool.setuptools]
 packages = ["{package}", "{package}.assurance", "{package}.swarm"]
 [tool.setuptools.package-data]
-{package} = ["resources/*.json", "resources/**/*.json", "resources/swarm/tls/*.pem", "resources/swarm/tls/*.md", "resources/codex_security/LICENSE.upstream", "plugin_assets/brand/.codex-plugin/*.json", "plugin_assets/brand/hooks/*.json", "plugin_assets/brand/scripts/*.py"]
+{package} = ["resources/*.json", "resources/**/*.json", "resources/swarm/tls/*.pem", "resources/swarm/tls/*.md", "resources/security/LICENSE.upstream", "plugin_assets/brand/.codex-plugin/*.json", "plugin_assets/brand/hooks/*.json", "plugin_assets/brand/scripts/*.py"]
 '''.encode()
     inputs["integrations/swarm/pyproject.toml"] = f'''[project]
 name = "{optional.replace("_", "-")}"

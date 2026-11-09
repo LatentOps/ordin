@@ -99,4 +99,4 @@ gate and apply additional restrictions through composition.
 Ordinary generic `file.write` envelopes currently have no core semantic adapter.
 Their parameters cannot invent trusted effects/resources: they still escalate.
 Use the existing operator-owned tool/MCP semantics registry for a known adapter.
-None of this changes `Ordin()`, existing hooks, CLI, sessions or optional OpenShell.
+None of this changes `Ordin()`, existing hooks, CLI, sessions or optional Ordin Runtime.

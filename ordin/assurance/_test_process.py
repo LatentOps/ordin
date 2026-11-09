@@ -6,7 +6,7 @@ import subprocess
 import threading
 import time
 
-from .codex_security._suspended_process import launch_managed_process
+from ..security._suspended_process import launch_managed_process
 
 
 def run_test_process(runtime, data, cancel):

@@ -31,7 +31,7 @@ def capture(wheel: Path) -> dict:
             "git",
             "ls-files",
             "ordin",
-            "integrations/openshell",
+            "integrations/runtime",
             "docs",
             "tests",
             ".github/workflows",

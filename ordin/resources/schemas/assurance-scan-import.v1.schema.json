@@ -856,6 +856,7 @@
     },
     "format": {
       "enum": [
+        "native_json",
         "codex_json",
         "sarif_2_1_0"
       ],

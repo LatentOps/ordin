@@ -175,15 +175,14 @@ def test_optional_ci_example_passes_project_workflow_guard():
     from scripts.check_workflow_security import workflow_errors
 
     workflow = (
-        Path(__file__).resolve().parents[2]
-        / "integrations/codex_security/examples/private-diff-scan.yml"
+        Path(__file__).resolve().parents[2] / "integrations/security/examples/private-diff-scan.yml"
     )
     assert workflow_errors(workflow) == []
     text = workflow.read_text(encoding="utf-8")
     assert "workflow_dispatch:" in text and "pull_request:" not in text
     assert "github.event.repository.private" in text
     assert "approve_source_upload" in text and "retention-days: 3" in text
-    assert "continue-on-error" not in text and "ordin-assure codex import" in text
+    assert "continue-on-error" not in text and "ordin security import" in text
 
 
 def test_cli_diff_and_mock_are_offline_with_distinct_exit_codes(tmp_path, capsys, monkeypatch):
@@ -208,6 +207,6 @@ def test_cli_diff_and_mock_are_offline_with_distinct_exit_codes(tmp_path, capsys
     assert main(args) == 0
     assert not json.loads(capsys.readouterr().out)["review_required"]
     for code in (0, 1, 2, 130, 143):
-        assert main(["codex", "mock", "--exit-code", str(code)]) == code
+        assert main(["security", "mock", "--exit-code", str(code)]) == code
         packet = json.loads(capsys.readouterr().out)
         assert packet["operation"] == "mock" and not packet["model_or_network_enabled"]

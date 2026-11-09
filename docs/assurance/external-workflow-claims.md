@@ -1,6 +1,6 @@
 # Offline external workflow claims
 
-`ordin-assure codex import-workflow` reads saved validation, patch, fix-verification
+`ordin security import-workflow` reads saved validation, patch, fix-verification
 or patch-risk output. It never invokes Codex Security, runs reported commands,
 applies patches, opens report links, creates PRs or changes an Ordin policy.
 Reported `fixed`, `verified`, `reportable`, `merge` or `auto_merge_candidate`
@@ -54,7 +54,7 @@ stays `not_performed` and `authority_change` stays `none`.
 Import an already-saved fix-verification report:
 
 ```bash
-ordin-assure codex import-workflow --artifact-root /private/saved-workflow \
+ordin security import-workflow --artifact-root /private/saved-workflow \
   --repository project/example --revision REVIEWED_REVISION \
   --workflow verify_fix --expected-scan-id SCAN_ID \
   --expected-identifier OCCURRENCE_ID --report new-summary.json
@@ -65,7 +65,7 @@ prose, choose `--workflow validate --format text` and its artifact path. Exit `0
 means complete import only; exit `2` indicates partial/unknown/malformed capture.
 No severity, fix or merge label becomes an active restriction or approval.
 
-The SDK is in `ordin.assurance.codex_security.workflow`, with an optional
-`ordin_codex_security.workflow` facade. Live external execution, authentication,
+The SDK is in `ordin.security.workflow`, with an optional
+`ordin_security.workflow` facade. Live external execution, authentication,
 patch application and publication remain explicit operator actions outside
 Ordin's default runtime. They were not exercised by these tests.

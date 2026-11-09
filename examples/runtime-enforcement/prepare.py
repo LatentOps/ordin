@@ -6,12 +6,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT), str(ROOT / "integrations/openshell")]
+sys.path[:0] = [str(ROOT), str(ROOT / "integrations/runtime")]
 from ordin import ActionEnvelope, Ordin, derive_runtime_capability_contract
 from ordin.runtime_contract import FilesystemCapability
 from ordin.runtime_requirements import RuntimeRequirementProfile
-from ordin_openshell.compiler import OpenShellBackend
-from ordin_openshell.model import serialize_policy
+from ordin_runtime.compiler import OrdinRuntimeBackend
+from ordin_runtime.model import serialize_policy
 
 
 def main():
@@ -42,7 +42,7 @@ def main():
             action_id="public-issue-get",
         )
     )
-    result = OpenShellBackend((1000, 1000)).compile(derive_runtime_capability_contract(review))
+    result = OrdinRuntimeBackend((1000, 1000)).compile(derive_runtime_capability_contract(review))
     if result.status != "success" or result.plan is None:
         raise ValueError(result.reason_code)
     print(serialize_policy(result.plan.policy), end="")

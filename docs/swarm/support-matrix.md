@@ -5,7 +5,7 @@ universal swarm enforcement is shipped by these documents. Current single-sessio
 features remain available under their
 existing [integration](../integration-sessions.md),
 [Assurance](../assurance/README.md) and
-[OpenShell](../openshell-integration.md) contracts.
+[Ordin Runtime](../runtime-integration.md) contracts.
 
 ## Coverage vocabulary
 
@@ -51,7 +51,7 @@ it must never silently become observe-only while retaining an enforcement label.
 | Native Claude/Codex/Cursor/Hermes hooks | Host-specific pre-tool interception where installed and invoked | Bind enrolled identities; uncovered tools/processes remain gaps |
 | MCP stdio / Streamable HTTP proxy | Gate traffic actually routed through the configured proxy | Authenticated swarm context and per-route inventory; direct server access is not covered |
 | Assurance delegation | Protected local issuance, subset checking and exact-action commit tickets | Distributed fencing and causal transfer; current local locks do not coordinate hosts |
-| OpenShell optional integration | Compile/prove supported capabilities; applied runtime evidence is a separate boundary | Broker admission and generation checks for enrolled agents; unsupported protocols cannot become broad TCP permissions |
+| Ordin Runtime optional integration | Compile/prove supported capabilities; applied runtime evidence is a separate boundary | Broker admission and generation checks for enrolled agents; unsupported protocols cannot become broad TCP permissions |
 | Vetted Linux sandbox fixtures | Isolation and evidence for the documented fixture and supported host | Not a general attach-to-any-process containment service |
 | Existing uninstrumented swarm | Protected host endpoint can explicitly attach observation or verified future dispatch mediation without restarting an existing session | Direct sockets, existing credentials and unwrapped executors remain uncovered; unsupported live restrictions require restart |
 | [Pinned LangGraph / AutoGen legacy / custom Python](framework-adapters.md) | Real version-pinned tool/lifecycle conformance, post-validation synchronous/native-async LangGraph tool routes, original task-bound host identities, explicit typed message/artifact handoff and optional synchronous coordinator/broker routing | Injected/plugin/background/direct paths remain explicit gaps; async callbacks are interception, not an async owned broker executor. AutoGen is archived; framework interception is separate from original physical broker evidence |

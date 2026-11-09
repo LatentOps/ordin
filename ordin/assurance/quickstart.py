@@ -29,8 +29,8 @@ from .attack_paths import ReviewedAction, build_attack_path
 from .simulation import SimulationPolicy, FrozenCase, FrozenCorpus, simulate_policy_change
 from .challenge import challenge_authority_subset, replay_counterexample
 from .delegation import DelegationAuthority, verify_delegation_subset
-from .codex_security.workflow import WorkflowCapture, WorkflowImportScope, import_workflow_claims
-from .codex_security import ImportScope, import_sarif
+from ..security.workflow import WorkflowCapture, WorkflowImportScope, import_workflow_claims
+from ..security import ImportScope, import_sarif
 from .offline import inspect_profile_content, preview_invariants
 
 

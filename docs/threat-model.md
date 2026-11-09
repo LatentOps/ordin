@@ -46,7 +46,7 @@ does not establish that all those components were uncompromised.
 
 ## Runtime capability and evidence boundaries
 
-The optional [OpenShell adapter](openshell-integration.md) adds an enforcement
+The optional [Ordin Runtime adapter](runtime-integration.md) adds an enforcement
 plane outside core. Capability contracts are advisory until a runtime applies
 them. The core derives and verifies data; it does not start a sandbox, grant
 credentials, run an action, or retry a denied operation.

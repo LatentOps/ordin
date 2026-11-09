@@ -11,7 +11,7 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-INTEGRATION = ROOT / "integrations/openshell"
+INTEGRATION = ROOT / "integrations/runtime"
 
 
 def verify_source(source: Path, identity: dict) -> None:
@@ -81,7 +81,7 @@ def main() -> int:
     source, output = args.source.resolve(), args.output.resolve()
     if source == output or source in output.parents:
         raise ValueError("runtime output must be separate from the source")
-    identity = json.loads((INTEGRATION / "ordin_openshell/runtime_identity.json").read_text())
+    identity = json.loads((INTEGRATION / "ordin_runtime/runtime_identity.json").read_text())
     patch = INTEGRATION / "runtime/patches/request-authority-v1.patch"
     if hashlib.sha256(patch.read_bytes()).hexdigest() != identity["patch_sha256"]:
         raise ValueError("runtime patch digest mismatch")

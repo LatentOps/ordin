@@ -68,7 +68,7 @@ def main() -> int:
     script = "import sys,ordin,pytest; from pathlib import Path; assert Path(ordin.__file__).resolve().is_relative_to(Path(sys.prefix).resolve()); raise SystemExit(pytest.main(sys.argv[1:]))"
     test_paths = ["tests"]
     if args.suite == "all":
-        test_paths.extend(("integrations/openshell/tests", "integrations/decision_models/tests"))
+        test_paths.extend(("integrations/runtime/tests", "integrations/decision_models/tests"))
     command = [
         str(interpreter),
         "-I",
