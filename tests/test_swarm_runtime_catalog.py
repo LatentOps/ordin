@@ -14,6 +14,8 @@ from ordin.swarm.confined_tests import (
     PythonRuntimeCatalog,
     _capture,
     _runtime_source,
+    _stdlib_curation,
+    _stdlib_sources,
     _tree_digest,
     build_python_runtime_catalog,
     load_python_runtime_catalog,
@@ -35,6 +37,7 @@ def fixture_catalog(tmp_path):
         "interpreter_digest": _sha(interpreter),
         "stdlib_virtual": str(Path(sysconfig.get_path("stdlib")).resolve()),
         "pytest_version": "fixture",
+        "stdlib_curation": _stdlib_curation(Path(sysconfig.get_path("stdlib")).resolve()),
     }
     (root / "catalog.json").write_text(json.dumps(settings))
     for directory, _, files in os.walk(root, topdown=False):
@@ -378,3 +381,89 @@ def test_stdlib_source_alias_rejects_writable_source_objects(tmp_path, change):
     selected.chmod(0o666 if selected.is_file() else 0o777)
     with pytest.raises(ValueError, match="ownership/mode"):
         _runtime_source(alias, root, 1024)
+
+
+def build_linker_fixture(tmp_path, monkeypatch):
+    stdlib = tmp_path / "curated-source"
+    stdlib.mkdir(mode=0o755)
+    version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    config = stdlib / ("config-" + version + "-fixture")
+    config.mkdir(mode=0o755)
+    (stdlib / "lib-dynload").mkdir(mode=0o755)
+    outside = tmp_path / ("libpython" + version + ".so.1")
+    outside.write_bytes(b"outside build linker object must never enter image")
+    linker = config / ("libpython" + version + ".so")
+    make_alias(linker, outside)
+    source = stdlib / "actual.py"
+    source.write_bytes(b"VALUE = 1\n")
+    make_alias(stdlib / "_sysconfigdata_required.py", source.name)
+    extension = stdlib / "lib-dynload" / "selected_fixture.so"
+    extension.write_bytes(b"selected extension bytes")
+    original = sysconfig.get_config_var
+    values = {"LIBPL": str(config), "LDVERSION": version, "LDLIBRARY": linker.name}
+    monkeypatch.setattr(sysconfig, "get_config_var", lambda name: values.get(name, original(name)))
+    return stdlib, config, linker, extension, outside
+
+
+def test_exact_build_linker_is_excluded_without_following_while_import_modules_remain_selected(
+    tmp_path, monkeypatch
+):
+    stdlib, config, linker, extension, outside = build_linker_fixture(tmp_path, monkeypatch)
+    selected = {
+        source.relative_to(stdlib).as_posix(): _runtime_source(source, stdlib, 1048576)
+        for source in _stdlib_sources(stdlib)
+    }
+    assert linker.relative_to(stdlib).as_posix() not in selected
+    assert selected["lib-dynload/selected_fixture.so"] == b"selected extension bytes"
+    assert selected["_sysconfigdata_required.py"] == selected["actual.py"] == b"VALUE = 1\n"
+    assert all(value != outside.read_bytes() for value in selected.values())
+    assert _stdlib_curation(stdlib) == {
+        "policy": "fixed-import-runtime-v1",
+        "excluded_build_linker": linker.relative_to(stdlib).as_posix(),
+    }
+
+
+@pytest.mark.parametrize("kind", ["extension", "same-name-in-dynload", "different-ABI-in-config"])
+def test_build_linker_exception_never_excludes_a_selected_outside_extension(
+    tmp_path, monkeypatch, kind
+):
+    stdlib, config, linker, extension, outside = build_linker_fixture(tmp_path, monkeypatch)
+    if kind == "extension":
+        selected = extension
+        extension.unlink()
+    elif kind == "same-name-in-dynload":
+        selected = extension.parent / linker.name
+    else:
+        selected = config / (linker.stem + "-different.so")
+    make_alias(selected, outside)
+    assert selected in tuple(_stdlib_sources(stdlib))
+    with pytest.raises(ValueError, match="escapes"):
+        for source in _stdlib_sources(stdlib):
+            _runtime_source(source, stdlib, 1048576)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="full runtime installation is Linux only")
+def test_catalog_build_pins_exact_linker_curation_and_materializes_stdlib_module_alias(
+    tmp_path, monkeypatch
+):
+    stdlib, config, linker, extension, outside = build_linker_fixture(tmp_path, monkeypatch)
+    original = sysconfig.get_path
+    monkeypatch.setattr(
+        sysconfig,
+        "get_path",
+        lambda name, *args, **kwargs: (
+            str(stdlib) if name == "stdlib" else original(name, *args, **kwargs)
+        ),
+    )
+    image = tmp_path / "installed-runtime"
+    image.mkdir(mode=0o700)
+    operator = object()
+    catalog = build_python_runtime_catalog(image, operator=operator)
+    assert load_python_runtime_catalog(image, operator=operator) == catalog
+    assert not (image / "stdlib" / linker.relative_to(stdlib)).exists()
+    assert (image / "stdlib/lib-dynload/selected_fixture.so").read_bytes() == extension.read_bytes()
+    module = image / "stdlib/_sysconfigdata_required.py"
+    assert module.read_bytes() == b"VALUE = 1\n" and not module.is_symlink()
+    assert json.loads((image / "catalog.json").read_bytes())["stdlib_curation"] == _stdlib_curation(
+        stdlib
+    )

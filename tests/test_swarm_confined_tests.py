@@ -254,6 +254,13 @@ def test_kernel_controls():
     assert libc.syscall(57)==-1 and ctypes.get_errno()==errno.EPERM
     assert libc.syscall(59,ctypes.c_char_p(b'/escape'),None,None)==-1
     assert ctypes.get_errno()==errno.EPERM
+    import subprocess, sys
+    try:
+        subprocess.Popen([sys.executable, '-c', 'raise AssertionError("compiler child escaped")'])
+    except OSError as error:
+        assert error.errno == errno.EPERM
+    else:
+        raise AssertionError('fixed test could launch a build subprocess')
     with open('/scratch/permitted', 'w') as target:
         target.write('private bounded scratch')
 """

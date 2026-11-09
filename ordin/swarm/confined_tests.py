@@ -217,12 +217,108 @@ def _catalog_manifest(root: Path) -> Path:
     return root.parent / (root.name + ".pinned.json")
 
 
+def _stdlib_build_linker(stdlib: Path) -> Path | None:
+    """Exact trusted ABI build/embedding artifact, not a selected import module.
+
+    CPython 3.12.8 Makefile.pre.in at 2dc476bcb9142cd25d7e1d52392b73a3dcdf1756
+    distinguishes LIBPL extending/embedding files from DESTSHARED import modules.
+    The fixed worker searches stdlib and lib-dynload, never this config directory;
+    no compiler/subprocess is available. This does not assume libpython is mapped.
+    """
+    version, library, directory = (
+        sysconfig.get_config_var(name) for name in ("LDVERSION", "LDLIBRARY", "LIBPL")
+    )
+    if (
+        type(version) is not str
+        or re.fullmatch(r"[0-9]+\.[0-9]+[a-z]*", version) is None
+        or library != "libpython" + version + ".so"
+        or type(directory) is not str
+    ):
+        return None
+    selected = Path(directory)
+    if (
+        not selected.is_absolute()
+        or selected.parent != stdlib
+        or re.fullmatch(
+            r"config-" + re.escape(version) + r"(?:-[A-Za-z0-9_.-]{1,128})?", selected.name
+        )
+        is None
+    ):
+        return None
+    try:
+        if selected.resolve(strict=True) != selected:
+            return None
+    except FileNotFoundError:
+        return None
+    return selected / library
+
+
+def _stdlib_curation(stdlib: Path) -> dict:
+    linker = _stdlib_build_linker(stdlib)
+    return {
+        "policy": "fixed-import-runtime-v1",
+        "excluded_build_linker": linker.relative_to(stdlib).as_posix()
+        if linker is not None
+        else None,
+    }
+
+
+def _stdlib_sources(stdlib: Path):
+    """Select runtime code only; all selected aliases retain the strict reader."""
+    linker = _stdlib_build_linker(stdlib)
+    excluded = IGNORED_PROJECT | {
+        "site-packages",
+        "dist-packages",
+        "test",
+        "tests",
+        "ensurepip",
+        "idlelib",
+        "tkinter",
+        "turtledemo",
+    }
+    for directory, dirs, files in os.walk(stdlib, followlinks=False):
+        dirs[:] = sorted(name for name in dirs if name not in excluded)
+        for name in sorted(files):
+            source = Path(directory) / name
+            if source == linker:
+                # Never resolve/open its outside target. Even this excluded
+                # source entry and its canonical parent must be operator-owned
+                # installation objects; no group/world-writable metadata waiver.
+                for selected in (stdlib, source.parent, source):
+                    info = selected.lstat()
+                    if (
+                        (selected != source and not stat.S_ISDIR(info.st_mode))
+                        or (
+                            os.name == "posix"
+                            and (
+                                info.st_uid not in {0, os.geteuid()}
+                                or (
+                                    not stat.S_ISLNK(info.st_mode)
+                                    and stat.S_IMODE(info.st_mode) & 0o022
+                                )
+                            )
+                        )
+                        or (
+                            selected == source
+                            and (
+                                not (stat.S_ISREG(info.st_mode) or stat.S_ISLNK(info.st_mode))
+                                or info.st_nlink != 1
+                            )
+                        )
+                    ):
+                        raise ValueError("trusted build-only linker installation object required")
+                continue
+            if source.suffix in {".py", ".so"} and name not in FORBIDDEN_RUNTIME:
+                yield source
+
+
 def _catalog_settings(catalog: PythonRuntimeCatalog) -> dict:
     return {
         "interpreter": str(catalog.interpreter),
         "interpreter_digest": catalog.interpreter_digest,
         "stdlib_virtual": catalog.stdlib_virtual,
         "pytest_version": catalog.pytest_version,
+        "stdlib_curation": _stdlib_curation(Path(catalog.stdlib_virtual)),
     }
 
 
@@ -477,12 +573,13 @@ def load_python_runtime_catalog(root: Path, *, operator: object) -> PythonRuntim
             "interpreter_digest",
             "stdlib_virtual",
             "pytest_version",
+            "stdlib_curation",
         }
         or payload["schema_version"] != "ordin.python_runtime_catalog.v1"
         or payload["root"] != str(root)
     ):
         raise ValueError("runtime installation pin scope differs")
-    if any(type(value) is not str for value in payload.values()):
+    if any(type(value) is not str for name, value in payload.items() if name != "stdlib_curation"):
         raise ValueError("runtime installation pin requires exact text fields")
     catalog = PythonRuntimeCatalog(
         root,
@@ -492,6 +589,8 @@ def load_python_runtime_catalog(root: Path, *, operator: object) -> PythonRuntim
         payload["stdlib_virtual"],
         payload["pytest_version"],
     )
+    if payload["stdlib_curation"] != _stdlib_curation(Path(catalog.stdlib_virtual)):
+        raise ValueError("runtime installation curation policy differs")
     _verify_catalog(catalog)
     return catalog
 
@@ -537,14 +636,8 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
         "tkinter",
         "turtledemo",
     }
-    for directory, dirs, files in os.walk(stdlib, followlinks=False):
-        dirs[:] = sorted(name for name in dirs if name not in excluded)
-        for name in sorted(files):
-            source = Path(directory) / name
-            if source.suffix in {".py", ".so"} and name not in FORBIDDEN_RUNTIME:
-                add(
-                    "stdlib/" + source.relative_to(stdlib).as_posix(), source, standard_library=True
-                )
+    for source in _stdlib_sources(stdlib):
+        add("stdlib/" + source.relative_to(stdlib).as_posix(), source, standard_library=True)
     packages: tuple[tuple[str, str], ...] = (
         ("pytest", "pytest"),
         ("_pytest", "pytest"),
@@ -579,11 +672,12 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
                     continue
                 add("site/" + module + "/" + item.relative_to(source).as_posix(), item)
     interpreter = Path(getattr(sys, "_base_executable", sys.executable)).resolve()
-    settings = {
+    settings: dict[str, Any] = {
         "interpreter": str(interpreter),
         "interpreter_digest": _sha(interpreter),
         "stdlib_virtual": str(stdlib),
         "pytest_version": importlib.metadata.version("pytest"),
+        "stdlib_curation": _stdlib_curation(stdlib),
     }
     selected["catalog.json"] = _wire(settings)
     for relative, data in selected.items():
