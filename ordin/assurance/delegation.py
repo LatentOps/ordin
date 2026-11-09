@@ -222,7 +222,13 @@ def verify_delegation_subset(
                 child.digest,
                 "allow",
                 "low",
+                # Keep every original child domain while checking this endpoint.
+                filesystem=child.capability.filesystem,
                 network=(requested_network,),
+                tools=child.capability.tools,
+                process=child.capability.process,
+                privilege=child.capability.privilege,
+                credentials=child.capability.credentials,
                 source={
                     "kind": "delegation",
                     "operation": "subset",
