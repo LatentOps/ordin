@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from importlib.metadata import PackageNotFoundError
 import json
 import os
 from pathlib import Path
@@ -23,6 +24,20 @@ from .host_profiles import (
 )
 from .sdk import bounded_json
 from .host_authority import _HostCleanupIncomplete
+
+
+class _TestRuntimeMissing(ValueError):
+    """Only missing distributions from the explicit fixed-runtime staging step."""
+
+
+def _stage_test_runtime(runtime: Path):
+    from ordin.swarm.confined_tests import build_python_runtime_catalog
+
+    runtime.mkdir(mode=0o700)
+    try:
+        build_python_runtime_catalog(runtime, operator=object())
+    except PackageNotFoundError:
+        raise _TestRuntimeMissing("managed fixed-test runtime dependencies unavailable") from None
 
 
 def _absolute(value: str) -> Path:
@@ -121,11 +136,8 @@ def initialize(
             check_private_directory(parent)
         _new_file(parent / parts[-1], raw)
     if with_tests:
-        from ordin.swarm.confined_tests import build_python_runtime_catalog
-
         runtime = directory / "state" / "test-runtime"
-        runtime.mkdir(mode=0o700)
-        build_python_runtime_catalog(runtime, operator=object())
+        _stage_test_runtime(runtime)
     loaded = load_host_profile(directory)
     initialize_host_authority_files(loaded, operator=object())
     return {
@@ -474,6 +486,22 @@ def main(argv=None):
                 )
         print(json.dumps(result, sort_keys=True, ensure_ascii=True, allow_nan=False), flush=True)
         return 1 if args.operation == "evaluate" and not result["passed"] else exit_code
+    except _TestRuntimeMissing:
+        print(
+            json.dumps(
+                {
+                    "status": "unavailable",
+                    "reason_code": "host.test_runtime_missing",
+                    "action": 'From the matching repository root, explicitly run: python -m pip install . "./integrations/swarm[test-runtime]"',
+                    "partial_installation": "retained_for_inspection",
+                    "retry": "After preinstallation, initialize a NEW installation directory.",
+                    "execution_authority": False,
+                }
+            ),
+            file=sys.stderr,
+            flush=True,
+        )
+        return 2
     except _HostCleanupIncomplete:
         # Trusted in-process callers must keep the ORIGINAL retry capability.
         # The actual console/module entry point supervises it in foreground.

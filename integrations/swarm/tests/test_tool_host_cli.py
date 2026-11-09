@@ -204,3 +204,61 @@ def test_live_doctor_offline_or_unsupported_returns_failure(tmp_path, monkeypatc
     )
     assert main(["doctor", "--directory", str(tmp_path), "--live"]) == 2
     assert json.loads(capsys.readouterr().out)["online_verified"] is False
+
+
+def test_missing_fixed_runtime_distribution_is_actionable_and_sanitized(
+    tmp_path, monkeypatch, capsys
+):
+    from importlib.metadata import PackageNotFoundError
+    from ordin.swarm import confined_tests
+    from ordin_swarm import host_cli
+
+    calls = []
+
+    def missing(runtime, *, operator):
+        calls.append(runtime)
+        raise PackageNotFoundError("private distribution diagnostic")
+
+    monkeypatch.setattr(confined_tests, "build_python_runtime_catalog", missing)
+    monkeypatch.setattr(host_cli, "_document", lambda path: {})
+
+    def initialize(directory, document, **kwargs):
+        assert kwargs["with_tests"] is True
+        host_cli._stage_test_runtime(tmp_path / "fresh-runtime")
+        pytest.fail("missing runtime initialization claimed success")
+
+    monkeypatch.setattr(host_cli, "initialize", initialize)
+    result = main(
+        [
+            "init",
+            "--directory",
+            str(tmp_path / "new"),
+            "--profile",
+            str(tmp_path / "profile.json"),
+            "--with-tests",
+        ]
+    )
+    output = capsys.readouterr()
+    assert result == 2 and output.out == "" and calls == [tmp_path / "fresh-runtime"]
+    report = json.loads(output.err)
+    assert report["reason_code"] == "host.test_runtime_missing"
+    assert 'pip install . "./integrations/swarm[test-runtime]"' in report["action"]
+    assert report["partial_installation"] == "retained_for_inspection"
+    assert "private distribution" not in output.err and "Traceback" not in output.err
+
+
+def test_runtime_staging_integrity_error_is_not_reclassified_as_missing_dependency(
+    tmp_path, monkeypatch
+):
+    from ordin.swarm import confined_tests
+    from ordin_swarm import host_cli
+
+    original = ValueError("runtime digest changed")
+
+    def corrupt(*args, **kwargs):
+        raise original
+
+    monkeypatch.setattr(confined_tests, "build_python_runtime_catalog", corrupt)
+    with pytest.raises(ValueError) as error:
+        host_cli._stage_test_runtime(tmp_path / "fresh-runtime")
+    assert error.value is original and not isinstance(error.value, host_cli._TestRuntimeMissing)

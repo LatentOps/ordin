@@ -159,6 +159,19 @@ is required; existing nonempty worker installations are never silently reused.
 
 ## Explicit fixed tests
 
+Preinstall the optional, qualified pytest runtime explicitly. From the matching
+repository root, install both packages from that same checkout:
+
+```console
+python -m pip install . "./integrations/swarm[test-runtime]"
+```
+
+The `test-runtime` extra pins `pytest==9.2.0`; it does not add a dependency to
+core Ordin. Initialization never installs packages. Missing runtime
+distributions produce a sanitized nonzero result with this installation action.
+Any partial private installation remains for inspection; use a new installation
+directory after preinstallation instead of overwriting it.
+
 A profile may additionally select `test_routes` such as
 `[{"test_id":"report","selectors":["test_report.py::test_report"]}]`,
 `test_runtime: "state/test-runtime"` and an actor's `test_ids: ["report"]`.
