@@ -63,19 +63,9 @@ def test_evaluation_exception_preserves_partial_failed_evidence_without_raw_payl
     sys.platform != "linux", reason="actual owned HTTP/write and TLS host boundary required"
 )
 @pytest.mark.parametrize("enhanced", [False, True])
-def test_actual_offline_two_agent_workflow_and_attack_suite(tmp_path, monkeypatch, enhanced):
-    from test_tool_host_deployment import _CONNECT, _CREATE_CONNECTION
-    import socket
-
-    # Both ephemeral listeners are owned by run_evaluation; constrain all test
-    # connections to IPv4 loopback rather than opening model/telemetry access.
-    def loopback(connection, address):
-        if type(address) is not tuple or len(address) != 2 or address[0] != "127.0.0.1":
-            raise AssertionError("evaluation contacted an external endpoint")
-        return _CONNECT(connection, address)
-
-    monkeypatch.setattr(socket.socket, "connect", loopback)
-    monkeypatch.setattr(socket, "create_connection", _CREATE_CONNECTION)
+def test_actual_offline_two_agent_workflow_and_attack_suite(
+    tmp_path, owned_runtime_loopback, enhanced
+):
     result = run_evaluation(tmp_path / "evaluation", with_tests=enhanced, protected=enhanced)
     assert result["passed"] is True, result
     assert result["benign_total"] >= 5 and result["attack_total"] >= 8
