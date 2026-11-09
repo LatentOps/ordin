@@ -545,18 +545,57 @@ class LinuxProtectedProcess:
             row = self._job(job)
             if row.state != "ready" or row.cancel.is_set():
                 raise ValueError("original kernel-ready process required")
+            row.state = "admitting"
+        try:
+            # A failed host thread allocation must never leave acknowledged
+            # untrusted code without the original hard-wall deadline monitor.
+            Thread(
+                target=self._watch, args=(row,), name="ordin-owned-process-deadline", daemon=True
+            ).start()
+            with self._lock:
+                if (
+                    row.cancel.is_set()
+                    or time.monotonic() >= row.deadline
+                    or (row.process is None or row.process.poll() is not None)
+                ):
+                    raise ValueError("original live kernel-ready process required")
+            # Neither socket backpressure nor an ACK failure may block the
+            # watchdog/cancel path behind the host state lock.
             self._send(
-                row, {"protocol": PROCESS_PROTOCOL, "phase": "start", "binding": row.binding}, 4096
+                row,
+                {"protocol": PROCESS_PROTOCOL, "phase": "start", "binding": row.binding},
+                4096,
             )
-            row.state = "running"
-        Thread(
-            target=self._watch, args=(row,), name="ordin-owned-process-deadline", daemon=True
-        ).start()
+            with self._lock:
+                if row.cancel.is_set() or row.stop_reason is not None:
+                    raise ValueError("original process admission was stopped")
+                row.state = "running"
+        except BaseException:
+            with self._lock:
+                row.stop_reason = row.stop_reason or "admission_failed"
+                row.cancel.set()
+            # Cleanup must preserve the admission error, including interrupts.
+            # Retain unknown custody if the original child cannot be stopped.
+            try:
+                self._kill(row)
+            except BaseException:
+                pass
+            try:
+                self.finish(job, operator=operator)
+            except BaseException:
+                try:
+                    self._release(row)
+                except BaseException:
+                    pass
+            raise
 
     def _watch(self, row: _Process) -> None:
         while row.process is not None and row.process.poll() is None:
             if row.cancel.wait(0.01) or time.monotonic() >= row.deadline:
-                row.stop_reason = "canceled" if row.cancel.is_set() else "timeout"
+                with self._lock:
+                    row.stop_reason = row.stop_reason or (
+                        "canceled" if row.cancel.is_set() else "timeout"
+                    )
                 self._kill(row)
                 return
 
@@ -611,10 +650,21 @@ class LinuxProtectedProcess:
         with self._lock:
             row = self._job(job)
             row.cancel.set()
+            row.stop_reason = row.stop_reason or "canceled"
             if row.state == "queued":
                 row.state = "canceled"
                 return "canceled"
-            return "completed" if row.result is not None else "unknown"
+        # Stopping never relies on the watchdog existing or being scheduled.
+        stopped = self._kill(row)
+        if row.result is not None:
+            return (
+                "completed"
+                if stopped and row.result.status == "exited"
+                else "canceled"
+                if stopped and row.result.status == "canceled"
+                else "unknown"
+            )
+        return "canceled" if stopped else "unknown"
 
     def status(self, job: ProtectedProcessJob, *, operator: object) -> str:
         self._check(operator)
@@ -639,6 +689,7 @@ class LinuxProtectedProcess:
 
     def _finish(self, row: _Process) -> ProtectedProcessOutcome:
         if row.result is not None:
+            self._release(row)
             return row.result
         if row.process is not None:
             while row.process.poll() is None and not row.cancel.is_set():
@@ -653,7 +704,7 @@ class LinuxProtectedProcess:
             code = row.process.returncode if row.process is not None else None
             selected = (
                 "canceled"
-                if row.cancel.is_set()
+                if row.cancel.is_set() and row.stop_reason in {None, "canceled"}
                 else "unsupported"
                 if row.ready is None and row.state == "unsupported"
                 else "unknown"
@@ -680,18 +731,23 @@ class LinuxProtectedProcess:
         with self._lock:
             row.result = outcome
             self._outcomes[outcome] = digest(outcome.as_dict())
-        if row.process is None or row.process.poll() is not None:
+        self._release(row)
+        return outcome
+
+    @staticmethod
+    def _release(row: _Process) -> None:
+        with row.control_lock:
+            if row.process is not None and row.process.poll() is None:
+                return
             if row.channel is not None:
                 row.channel.close()
                 row.channel = None
             if row.output is not None:
                 row.output.close()
                 row.output = None
-            with row.control_lock:
-                if row.pidfd is not None:
-                    os.close(row.pidfd)
-                    row.pidfd = None
-        return outcome
+            if row.pidfd is not None:
+                os.close(row.pidfd)
+                row.pidfd = None
 
     def evidence_record(self, outcome: ProtectedProcessOutcome) -> dict:
         if not self.verify_outcome(outcome):
@@ -716,8 +772,8 @@ class LinuxProtectedProcess:
     def close(self, *, operator: object) -> None:
         self._check(operator)
         for job, row in tuple(self._jobs.items()):
-            if row.result is None:
+            if row.result is None or (row.process is not None and row.process.poll() is None):
                 self.request_stop(job, operator=operator)
-                self.finish(job, operator=operator)
+            self.finish(job, operator=operator)
             if row.process is not None and row.process.poll() is None:
                 raise RuntimeError("owned process outcome remains uncertain")
