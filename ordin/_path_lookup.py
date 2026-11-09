@@ -29,11 +29,11 @@ def _environment():
     )
 
 
-def _names(directory):
+def _native_directory(directory):
     if directory.startswith(("\\\\", "//")):
         # Preserve original which probing for remote/device namespaces; the
         # ranking optimization must not enumerate a network share.
-        return None
+        return False
     if (
         sys.platform == "linux"
         and len(directory) >= 6
@@ -46,6 +46,23 @@ def _names(directory):
         # entry through those mounts costs far more than probing a candidate.
         # Keep each directory in the original stdlib resolver's PATH and make
         # every lookup fresh, as for inaccessible/oversized directories.
+        return False
+    return True
+
+
+def _missing(directory):
+    if _native_directory(directory):
+        try:
+            os.stat(directory)
+        except FileNotFoundError:
+            return True
+        except OSError:
+            pass
+    return False
+
+
+def _names(directory):
+    if not _native_directory(directory):
         return None
     try:
         names = set()
@@ -78,6 +95,7 @@ class _Lookup:
             return self.resolver(command)
         prefix = command.casefold()
         selected = []
+        missing = []
         for directory in self.directories:
             if directory not in self.index:
                 self.index[directory] = _names(directory)
@@ -88,12 +106,19 @@ class _Lookup:
             folded = self.folded.get(directory, ())
             position = bisect_left(folded, prefix)
             possible = position < len(folded) and folded[position].startswith(prefix)
-            if names is None or possible:
+            if names is None and _missing(directory):
+                # A fresh absence check avoids PATHEXT probes against every
+                # missing directory, without retaining any negative result.
+                missing.append(directory)
+            elif names is None or possible:
                 selected.append(directory)
         # Keep one original nonempty directory when there are no candidates:
         # passing an empty PATH would change stdlib's Windows cwd semantics.
         path = os.pathsep.join(selected or self.directories[:1])
-        return self.resolver(command, path=path)
+        result = self.resolver(command, path=path)
+        if any(not _missing(directory) for directory in missing):
+            raise CatalogChanged()
+        return result
 
     def verify(self):
         if self.environment != _environment() or shutil.which is not self.resolver:
