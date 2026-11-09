@@ -50,6 +50,9 @@ def retained_backend(*, process=None):
     backend._lock, backend._jobs_lock = RLock(), RLock()
     backend._outcomes, backend._evidence = {}, {}
     backend._factory_http_outcomes = {}
+    backend._test_runner = None
+    backend._test_plans, backend._test_jobs = {}, {}
+    backend._test_outcomes, backend._factory_test_outcomes = {}, {}
     backend._closing = False
     action = ToolCallAdapter("ordin-owned").adapt(
         "write_artifact",

@@ -122,3 +122,48 @@ actors, read/write delegation rights, core semantics, backend, broker, source
 contexts and a write-action helper for native governance integration. It grants
 no approval. Native tests must verify actual writes and negative kernel controls;
 portable parser/profile tests alone do not establish physical enforcement.
+
+`test_routes=(TestRoute(...),)` adds the concrete `LinuxConfinedTestRunner`,
+constructed inside the aggregate's fresh installation. The constructor accepts
+only the exact typed route catalog; it accepts no caller runner or callback.
+Each route pins an operator-selected project root, fixed pytest selectors and a
+curated `PythonRuntimeCatalog`. The separate trusted catalog builder copies only
+the supported Python/pytest runtime inputs; it does not mount a user's full
+environment. Test routes require the qualified privileged Linux namespace,
+read-only mount, Landlock, seccomp and bounded tmpfs profile. Missing controls
+return non-success with no weaker executor.
+
+The public call is `run_tests({test_id})`. Before core or human review, protected
+host code calls `prepare_action(action, operator=operator)`. This seals the
+bounded project snapshot and puts its original reference and digest outside the
+public arguments. Rechecks use that same snapshot; they never silently capture
+new bytes. Source, sealed copy, runtime, interpreter and complete declared
+filesystem/process requirements are checked again before the owned effect.
+Project capture has a 16 MiB / 2048-file ceiling, runtime capture 192 MiB / 4096
+files, and the aggregate retains at most sixteen test jobs/snapshots. Original
+snapshot references cannot reconstruct missing process or execution authority.
+
+The exact host conditional runtime declaration is required: read-prefix rights
+for project and curated runtime, the one pinned interpreter, and
+`spawn_children=False`. Core `code.execute` remains warn/medium and needs the
+real protected human approval lease. The aggregate validates that lease against
+its original aggregate job before forwarding the same original lower runner
+plan/job. It verifies the retained lower outcome before creating its own result.
+Factory setup executes only a newly created trusted test fixture, never a
+configured project's tests or an implicit approval of a workload.
+
+Default test limits are 30 seconds wall time, 10 CPU seconds, 512 MiB address
+space, 1 MiB scratch and 256 scratch inodes. These defaults satisfy the independent
+quota-probe geometry even with an 8 KiB diagnostic budget. A supplied exact
+`ProtectedProcessLimits` can make other supported finite choices; raw diagnostic
+output cannot exceed the aggregate payload budget. The worker's trusted
+readiness handshake is retained before untrusted code runs, and the original
+owned child exit/stop is observed externally. Output and pytest counts remain
+untrusted diagnostics. The result contains externally measured `exit_code`,
+bounded `output`, `output_truncated`, `snapshot_digest`,
+`output_trust="untrusted_test_diagnostic"` and
+`test_correctness_verified=false`. Exit zero does not prove test correctness.
+The final JSON byte bound applies even when escaping expands the diagnostic.
+Every retained test job continues to use its original lower runner for stop
+requests, including after the aggregate records an unknown or terminal result.
+A later successful cleanup retains that original unknown history and its holds.
