@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+import base64
 import hashlib
 import importlib.metadata
 import json
@@ -312,6 +313,35 @@ def _stdlib_sources(stdlib: Path):
                 yield source
 
 
+def _pytest_compat_shim(installed: importlib.metadata.Distribution, maximum: int) -> bytes:
+    """Read pytest's recorded py.py shim, never discover/import legacy pylib."""
+    entries = []
+    for index, entry in enumerate(installed.files or ()):
+        if index >= MAX_RUNTIME_FILES:
+            raise ValueError("pytest distribution file count exceeds bound")
+        if str(entry).replace("\\", "/") == "py.py":
+            entries.append(entry)
+    if len(entries) != 1:
+        raise ValueError("selected pytest distribution must record its own py.py shim")
+    entry = entries[0]
+    base = Path(str(installed.locate_file(""))).absolute()
+    source = Path(str(installed.locate_file(entry))).absolute()
+    if (
+        source.parent != base
+        or base.resolve(strict=True) != base
+        or source.resolve(strict=True) != source
+    ):
+        raise ValueError("pytest compatibility shim must be an original regular distribution file")
+    expected = entry.hash
+    if expected is None or expected.mode != "sha256" or type(entry.size) is not int:
+        raise ValueError("pytest compatibility shim requires its recorded SHA256 and size")
+    data = _runtime_source(source, base, maximum)
+    encoded = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).decode("ascii").rstrip("=")
+    if len(data) != entry.size or encoded != expected.value:
+        raise ValueError("pytest compatibility shim differs from selected distribution metadata")
+    return data
+
+
 def _catalog_settings(catalog: PythonRuntimeCatalog) -> dict:
     return {
         "interpreter": str(catalog.interpreter),
@@ -611,11 +641,18 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
     if os.path.lexists(manifest):
         raise ValueError("runtime installation pin already exists; refuse rebuild")
     stdlib = Path(sysconfig.get_path("stdlib")).resolve()
+    pytest_distribution = importlib.metadata.distribution("pytest")
     selected: dict[str, bytes] = {}
     total = 0
 
-    def add(relative: str, source: Path, *, standard_library: bool = False) -> None:
+    def add_bytes(relative: str, data: bytes) -> None:
         nonlocal total
+        if len(selected) >= MAX_RUNTIME_FILES or len(data) > MAX_RUNTIME_BYTES - total:
+            raise ValueError("runtime catalogue item/byte count exceeds bound")
+        total += len(data)
+        selected[relative] = data
+
+    def add(relative: str, source: Path, *, standard_library: bool = False) -> None:
         if len(selected) >= MAX_RUNTIME_FILES:
             raise ValueError("runtime catalogue item count exceeds bound")
         data = (
@@ -623,8 +660,7 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
             if standard_library
             else _source(source, MAX_RUNTIME_BYTES - total)
         )
-        total += len(data)
-        selected[relative] = data
+        add_bytes(relative, data)
 
     excluded = IGNORED_PROJECT | {
         "site-packages",
@@ -638,6 +674,7 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
     }
     for source in _stdlib_sources(stdlib):
         add("stdlib/" + source.relative_to(stdlib).as_posix(), source, standard_library=True)
+    add_bytes("site/py.py", _pytest_compat_shim(pytest_distribution, MAX_RUNTIME_BYTES - total))
     packages: tuple[tuple[str, str], ...] = (
         ("pytest", "pytest"),
         ("_pytest", "pytest"),
@@ -649,7 +686,11 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
     if sys.version_info < (3, 11):
         packages += (("exceptiongroup", "exceptiongroup"), ("tomli", "tomli"))
     for module, distribution in packages:
-        installed = importlib.metadata.distribution(distribution)
+        installed = (
+            pytest_distribution
+            if distribution == "pytest"
+            else importlib.metadata.distribution(distribution)
+        )
         source = Path(str(installed.locate_file(module))).resolve()
         if source.is_file():
             add("site/" + module + ".py", source)
@@ -676,7 +717,7 @@ def build_python_runtime_catalog(root: Path, *, operator: object) -> PythonRunti
         "interpreter": str(interpreter),
         "interpreter_digest": _sha(interpreter),
         "stdlib_virtual": str(stdlib),
-        "pytest_version": importlib.metadata.version("pytest"),
+        "pytest_version": pytest_distribution.version,
         "stdlib_curation": _stdlib_curation(stdlib),
     }
     selected["catalog.json"] = _wire(settings)

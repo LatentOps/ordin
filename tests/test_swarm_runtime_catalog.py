@@ -1,6 +1,8 @@
 """Runtime restart loading verifies protected installation bytes, without execution."""
 
+import base64
 import hashlib
+import importlib.metadata
 import json
 import os
 from pathlib import Path
@@ -13,6 +15,7 @@ import pytest
 from ordin.swarm.confined_tests import (
     PythonRuntimeCatalog,
     _capture,
+    _pytest_compat_shim,
     _runtime_source,
     _stdlib_curation,
     _stdlib_sources,
@@ -467,3 +470,65 @@ def test_catalog_build_pins_exact_linker_curation_and_materializes_stdlib_module
     assert json.loads((image / "catalog.json").read_bytes())["stdlib_curation"] == _stdlib_curation(
         stdlib
     )
+    shim = image / "site/py.py"
+    assert shim.read_bytes() == _pytest_compat_shim(
+        importlib.metadata.distribution("pytest"), 65536
+    )
+    assert not shim.is_symlink() and shim.stat().st_mode & 0o222 == 0
+
+
+def shim_distribution(tmp_path):
+    base = tmp_path / "selected-distribution"
+    base.mkdir(mode=0o755)
+    metadata = base / "pytest-9.2.0.dist-info"
+    metadata.mkdir(mode=0o755)
+    source = base / "py.py"
+    data = b"raise AssertionError('shim capture must never import code')\n"
+    source.write_bytes(data)
+    source.chmod(0o644)
+    encoded = base64.urlsafe_b64encode(hashlib.sha256(data).digest()).decode().rstrip("=")
+    (metadata / "METADATA").write_text("Name: pytest\nVersion: 9.2.0\n")
+    (metadata / "RECORD").write_text(f"py.py,sha256={encoded},{len(data)}\n")
+    return importlib.metadata.PathDistribution(metadata), source, data, metadata
+
+
+def test_pytest_shim_capture_uses_original_distribution_record_not_project_discovery(
+    tmp_path, monkeypatch
+):
+    installed, source, data, metadata = shim_distribution(tmp_path)
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "py.py").write_text("raise AssertionError('CWD shim executed')\n")
+    monkeypatch.chdir(project)
+
+    def no_discovery(*args):
+        pytest.fail("selected shim capture rediscovered a py/pytest distribution")
+
+    monkeypatch.setattr(importlib.metadata, "distribution", no_discovery)
+    assert _pytest_compat_shim(installed, 65536) == data
+    with pytest.raises(ValueError, match="byte"):
+        _pytest_compat_shim(installed, 1)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "duplicate", "content", "hash-mode", "link"])
+def test_pytest_shim_capture_refuses_missing_changed_or_nonregular_distribution_member(
+    tmp_path, mutation
+):
+    installed, source, data, metadata = shim_distribution(tmp_path)
+    if mutation == "missing":
+        (metadata / "RECORD").write_text("")
+    elif mutation == "duplicate":
+        record = (metadata / "RECORD").read_text()
+        (metadata / "RECORD").write_text(record + record)
+    elif mutation == "content":
+        source.write_bytes(data + b"# changed\n")
+    elif mutation == "hash-mode":
+        record = (metadata / "RECORD").read_text().replace("sha256=", "sha512=")
+        (metadata / "RECORD").write_text(record)
+    else:
+        selected = source.parent / "replacement.py"
+        selected.write_bytes(data)
+        source.unlink()
+        make_alias(source, selected)
+    with pytest.raises((ValueError, OSError)):
+        _pytest_compat_shim(installed, 65536)
