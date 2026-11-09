@@ -223,6 +223,44 @@ def test_fixed_pytest_runs_only_after_kernel_readiness_and_ignores_repo_config(
         runner.close(operator=operator)
 
 
+def test_pinned_framework_outranks_real_project_pytest_py_and_private_package_shadows(tmp_path):
+    kernel_only()
+    operator, runner, route, action = setup(tmp_path)
+    selected = str(route.runtime.root / "site")
+    (route.project_root / "test_sample.py").write_text(
+        "def test_selected_framework_and_project_import():\n"
+        "    import pytest, py, _pytest, project_helper\n"
+        "    from pathlib import Path\n"
+        f"    pinned = Path({selected!r})\n"
+        "    assert Path(pytest.__file__).is_relative_to(pinned / 'pytest')\n"
+        "    assert Path(_pytest.__file__).is_relative_to(pinned / '_pytest')\n"
+        "    assert Path(py.__file__) == pinned / 'py.py'\n"
+        f"    assert pytest.__version__ == {route.runtime.pytest_version!r}\n"
+        "    assert project_helper.VALUE == 'project still importable'\n"
+        "    assert not Path('/scratch/framework-shadow-marker').exists()\n"
+        "    print('pinned-framework-selected')\n"
+    )
+    shadow = (
+        "from pathlib import Path\n"
+        "Path('/scratch/framework-shadow-marker').write_text('shadow executed')\n"
+        "raise RuntimeError('untrusted project replaced pinned framework')\n"
+    )
+    for name in ("pytest.py", "py.py"):
+        (route.project_root / name).write_text(shadow)
+    (route.project_root / "_pytest").mkdir()
+    (route.project_root / "_pytest/__init__.py").write_text(shadow)
+    (route.project_root / "project_helper.py").write_text("VALUE = 'project still importable'\n")
+    try:
+        action, plan, source = prepare(runner, route, action, operator)
+        value = assert_kernel_result(
+            runner, plan, runner.execute(plan, action, source, operator=operator)
+        )
+        assert value["exit_code"] == 0 and "1 passed" in value["output"]
+        assert "pinned-framework-selected" in value["output"]
+    finally:
+        runner.close(operator=operator)
+
+
 def test_untrusted_tests_cannot_bypass_kernel_or_access_broker_and_host(tmp_path):
     kernel_only()
     text = """

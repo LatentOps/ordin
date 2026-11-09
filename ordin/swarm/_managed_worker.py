@@ -614,10 +614,10 @@ def main():
             )
             sys.dont_write_bytecode = True
             sys.path[:] = [
-                test["project_root"],
                 test["runtime_root"] + "/site",
                 test["stdlib_virtual"],
                 test["stdlib_virtual"] + "/lib-dynload",
+                test["project_root"],
             ]
             sys.path_importer_cache.clear()
             os.chdir(test["project_root"])
