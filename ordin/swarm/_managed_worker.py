@@ -486,9 +486,9 @@ def isolate(packet):
         for index in range(limits["scratch_inodes"] + 1):
             path = scratch_name + "/bytes-" + str(index)
             try:
-                with open(path, "wb") as output:
+                with open(path, "wb") as scratch_writer:
                     paths.append(path)
-                    output.write(block)
+                    scratch_writer.write(block)
             except OSError as exc:
                 if exc.errno != errno.ENOSPC:
                     raise OSError("scratch byte quota probe inconclusive") from None
