@@ -32,6 +32,8 @@ def repository(tmp_path):
     git(root, "init", "-q")
     git(root, "config", "user.name", "Synthetic Release Test")
     git(root, "config", "user.email", "fixture@example.invalid")
+    git(root, "config", "core.autocrlf", "input")
+    (root / ".gitignore").write_text("build/\n__pycache__/\n*.egg-info/\n")
     for name in LOCKS:
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -104,8 +106,9 @@ def test_build_source_preserves_tracked_bytes_and_excludes_ignored_outputs(tmp_p
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"synthetic untracked build output")
     copied = copy_build_source(root, tmp_path / "private-build-source")
-    assert (copied / "ordin/__init__.py").read_bytes() == (root / "ordin/__init__.py").read_bytes()
-    assert (copied / "pyproject.toml").read_bytes() == (root / "pyproject.toml").read_bytes()
+    for name in ("ordin/__init__.py", "pyproject.toml"):
+        expected = subprocess.check_output(["git", "-C", str(root), "show", revision + ":" + name])
+        assert (copied / name).read_bytes() == expected
     assert not (copied / "build").exists()
     assert not (copied / "ordin/__pycache__").exists()
     assert not (copied / ".git").exists()
@@ -119,7 +122,8 @@ def wheels(tmp_path, *, forbidden_dependency=False):
     for name, parent in (("ordin", root), ("ordin_swarm", root / "integrations/swarm")):
         package = parent / name
         package.mkdir(parents=True)
-        (package / "__init__.py").write_text("# exact synthetic bytes\n")
+        (package / "__init__.py").write_bytes(b"# exact synthetic bytes\n")
+        (parent / "pyproject.toml").write_bytes(b"# owned metadata fixture\n")
         metadata = "Metadata-Version: 2.4\nName: " + name.replace("_", "-") + "\nVersion: 1\n"
         if name == "ordin_swarm":
             metadata += "Requires-Dist: ordin>=0.4\n"
@@ -128,6 +132,15 @@ def wheels(tmp_path, *, forbidden_dependency=False):
         with zipfile.ZipFile(directory / (name + "-1-py3-none-any.whl"), "w") as archive:
             archive.write(package / "__init__.py", name + "/__init__.py")
             archive.writestr(name + "-1.dist-info/METADATA", metadata)
+    for name in LOCKS:
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"# owned lock fixture\n")
+    git(root, "init", "-q")
+    git(root, "config", "user.name", "Owned Wheel Fixture")
+    git(root, "config", "user.email", "fixture@example.invalid")
+    git(root, "add", ".")
+    git(root, "-c", "core.hooksPath=" + os.devnull, "commit", "-qm", "owned wheel source")
     return root, directory
 
 
@@ -136,7 +149,7 @@ def test_wheel_parity_refuses_a_stale_or_changed_package(tmp_path):
     report = verify_wheels(root, directory)
     assert {row["name"] for row in report} == {"ordin", "ordin-swarm"}
     (root / "ordin/__init__.py").write_text("# source changed after wheel build\n")
-    with pytest.raises(ValueError, match="differs"):
+    with pytest.raises(ValueError, match="source check failed|differs"):
         verify_wheels(root, directory)
 
 

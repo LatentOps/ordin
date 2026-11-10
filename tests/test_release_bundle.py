@@ -160,6 +160,47 @@ def test_complete_bundle_binds_five_packages_and_both_formats_to_exact_source(bu
             )
 
 
+def test_one_bundle_verifies_against_real_lf_and_crlf_git_checkouts(bundle, tmp_path):
+    root, dist, revision = bundle
+    identity = create_bundle_metadata(dist, source_root=root, revision=revision)
+    for crlf in (False, True):
+        target = tmp_path / ("clone-crlf" if crlf else "clone-lf")
+        subprocess.run(
+            [
+                "git",
+                "-c",
+                "core.hooksPath=" + __import__("os").devnull,
+                "clone",
+                "--no-hardlinks",
+                "--config",
+                "core.autocrlf=" + ("true" if crlf else "false"),
+                str(root),
+                str(target),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        raw = (target / "ordin/__init__.py").read_bytes()
+        assert (b"\r\n" in raw) is crlf
+        assert (
+            verify_bundle(dist, source_root=target, revision=revision, tree=identity["tree"])
+            == identity
+        )
+    (target / "ordin/__init__.py").write_bytes(raw.replace(b"0.4.0.dev0", b"9.9.9.dev0"))
+    with pytest.raises(ValueError):
+        verify_bundle(dist, source_root=target, revision=revision)
+
+
+def test_checkout_eol_is_not_an_alternate_allowed_artifact_payload(bundle):
+    root, dist, revision = bundle
+    path = next(dist.glob("ordin_runtime-*.whl"))
+    files = _archive(path, wheel=True)
+    files["ordin_runtime/__init__.py"] = files["ordin_runtime/__init__.py"].replace(b"\n", b"\r\n")
+    wheel(path, files)
+    with pytest.raises(ValueError, match="payload differs"):
+        create_bundle_metadata(dist, source_root=root, revision=revision)
+
+
 @pytest.mark.parametrize(
     "change", ["source", "dependency", "entrypoint", "license", "record", "foreign"]
 )

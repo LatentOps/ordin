@@ -10,10 +10,11 @@ import io
 import importlib.util
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import sys
+import stat
 import tarfile
 import zipfile
 
@@ -25,6 +26,9 @@ LOCKS = (
     "requirements/swarm-autogen.txt",
 )
 GROUPS = ("mcp", "hooks", "coordinator_restart", "multi_host_epochs")
+MAX_SOURCE_FILES = 4096
+MAX_SOURCE_FILE_BYTES = 2097152
+MAX_SOURCE_BYTES = 67108864
 
 
 def sha(raw):
@@ -61,6 +65,7 @@ def git_environment():
         "GIT_CONFIG_GLOBAL": os.devnull,
         "GIT_CONFIG_SYSTEM": os.devnull,
         "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_NO_REPLACE_OBJECTS": "1",
     }
 
 
@@ -74,7 +79,7 @@ def trusted_git(root):
     return module.trusted_executable("git", root)
 
 
-def git(root, *arguments, executable=None):
+def git(root, *arguments, executable=None, input=None):
     settings = git_environment()
     completed = subprocess.run(
         [
@@ -96,19 +101,116 @@ def git(root, *arguments, executable=None):
         check=False,
         capture_output=True,
         env=settings,
+        input=input,
     )
     if completed.returncode:
         raise ValueError("release Git source check failed")
     return completed.stdout
 
 
-def source_identity(root: Path, revision: str):
+def _committed_source(root: Path, revision: str):
+    """Read exact regular blobs, never checkout-converted bytes or replacement objects.
+
+    Cleanliness/currentness is a separate prerequisite supplied by source_identity.
+    All declared sizes are bounded before collecting one deduplicated binary batch.
+    """
+    if re.fullmatch(r"[a-f0-9]{40}", revision) is None:
+        raise ValueError("canonical source requires a full trusted commit SHA")
+    source_root = root.resolve(strict=True)
+    records, objects, total = {}, {}, 0
+    listing = git(root, "ls-tree", "-r", "-z", "-l", "--full-tree", revision)
+    for entry in listing.split(b"\0"):
+        if not entry:
+            continue
+        header, separator, encoded = entry.partition(b"\t")
+        fields = header.split()
+        if not separator or len(fields) != 4:
+            raise ValueError("canonical source tree entry is malformed")
+        mode, kind, oid, size = fields
+        if (
+            mode not in {b"100644", b"100755"}
+            or kind != b"blob"
+            or re.fullmatch(rb"[a-f0-9]{40}", oid) is None
+            or not size.isdigit()
+        ):
+            raise ValueError("canonical source requires regular Git blob modes")
+        name = encoded.decode("utf-8")
+        relative = PurePosixPath(name)
+        if (
+            relative.is_absolute()
+            or relative.as_posix() != name
+            or "\\" in name
+            or ":" in name
+            or any(part in {".", ".."} for part in relative.parts)
+            or any(ord(c) < 32 for c in name)
+        ):
+            raise ValueError("canonical source contains an unowned path")
+        size = int(size)
+        total += size
+        if (
+            name in records
+            or len(records) >= MAX_SOURCE_FILES
+            or size > MAX_SOURCE_FILE_BYTES
+            or total > MAX_SOURCE_BYTES
+        ):
+            raise ValueError("canonical source inventory exceeds its bound")
+        path = root / name
+        info = path.lstat()
+        if (
+            path.is_symlink()
+            or not stat.S_ISREG(info.st_mode)
+            or info.st_nlink != 1
+            or not path.resolve(strict=True).is_relative_to(source_root)
+        ):
+            raise ValueError("canonical source worktree contains an unsupported link or file")
+        for parent in path.parents:
+            if parent == root:
+                break
+            if parent.is_symlink() or getattr(parent, "is_junction", lambda: False)():
+                raise ValueError("canonical source worktree contains a linked directory")
+        records[name] = (mode, oid)
+        if oid in objects and objects[oid] != size:
+            raise ValueError("canonical blob size is inconsistent")
+        objects[oid] = size
+    if not records:
+        raise ValueError("canonical source tree is empty")
+    raw = git(root, "cat-file", "--batch", input=b"\n".join(objects) + b"\n")
+    maximum = sum(objects.values()) + len(objects) * 128
+    if len(raw) > maximum:
+        raise ValueError("canonical Git batch exceeds its declared bound")
+    contents, offset = {}, 0
+    for oid, size in objects.items():
+        end = raw.find(b"\n", offset, offset + 128)
+        if end < 0 or raw[offset:end] != oid + b" blob " + str(size).encode():
+            raise ValueError("canonical Git batch object identity differs")
+        offset = end + 1
+        data = raw[offset : offset + size]
+        offset += size
+        if (
+            len(data) != size
+            or raw[offset : offset + 1] != b"\n"
+            or hashlib.sha1(b"blob " + str(size).encode() + b"\0" + data).hexdigest().encode()
+            != oid
+        ):
+            raise ValueError("canonical Git blob bytes do not match the trusted tree OID")
+        offset += 1
+        contents[oid] = data
+    if offset != len(raw):
+        raise ValueError("canonical Git batch contains unexpected output")
+    return {name: contents[oid] for name, (_, oid) in records.items()}, records
+
+
+def committed_files(root: Path, revision: str) -> dict[str, bytes]:
+    return _committed_source(root, revision)[0]
+
+
+def source_snapshot(root: Path, revision: str):
     if not re.fullmatch(r"[a-f0-9]{40}", revision):
         raise ValueError("release source must use an exact Git commit")
     executable = trusted_git(root)
 
-    def checked_git(*arguments):
-        return git(root, *arguments, executable=executable)
+    def checked_git(*arguments, **kwargs):
+        return git(root, *arguments, executable=executable, **kwargs)
 
     current = checked_git("rev-parse", "--verify", "HEAD^{commit}").decode().strip()
     if current != revision:
@@ -130,6 +232,9 @@ def source_identity(root: Path, revision: str):
     )
     if filters.returncode not in {0, 1} or filters.stdout:
         raise ValueError("repository content filters are unsupported by the release collector")
+    flags = checked_git("ls-files", "-v", "-z").split(b"\0")
+    if any(entry and not entry.startswith(b"H ") for entry in flags):
+        raise ValueError("canonical source rejects skipped or assumed-clean index entries")
     # Inspect filters before diff: clean/smudge drivers are executable callbacks.
     checked_git(
         "diff",
@@ -142,8 +247,32 @@ def source_identity(root: Path, revision: str):
     )
     if checked_git("ls-files", "--others", "--exclude-standard", "-z"):
         raise ValueError("release source includes uncommitted files")
+    committed, entries = _committed_source(root, revision)
+    index = {}
+    for entry in checked_git("ls-files", "--stage", "-z").split(b"\0"):
+        if entry:
+            header, name = entry.split(b"\t", 1)
+            mode, oid, stage = header.split()
+            if stage != b"0":
+                raise ValueError("canonical source rejects unmerged index entries")
+            index[name.decode("utf-8")] = (mode, oid)
+    expected = {
+        name: hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest().encode()
+        for name, raw in committed.items()
+    }
+    if index != entries:
+        raise ValueError("source index differs from the trusted committed tree")
+    # Git's declared clean conversion may map a CRLF checkout to its LF blob.
+    # Binary/-text inputs keep their exact bytes. External clean drivers were
+    # rejected above, and no objects are written by this hash-only operation.
+    names = list(committed)
+    worktree = checked_git(
+        "hash-object", "--stdin-paths", input=("\n".join(names) + "\n").encode()
+    ).splitlines()
+    if worktree != [expected[name] for name in names]:
+        raise ValueError("worktree bytes differ from their trusted canonical Git blobs")
     material = {}
-    tracked = set(checked_git("ls-files", "-z").decode().split("\0"))
+    tracked = set(committed)
     for package in (root / "ordin", root / "integrations/swarm/ordin_swarm"):
         for path in package.rglob("*"):
             if path.is_file() and path.suffix != ".pyc" and "__pycache__" not in path.parts:
@@ -152,12 +281,12 @@ def source_identity(root: Path, revision: str):
                 relative = path.relative_to(root).as_posix()
                 if relative not in tracked:
                     raise ValueError("unversioned package input cannot enter release artifacts")
-                material[relative] = sha(path.read_bytes())
+                material[relative] = sha(committed[relative])
     for name in (*LOCKS, "pyproject.toml", "integrations/swarm/pyproject.toml"):
-        material[name] = sha((root / name).read_bytes())
-    return {
+        material[name] = sha(committed[name])
+    identity = {
         "commit": current,
-        "tree": checked_git("rev-parse", "HEAD^{tree}").decode().strip(),
+        "tree": checked_git("rev-parse", revision + "^{tree}").decode().strip(),
         "clean": True,
         "source_bytes_verified": True,
         "git_hooks_executed": False,
@@ -165,6 +294,13 @@ def source_identity(root: Path, revision: str):
             json.dumps(material, sort_keys=True, separators=(",", ":")).encode()
         ),
     }
+    if checked_git("rev-parse", "--verify", "HEAD^{commit}").decode().strip() != revision:
+        raise ValueError("source HEAD changed during canonical capture")
+    return identity, committed, entries
+
+
+def source_identity(root: Path, revision: str):
+    return source_snapshot(root, revision)[0]
 
 
 def validate_build_metadata(root):
@@ -182,33 +318,19 @@ def validate_build_metadata(root):
 
 
 def copy_build_source(root: Path, destination: Path):
-    """Keep ignored build outputs and bytecode out of the wheel producer inputs."""
+    """Stage canonical committed bytes, excluding ignored outputs and checkout EOL."""
     destination.mkdir(mode=0o700)
-    total = count = 0
-    source_root = root.resolve(strict=True)
-    for name in git(root, "ls-files", "-z").decode().split("\0"):
-        if not name:
-            continue
+    revision = git(root, "rev-parse", "HEAD").decode().strip()
+    before, committed, entries = source_snapshot(root, revision)
+    for name, raw in committed.items():
         relative = Path(name)
-        if relative.is_absolute() or relative.drive or ".." in relative.parts:
-            raise ValueError("build source contains an unowned path")
-        source = root / relative
-        if (
-            source.is_symlink()
-            or not source.is_file()
-            or not source.resolve(strict=True).is_relative_to(source_root)
-            or source.stat().st_size > 2097152
-        ):
-            raise ValueError("build source contains an unsupported entry")
-        raw = source.read_bytes()
-        count += 1
-        total += len(raw)
-        if count > 4096 or len(raw) > 2097152 or total > 67108864:
-            raise ValueError("build source inventory exceeds its bound")
         target = destination / relative
         target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         with target.open("xb") as stream:
             stream.write(raw)
+        target.chmod(0o755 if entries[name][0] == b"100755" else 0o644)
+    if source_identity(root, revision) != before:
+        raise ValueError("canonical source changed during build staging")
     return destination
 
 
@@ -259,6 +381,8 @@ def extract_test_fixtures(raw: bytes, destination: Path):
 
 
 def verify_wheels(root, directory):
+    revision = git(root, "rev-parse", "HEAD").decode().strip()
+    _, committed, _ = source_snapshot(root, revision)
     records = []
     for name, prefix, package in (
         ("ordin", "ordin-", root / "ordin"),
@@ -288,12 +412,13 @@ def verify_wheels(root, directory):
             ):
                 raise ValueError("release wheel contains an unexpected top-level payload")
             expected_files = set()
-            for path in package.rglob("*"):
-                if not path.is_file() or path.suffix == ".pyc" or "__pycache__" in path.parts:
+            package_prefix = package.relative_to(root).as_posix() + "/"
+            for selected, raw in committed.items():
+                if not selected.startswith(package_prefix):
                     continue
-                relative = path.relative_to(package.parent).as_posix()
+                relative = package.name + "/" + selected[len(package_prefix) :]
                 expected_files.add(relative)
-                if archive.read(relative) != path.read_bytes():
+                if archive.read(relative) != raw:
                     raise ValueError("release wheel differs from exact package source/resources")
             packaged_files = {
                 path
