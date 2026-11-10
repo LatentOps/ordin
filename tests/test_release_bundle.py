@@ -782,3 +782,49 @@ def test_trusted_tool_may_be_under_cwd_when_outside_the_source_workspace(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("PATH", str(binaries))
     assert tools.trusted_executable(name, source) == str(executable.resolve())
+
+
+def test_integrity_help_does_not_import_optional_toml_tooling(monkeypatch, capsys):
+    import builtins
+    from scripts import release_integrity as module
+
+    original = builtins.__import__
+
+    def without_toml(name, *args, **kwargs):
+        if name in {"tomllib", "tomli"}:
+            raise ModuleNotFoundError("owned TOML dependency unavailable fixture")
+        return original(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", without_toml)
+    monkeypatch.setattr(module.sys, "argv", ["release_integrity.py", "--help"])
+    with pytest.raises(SystemExit) as result:
+        module.main()
+    assert result.value.code == 0
+    assert "--bundle" in capsys.readouterr().out
+
+
+def test_integrity_selects_tomli_on_python310_before_source_validation(tmp_path, monkeypatch):
+    from scripts import release_integrity as module
+
+    parser = module.importlib.import_module("tomllib" if sys.version_info >= (3, 11) else "tomli")
+    (tmp_path / "pyproject.toml").write_text('[project]\nversion="0.3.0"\n')
+    (tmp_path / "ordin").mkdir()
+    (tmp_path / "ordin/__init__.py").write_text('__version__="0.0.0"\n')
+    monkeypatch.chdir(tmp_path)
+    imports = []
+
+    def selected(name):
+        imports.append(name)
+        assert name == "tomli"
+        return parser
+
+    monkeypatch.setattr(module.sys, "version_info", (3, 10, 99))
+    monkeypatch.setattr(module.importlib, "import_module", selected)
+    monkeypatch.setattr(
+        module.sys,
+        "argv",
+        ["release_integrity.py", "verify", "--revision", "a" * 40, "--tag", "v0.3.0"],
+    )
+    with pytest.raises(ValueError, match="source package/runtime version mismatch"):
+        module.main()
+    assert imports == ["tomli"]

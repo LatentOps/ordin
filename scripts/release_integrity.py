@@ -630,8 +630,6 @@ def verify_metadata(dist: Path, *, version: str, revision: str, tag: str) -> dic
 
 
 def main() -> None:
-    import tomllib
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=["create", "verify"])
     parser.add_argument("--dist", type=Path, default=Path("dist"))
@@ -642,6 +640,7 @@ def main() -> None:
         "--bundle", action="store_true", help="Require the complete five-project v2 bundle"
     )
     args = parser.parse_args()
+    tomllib = importlib.import_module("tomllib" if sys.version_info >= (3, 11) else "tomli")
     version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
     if _legacy_version(version) and not args.tag:
         raise ValueError("historical releases require an explicit trusted tag identity")
