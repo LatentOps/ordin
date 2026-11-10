@@ -29,8 +29,8 @@ Update the version in both:
 - `pyproject.toml` -> `project.version`
 - `ordin/__init__.py` -> `__version__`
 
-Also update the Swarm distribution/runtime declarations together and qualify
-its core dependency bound. Optional package versions and their core bounds are
+Also update the Swarm distribution version and qualify its stable core
+dependency bound. Optional package versions and their core bounds are
 reviewed explicitly rather than inferred from the repository's tag.
 
 Tests require the installed distribution metadata and runtime version to match.
@@ -56,14 +56,17 @@ For the prepared final version, build the complete five-package candidate into
 a fresh directory outside the clean exact-source checkout:
 
 ```console
-python scripts/build_release_bundle.py --dist /absolute/new-candidate-bundle --revision TRUSTED_FULL_COMMIT_SHA --tag v0.4.0
-python scripts/release_integrity.py verify --bundle --dist /absolute/new-candidate-bundle --revision TRUSTED_FULL_COMMIT_SHA --tag v0.4.0
+python scripts/build_release_bundle.py --dist /absolute/new-candidate-bundle --revision TRUSTED_FULL_COMMIT_SHA
+python scripts/release_integrity.py verify --bundle --dist /absolute/new-candidate-bundle --revision TRUSTED_FULL_COMMIT_SHA
 ```
 
-These arguments bind the candidate to its actual source and intended final
-version. They do not publish a tag or complete acceptance. Use the builder's
-actual development-version arguments when validating earlier development
-source; do not relabel it as final-version bytes.
+These commands produce and verify an untagged candidate (`tag: null`) for its
+actual source and declared package versions. They do not create a Git tag or
+complete acceptance. An explicit `--tag v0.4.0` checks that tag label when
+building or verifying the separately qualified tagged release; publication
+additionally requires the actual matching remote Git tag and all release gates.
+Earlier development source keeps its actual declared versions and must not be
+relabeled as final-version bytes.
 
 Complete the [packaged pilot procedure](release-pilot-0.4.md), retain its actual
 elapsed duration and operator decision, and keep publication held until that

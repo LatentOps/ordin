@@ -3,6 +3,9 @@
 This procedure applies to an exact-SHA candidate bundle or, after publication,
 the immutable v0.4.0 release assets. These instructions do not assert that a
 public v0.4.0 release already exists. Use Python 3.10–3.13 in a new environment.
+The installation commands below target a prepared final-version candidate with
+core and Swarm metadata at `0.4.0`; earlier development bundles use their actual
+recorded package versions.
 The portable fixture needs no model, provider account or credential.
 Replace `/absolute/...` with an actual absolute local directory; on Windows use
 an absolute drive path such as `C:\verified-bundle`.
@@ -14,11 +17,12 @@ An exact-source local candidate has no hosted attestation until that workflow
 has actually run. From its clean matching checkout, validate the whole bundle:
 
 ```console
-python scripts/release_integrity.py verify --bundle --dist /absolute/verified-bundle --revision TRUSTED_FULL_COMMIT_SHA --tag v0.4.0
+python scripts/release_integrity.py verify --bundle --dist /absolute/verified-bundle --revision TRUSTED_FULL_COMMIT_SHA
 ```
 
-The command requires a bundle built for that version/tag and exact revision;
-use the candidate's actual development version/tag arguments when applicable.
+The command above verifies an untagged candidate whose manifest has `tag: null`.
+For the published bundle, supply the independently trusted `--tag v0.4.0` as
+well; its manifest must match that exact tag and revision.
 Do not replace the trusted SHA with a moving branch or treat checksums alone as
 proof of the origin of downloaded bytes.
 
