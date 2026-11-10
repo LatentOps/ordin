@@ -237,8 +237,23 @@ def test_archive_traversal_duplicates_and_links_are_rejected(tmp_path):
     for name in ("../foreign", "/absolute", "owned/../foreign", "owned\\foreign", "C:/foreign"):
         with zipfile.ZipFile(path, "w") as archive:
             archive.writestr(name, b"foreign")
+        if "\\" in name:
+            # Windows normalizes writestr input before serialization. Put the
+            # unsafe spelling into both raw headers so this tests a real input.
+            path.write_bytes(path.read_bytes().replace(b"owned/foreign", b"owned\\foreign"))
         with pytest.raises(ValueError):
             _archive(path, wheel=True)
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("ownedXname", b"foreign")
+    path.write_bytes(path.read_bytes().replace(b"ownedXname", b"owned\x00name"))
+    with pytest.raises(ValueError):
+        _archive(path, wheel=True)
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("owned", b"first")
+        with pytest.warns(UserWarning, match="Duplicate name"):
+            archive.writestr("owned", b"second")
+    with pytest.raises(ValueError):
+        _archive(path, wheel=True)
     with zipfile.ZipFile(path, "w") as archive:
         item = zipfile.ZipInfo("owned")
         item.external_attr = 0o120777 << 16
