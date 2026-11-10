@@ -1,8 +1,10 @@
 # Set up an integration
 
-`ordin setup` is available in **0.4 development** on Linux and macOS. Install the
-development package in an isolated Python 3.10–3.13 environment first. The stable
-v0.3.0 package uses the [manual quickstart](quickstart.md).
+`ordin setup` is available in the **0.4 candidate** on Linux and macOS. Install
+the matching verified core wheel in an isolated Python 3.10–3.13 environment
+using the [artifact quickstart](quickstart-0.4.md). This does not imply that the
+candidate is already published. The historical v0.3.0 package uses the
+[manual quickstart](quickstart.md).
 
 ```sh
 ordin setup cursor --dry-run

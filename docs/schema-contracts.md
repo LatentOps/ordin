@@ -14,7 +14,13 @@ Assurance adds independent `assurance-decision`, `assurance-host-context`,
 data only; loading them cannot authenticate host context or issue an executable
 decision. The gate keeps all original reviews and schema meanings intact.
 
-Ordin publishes machine-readable contracts for versioned JSON surfaces. The [v0.3 compatibility inventory](public-compatibility-0.3.md) distinguishes supported and experimental formats. Schemas use Draft 2020-12 under `schemas/`; installed packages carry the same files under `ordin/resources/schemas/`.
+Ordin publishes machine-readable contracts for versioned JSON surfaces. The
+[v0.4 compatibility inventory](public-compatibility-0.4.md) classifies every
+registered format; the unchanged [v0.3 baseline](public-compatibility-0.3.md)
+retains its original stable/experimental meanings. Schemas use Draft 2020-12
+under `schemas/`; installed packages carry the same files under
+`ordin/resources/schemas/`. The lightweight validator implements the bundled
+keyword subset. A schema version does not independently grant authority.
 
 ## Published contracts
 

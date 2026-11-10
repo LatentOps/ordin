@@ -1,0 +1,1691 @@
+{
+  "schema_version": "ordin.public_surface.v1",
+  "package_line": "0.4",
+  "previous_inventory": {
+    "file": "public-surface-0.3.json",
+    "sha256_lf": "22ce430682b635f084f835b3a732ac2b6414055136bff1aa32d4c51ac6ea6eb0"
+  },
+  "exports": [
+    "ACTION_ENVELOPE_SCHEMA_VERSION",
+    "ACTION_HISTORY_SCHEMA_VERSION",
+    "ACTION_OBSERVATION_SCHEMA_VERSION",
+    "ACTION_REVIEW_SCHEMA_VERSION",
+    "ACTION_TRACE_SCHEMA_VERSION",
+    "AUDIT_EVENT_SCHEMA_VERSION",
+    "ActionEnvelope",
+    "ActionHistory",
+    "ActionObservation",
+    "ActionPolicyCondition",
+    "ActionPolicyRule",
+    "ActionPolicySet",
+    "ActionResource",
+    "ActionReview",
+    "ActionTrace",
+    "AgentDecision",
+    "AgentDisposition",
+    "AgentGate",
+    "AgentReview",
+    "AuditEvent",
+    "AuditSink",
+    "AuditVerification",
+    "CapabilityDeltaProposal",
+    "CapabilityVerificationResult",
+    "CommandReview",
+    "CompiledActionPolicySet",
+    "CompiledTemporalPolicySet",
+    "CompiledToolSemanticsRegistry",
+    "DIAGNOSTIC_SCHEMA_VERSION",
+    "Decision",
+    "DecisionProvenance",
+    "EFFECT_CATALOG_SCHEMA_VERSION",
+    "EFFECT_GRAPH_SCHEMA_VERSION",
+    "EXECUTION_CAPABILITIES_SCHEMA_VERSION",
+    "ExecutionCapabilityProfile",
+    "ExecutionContext",
+    "FailThreshold",
+    "INTEGRATION_HEALTH_SCHEMA_VERSION",
+    "IntegrationSession",
+    "JsonlAuditSink",
+    "MAN_INDEX_SCHEMA_VERSION",
+    "MCPAdapter",
+    "MCPContractCheck",
+    "MCPContractLock",
+    "OBSERVATION_HISTORY_SCHEMA_VERSION",
+    "ObservationHistory",
+    "ObservedResource",
+    "Ordin",
+    "PACK_LIST_SCHEMA_VERSION",
+    "PACK_MANIFEST_SCHEMA_VERSION",
+    "POLICY_SET_SCHEMA_VERSION",
+    "PROVENANCE_SCHEMA_VERSION",
+    "PolicyEvaluation",
+    "PolicyMatch",
+    "PolicyResourceMatcher",
+    "ProvenanceRecord",
+    "ProvenanceResource",
+    "REVIEW_REQUEST_SCHEMA_VERSION",
+    "REVIEW_SCHEMA_VERSION",
+    "RISK_RULES_SCHEMA_VERSION",
+    "RISK_SCHEMA_VERSION",
+    "ReviewPolicy",
+    "ReviewRequest",
+    "RiskReview",
+    "RuntimeCapabilityBoundary",
+    "RuntimeCapabilityContract",
+    "RuntimeEvidenceSource",
+    "RuntimeObservation",
+    "RuntimeObservationHistory",
+    "SEARCH_SCHEMA_VERSION",
+    "SESSION_SCHEMA_VERSION",
+    "SearchResult",
+    "SessionIdentity",
+    "SqliteSessionStore",
+    "TEMPORAL_POLICY_SET_SCHEMA_VERSION",
+    "TOOL_SEMANTICS_SCHEMA_VERSION",
+    "TemporalActionEvidence",
+    "TemporalPolicySet",
+    "TemporalPredicate",
+    "TemporalRule",
+    "ToolCallAdapter",
+    "ToolResourceBinding",
+    "ToolSemanticRule",
+    "ToolSemanticsRegistry",
+    "TraceAction",
+    "__version__",
+    "action_review_diagnostic",
+    "default_temporal_policy",
+    "derive_capabilities",
+    "derive_runtime_capability_contract",
+    "integration_health",
+    "load_action_policy",
+    "load_temporal_policy",
+    "load_tool_semantics",
+    "propose_capability_delta",
+    "review_action",
+    "tool_contract_digest",
+    "verify_audit_jsonl",
+    "verify_runtime_capability"
+  ],
+  "export_status": {
+    "ACTION_ENVELOPE_SCHEMA_VERSION": "supported",
+    "ACTION_HISTORY_SCHEMA_VERSION": "supported",
+    "ACTION_OBSERVATION_SCHEMA_VERSION": "supported",
+    "ACTION_REVIEW_SCHEMA_VERSION": "supported",
+    "ACTION_TRACE_SCHEMA_VERSION": "supported",
+    "AUDIT_EVENT_SCHEMA_VERSION": "supported",
+    "ActionEnvelope": "supported",
+    "ActionHistory": "supported",
+    "ActionObservation": "supported",
+    "ActionPolicyCondition": "supported",
+    "ActionPolicyRule": "supported",
+    "ActionPolicySet": "supported",
+    "ActionResource": "supported",
+    "ActionReview": "supported",
+    "ActionTrace": "supported",
+    "AgentDecision": "supported",
+    "AgentDisposition": "supported",
+    "AgentGate": "supported",
+    "AgentReview": "supported",
+    "AuditEvent": "supported",
+    "AuditSink": "supported",
+    "AuditVerification": "supported",
+    "CapabilityDeltaProposal": "experimental",
+    "CapabilityVerificationResult": "experimental",
+    "CommandReview": "supported",
+    "CompiledActionPolicySet": "supported",
+    "CompiledTemporalPolicySet": "supported",
+    "CompiledToolSemanticsRegistry": "supported",
+    "DIAGNOSTIC_SCHEMA_VERSION": "experimental",
+    "Decision": "supported",
+    "DecisionProvenance": "supported",
+    "EFFECT_CATALOG_SCHEMA_VERSION": "supported",
+    "EFFECT_GRAPH_SCHEMA_VERSION": "supported",
+    "EXECUTION_CAPABILITIES_SCHEMA_VERSION": "supported",
+    "ExecutionCapabilityProfile": "supported",
+    "ExecutionContext": "supported",
+    "FailThreshold": "supported",
+    "INTEGRATION_HEALTH_SCHEMA_VERSION": "experimental",
+    "IntegrationSession": "supported",
+    "JsonlAuditSink": "supported",
+    "MAN_INDEX_SCHEMA_VERSION": "experimental",
+    "MCPAdapter": "supported",
+    "MCPContractCheck": "supported",
+    "MCPContractLock": "supported",
+    "OBSERVATION_HISTORY_SCHEMA_VERSION": "supported",
+    "ObservationHistory": "supported",
+    "ObservedResource": "supported",
+    "Ordin": "supported",
+    "PACK_LIST_SCHEMA_VERSION": "supported",
+    "PACK_MANIFEST_SCHEMA_VERSION": "supported",
+    "POLICY_SET_SCHEMA_VERSION": "supported",
+    "PROVENANCE_SCHEMA_VERSION": "supported",
+    "PolicyEvaluation": "supported",
+    "PolicyMatch": "supported",
+    "PolicyResourceMatcher": "supported",
+    "ProvenanceRecord": "supported",
+    "ProvenanceResource": "supported",
+    "REVIEW_REQUEST_SCHEMA_VERSION": "supported",
+    "REVIEW_SCHEMA_VERSION": "supported",
+    "RISK_RULES_SCHEMA_VERSION": "supported",
+    "RISK_SCHEMA_VERSION": "supported",
+    "ReviewPolicy": "supported",
+    "ReviewRequest": "supported",
+    "RiskReview": "supported",
+    "RuntimeCapabilityBoundary": "experimental",
+    "RuntimeCapabilityContract": "experimental",
+    "RuntimeEvidenceSource": "experimental",
+    "RuntimeObservation": "experimental",
+    "RuntimeObservationHistory": "experimental",
+    "SEARCH_SCHEMA_VERSION": "supported",
+    "SESSION_SCHEMA_VERSION": "supported",
+    "SearchResult": "supported",
+    "SessionIdentity": "supported",
+    "SqliteSessionStore": "supported",
+    "TEMPORAL_POLICY_SET_SCHEMA_VERSION": "supported",
+    "TOOL_SEMANTICS_SCHEMA_VERSION": "supported",
+    "TemporalActionEvidence": "supported",
+    "TemporalPolicySet": "supported",
+    "TemporalPredicate": "supported",
+    "TemporalRule": "supported",
+    "ToolCallAdapter": "supported",
+    "ToolResourceBinding": "supported",
+    "ToolSemanticRule": "supported",
+    "ToolSemanticsRegistry": "supported",
+    "TraceAction": "supported",
+    "__version__": "supported",
+    "action_review_diagnostic": "experimental",
+    "default_temporal_policy": "supported",
+    "derive_capabilities": "supported",
+    "derive_runtime_capability_contract": "experimental",
+    "integration_health": "experimental",
+    "load_action_policy": "supported",
+    "load_temporal_policy": "supported",
+    "load_tool_semantics": "supported",
+    "propose_capability_delta": "experimental",
+    "review_action": "supported",
+    "tool_contract_digest": "supported",
+    "verify_audit_jsonl": "supported",
+    "verify_runtime_capability": "experimental"
+  },
+  "console_scripts": {
+    "ordin": "ordin.entrypoint:main",
+    "ordin-assure": "ordin.assurance.cli:main",
+    "ordin-claude-hook": "ordin.claude_code:main",
+    "ordin-codex-hook": "ordin.codex:main",
+    "ordin-cursor-hook": "ordin.cursor:main",
+    "ordin-hermes-hook": "ordin.hermes:main",
+    "ordin-mcp-proxy": "ordin.mcp_proxy:main",
+    "ordin-mcp-http": "ordin.mcp_http:main"
+  },
+  "entrypoint_status": {
+    "ordin": "supported",
+    "ordin-assure": "experimental",
+    "ordin-claude-hook": "supported",
+    "ordin-codex-hook": "supported",
+    "ordin-cursor-hook": "supported",
+    "ordin-hermes-hook": "supported",
+    "ordin-mcp-proxy": "supported",
+    "ordin-mcp-http": "supported"
+  },
+  "schemas": {
+    "action_envelope": {
+      "file": "action-envelope.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "action_history": {
+      "file": "action-history.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "action_observation": {
+      "file": "action-observation.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "action_review": {
+      "file": "action-review.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "action_trace": {
+      "file": "action-trace.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "approval_execution_lease": {
+      "file": "approval-execution-lease.v1.schema.json",
+      "status": "experimental"
+    },
+    "approval_satisfaction": {
+      "file": "approval-satisfaction.v1.schema.json",
+      "status": "experimental"
+    },
+    "approval_scope": {
+      "file": "approval-scope.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_attack_path": {
+      "file": "assurance-attack-path.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_attack_path_inspection": {
+      "file": "assurance-attack-path-inspection.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_boundary_regression": {
+      "file": "assurance-boundary-regression.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_challenge_catalog": {
+      "file": "assurance-challenge-catalog.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_challenge_run": {
+      "file": "assurance-challenge-run.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_challenge_suite": {
+      "file": "assurance-challenge-suite.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_contract_authorization": {
+      "file": "assurance-contract-authorization.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_counterexample": {
+      "file": "assurance-counterexample.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_decision": {
+      "file": "assurance-decision.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_delegated_decision": {
+      "file": "assurance-delegated-decision.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_delegation": {
+      "file": "assurance-delegation.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_delegation_inspection": {
+      "file": "assurance-delegation-inspection.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_delegation_verification": {
+      "file": "assurance-delegation-verification.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_diff_triage": {
+      "file": "assurance-diff-triage.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_finding": {
+      "file": "assurance-finding.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_finding_review": {
+      "file": "assurance-finding-review.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_finding_validation": {
+      "file": "assurance-finding-validation.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_fix_verification": {
+      "file": "assurance-fix-verification.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_host_approval": {
+      "file": "assurance-host-approval.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_host_assessment": {
+      "file": "assurance-host-assessment.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_host_context": {
+      "file": "assurance-host-context.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_host_credential_use": {
+      "file": "assurance-host-credential-use.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_imported_finding": {
+      "file": "assurance-imported-finding.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_instruction_origin": {
+      "file": "assurance-instruction-origin.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_invariant": {
+      "file": "assurance-invariant.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_invariant_evaluation": {
+      "file": "assurance-invariant-evaluation.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_invariant_preview": {
+      "file": "assurance-invariant-preview.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_linux_sandbox_test": {
+      "file": "assurance-linux-sandbox-test.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_model_evidence": {
+      "file": "assurance-model-evidence.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_profile_compilation": {
+      "file": "assurance-profile-compilation.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_profile_inspection": {
+      "file": "assurance-profile-inspection.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_remediation_proposal": {
+      "file": "assurance-remediation-proposal.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_replay_input": {
+      "file": "assurance-replay-input.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_repository_inventory": {
+      "file": "assurance-repository-inventory.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_repository_threat_model": {
+      "file": "assurance-repository-threat-model.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_rest_authority": {
+      "file": "assurance-rest-authority.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_rest_boundary": {
+      "file": "assurance-rest-boundary.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_rest_contract": {
+      "file": "assurance-rest-contract.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_rest_semantics": {
+      "file": "assurance-rest-semantics.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_sandbox_test": {
+      "file": "assurance-sandbox-test.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_scan_import": {
+      "file": "assurance-scan-import.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_scanner_run": {
+      "file": "assurance-scanner-run.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_security_profile": {
+      "file": "assurance-security-profile.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_security_profile_draft": {
+      "file": "assurance-security-profile-draft.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_security_questions": {
+      "file": "assurance-security-questions.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_semantic_decision": {
+      "file": "assurance-semantic-decision.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_semantic_inspection": {
+      "file": "assurance-semantic-inspection.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_semantic_policy": {
+      "file": "assurance-semantic-policy.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_semantic_simulation": {
+      "file": "assurance-semantic-simulation.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_semantic_state": {
+      "file": "assurance-semantic-state.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_simulation": {
+      "file": "assurance-simulation.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_solver_challenge": {
+      "file": "assurance-solver-challenge.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_source_fix": {
+      "file": "assurance-source-fix.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_source_patch": {
+      "file": "assurance-source-patch.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_source_provenance": {
+      "file": "assurance-source-provenance.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_source_use": {
+      "file": "assurance-source-use.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_static_finding_review": {
+      "file": "assurance-static-finding-review.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_synthetic_path_suite": {
+      "file": "assurance-synthetic-path-suite.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_vetted_program": {
+      "file": "assurance-vetted-program.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_workflow_capture": {
+      "file": "assurance-workflow-capture.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_workflow_claim": {
+      "file": "assurance-workflow-claim.v1.schema.json",
+      "status": "experimental"
+    },
+    "assurance_workflow_import": {
+      "file": "assurance-workflow-import.v1.schema.json",
+      "status": "experimental"
+    },
+    "audit_checkpoint": {
+      "file": "audit-checkpoint.v1.schema.json",
+      "status": "experimental"
+    },
+    "audit_event": {
+      "file": "audit-event.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "capability_delta_proposal": {
+      "file": "capability-delta-proposal.v1.schema.json",
+      "status": "experimental"
+    },
+    "codex_mcp_map": {
+      "file": "codex-mcp-map.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "command_card": {
+      "file": "command-card.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "command_pack": {
+      "file": "command-pack.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "cursor_mcp_map": {
+      "file": "cursor-mcp-map.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "effect_catalog": {
+      "file": "effect-catalog.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "effect_graph": {
+      "file": "effect-graph.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "execution_capabilities": {
+      "file": "execution-capabilities.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "integration_session": {
+      "file": "integration-session.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "mcp_contract_lock": {
+      "file": "mcp-contract-lock.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "mcp_inventory": {
+      "file": "mcp-inventory.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "observation_history": {
+      "file": "observation-history.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "pack_list": {
+      "file": "pack-list.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "policy_set": {
+      "file": "policy-set.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "provenance": {
+      "file": "provenance.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "review_request": {
+      "file": "review-request.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "review_result": {
+      "file": "review-result.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "risk_review": {
+      "file": "risk-review.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "risk_rules": {
+      "file": "risk-rules.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "runtime_capability": {
+      "file": "runtime-capability.v1.schema.json",
+      "status": "experimental"
+    },
+    "runtime_capability_boundary": {
+      "file": "runtime-capability-boundary.v1.schema.json",
+      "status": "experimental"
+    },
+    "runtime_observation": {
+      "file": "runtime-observation.v1.schema.json",
+      "status": "experimental"
+    },
+    "runtime_observation_history": {
+      "file": "runtime-observation-history.v1.schema.json",
+      "status": "experimental"
+    },
+    "runtime_request_boundary": {
+      "file": "runtime-request-boundary.v1.schema.json",
+      "status": "experimental"
+    },
+    "runtime_request_boundary_v2": {
+      "file": "runtime-request-boundary.v2.schema.json",
+      "status": "experimental"
+    },
+    "runtime_request_contract": {
+      "file": "runtime-request-contract.v1.schema.json",
+      "status": "experimental"
+    },
+    "runtime_request_contract_v2": {
+      "file": "runtime-request-contract.v2.schema.json",
+      "status": "experimental"
+    },
+    "runtime_session": {
+      "file": "runtime-session.v1.schema.json",
+      "status": "experimental"
+    },
+    "runtime_shadow_report": {
+      "file": "runtime-shadow-report.v1.schema.json",
+      "status": "experimental"
+    },
+    "search_result": {
+      "file": "search-result.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "swarm_approval": {
+      "file": "swarm-approval.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_approval_audit": {
+      "file": "swarm-approval-audit.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_approval_policy": {
+      "file": "swarm-approval-policy.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_approval_queue": {
+      "file": "swarm-approval-queue.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_approval_receipt": {
+      "file": "swarm-approval-receipt.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_approval_resolution": {
+      "file": "swarm-approval-resolution.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_artifact": {
+      "file": "swarm-artifact.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_artifact_diagnostics": {
+      "file": "swarm-artifact-diagnostics.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_artifact_retention": {
+      "file": "swarm-artifact-retention.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_attach_plan": {
+      "file": "swarm-attach-plan.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_attach_status": {
+      "file": "swarm-attach-status.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_audit_bundle": {
+      "file": "swarm-audit-bundle.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_audit_checkpoint": {
+      "file": "swarm-audit-checkpoint.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_audit_event": {
+      "file": "swarm-audit-event.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_audit_verification": {
+      "file": "swarm-audit-verification.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_authority_audit": {
+      "file": "swarm-authority-audit.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_broker_admission_scope": {
+      "file": "swarm-broker-admission-scope.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_broker_control": {
+      "file": "swarm-broker-control.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_broker_preparation": {
+      "file": "swarm-broker-preparation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_broker_result": {
+      "file": "swarm-broker-result.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_broker_scope": {
+      "file": "swarm-broker-scope.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_budget": {
+      "file": "swarm-budget.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_budget_audit": {
+      "file": "swarm-budget-audit.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_budget_reservation": {
+      "file": "swarm-budget-reservation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_causal_graph": {
+      "file": "swarm-causal-graph.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_context": {
+      "file": "swarm-context.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_coordinator_dispatch": {
+      "file": "swarm-coordinator-dispatch.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_coordinator_fence": {
+      "file": "swarm-coordinator-fence.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_coordinator_offline": {
+      "file": "swarm-coordinator-offline.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_coordinator_policy": {
+      "file": "swarm-coordinator-policy.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_coordinator_producer": {
+      "file": "swarm-coordinator-producer.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_coordinator_record": {
+      "file": "swarm-coordinator-record.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_coordinator_request": {
+      "file": "swarm-coordinator-request.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_coordinator_response": {
+      "file": "swarm-coordinator-response.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_coordinator_revocation": {
+      "file": "swarm-coordinator-revocation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_coordinator_status": {
+      "file": "swarm-coordinator-status.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_corpus": {
+      "file": "swarm-corpus.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_corpus_report": {
+      "file": "swarm-corpus-report.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_credential_audit": {
+      "file": "swarm-credential-audit.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_decision": {
+      "file": "swarm-decision.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_delegation_dispatch": {
+      "file": "swarm-delegation-dispatch.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_event": {
+      "file": "swarm-event.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_executor_outcome": {
+      "file": "swarm-executor-outcome.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_framework_adapter": {
+      "file": "swarm-framework-adapter.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_framework_fixture": {
+      "file": "swarm-framework-fixture.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_framework_installation": {
+      "file": "swarm-framework-installation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_framework_preparation": {
+      "file": "swarm-framework-preparation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_framework_result": {
+      "file": "swarm-framework-result.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_framework_session": {
+      "file": "swarm-framework-session.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_framework_setup": {
+      "file": "swarm-framework-setup.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_gateway_status": {
+      "file": "swarm-gateway-status.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_incident": {
+      "file": "swarm-incident.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_message": {
+      "file": "swarm-message.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_message_outcome": {
+      "file": "swarm-message-outcome.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_message_peer_status": {
+      "file": "swarm-message-peer-status.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_ocsf_export": {
+      "file": "swarm-ocsf-export.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_operator_control": {
+      "file": "swarm-operator-control.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_operator_explanation": {
+      "file": "swarm-operator-explanation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_operator_list": {
+      "file": "swarm-operator-list.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_operator_request": {
+      "file": "swarm-operator-request.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_operator_response": {
+      "file": "swarm-operator-response.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_operator_retention": {
+      "file": "swarm-operator-retention.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_operator_snapshot": {
+      "file": "swarm-operator-snapshot.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_operator_unconfigured": {
+      "file": "swarm-operator-unconfigured.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_operator_view": {
+      "file": "swarm-operator-view.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_otel_export": {
+      "file": "swarm-otel-export.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_overhead_report": {
+      "file": "swarm-overhead-report.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_owned_demo": {
+      "file": "swarm-owned-demo.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_policy_activation": {
+      "file": "swarm-policy-activation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_policy_compilation": {
+      "file": "swarm-policy-compilation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_policy_diff": {
+      "file": "swarm-policy-diff.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_policy_maximum": {
+      "file": "swarm-policy-maximum.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_policy_set": {
+      "file": "swarm-policy-set.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_policy_simulation": {
+      "file": "swarm-policy-simulation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_policy_validation": {
+      "file": "swarm-policy-validation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_quickstart": {
+      "file": "swarm-quickstart.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_recovery_request": {
+      "file": "swarm-recovery-request.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_release_manifest": {
+      "file": "swarm-release-manifest.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_remote_delegation": {
+      "file": "swarm-remote-delegation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_remote_review": {
+      "file": "swarm-remote-review.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_risk_calibration": {
+      "file": "swarm-risk-calibration.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_risk_context": {
+      "file": "swarm-risk-context.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_risk_corpus": {
+      "file": "swarm-risk-corpus.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_risk_receipt": {
+      "file": "swarm-risk-receipt.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_risk_signal": {
+      "file": "swarm-risk-signal.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_source_flow": {
+      "file": "swarm-source-flow.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_temporal_evaluation": {
+      "file": "swarm-temporal-evaluation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_temporal_policy_set": {
+      "file": "swarm-temporal-policy-set.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_temporal_validation": {
+      "file": "swarm-temporal-validation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_tool_host_client": {
+      "file": "swarm-tool-host-client.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_tool_host_endpoint": {
+      "file": "swarm-tool-host-endpoint.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_tool_host_evaluation": {
+      "file": "swarm-tool-host-evaluation.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_tool_host_profile": {
+      "file": "swarm-tool-host-profile.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_tool_host_result": {
+      "file": "swarm-tool-host-result.v1.schema.json",
+      "status": "experimental"
+    },
+    "swarm_tool_host_status": {
+      "file": "swarm-tool-host-status.v1.schema.json",
+      "status": "experimental"
+    },
+    "temporal_policy_set": {
+      "file": "temporal-policy-set.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "tool_semantics": {
+      "file": "tool-semantics.v1.schema.json",
+      "status": "stable-v1"
+    },
+    "trace_candidate": {
+      "file": "trace-candidate.v1.schema.json",
+      "status": "experimental"
+    },
+    "trace_checkpoint": {
+      "file": "trace-checkpoint.v1.schema.json",
+      "status": "experimental"
+    },
+    "trace_event": {
+      "file": "trace-event.v1.schema.json",
+      "status": "experimental"
+    }
+  },
+  "module_contracts": {
+    "ordin.assurance": [
+      "ActionKindCoverage",
+      "ApprovedSecurityProfile",
+      "AssuranceAdapterGate",
+      "AssuranceDecision",
+      "AssuranceGate",
+      "AssuranceHostContext",
+      "AttackEdge",
+      "AttackNode",
+      "AttackPathEvidence",
+      "AuthorizedRepository",
+      "BoundaryRegression",
+      "ChallengeRun",
+      "ChallengeSuite",
+      "CompiledSecurityProfile",
+      "CounterexampleRecord",
+      "DelegatedDecision",
+      "DelegatingAssuranceGate",
+      "DelegationAuthority",
+      "DelegationGrant",
+      "DelegationIssuer",
+      "DelegationLimits",
+      "DelegationVerification",
+      "EvidenceLink",
+      "FindingReview",
+      "FindingRubric",
+      "FindingValidation",
+      "FixVerification",
+      "FrozenCase",
+      "FrozenCorpus",
+      "HostApproval",
+      "HostCapabilityAuthority",
+      "HostConstraintAssessment",
+      "HostContractAuthorization",
+      "HostCredentialUse",
+      "HostEvidenceSource",
+      "HostRequestAuthority",
+      "InstructionOrigin",
+      "InvariantEvaluation",
+      "InvariantSelectors",
+      "InventoryLimits",
+      "IssuedDelegation",
+      "LatencyDistribution",
+      "LinuxIsolationEvidence",
+      "LinuxSandboxTestRun",
+      "LinuxVettedSandboxRuntime",
+      "ModelAnswer",
+      "ModelRiskEvidence",
+      "PATH_PROPERTY_DIGEST",
+      "PolicySimulationReport",
+      "ProtectedAsset",
+      "ProtectedProfileSelection",
+      "ProtectedRegressionDestination",
+      "RemediationProposal",
+      "ReplayFixture",
+      "RepositoryInventory",
+      "RepositoryScope",
+      "RepositoryThreatModel",
+      "RestRequestAuthority",
+      "RestRequestBoundary",
+      "RestRequestContract",
+      "RestSemantics",
+      "ReviewedAction",
+      "SandboxTestRun",
+      "SandboxTestScope",
+      "SecurityFinding",
+      "SecurityInvariant",
+      "SecurityProfile",
+      "SecurityProfileDraft",
+      "SelectedSyntheticSuite",
+      "SimulationCase",
+      "SimulationPolicy",
+      "SolverChallenge",
+      "SourceFixVerification",
+      "SourcePatchProposal",
+      "SourceProvenance",
+      "SourceReference",
+      "SourceUse",
+      "SyntheticPathCase",
+      "SyntheticPathSuite",
+      "TrustBoundary",
+      "VettedProgram",
+      "VettedSandboxRuntime",
+      "assess_linux_vetted_isolation",
+      "assess_source_flow",
+      "authorize_sandbox_test",
+      "build_attack_path",
+      "build_delegated_attack_path",
+      "build_threat_model",
+      "challenge_authority_subset",
+      "challenge_capability_intersection",
+      "challenge_property",
+      "challenge_security_properties",
+      "close_finding",
+      "compare_capability_boundaries",
+      "compare_delegation_data",
+      "compile_approved_profile",
+      "correlate_source_use",
+      "deduplicate_attack_paths",
+      "deduplicate_findings",
+      "derive_rest_request_contract",
+      "evaluate_approved_invariants",
+      "freeze_trace_candidate",
+      "freeze_trajectory",
+      "inspect_attack_path",
+      "inspect_profile",
+      "inspect_profile_content",
+      "install_linux_vetted_runtime",
+      "inventory_repository",
+      "load_approved_profile",
+      "load_boundary_regressions",
+      "load_replay_fixture",
+      "load_synthetic_suite",
+      "load_vetted_program",
+      "policy_authority_delta",
+      "prepare_boundary_regression",
+      "preview_invariants",
+      "promote_reviewed_boundary_regression",
+      "propose_attack_path_tests",
+      "propose_invariant_remediation",
+      "propose_profile",
+      "propose_remediation",
+      "propose_source_patch",
+      "record_contract_authorization",
+      "record_source_provenance",
+      "register_instruction_origin",
+      "regression_promotion_action",
+      "render_attack_path",
+      "render_threat_model",
+      "replay_boundary_regression",
+      "replay_boundary_regression_corpus",
+      "replay_counterexample",
+      "replay_solver_candidate",
+      "review_finding",
+      "review_static_candidate",
+      "run_sandbox_test",
+      "run_sandbox_test_async",
+      "sandbox_test_action",
+      "simulate_policy_change",
+      "validate_finding_host_observation",
+      "validate_finding_replay",
+      "validate_finding_sandboxed",
+      "validate_finding_static",
+      "verify_assurance_capability",
+      "verify_assurance_request_authority",
+      "verify_delegation_subset",
+      "verify_fix",
+      "verify_rest_request_authority",
+      "verify_source_fix",
+      "verify_source_reference",
+      "verify_source_use"
+    ],
+    "ordin.claude_code": [
+      "ClaudeCodeIntegration",
+      "build_claude_code_integration"
+    ],
+    "ordin.codex": [
+      "CodexIntegration",
+      "build_codex_integration",
+      "load_codex_mcp_map"
+    ],
+    "ordin.cursor": [
+      "CursorIntegration",
+      "build_cursor_integration",
+      "load_cursor_mcp_map"
+    ],
+    "ordin.hermes": [
+      "HermesIntegration",
+      "build_hermes_integration",
+      "load_hermes_mcp_map"
+    ],
+    "ordin.mcp_http": [
+      "MCPHTTPConfig",
+      "MCPHTTPServer",
+      "build_http_server"
+    ],
+    "ordin.mcp_proxy": [
+      "MCPStdioSafetyProxy",
+      "build_mcp_proxy"
+    ],
+    "ordin.runtime_requests": [
+      "RuntimeRequestContract",
+      "RuntimeRequestBoundary"
+    ],
+    "ordin.runtime_requests_v2": [
+      "RuntimeRequestContractV2",
+      "RuntimeRequestBoundaryV2"
+    ],
+    "ordin.security": [
+      "ImportScope",
+      "ImportedFinding",
+      "ImportedLocation",
+      "ImportedWorkflowClaim",
+      "ScannerImportReport",
+      "WorkflowCapture",
+      "WorkflowImportReport",
+      "WorkflowImportScope",
+      "import_native_json",
+      "import_sarif",
+      "import_workflow_claims",
+      "propose_imported_profile"
+    ],
+    "ordin.swarm": [
+      "ActionEventState",
+      "AgentRegistry",
+      "ArtifactAdapter",
+      "ArtifactAddress",
+      "ArtifactBlobStore",
+      "ArtifactGrant",
+      "AttachCoverage",
+      "AttachedSession",
+      "AuthorityChannel",
+      "BrokerActivationProof",
+      "BrokerAdmissionScope",
+      "BrokerAuthorization",
+      "BrokerAuthorizationScope",
+      "BrokerControlReceipt",
+      "BrokerGatewayBinding",
+      "BrokerPreparation",
+      "BrokerResult",
+      "BudgetCost",
+      "BudgetError",
+      "BudgetLedger",
+      "BudgetLimit",
+      "BudgetObservation",
+      "BudgetObservationSource",
+      "BudgetPolicy",
+      "BudgetStore",
+      "BudgetTicket",
+      "CallbackMessageInbox",
+      "CompiledSwarmPolicy",
+      "CompiledSwarmTemporalPolicy",
+      "CoordinatorBudgetView",
+      "CoordinatorClient",
+      "CoordinatorClock",
+      "CoordinatorControlSource",
+      "CoordinatorDispatch",
+      "CoordinatorEndpoint",
+      "CoordinatorFenceReceipt",
+      "CoordinatorRecord",
+      "CoordinatorRejected",
+      "CoordinatorScope",
+      "CoordinatorUnavailable",
+      "CoverageEntry",
+      "CoverageManifest",
+      "CredentialRoute",
+      "DelegationDispatch",
+      "EgressSink",
+      "EventJournal",
+      "EventRef",
+      "ExecutorOutcome",
+      "FilesystemArtifactStore",
+      "ForwardTicket",
+      "GatewayAgent",
+      "GatewayAuthorization",
+      "GatewayOutcome",
+      "GatewayResult",
+      "GuardedVectorPointAPI",
+      "HostChannel",
+      "HostEventSource",
+      "HostSessionEndpoint",
+      "HumanOperator",
+      "HumanOperatorChannel",
+      "InMemoryAgentRegistry",
+      "InMemoryBudgetStore",
+      "IncidentPolicy",
+      "IncidentReceipt",
+      "IncidentResumeReceipt",
+      "IncidentRule",
+      "IncidentScope",
+      "IncidentSignal",
+      "IncidentSignalSource",
+      "IngestReceipt",
+      "JournalRecord",
+      "LineageHandle",
+      "LineageUse",
+      "LinuxFileReadBackend",
+      "LocalSwarmRiskRules",
+      "MediatedSessionRouter",
+      "MemoryArtifactStore",
+      "MessageChannel",
+      "MessageOutcome",
+      "MessagePeer",
+      "PostgresCoordinatorStore",
+      "PrivateArtifactRead",
+      "PrivateCredentialRequest",
+      "PrivateMessage",
+      "QueueMessageInbox",
+      "RPCMessageInbox",
+      "RemoteDelegation",
+      "RemoteReview",
+      "RunningSessionIdentity",
+      "SQLiteBudgetStore",
+      "SQLiteCoordinatorStore",
+      "Sensitivity",
+      "SharedMemoryAdapter",
+      "SourceFlowResult",
+      "SwarmApprovalBinding",
+      "SwarmApprovalBootstrap",
+      "SwarmApprovalPolicy",
+      "SwarmApprovalReceipt",
+      "SwarmApprovalRequest",
+      "SwarmApprovalService",
+      "SwarmArtifact",
+      "SwarmArtifactGateway",
+      "SwarmAssessment",
+      "SwarmAssessmentSource",
+      "SwarmAttachManager",
+      "SwarmAuditJournal",
+      "SwarmAuditPolicy",
+      "SwarmAuditSource",
+      "SwarmAuditVerification",
+      "SwarmBudgetCondition",
+      "SwarmBudgetConstraint",
+      "SwarmBudgetFact",
+      "SwarmCausalGraph",
+      "SwarmContainmentController",
+      "SwarmContext",
+      "SwarmCoordinator",
+      "SwarmCredentialBroker",
+      "SwarmDecision",
+      "SwarmDelegationLink",
+      "SwarmDelegationService",
+      "SwarmEvent",
+      "SwarmEventIngestor",
+      "SwarmExecutionBroker",
+      "SwarmGate",
+      "SwarmGraphView",
+      "SwarmHookAdapter",
+      "SwarmIdentity",
+      "SwarmMCPAdapter",
+      "SwarmMessageAdapter",
+      "SwarmMessageEnvelope",
+      "SwarmMessageGateway",
+      "SwarmOperatorAPI",
+      "SwarmOperatorClient",
+      "SwarmOperatorDirectory",
+      "SwarmPolicy",
+      "SwarmPolicyActivation",
+      "SwarmPolicyApproval",
+      "SwarmPolicyDeployment",
+      "SwarmPolicyFacts",
+      "SwarmPolicyFactsSource",
+      "SwarmPolicyMaximum",
+      "SwarmPolicyPermissions",
+      "SwarmPolicyReplayCase",
+      "SwarmPolicyResource",
+      "SwarmPolicyResult",
+      "SwarmPolicyRule",
+      "SwarmPolicyRuntime",
+      "SwarmPolicySelector",
+      "SwarmPolicySet",
+      "SwarmPolicySimulation",
+      "SwarmPolicyTool",
+      "SwarmRecoveryApproval",
+      "SwarmRecoveryRequest",
+      "SwarmRiskBudget",
+      "SwarmRiskCalibrationCase",
+      "SwarmRiskCalibrationReport",
+      "SwarmRiskContext",
+      "SwarmRiskEvidencePointer",
+      "SwarmRiskInput",
+      "SwarmRiskPromotionPolicy",
+      "SwarmRiskReceipt",
+      "SwarmRiskScorer",
+      "SwarmRiskSignal",
+      "SwarmRiskSignalProvider",
+      "SwarmRiskTicket",
+      "SwarmRoleBinding",
+      "SwarmRule",
+      "SwarmSourceFlow",
+      "SwarmTemporalEngine",
+      "SwarmTemporalEvaluation",
+      "SwarmTemporalFinding",
+      "SwarmTemporalPolicySet",
+      "SwarmTemporalPredicate",
+      "SwarmTemporalRule",
+      "SwarmToolGateway",
+      "TenantRedactor",
+      "VectorPointArtifactAdapter",
+      "WorkloadAuthenticator",
+      "WorkspaceArtifactAdapter",
+      "build_swarm_risk_context",
+      "compile_swarm_policy_set",
+      "default_swarm_temporal_policy",
+      "diff_swarm_policies",
+      "load_swarm_policy_maximum",
+      "load_swarm_policy_set",
+      "load_swarm_temporal_policy",
+      "verify_swarm_audit"
+    ],
+    "ordin.trace_capture": [
+      "TraceRecorder",
+      "attach_trace",
+      "read_capture"
+    ],
+    "ordin.trace_replay": [
+      "sanitize_capture",
+      "replay_candidate",
+      "promote_candidate"
+    ],
+    "ordin_decision_models": [
+      "AsyncDecisionModel",
+      "AsyncProviderSessions",
+      "DecisionModel",
+      "HostSemanticInspection",
+      "LayaDecisionModel",
+      "LocalCheckpoint",
+      "LocalModelRuntime",
+      "LocalModelScope",
+      "MockDecisionModel",
+      "ProviderDescriptor",
+      "RoutingPolicy",
+      "SanitizedDecisionState",
+      "SecurityQuestionSet",
+      "SelectedSnippet",
+      "SemanticDecision",
+      "SemanticInspectionRouter",
+      "SemanticPolicySimulationReport",
+      "SemanticReplayPolicy",
+      "authorize_local_model",
+      "local_setup_action",
+      "request_semantic_inspection",
+      "sanitize_decision_state",
+      "simulate_semantic_policy_change"
+    ],
+    "ordin_runtime": [
+      "OrdinRuntimeBackend",
+      "compile_runtime_policy"
+    ],
+    "ordin_security": [
+      "ImportScope",
+      "ImportedFinding",
+      "ImportedLocation",
+      "ImportedWorkflowClaim",
+      "ScannerImportReport",
+      "WorkflowCapture",
+      "WorkflowImportReport",
+      "WorkflowImportScope",
+      "import_native_json",
+      "import_sarif",
+      "import_workflow_claims",
+      "propose_imported_profile"
+    ],
+    "ordin_swarm": [
+      "AttachCoverage",
+      "AuthorityChannel",
+      "BudgetCost",
+      "BudgetLedger",
+      "BudgetLimit",
+      "BudgetPolicy",
+      "CallbackMessageInbox",
+      "CoordinatorClient",
+      "CoordinatorClock",
+      "CoordinatorEndpoint",
+      "FrameworkCall",
+      "FrameworkData",
+      "FrameworkDataBridge",
+      "FrameworkJSONClient",
+      "FrameworkPreparation",
+      "FrameworkResult",
+      "FrameworkSession",
+      "FrameworkTool",
+      "HostSessionEndpoint",
+      "HumanOperator",
+      "HumanOperatorChannel",
+      "InMemoryBudgetStore",
+      "IncidentPolicy",
+      "IncidentReceipt",
+      "IncidentResumeReceipt",
+      "IncidentRule",
+      "IncidentScope",
+      "IncidentSignal",
+      "IncidentSignalSource",
+      "LinuxFileReadBackend",
+      "PostgresCoordinatorStore",
+      "QueueMessageInbox",
+      "RPCMessageInbox",
+      "RunningSessionIdentity",
+      "SQLiteBudgetStore",
+      "SQLiteCoordinatorStore",
+      "SharedMemoryAdapter",
+      "SwarmApprovalBinding",
+      "SwarmApprovalBootstrap",
+      "SwarmApprovalOperatorSession",
+      "SwarmApprovalPolicy",
+      "SwarmApprovalReceipt",
+      "SwarmApprovalRequest",
+      "SwarmApprovalService",
+      "SwarmArtifactGateway",
+      "SwarmAttachManager",
+      "SwarmAuditJournal",
+      "SwarmAuditPolicy",
+      "SwarmAuditSource",
+      "SwarmContainmentController",
+      "SwarmCoordinator",
+      "SwarmCredentialBroker",
+      "SwarmDelegationService",
+      "SwarmExecutionBroker",
+      "SwarmHookAdapter",
+      "SwarmMCPAdapter",
+      "SwarmMessageAdapter",
+      "SwarmMessageGateway",
+      "SwarmOperatorAPI",
+      "SwarmOperatorClient",
+      "SwarmOperatorDirectory",
+      "SwarmPolicyMaximum",
+      "SwarmPolicyRuntime",
+      "SwarmPolicySet",
+      "SwarmRecoveryApproval",
+      "SwarmRecoveryRequest",
+      "SwarmRiskInput",
+      "SwarmRiskPromotionPolicy",
+      "SwarmRiskScorer",
+      "SwarmRiskSignalProvider",
+      "SwarmSDK",
+      "SwarmToolRefused",
+      "VectorPointArtifactAdapter",
+      "WorkloadAuthenticator",
+      "WorkspaceArtifactAdapter",
+      "compile_swarm_policy_set"
+    ]
+  },
+  "module_status": {
+    "ordin.assurance": "experimental",
+    "ordin.claude_code": "supported",
+    "ordin.codex": "supported",
+    "ordin.cursor": "supported",
+    "ordin.hermes": "supported",
+    "ordin.mcp_http": "supported",
+    "ordin.mcp_proxy": "supported",
+    "ordin.runtime_requests": "experimental",
+    "ordin.runtime_requests_v2": "experimental",
+    "ordin.security": "experimental",
+    "ordin.swarm": "experimental",
+    "ordin.trace_capture": "experimental",
+    "ordin.trace_replay": "experimental",
+    "ordin_decision_models": "experimental",
+    "ordin_runtime": "experimental",
+    "ordin_security": "experimental",
+    "ordin_swarm": "experimental"
+  },
+  "declared_export_modules": {
+    "ordin.assurance": "ordin/assurance/__init__.py",
+    "ordin.security": "ordin/security/__init__.py",
+    "ordin.swarm": "ordin/swarm/__init__.py",
+    "ordin_swarm": "integrations/swarm/ordin_swarm/__init__.py",
+    "ordin_runtime": "integrations/runtime/ordin_runtime/__init__.py",
+    "ordin_security": "integrations/security/ordin_security/__init__.py",
+    "ordin_decision_models": "integrations/decision_models/ordin_decision_models/__init__.py"
+  },
+  "distributions": {
+    "ordin": {
+      "metadata": "pyproject.toml",
+      "status": "supported",
+      "console_scripts": {
+        "ordin": "ordin.entrypoint:main",
+        "ordin-assure": "ordin.assurance.cli:main",
+        "ordin-claude-hook": "ordin.claude_code:main",
+        "ordin-codex-hook": "ordin.codex:main",
+        "ordin-cursor-hook": "ordin.cursor:main",
+        "ordin-hermes-hook": "ordin.hermes:main",
+        "ordin-mcp-proxy": "ordin.mcp_proxy:main",
+        "ordin-mcp-http": "ordin.mcp_http:main"
+      }
+    },
+    "ordin-swarm": {
+      "metadata": "integrations/swarm/pyproject.toml",
+      "status": "experimental",
+      "console_scripts": {
+        "ordin-swarm-adapter": "ordin_swarm.cli:main",
+        "ordin-swarm-host": "ordin_swarm.host_cli:entrypoint"
+      }
+    },
+    "ordin-runtime": {
+      "metadata": "integrations/runtime/pyproject.toml",
+      "status": "experimental",
+      "console_scripts": {
+        "ordin-runtime": "ordin_runtime.cli:main"
+      }
+    },
+    "ordin-security": {
+      "metadata": "integrations/security/pyproject.toml",
+      "status": "experimental",
+      "console_scripts": {}
+    },
+    "ordin-decision-models": {
+      "metadata": "integrations/decision_models/pyproject.toml",
+      "status": "experimental",
+      "console_scripts": {}
+    }
+  },
+  "integration_status": {
+    "claude-code": {
+      "status": "supported",
+      "scope": "Documented pre/post hook protocol; host owns execution and approval."
+    },
+    "codex": {
+      "status": "supported",
+      "scope": "Documented native hook protocol and official client identifiers; host owns execution."
+    },
+    "cursor": {
+      "status": "supported",
+      "scope": "Documented native hook protocol; unresolved approval does not grant dispatch."
+    },
+    "hermes": {
+      "status": "supported",
+      "scope": "Pinned v0.21.7 launcher/tool-guard contract; other releases unverified."
+    },
+    "managed-mcp-host": {
+      "status": "experimental",
+      "scope": "Opt-in Linux x86-64 owned tools and bounded private mTLS bridge; separate original kernel evidence required."
+    },
+    "langgraph": {
+      "status": "experimental",
+      "scope": "Exact pinned SDK fixtures; asynchronous callbacks are interception and native asynchronous broker/coordinator calls are unsupported."
+    },
+    "autogen": {
+      "status": "experimental",
+      "scope": "Pinned archived/legacy SDK only; no active upstream maintenance claim."
+    },
+    "crewai": {
+      "status": "quarantined",
+      "scope": "Disabled extra, provisioning and execution; externally installed matching versions remain refused."
+    }
+  },
+  "experimental": [
+    "trace capture database layout and promotion metadata",
+    "diagnostic/evaluation report layouts",
+    "optional semantic reranking",
+    "man-page index internals",
+    "Runtime capability/request and observation APIs and formats, including v2 request constraints",
+    "Assurance, security import/scanner and decision-model interfaces",
+    "Swarm typed public module APIs, schemas, managed host and optional framework adapters",
+    "Optional Runtime compiler/prover requires independently qualified native backend evidence"
+  ],
+  "internal": [
+    "underscore-prefixed names",
+    "compiled engine internals",
+    "transport handler classes",
+    "test/evaluation helper constructors",
+    "SQLite schemas, durable authority rows, native handle registries and cleanup bookkeeping",
+    "Owned worker wire/ABI implementation details except explicitly documented protocol fields"
+  ],
+  "compatibility_notes": [
+    "Version markers identify formats and do not independently grant authority.",
+    "Experimental records are inventoried to detect drift, not to freeze private implementation helpers.",
+    "Only documented methods and scoped behavior are supported; compiled objects and original handles are factory results, not extension APIs.",
+    "See docs/public-compatibility-0.4.md for migration, platform boundaries and rollback."
+  ]
+}

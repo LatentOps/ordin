@@ -44,7 +44,9 @@ Preserve `ActionReview.v1`, `ExecutionCapabilityProfile`, `ActionObservation`,
 `ObservationHistory`, `AgentGate`, tool/MCP adapters, contract pinning, caller
 policies, audit hash chaining, and existing session identities. New artifacts
 are additive. Core required dependencies remain empty; the package version
-remains `0.4.0.dev0`. Export the new APIs only after their tests are stable.
+was `0.4.0.dev0` when this design was written. Current release preparation targets
+`0.4.0`; the [v0.4 inventory](../public-compatibility-0.4.md) records the exported
+APIs and experimental boundaries rather than this historical implementation plan.
 
 Ordin Runtime code lives in `integrations/runtime/ordin_runtime/`. It owns
 optional YAML serialization, policy compilation/validation, prover invocation,

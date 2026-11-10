@@ -15,7 +15,10 @@ tracked files and excludes the six generated evidence outputs listed in the
 is committed separately. The evidence commit may have a different Git HEAD;
 `tested_source_revision` and `tested_source_digest` identify the tested implementation.
 
-Core version is `0.4.0.dev0`, with zero required dependencies.
+This recorded acceptance milestone tested core `0.4.0.dev0`, with zero required
+dependencies. It is historical evidence, not a current final-release receipt;
+the [v0.4 candidate gate](release-candidate-gate.md) requires fresh exact-source
+qualification and pilot acceptance before publication.
 The optional integration remains `0.1.0` and supports
 pinned OpenShell `0.1.2`; no runtime version upgrade or hosted service was added.
 

@@ -1,6 +1,7 @@
 """A required physical lane cannot pass with only skipped or missing positives."""
 
 import builtins
+import ast
 from pathlib import Path
 import runpy
 import sys
@@ -12,6 +13,10 @@ import pytest
 
 from scripts import check_protected_runtime as check
 from scripts.release_integrity import RELEASE_WORKFLOW_CHECKS
+
+
+PILOT_TEST_FILE = "integrations/swarm/tests/test_pilot_workflow.py"
+PILOT_POSITIVE = "test_native_denial_cancel_revocation_restart_and_durable_consumption"
 
 
 def junit(tmp_path, *, change=None):
@@ -30,8 +35,47 @@ def junit(tmp_path, *, change=None):
 
 
 def test_required_agent_and_pytest_positives_must_all_run(tmp_path):
-    assert len(check.REQUIRED_POSITIVES) == 14
+    assert len(check.REQUIRED_POSITIVES) == 15
     assert set(check.qualify_junit(junit(tmp_path))) == check.REQUIRED_POSITIVES
+
+
+def test_pilot_transition_positive_is_selected_from_the_actual_installed_fixture():
+    assert PILOT_TEST_FILE in check.TEST_FILES
+    assert PILOT_POSITIVE in check.REQUIRED_POSITIVES
+    source = Path(__file__).resolve().parents[1] / PILOT_TEST_FILE
+    functions = {
+        node.name
+        for node in ast.parse(source.read_text(encoding="utf-8")).body
+        if isinstance(node, ast.FunctionDef)
+    }
+    assert PILOT_POSITIVE in functions
+
+
+@pytest.mark.parametrize("outcome", ["missing", "skipped", "failure", "error"])
+def test_pilot_transition_cannot_be_missing_skipped_failed_or_errored(tmp_path, outcome):
+    path = junit(tmp_path)
+    tree = ET.parse(path)
+    root = tree.getroot()
+    case = next((case for case in root if case.get("name") == PILOT_POSITIVE), None)
+    if case is None:
+        case = ET.SubElement(root, "testcase", name=PILOT_POSITIVE)
+    if outcome == "missing":
+        root.remove(case)
+    else:
+        ET.SubElement(case, outcome)
+    tree.write(path)
+    with pytest.raises(ValueError):
+        check.qualify_junit(path)
+
+
+def test_completed_pilot_transition_is_recorded_among_actual_required_positives(tmp_path):
+    path = junit(tmp_path)
+    tree = ET.parse(path)
+    root = tree.getroot()
+    if not any(case.get("name") == PILOT_POSITIVE for case in root):
+        ET.SubElement(root, "testcase", name=PILOT_POSITIVE)
+    tree.write(path)
+    assert PILOT_POSITIVE in check.qualify_junit(path)
 
 
 @pytest.mark.parametrize("change", ["skipped", "failure", "error", "missing", "suite_error"])
@@ -63,6 +107,7 @@ def test_installed_input_copy_retains_helper_and_fixture_trees_without_source_pa
         "tests/helpers.py",
         "tests/fixtures/swarm_tls/ca.pem",
         "integrations/swarm/tests/test_tool_host_profiles.py",
+        PILOT_TEST_FILE,
     )
     for name in paths:
         path = source / name

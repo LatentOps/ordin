@@ -1,0 +1,4 @@
+# Fixed tooling for the owned release pilot, separate from package runtime dependencies.
+# Constrain transitive versions to the reviewed development baseline when compiling.
+pytest==9.2.0
+packaging==26.3

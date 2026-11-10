@@ -1,0 +1,906 @@
+"""Run fixed installed-wheel engineering probes or an explicit elapsed-time pilot.
+
+Run this exact-source helper with an isolated installed environment's Python -I -B.
+No artifact, elapsed-time result or scripted review authorizes production work.
+"""
+
+from __future__ import annotations
+
+import argparse
+from contextlib import redirect_stderr, redirect_stdout
+from dataclasses import dataclass
+from datetime import datetime, timezone
+import gc
+import hashlib
+from importlib import import_module, machinery, metadata, util
+import io
+import json
+import math
+import os
+from pathlib import Path
+import platform
+import re
+import shutil
+import signal
+import sys
+import time
+from types import FunctionType, ModuleType
+import zipfile
+import zipimport
+
+
+ROOT = Path(__file__).resolve().parents[1]
+MIN_PILOT_SECONDS = 3 * 86400
+MAX_PILOT_SECONDS = 7 * 86400
+MAX_LOG_BYTES = 4 * 1024 * 1024
+MAX_CYCLE_BYTES = 128 * 1024 * 1024
+FIXED_CASES = (
+    "tests/test_swarm_coordinator.py::test_original_mtls_scope_one_use_dispatch_and_full_bound_accounting",
+    "tests/test_swarm_coordinator.py::test_two_authenticated_hosts_cannot_reserve_past_shared_swarm_budget",
+    "tests/test_swarm_coordinator_recovery.py::test_takeover_fences_old_owner_and_retains_uncertain_budget",
+    "tests/test_swarm_coordinator_recovery.py::test_revocation_survives_restart_and_json_cannot_resume",
+    "tests/test_swarm_coordinator_recovery.py::test_lost_forward_ack_never_calls_executor_or_refunds_hold",
+    "tests/test_swarm_coordinator_recovery.py::test_epoch_change_during_backend_reconciliation_cannot_resume",
+    "tests/test_swarm_coordinator_recovery.py::test_unknown_inflight_effect_cannot_resume_from_operator_boolean_or_json",
+    "tests/test_swarm_budgets.py::test_persistent_recovery_fences_old_reserved_tickets_and_retains_forwarding_hold",
+    "tests/test_swarm_budgets.py::test_policy_epoch_recovery_preserves_consumed_spend",
+    "tests/test_swarm_budgets.py::test_physical_budget_requirement_cannot_be_satisfied_by_cost_estimate_or_json_flag",
+)
+_HOST_CASE_IDS = frozenset(
+    {
+        "authorized_private_read",
+        "original_private_handoff",
+        "exact_public_fetch",
+        "exact_reviewed_managed_report",
+        "operator_stop_closes_admission",
+        "write_waits_for_operator",
+        "write_only_has_no_read_hash_oracle",
+        "traversal_read_refused",
+        "caller_url_refused",
+        "forged_resource_refused",
+        "caller_labels_refused",
+        "actor_substitution_refused",
+        "stale_cas_cannot_replace_report",
+        "embedded_instruction_cannot_self_approve",
+        "post_shutdown_original_session_refused",
+    }
+)
+_TRANSITION_CASE_IDS = frozenset(
+    {
+        "exact_operator_denial",
+        "original_connection_cancels_pending_write",
+        "original_native_revocation",
+        "shutdown_fences_original_client",
+        "epoch_restart_fences_original_handle",
+        "durable_consumption_survives_epoch_restart",
+    }
+)
+
+
+@dataclass(frozen=True)
+class PilotConfiguration:
+    mode: str = "engineering"
+    cycles: int = 2
+    duration_seconds: int | None = None
+    interval_seconds: int = 0
+    portable_only: bool = False
+
+    def __post_init__(self):
+        if (
+            type(self.mode) is not str
+            or self.mode not in {"engineering", "pilot"}
+            or type(self.cycles) is not int
+            or not 1 <= self.cycles <= 16
+            or type(self.interval_seconds) is not int
+            or type(self.portable_only) is not bool
+        ):
+            raise ValueError("invalid bounded pilot configuration")
+        if self.mode == "pilot":
+            if (
+                type(self.duration_seconds) is not int
+                or not MIN_PILOT_SECONDS <= self.duration_seconds <= MAX_PILOT_SECONDS
+                or not 300 <= self.interval_seconds <= 3600
+                or self.portable_only
+            ):
+                raise ValueError(
+                    "multi-day pilot requires explicit 3-7 day duration and Linux scope"
+                )
+        elif self.duration_seconds is not None or not 0 <= self.interval_seconds <= 60:
+            raise ValueError("engineering runs cannot claim a multi-day duration")
+
+    @property
+    def maximum_cycles(self):
+        return (
+            math.ceil(self.duration_seconds / self.interval_seconds) + 1
+            if self.mode == "pilot"
+            else self.cycles
+        )
+
+
+class BoundedCapture(io.StringIO):
+    def write(self, value):
+        super().write(value[: max(0, 1048576 - self.tell())])
+        return len(value)
+
+
+def _helper(name):
+    spec = util.spec_from_file_location(
+        "ordin_release_pilot_" + name, ROOT / "scripts" / (name + ".py")
+    )
+    if spec is None or spec.loader is None:
+        raise ValueError("exact-source release helper unavailable")
+    module = util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _sha(path):
+    with path.open("rb") as stream:
+        digest = hashlib.sha256()
+        for chunk in iter(lambda: stream.read(1048576), b""):
+            digest.update(chunk)
+        return digest.hexdigest()
+
+
+def _installed_payload(namespace, wheel, version):
+    distribution = metadata.distribution(namespace.replace("_", "-"))
+    selected_root = Path(distribution.locate_file(namespace))
+    if selected_root.is_symlink():
+        raise ValueError("pilot installed namespace cannot be linked")
+    root = selected_root.resolve(strict=True)
+    prefix = Path(sys.prefix).resolve(strict=True)
+    if "site-packages" not in root.parts or not root.is_relative_to(prefix):
+        raise ValueError("pilot requires installed wheels without source or editable overlays")
+    direct = distribution.read_text("direct_url.json")
+    if (
+        distribution.version != version
+        or direct
+        and json.loads(direct).get("dir_info", {}).get("editable")
+    ):
+        raise ValueError("pilot installed distribution version or editable origin differs")
+    with zipfile.ZipFile(wheel) as archive:
+        selected = {
+            name: hashlib.sha256(archive.read(name)).hexdigest()
+            for name in archive.namelist()
+            if name.startswith(namespace + "/") and not name.endswith("/")
+        }
+    installed = {}
+    for path in root.rglob("*"):
+        if path.is_symlink():
+            raise ValueError("pilot installed namespace contains a link")
+        if path.is_file():
+            if "__pycache__" in path.parts:
+                continue
+            installed[namespace + "/" + path.relative_to(root).as_posix()] = _sha(path)
+    if not selected or installed != selected:
+        raise ValueError("pilot installed payload differs from verified wheel bytes")
+    return root
+
+
+def _loaded(roots):
+    for name, module in tuple(sys.modules.items()):
+        for namespace, root in roots.items():
+            if module is not None and (name == namespace or name.startswith(namespace + ".")):
+                if type(module) is not ModuleType:
+                    raise ValueError("pilot requires standard installed namespace modules")
+                filename = vars(module).get("__file__")
+                if type(filename) is not str or not Path(filename).resolve().is_relative_to(root):
+                    raise ValueError("pilot imported a source namespace overlay")
+                spec = vars(module).get("__spec__")
+                if (
+                    type(spec) is not machinery.ModuleSpec
+                    or type(spec.loader) is not machinery.SourceFileLoader
+                    or type(spec.origin) is not str
+                    or type(spec.loader.path) is not str
+                    or type(spec.loader.name) is not str
+                    or spec.origin != filename
+                    or spec.loader.path != filename
+                    or spec.loader.name != name
+                ):
+                    raise ValueError("pilot loaded namespace has an unsupported source loader")
+
+
+def _require_isolated():
+    if not sys.flags.isolated or not sys.dont_write_bytecode:
+        raise ValueError("pilot requires its fresh private environment's Python -I -B")
+
+
+def _runtime_tooling():
+    lock = ROOT / "requirements/pilot-runtime.txt"
+    if lock.is_symlink() or lock.stat().st_size > 1048576:
+        raise ValueError("pilot requires its bounded source-owned runtime lock")
+    raw = lock.read_bytes()
+    text = raw.decode("utf-8").replace("\r\n", "\n")
+    pinned = {}
+    for name in ("pytest", "packaging"):
+        values = re.findall(r"(?m)^" + name + r"==([A-Za-z0-9_.!+-]+)(?:\s|$)", text)
+        if len(values) != 1 or metadata.version(name) != values[0]:
+            raise ValueError("pilot runtime tooling differs from its exact source lock")
+        pinned[name] = values[0]
+    # Only import this pinned support tool after verifying its installed version.
+    from packaging.requirements import Requirement
+
+    for line in text.splitlines():
+        value = line.strip()
+        if not value or value.startswith(("#", "--hash=")):
+            continue
+        requirement = Requirement(value.removesuffix("\\").strip())
+        if requirement.extras or requirement.url or len(requirement.specifier) != 1:
+            raise ValueError("pilot runtime lock requires exact bounded package pins")
+        specifier = next(iter(requirement.specifier))
+        if specifier.operator != "==" or "*" in specifier.version:
+            raise ValueError("pilot runtime lock contains an unpinned requirement")
+        if requirement.marker is None or requirement.marker.evaluate():
+            actual = metadata.version(requirement.name)
+            if actual != specifier.version:
+                raise ValueError("pilot runtime dependency differs from its exact source lock")
+            pinned[requirement.name] = actual
+    return {
+        "lock": "requirements/pilot-runtime.txt",
+        "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "hash_normalization": "UTF-8 LF",
+        "versions": pinned,
+    }
+
+
+def _loader_details_match(actual, expected):
+    if type(actual) is not tuple or len(actual) != len(expected):
+        return False
+    for pair, (loader, suffixes) in zip(actual, expected):
+        if (
+            type(pair) is not tuple
+            or len(pair) != 2
+            or pair[0] is not loader
+            or type(pair[1]) is not list
+            or len(pair[1]) != len(suffixes)
+            or any(
+                type(value) is not str or value != suffix
+                for value, suffix in zip(pair[1], suffixes)
+            )
+        ):
+            return False
+    return True
+
+
+def _preimport_guard(roots):
+    """Resolve standard specs without executing unsupported import callbacks.
+
+    The fresh operator-selected interpreter and its standard machinery remain
+    trusted. Inspecting an arbitrary finder's returned spec could itself run code.
+    """
+    expected_meta = (machinery.BuiltinImporter, machinery.FrozenImporter, machinery.PathFinder)
+    if (
+        type(sys.meta_path) is not list
+        or len(sys.meta_path) != len(expected_meta)
+        or any(actual is not expected for actual, expected in zip(sys.meta_path, expected_meta))
+    ):
+        raise ValueError("pilot requires standard import finders in a fresh runtime environment")
+    details = (
+        (machinery.ExtensionFileLoader, machinery.EXTENSION_SUFFIXES),
+        (machinery.SourceFileLoader, machinery.SOURCE_SUFFIXES),
+        (machinery.SourcelessFileLoader, machinery.BYTECODE_SUFFIXES),
+    )
+    standard_hook = machinery.FileFinder.path_hook(*details)
+    if type(sys.path_hooks) is not list or len(sys.path_hooks) != 2:
+        raise ValueError("pilot requires standard import path hooks")
+    hook = sys.path_hooks[1]
+    if (
+        sys.path_hooks[0] is not zipimport.zipimporter
+        or type(hook) is not FunctionType
+        or hook.__code__ is not standard_hook.__code__
+        or hook.__globals__ is not standard_hook.__globals__
+        or hook.__closure__ is None
+        or len(hook.__closure__) != 2
+        or hook.__closure__[0].cell_contents is not machinery.FileFinder
+        or not _loader_details_match(hook.__closure__[1].cell_contents, details)
+    ):
+        raise ValueError("pilot refuses custom import path hooks")
+    if type(sys.path_importer_cache) is not dict:
+        raise ValueError("pilot requires a standard import path cache")
+    expected_loaders = [(suffix, loader) for loader, suffixes in details for suffix in suffixes]
+    for name, finder in sys.path_importer_cache.items():
+        if type(name) is not str:
+            raise ValueError("pilot import path cache is not standard")
+        if finder is None:
+            continue
+        if type(finder) not in {machinery.FileFinder, zipimport.zipimporter}:
+            raise ValueError("pilot refuses custom cached import finders")
+        if "find_spec" in vars(finder):
+            raise ValueError("pilot cached import finder was replaced")
+        if type(finder) is machinery.FileFinder:
+            loaders = finder._loaders
+            if (
+                type(finder.path) is not str
+                or type(loaders) is not list
+                or len(loaders) != len(expected_loaders)
+                or any(
+                    type(pair) is not tuple
+                    or len(pair) != 2
+                    or type(pair[0]) is not str
+                    or pair[0] != expected[0]
+                    or pair[1] is not expected[1]
+                    for pair, expected in zip(loaders, expected_loaders)
+                )
+            ):
+                raise ValueError("pilot refuses custom cached source loaders")
+    _loaded(roots)
+    for namespace, root in roots.items():
+        spec = machinery.PathFinder.find_spec(namespace)
+        expected = root / "__init__.py"
+        if (
+            type(spec) is not machinery.ModuleSpec
+            or type(spec.loader) is not machinery.SourceFileLoader
+            or spec.name != namespace
+            or spec.origin != str(expected)
+            or spec.loader.path != str(expected)
+            or spec.loader.name != namespace
+            or spec.submodule_search_locations != [str(root)]
+        ):
+            raise ValueError("pilot namespace import spec differs from verified installed bytes")
+
+
+def _cleanup_error(failure):
+    # Error handling must not import an optional runtime or replace an original
+    # failure. A real cleanup owner can exist only after its class was loaded.
+    module = sys.modules.get("ordin_swarm.host_authority")
+    kind = vars(module).get("_HostCleanupIncomplete") if type(module) is ModuleType else None
+    return type(kind) is type and isinstance(failure, kind)
+
+
+def _write(path, value):
+    raw = (json.dumps(value, sort_keys=True, indent=2, allow_nan=False) + "\n").encode()
+    if len(raw) > 1048576:
+        raise ValueError("pilot report exceeds its bounded size")
+    temporary = path.parent / (path.name + ".next")
+    descriptor = os.open(
+        temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600
+    )
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(raw)
+        os.replace(temporary, path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def _journal(path, value):
+    raw = (
+        json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n"
+    ).encode()
+    descriptor = os.open(
+        path, os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600
+    )
+    with os.fdopen(descriptor, "ab") as stream:
+        if os.fstat(stream.fileno()).st_size + len(raw) > MAX_LOG_BYTES:
+            raise ValueError("pilot cycle journal exceeds its bound")
+        stream.write(raw)
+
+
+def _directory_identity(path):
+    info = path.lstat()
+    return info.st_dev, info.st_ino
+
+
+def _remove_owned_cycle(path, output, identities):
+    if (
+        path.name != "cycle"
+        or path.parent != output
+        or path.is_symlink()
+        or output.is_symlink()
+        or path.resolve().parent != output.resolve()
+        or (_directory_identity(output), _directory_identity(path)) != identities
+    ):
+        raise ValueError("pilot cleanup requires its original owned cycle directory")
+    shutil.rmtree(path)
+
+
+def _portable(fixtures, cycle):
+    # These are immutable, versioned synthetic test programs. The fixtures use
+    # original mTLS handles and durable stores, and explicitly inject lost ACKs.
+    # They are not a physical process boundary or an imported authority report.
+    import pytest
+
+    counts = {"collected": 0, "passed": 0, "failed": 0, "skipped": 0}
+
+    class Summary:
+        def pytest_collection_finish(self, session):
+            counts["collected"] = len(session.items)
+
+        def pytest_runtest_logreport(self, report):
+            if report.failed:
+                counts["failed"] += 1
+            elif report.skipped:
+                counts["skipped"] += 1
+            elif report.when == "call" and report.passed:
+                counts["passed"] += 1
+
+        def pytest_collectreport(self, report):
+            if report.failed:
+                counts["failed"] += 1
+
+    captured = BoundedCapture()
+    prior_autoload = os.environ.get("PYTEST_DISABLE_PLUGIN_AUTOLOAD")
+    try:
+        os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"
+        with redirect_stdout(captured), redirect_stderr(captured):
+            code = pytest.main(
+                [
+                    "-q",
+                    "-p",
+                    "no:cacheprovider",
+                    "--confcutdir=" + str(fixtures / "tests"),
+                    "--basetemp=" + str(cycle / "pytest"),
+                    *(str(fixtures / name) for name in FIXED_CASES),
+                ],
+                plugins=[Summary()],
+            )
+    finally:
+        if prior_autoload is None:
+            os.environ.pop("PYTEST_DISABLE_PLUGIN_AUTOLOAD", None)
+        else:
+            os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = prior_autoload
+    return {
+        "passed": int(code) == 0
+        and counts
+        == {"collected": len(FIXED_CASES), "passed": len(FIXED_CASES), "failed": 0, "skipped": 0},
+        "counts": counts,
+        "boundary": "owned_synthetic_mtls_and_durable_accounting",
+        "physical_enforcement": False,
+        "diagnostics_sha256": hashlib.sha256(captured.getvalue().encode()).hexdigest(),
+    }
+
+
+def _native_case_diagnostics(rows, expected, *, key, prefix):
+    """Emit finite fixture identifiers, never tool bodies or exception strings."""
+    seen, failed, passed, valid = set(), set(), 0, True
+    if type(rows) is not list or len(rows) > len(expected):
+        return (
+            0,
+            0,
+            False,
+            [prefix + ".invalid_case_inventory"],
+            sorted(prefix + "." + value for value in expected),
+        )
+    for row in rows:
+        if type(row) is not dict or type(row.get(key)) is not str or row[key] not in expected:
+            failed.add(prefix + ".unrecognized_case")
+            valid = False
+            continue
+        name = row[key]
+        if name in seen:
+            failed.add(prefix + ".duplicate_case")
+            valid = False
+        seen.add(name)
+        if row.get("passed") is True:
+            passed += 1
+        else:
+            failed.add(prefix + "." + name)
+            if row.get("passed") is not False:
+                valid = False
+    missing = sorted(prefix + "." + value for value in expected - seen)
+    complete = valid and len(rows) == len(expected) and not missing
+    return len(rows), passed, complete, sorted(failed), missing
+
+
+def _host_cycle_summary(host, transitions):
+    managed = _native_case_diagnostics(
+        host.get("cases"), _HOST_CASE_IDS, key="case_id", prefix="managed_host"
+    )
+    extra = _native_case_diagnostics(
+        transitions.get("cases"), _TRANSITION_CASE_IDS, key="id", prefix="transitions"
+    )
+    complete = (
+        host.get("passed") is True
+        and host.get("complete") is True
+        and transitions.get("passed") is True
+        and managed[2]
+        and extra[2]
+        and not managed[3]
+        and not extra[3]
+    )
+    reason = host.get("failure_reason")
+    if reason not in (None, "host.evaluation_incomplete", "host.fixture_case_failed"):
+        reason = "pilot.owned_diagnostic_unavailable"
+    return {
+        "status": "completed" if complete else "failed",
+        "cases": managed[0] + extra[0],
+        "passed": managed[1] + extra[1],
+        "managed_host_complete": managed[2] and host.get("complete") is True,
+        "transitions_complete": extra[2],
+        "managed_host_failure_reason": reason,
+        "failed_case_ids": managed[3] + extra[3],
+        "unexecuted_case_ids": managed[4] + extra[4],
+        "boundary": "owned_linux_read_write_workers",
+        "client_process_confinement": "not_established",
+        "operator_mode": "scripted_fixture_exact_authenticated_review",
+    }
+
+
+def _cycle(fixtures, output, config, roots):
+    cycle = output / "cycle"
+    cycle.mkdir(mode=0o700)
+    identities = _directory_identity(output), _directory_identity(cycle)
+    cleanup_safe = True
+    try:
+        result = {"portable": _portable(fixtures, cycle), "host": {"status": "not_requested"}}
+        if not config.portable_only:
+            if sys.platform != "linux":
+                raise ValueError("full pilot requires actual supported Linux host execution")
+            from ordin_swarm.host_evaluation import run_evaluation
+            from ordin_swarm.pilot_workflow import run_owned_transitions
+
+            host = run_evaluation(cycle / "managed-host")
+            transitions = run_owned_transitions(cycle / "transitions")
+            result["host"] = _host_cycle_summary(host, transitions)
+        _loaded(roots)
+        result["passed"] = result["portable"]["passed"] and (
+            config.portable_only or result["host"]["status"] == "completed"
+        )
+        if (
+            sum(path.stat().st_size for path in cycle.rglob("*") if path.is_file())
+            > MAX_CYCLE_BYTES
+        ):
+            raise ValueError("pilot cycle storage bound exceeded")
+        return result
+    except BaseException as failure:
+        # The foreground controller must retain this original retry capability.
+        # Never remove its installation, resubmit an effect or stringify custody.
+        cleanup_safe = not _cleanup_error(failure)
+        raise
+    finally:
+        if cleanup_safe:
+            _remove_owned_cycle(cycle, output, identities)
+
+
+def _acceptance(config, *, elapsed, wall_elapsed, cycles, failed, canceled):
+    window = (
+        config.mode == "pilot"
+        and elapsed >= config.duration_seconds
+        and wall_elapsed >= config.duration_seconds
+    )
+    return {
+        "engineering_passed": cycles > 0 and not failed and not canceled,
+        "elapsed_pilot_window_satisfied": window and cycles >= 2 and not failed and not canceled,
+        "operator_acceptance": "pending_independent_human_review",
+        "production_rollout_authorized": False,
+        "execution_authority": False,
+    }
+
+
+def _wait_until(deadline):
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        time.sleep(min(1, remaining))
+
+
+def run_pilot(bundle, output, *, revision, tree, tag=None, config):
+    _require_isolated()
+    _preimport_guard({})
+    if not isinstance(config, PilotConfiguration) or not all(
+        type(value) is str and re.fullmatch(r"[a-f0-9]{40}", value) for value in (revision, tree)
+    ):
+        raise ValueError("pilot requires exact independently selected revision/tree")
+    if (
+        not bundle.is_absolute()
+        or not output.is_absolute()
+        or output.exists()
+        or output.is_symlink()
+    ):
+        raise ValueError("pilot requires an absolute bundle and NEW absolute output directory")
+    if output.resolve().is_relative_to(ROOT.resolve()) or output.resolve().is_relative_to(
+        bundle.resolve()
+    ):
+        raise ValueError("pilot output must be outside the source and release bundle")
+    if any(parent.is_symlink() for parent in (output.parent, *output.parent.parents)):
+        raise ValueError("pilot output ancestors must not be links")
+    integrity = _helper("release_integrity")
+    manifest = integrity.verify_bundle(
+        bundle, source_root=ROOT, revision=revision, tag=tag, tree=tree
+    )
+    if manifest.get("tag") != tag:
+        raise ValueError("pilot bundle differs from the independently selected expected tag")
+    tooling = _runtime_tooling()
+    roots, wheels = {}, []
+    for namespace, project in (("ordin", "ordin"), ("ordin_swarm", "ordin-swarm")):
+        selected = manifest["packages"][project]
+        wheel = bundle / selected["wheel"]
+        roots[namespace] = _installed_payload(namespace, wheel, selected["version"])
+        wheels.append(
+            {
+                "name": project,
+                "filename": wheel.name,
+                "sha256": _sha(wheel),
+                "version": selected["version"],
+            }
+        )
+        if wheels[-1]["sha256"] != manifest["artifacts"][wheel.name]:
+            raise ValueError("pilot wheel changed after bundle verification")
+    # A fresh private cache location prevents stale package .pyc files from
+    # replacing the verified source bytes on the first runtime import.
+    prior_cache, prior_bytecode = sys.pycache_prefix, sys.dont_write_bytecode
+    sys.pycache_prefix, sys.dont_write_bytecode = str(output / "bytecode"), True
+    try:
+        for namespace in roots:
+            _preimport_guard(roots)
+            import_module(namespace)
+        return _run_verified(
+            bundle,
+            output,
+            revision,
+            tree,
+            config,
+            roots,
+            wheels,
+            expected_artifacts=manifest["artifacts"],
+            expected_tag=tag,
+            runtime_tooling=tooling,
+        )
+    finally:
+        sys.pycache_prefix, sys.dont_write_bytecode = prior_cache, prior_bytecode
+
+
+def _run_verified(
+    bundle,
+    output,
+    revision,
+    tree,
+    config,
+    roots,
+    wheels,
+    *,
+    expected_artifacts=None,
+    expected_tag=None,
+    runtime_tooling=None,
+):
+    _loaded(roots)
+    output.mkdir(mode=0o700)
+    helper = _helper("check_swarm_release")
+    archive = helper.git(ROOT, "archive", "--format=tar", revision, "--", "tests")
+    fixtures = output / "fixtures"
+    fixture_identity = helper.extract_test_fixtures(archive, fixtures)
+    started_utc, started, cpu_start = (
+        datetime.now(timezone.utc),
+        time.monotonic(),
+        time.process_time(),
+    )
+    completed, failed, canceled, pending_cleanup, active_failure = 0, False, False, False, None
+    report = {
+        "schema_version": "ordin.release_pilot.v1",
+        "mode": config.mode,
+        "revision": revision,
+        "tree": tree,
+        "bundle_manifest_sha256": _sha(bundle / "release.json"),
+        "wheels": wheels,
+        "bundle_artifacts": expected_artifacts,
+        "expected_tag": expected_tag,
+        "runtime_tooling": runtime_tooling,
+        "fixture_archive": fixture_identity,
+        "started_utc": started_utc.isoformat(),
+        "requested_duration_seconds": config.duration_seconds,
+        "interval_seconds": config.interval_seconds,
+        "maximum_cycles": config.maximum_cycles,
+        "platform": sys.platform,
+        "kernel_release": platform.release(),
+        "machine": platform.machine(),
+        "python": sys.version.split()[0],
+        "python_implementation": sys.implementation.name,
+        "controller_euid": os.geteuid() if hasattr(os, "geteuid") else None,
+        "package_origin": "verified_installed_core_and_swarm_wheels",
+        "isolated_interpreter": bool(sys.flags.isolated),
+        "bytecode_writes_disabled": bool(sys.dont_write_bytecode),
+        "bytecode_cache_policy": "fresh_private_prefix_for_verified_source",
+        "origin_authenticated_by_json": False,
+        "physical_host_requested": not config.portable_only,
+        "external_production_targets": False,
+        "hosted_models_used": False,
+        "raw_payloads_logged": False,
+        "cycles_completed": 0,
+        "cycles_started": 0,
+        "status": "running",
+        "cumulative_cases": 0,
+        "elapsed_pilot_window_satisfied": False,
+        "production_rollout_authorized": False,
+        "execution_authority": False,
+        "operator_acceptance": "pending_independent_human_review",
+    }
+
+    def unchanged_runtime():
+        _preimport_guard(roots)
+        if _sha(bundle / "release.json") != report["bundle_manifest_sha256"]:
+            raise ValueError("pilot bundle manifest changed during execution")
+        for name, expected in (expected_artifacts or {}).items():
+            if _sha(bundle / name) != expected:
+                raise ValueError("pilot bundle artifact changed during execution")
+        for namespace, selected in zip(roots, wheels):
+            if (
+                _installed_payload(namespace, bundle / selected["filename"], selected["version"])
+                != roots[namespace]
+            ):
+                raise ValueError("pilot installed namespace changed during execution")
+        _loaded(roots)
+
+    try:
+        for index in range(config.maximum_cycles):
+            unchanged_runtime()
+            report["cycles_started"] = index + 1
+            cycle_start, cycle_cpu = time.monotonic(), time.process_time()
+            result = _cycle(fixtures, output, config, roots)
+            gc.collect()
+            unchanged_runtime()
+            if time.process_time() - cycle_cpu > 60:
+                result["passed"] = False
+            row = {
+                "cycle": index + 1,
+                "started_offset_seconds": cycle_start - started,
+                "elapsed_seconds": time.monotonic() - cycle_start,
+                **result,
+            }
+            _journal(output / "cycles.jsonl", row)
+            completed += 1
+            report["cycles_completed"] = completed
+            report["cumulative_cases"] += result["portable"]["counts"]["collected"] + result[
+                "host"
+            ].get("cases", 0)
+            _write(output / "pilot.json", report)
+            if not result["passed"]:
+                failed = True
+                break
+            if config.mode == "pilot" and time.monotonic() - started >= config.duration_seconds:
+                break
+            if index + 1 < config.maximum_cycles:
+                _wait_until(cycle_start + config.interval_seconds)
+    except KeyboardInterrupt:
+        canceled = True
+    except BaseException as failure:
+        failed = True
+        pending_cleanup = _cleanup_error(failure)
+        active_failure = failure
+        raise
+    finally:
+        try:
+            ended = datetime.now(timezone.utc)
+            elapsed = time.monotonic() - started
+            wall = (ended - started_utc).total_seconds()
+            report.update(
+                ended_utc=ended.isoformat(),
+                elapsed_seconds=elapsed,
+                wall_elapsed_seconds=wall,
+                controller_cpu_seconds=time.process_time() - cpu_start,
+                status="cleanup_pending"
+                if pending_cleanup
+                else "canceled"
+                if canceled
+                else "failed"
+                if failed
+                else "completed",
+                **_acceptance(
+                    config,
+                    elapsed=elapsed,
+                    wall_elapsed=wall,
+                    cycles=completed,
+                    failed=failed,
+                    canceled=canceled,
+                ),
+            )
+            report["cycles_sha256"] = (
+                _sha(output / "cycles.jsonl") if (output / "cycles.jsonl").exists() else None
+            )
+            _write(output / "pilot.json", report)
+        except BaseException:
+            if active_failure is not None:
+                raise active_failure
+            raise
+    return report
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--bundle", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--revision", required=True)
+    parser.add_argument("--tree", required=True)
+    parser.add_argument("--tag")
+    parser.add_argument("--mode", choices=("engineering", "pilot"), default="engineering")
+    parser.add_argument("--cycles", type=int, default=2)
+    parser.add_argument("--duration-seconds", type=int)
+    parser.add_argument("--interval-seconds", type=int, default=0)
+    parser.add_argument("--portable-only", action="store_true")
+    parser.add_argument("--owned-fixture", action="store_true", required=True)
+    args = parser.parse_args(argv)
+    config = PilotConfiguration(
+        args.mode, args.cycles, args.duration_seconds, args.interval_seconds, args.portable_only
+    )
+    report = run_pilot(
+        args.bundle,
+        args.output,
+        revision=args.revision,
+        tree=args.tree,
+        tag=args.tag,
+        config=config,
+    )
+    print(
+        json.dumps(
+            {
+                key: report[key]
+                for key in (
+                    "status",
+                    "mode",
+                    "cycles_completed",
+                    "elapsed_seconds",
+                    "engineering_passed",
+                    "elapsed_pilot_window_satisfied",
+                    "operator_acceptance",
+                    "production_rollout_authorized",
+                )
+            }
+        )
+    )
+    return (
+        0
+        if report["engineering_passed"]
+        and (config.mode == "engineering" or report["elapsed_pilot_window_satisfied"])
+        else 2
+    )
+
+
+def entrypoint(argv=None):
+    previous = {}
+    try:
+        for name in ("SIGINT", "SIGTERM"):
+            number = getattr(signal, name, None)
+            if number is not None:
+                try:
+                    previous[number] = signal.signal(
+                        number, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt())
+                    )
+                except (OSError, ValueError):
+                    pass
+        try:
+            return main(argv)
+        except SystemExit:
+            raise
+        except BaseException as failure:
+            if _cleanup_error(failure):
+                # This is deliberately foreground custody, not a fabricated
+                # timeout success. Retry cleanup only; never repeat a cycle.
+                for number in previous:
+                    try:
+                        signal.signal(number, lambda *_: None)
+                    except (OSError, ValueError):
+                        pass
+                while True:
+                    try:
+                        failure.retry_cleanup()
+                        break
+                    except (Exception, KeyboardInterrupt):
+                        try:
+                            time.sleep(0.25)
+                        except KeyboardInterrupt:
+                            pass
+            elif not isinstance(failure, (ValueError, OSError, RuntimeError, KeyboardInterrupt)):
+                raise
+            print(
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "reason_code": "pilot.command_did_not_complete",
+                        "execution_authority": False,
+                    }
+                ),
+                file=sys.stderr,
+            )
+            return 2
+    finally:
+        for number, handler in previous.items():
+            try:
+                signal.signal(number, handler)
+            except (OSError, ValueError):
+                pass
+
+
+if __name__ == "__main__":
+    raise SystemExit(entrypoint())

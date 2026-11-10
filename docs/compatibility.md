@@ -15,7 +15,7 @@ mean that every suggested command or option exists on the local system.
 | Debian 12 | Distribution Python 3.11 | Installed package/CLI and doctor smoke tests | Supported; full boundary tests run on Ubuntu | POSIX Bash supported; no separate distro shell gate |
 | Fedora 42 | Distribution Python 3.13 | Installed package/CLI and doctor smoke tests | Supported; full boundary tests run on Ubuntu | POSIX Bash supported; no separate distro shell gate |
 | macOS 15, Apple Silicon | 3.13 | Full tests, wheel build/install and installed doctor | Claude Code, Codex, MCP stdio and HTTP, capture/persistence and conformance fixtures | System `/bin/bash` and `/bin/zsh` execution tests; ZLE decision boundary test |
-| Native Windows | No maintained release gate | Not supported | Not supported | Not supported |
+| Native Windows | Portable installed-package and local fixture evidence; no full native core release matrix | Portable package/resources and documented review fixtures | Portable protocol/transaction fixtures; no Windows kernel protection | Native shell/path-policy execution remains unsupported |
 
 The Python package supports 3.10–3.13. All four versions have Linux CI;
 macOS 3.10–3.12 and Intel Macs are not independently certified by this matrix.
@@ -23,9 +23,14 @@ Agent tests exercise the maintained hooks without requiring proprietary agent
 binaries. They do not certify every host-agent version, approval UI, hosted
 tool, credential configuration, or external MCP server.
 
-The 0.4 development branch also runs Cursor native hook fixtures, subprocess
+The 0.4 candidate also runs Cursor native hook fixtures, subprocess
 evaluation, and installed-wheel lifecycle checks on the maintained Linux/macOS
 matrix. Cursor is absent from v0.3.0. See its [contract and host limitations](cursor-integration.md).
+
+Use the [v0.4 contract inventory](public-compatibility-0.4.md) for current scoped
+support. Passing Windows data/protocol fixtures does not qualify the Linux
+namespace/Landlock/seccomp worker on Windows. Hook and callback interception
+does not establish process confinement on any platform.
 
 The macOS job pins the `macos-15` runner label instead of following the moving
 `macos-latest` label. The runner's architecture and supported labels are listed
