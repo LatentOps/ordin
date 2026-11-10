@@ -1,18 +1,33 @@
 """Install the exact verified base bundle offline into a new environment and inspect its bytes."""
 
-from __future__ import annotations
+import sys
+
+if __name__ == "__main__" and not sys.flags.isolated:
+    raise SystemExit(
+        "Release tooling requires isolated Python: use python -I -B scripts/"
+        + __file__.replace("\\", "/").rsplit("/", 1)[-1]
+    )
+
 
 import argparse
+import importlib.util
 import json
 import os
 from pathlib import Path
 import subprocess
-import sys
 
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.release_bundle import PROJECTS, verify_bundle
+def _bundle_helper():
+    path = Path(__file__).with_name("release_bundle.py")
+    spec = importlib.util.spec_from_file_location("_ordin_release_bundle", path)
+    if spec is None:
+        raise ValueError("exact release bundle helper is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), module.__dict__)
+    return module
+
+
+verify_bundle = _bundle_helper().verify_bundle
 
 
 PROBE = """import hashlib,importlib,json,pathlib,sys

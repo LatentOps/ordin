@@ -78,13 +78,19 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag ]]; then
             tag_args+=(--tag "$RELEASE_TAG")
           fi
-          python scripts/build_release_bundle.py --dist dist --revision "$RELEASE_SHA" "${tag_args[@]}"
+          python -I -B scripts/build_release_bundle.py --dist dist --revision "$RELEASE_SHA" "${tag_args[@]}"
       - name: Validate distribution metadata
         run: python -m twine check dist/*.whl dist/*.tar.gz
       - name: Verify the complete offline installed bundle
         env:
           RELEASE_SHA: ${{ github.sha }}
-        run: python scripts/check_release_bundle_install.py --bundle "$GITHUB_WORKSPACE/dist" --workspace "$RUNNER_TEMP/ordin-bundle-install" --revision "$RELEASE_SHA"
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          tag_args=()
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag ]]; then
+            tag_args+=(--tag "$RELEASE_TAG")
+          fi
+          python -I -B scripts/check_release_bundle_install.py --bundle "$GITHUB_WORKSPACE/dist" --workspace "$RUNNER_TEMP/ordin-bundle-install" --revision "$RELEASE_SHA" "${tag_args[@]}"
       - name: Smoke-test built wheel
         run: |
           python -m venv /tmp/ordin-release
@@ -122,7 +128,7 @@ jobs:
           if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag ]]; then
             publish_args+=(--publish --tag "$RELEASE_TAG")
           fi
-          python scripts/release_integrity.py verify --bundle --revision "$RELEASE_SHA" "${publish_args[@]}"
+          python -I -B scripts/release_integrity.py verify --bundle --revision "$RELEASE_SHA" "${publish_args[@]}"
       - name: Upload validated artifacts
         id: upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -202,7 +208,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 scripts/release_integrity.py verify --bundle --revision "$GITHUB_SHA" --tag "$GITHUB_REF_NAME" --publish
+          python3 -I -B scripts/release_integrity.py verify --bundle --revision "$GITHUB_SHA" --tag "$GITHUB_REF_NAME" --publish
           for subject in dist/*.whl dist/*.tar.gz dist/release.json dist/sbom.cdx.json dist/SHA256SUMS; do
             gh attestation verify "$subject" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-digest "$GITHUB_SHA" --bundle dist/provenance.sigstore.json
           done

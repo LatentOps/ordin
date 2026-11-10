@@ -1,23 +1,45 @@
 """Build all five source-bound base distributions; never publish or install extras."""
 
-from __future__ import annotations
+import sys
+
+if __name__ == "__main__" and not sys.flags.isolated:
+    raise SystemExit(
+        "Release tooling requires isolated Python: use python -I -B scripts/"
+        + __file__.replace("\\", "/").rsplit("/", 1)[-1]
+    )
+
 
 import argparse
+import importlib.util
+import os
 from pathlib import Path
 import subprocess
-import sys
 import tempfile
 
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.check_swarm_release import copy_build_source, source_identity
-from scripts.release_bundle import PROJECTS, _source_projects, create_bundle_metadata
+def _helper(filename):
+    path = Path(__file__).with_name(filename)
+    spec = importlib.util.spec_from_file_location("_ordin_release_" + path.stem, path)
+    if spec is None:
+        raise ValueError("exact release helper is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), module.__dict__)
+    return module
+
+
+_SOURCE = _helper("check_swarm_release.py")
+_BUNDLE = _helper("release_bundle.py")
+copy_build_source, source_identity = _SOURCE.copy_build_source, _SOURCE.source_identity
+PROJECTS, _source_projects, create_bundle_metadata = (
+    _BUNDLE.PROJECTS,
+    _BUNDLE._source_projects,
+    _BUNDLE.create_bundle_metadata,
+)
 
 
 def build_bundle(source_root: Path, dist: Path, *, revision: str, tag: str | None = None) -> dict:
     source_root = source_root.resolve(strict=True)
-    before, projects, _ = _source_projects(source_root, revision, None)
+    before, _, _ = _source_projects(source_root, revision, None)
     # Never reuse a distribution directory containing stale or foreign artifacts.
     dist = dist.absolute()
     if dist.exists() or dist.is_symlink():
@@ -30,6 +52,8 @@ def build_bundle(source_root: Path, dist: Path, *, revision: str, tag: str | Non
                 completed = subprocess.run(
                     [
                         sys.executable,
+                        "-I",
+                        "-B",
                         "-m",
                         "build",
                         "--no-isolation",
@@ -41,6 +65,11 @@ def build_bundle(source_root: Path, dist: Path, *, revision: str, tag: str | Non
                     stdout=log,
                     stderr=subprocess.STDOUT,
                     timeout=900,
+                    env={
+                        key: value
+                        for key, value in os.environ.items()
+                        if not key.upper().startswith(("PYTHON", "_PYPROJECT_HOOKS_", "PEP517_"))
+                    },
                 )
             if completed.returncode:
                 # Bounded diagnostics, while retaining the fresh failed directory for inspection.

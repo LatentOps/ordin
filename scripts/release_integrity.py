@@ -1,6 +1,13 @@
 """Validate release identities and produce bounded, inspectable integrity metadata."""
 
-from __future__ import annotations
+import sys
+
+if __name__ == "__main__" and not sys.flags.isolated:
+    raise SystemExit(
+        "Release tooling requires isolated Python: use python -I -B scripts/"
+        + __file__.replace("\\", "/").rsplit("/", 1)[-1]
+    )
+
 
 import argparse
 import ast
@@ -27,7 +34,18 @@ def _bundle_helper():
     if spec is None or spec.loader is None:
         raise ValueError("exact release bundle helper is unavailable")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    path = Path(__file__).with_name("release_bundle.py")
+    exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), module.__dict__)
+    return module
+
+
+def _bounded_inputs():
+    path = Path(__file__).with_name("_release_archive.py")
+    spec = importlib.util.spec_from_file_location("_ordin_release_archives", path)
+    if spec is None:
+        raise ValueError("exact bounded archive helper is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), module.__dict__)
     return module
 
 
@@ -429,11 +447,7 @@ def verify_release_checks(repository: str, revision: str, *, tag: str | None = N
 
 
 def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    return hashlib.sha256(_bounded_inputs().read_file(path)).hexdigest()
 
 
 def _runtime_version(source: bytes) -> str:
@@ -452,35 +466,32 @@ def validate_distributions(dist: Path, version: str) -> list[Path]:
     sdist = dist / f"ordin-{version}.tar.gz"
     if set(dist.glob("*.whl")) != {wheel} or set(dist.glob("*.tar.gz")) != {sdist}:
         raise ValueError("release must contain exactly the expected wheel and source distribution")
-    with zipfile.ZipFile(wheel) as archive:
-        metadata = archive.read(f"ordin-{version}.dist-info/METADATA")
-        runtime = archive.read("ordin/__init__.py")
-        parsed = BytesParser().parsebytes(metadata)
-        if (
-            parsed["Name"] != "ordin"
-            or parsed["Version"] != version
-            or _runtime_version(runtime) != version
-        ):
-            raise ValueError("wheel metadata/runtime version mismatch")
-    with tarfile.open(sdist, "r:gz") as archive:
+    inputs = _bounded_inputs()
+    archive = inputs.read_archive(wheel, wheel=True)
+    metadata = archive[f"ordin-{version}.dist-info/METADATA"]
+    runtime = archive["ordin/__init__.py"]
+    parsed = BytesParser().parsebytes(metadata)
+    if (
+        parsed["Name"] != "ordin"
+        or parsed["Version"] != version
+        or _runtime_version(runtime) != version
+    ):
+        raise ValueError("wheel metadata/runtime version mismatch")
+    archive = inputs.read_archive(sdist, wheel=False)
 
-        def member(name: str) -> bytes:
-            info = archive.getmember(f"ordin-{version}/{name}")
-            if not info.isfile() or info.size > 1024 * 1024:
-                raise ValueError("invalid source distribution metadata")
-            handle = archive.extractfile(info)
-            if handle is None:
-                raise ValueError("missing source distribution metadata")
-            with handle:
-                return handle.read(1024 * 1024 + 1)
+    def member(name: str) -> bytes:
+        raw = archive.get(f"ordin-{version}/{name}")
+        if raw is None or len(raw) > 1024 * 1024:
+            raise ValueError("invalid source distribution metadata")
+        return raw
 
-        parsed = BytesParser().parsebytes(member("PKG-INFO"))
-        if (
-            parsed["Name"] != "ordin"
-            or parsed["Version"] != version
-            or _runtime_version(member("ordin/__init__.py")) != version
-        ):
-            raise ValueError("source distribution metadata/runtime version mismatch")
+    parsed = BytesParser().parsebytes(member("PKG-INFO"))
+    if (
+        parsed["Name"] != "ordin"
+        or parsed["Version"] != version
+        or _runtime_version(member("ordin/__init__.py")) != version
+    ):
+        raise ValueError("source distribution metadata/runtime version mismatch")
     return [wheel, sdist]
 
 
@@ -568,7 +579,10 @@ def verify_metadata(dist: Path, *, version: str, revision: str, tag: str) -> dic
         "sbom.cdx.json",
         "release.json",
     }
-    lines = (dist / "SHA256SUMS").read_text(encoding="ascii").splitlines()
+    inputs = _bounded_inputs()
+    lines = (
+        inputs.read_file(dist / "SHA256SUMS", inputs.MAX_MEMBER_BYTES).decode("ascii").splitlines()
+    )
     seen = set()
     for line in lines:
         match = re.fullmatch(r"([a-f0-9]{64})  ([A-Za-z0-9_.-]+)", line)
@@ -586,7 +600,8 @@ def verify_metadata(dist: Path, *, version: str, revision: str, tag: str) -> dic
         - {"SHA256SUMS", "provenance.sigstore.json"}
     ):
         raise ValueError("unexpected release assets")
-    identity = json.loads((dist / "release.json").read_text())
+    identity = inputs.read_json(dist / "release.json")
+    inputs.read_json(dist / "sbom.cdx.json")
     if identity.get("schema_version") != "ordin.release.v1" or any(
         identity.get(key) != value
         for key, value in [("version", version), ("revision", revision), ("tag", tag)]

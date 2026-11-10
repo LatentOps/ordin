@@ -5,6 +5,7 @@ import csv
 import hashlib
 import io
 import json
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -146,6 +147,12 @@ def test_complete_bundle_binds_five_packages_and_both_formats_to_exact_source(bu
     )
     sbom = json.loads((dist / "sbom.cdx.json").read_text())
     assert len(sbom["components"]) == len(sbom["dependencies"]) == 5
+    environment = identity["build_environment"]
+    assert environment["dependency_security_clearance"] == "not_established"
+    assert all(item["scope"] == "excluded" for item in sbom["metadata"]["tools"]["components"])
+    assert {item["name"] for item in sbom["metadata"]["tools"]["components"]} == set(
+        environment["packages"]
+    )
     for changed in ({"revision": "a" * 40}, {"tree": "a" * 40}, {"tag": "wrong"}):
         with pytest.raises(ValueError):
             verify_bundle(
@@ -406,3 +413,190 @@ def test_static_bundle_builder_rejects_tracked_build_hooks_without_execution(bun
     revision = git(root, "rev-parse", "HEAD")
     with pytest.raises(ValueError, match="static setuptools"):
         create_bundle_metadata(dist, source_root=root, revision=revision)
+
+
+def test_expanded_tar_headers_and_padding_are_bounded_before_parser(tmp_path, monkeypatch):
+    from scripts import release_bundle as module
+
+    path = tmp_path / "pax.tar.gz"
+    with tarfile.open(path, "w:gz", format=tarfile.PAX_FORMAT) as archive:
+        item = tarfile.TarInfo("owned/file")
+        item.size = 1
+        item.pax_headers = {"comment": "x" * 32768}
+        archive.addfile(item, io.BytesIO(b"x"))
+    assert path.stat().st_size < 4096
+    monkeypatch.setattr(module, "MAX_ARCHIVE_BYTES", 4096)
+    monkeypatch.setattr(module, "MAX_MEMBER_BYTES", 1024)
+    with pytest.raises(ValueError, match="expanded"):
+        module._archive(path, wheel=False)
+
+
+@pytest.mark.parametrize("format", ["zip", "pax"])
+def test_historical_v1_reads_use_the_same_bounded_archive_contract(tmp_path, monkeypatch, format):
+    from scripts import release_integrity as module
+
+    version = "0.3.0"
+    metadata = b"Metadata-Version: 2.1\nName: ordin\nVersion: 0.3.0\n"
+    runtime = b'__version__ = "0.3.0"\n'
+    wheel_path = tmp_path / f"ordin-{version}-py3-none-any.whl"
+    with zipfile.ZipFile(wheel_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(
+            f"ordin-{version}.dist-info/METADATA",
+            metadata + (b"x" * 2048 if format == "zip" else b""),
+        )
+        archive.writestr("ordin/__init__.py", runtime)
+    with tarfile.open(
+        tmp_path / f"ordin-{version}.tar.gz", "w:gz", format=tarfile.PAX_FORMAT
+    ) as archive:
+        for name, raw in (("PKG-INFO", metadata), ("ordin/__init__.py", runtime)):
+            item = tarfile.TarInfo(f"ordin-{version}/" + name)
+            item.size = len(raw)
+            if format == "pax":
+                item.pax_headers = {"comment": "x" * 32768}
+            archive.addfile(item, io.BytesIO(raw))
+    reader = module._bounded_inputs()
+    original = reader.read_archive
+    reader.read_archive = lambda path, *, wheel: original(
+        path, wheel=wheel, max_archive_bytes=4096, max_member_bytes=1024
+    )
+    monkeypatch.setattr(module, "_bounded_inputs", lambda: reader)
+    with pytest.raises(ValueError):
+        module.validate_distributions(tmp_path, version)
+
+
+@pytest.mark.parametrize(
+    "name", ["build_release_bundle.py", "release_integrity.py", "check_release_bundle_install.py"]
+)
+@pytest.mark.parametrize("isolated", [False, True])
+def test_release_cli_never_imports_repository_shadow_modules_before_validation(
+    tmp_path, name, isolated
+):
+    source = Path(__file__).resolve().parents[1] / "scripts"
+    root = tmp_path / "owned"
+    scripts = root / "scripts"
+    scripts.mkdir(parents=True)
+    for helper in (name, "release_bundle.py", "_release_archive.py", "check_swarm_release.py"):
+        shutil.copyfile(source / helper, scripts / helper)
+    marker = tmp_path / "must-not-exist"
+    body = f"raise AssertionError('untrusted shadow import')\n"
+    # Opening the marker is solely a bounded owned-fixture observation.
+    body = f"open({str(marker)!r},'w').write('forbidden')\n" + body
+    (scripts / "json.py").write_text(body)
+    for module in ("json", "packaging"):
+        package = root / module
+        package.mkdir()
+        (package / "__init__.py").write_text(body)
+    if isolated:
+        import importlib.util
+        import py_compile
+
+        poison = tmp_path / "owned-poison.py"
+        poison.write_text(body)
+        cache = Path(importlib.util.cache_from_source(str(scripts / "release_bundle.py")))
+        cache.parent.mkdir(exist_ok=True)
+        py_compile.compile(
+            str(poison),
+            cfile=str(cache),
+            invalidation_mode=py_compile.PycInvalidationMode.UNCHECKED_HASH,
+        )
+    command = [sys.executable]
+    if isolated:
+        command += ["-I", "-B"]
+    result = subprocess.run(
+        [*command, str(scripts / name), "--help"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert not marker.exists()
+    assert result.returncode == (0 if isolated else 1), result.stderr
+    if not isolated:
+        assert "requires isolated Python" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "left,right",
+    [
+        ({"flags": [False]}, {"flags": [0]}),
+        ({"version": 1}, {"version": True}),
+        ({"version": 1}, {"version": 1.0}),
+    ],
+)
+def test_json_identity_comparison_preserves_boolean_and_number_types(left, right):
+    from scripts.release_bundle import _same_json
+
+    assert left == right
+    assert not _same_json(left, right)
+    assert _same_json(left, left)
+
+
+def test_workflow_passes_candidate_null_and_tagged_identity_through_every_stage():
+    workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/release.yml").read_text()
+    blocks = {}
+    current = None
+    for line in workflow.splitlines():
+        if line.startswith("      - name: "):
+            current = line.split(": ", 1)[1]
+            blocks[current] = []
+        elif current:
+            blocks[current].append(line)
+    for label, command, variable in (
+        (
+            "Build all five source-bound wheel and source distributions",
+            "build_release_bundle.py",
+            "tag_args",
+        ),
+        (
+            "Verify the complete offline installed bundle",
+            "check_release_bundle_install.py",
+            "tag_args",
+        ),
+        (
+            "Bind distributions to source and record checksums/SBOM",
+            "release_integrity.py",
+            "publish_args",
+        ),
+    ):
+        block = "\n".join(blocks[label])
+        assert f"{variable}=()" in block
+        assert 'if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag ]]' in block
+        assert '--tag "$RELEASE_TAG"' in block
+        assert f'"${{{variable}[@]}}"' in block
+        assert f"python -I -B scripts/{command}" in block
+    assert "python -m twine check dist/*.whl dist/*.tar.gz" in workflow
+    assert "python -m twine check dist/*\n" not in workflow
+
+
+def test_resealed_metadata_cannot_change_boolean_or_sbom_number_types(bundle):
+    root, dist, revision = bundle
+    create_bundle_metadata(dist, source_root=root, revision=revision)
+    originals = {name: (dist / name).read_bytes() for name in ("release.json", "sbom.cdx.json")}
+    for name, key, value in (
+        ("release.json", "origin_authenticated_by_json", 0),
+        ("release.json", "publication_authorized_by_json", 0.0),
+        ("sbom.cdx.json", "version", True),
+        ("sbom.cdx.json", "version", 1.0),
+    ):
+        for filename, raw in originals.items():
+            (dist / filename).write_bytes(raw)
+        payload = json.loads(originals[name])
+        payload[key] = value
+        (dist / name).write_text(json.dumps(payload))
+        assets = sorted(path for path in dist.iterdir() if path.name != "SHA256SUMS")
+        (dist / "SHA256SUMS").write_text(
+            "".join(
+                hashlib.sha256(path.read_bytes()).hexdigest() + "  " + path.name + "\n"
+                for path in assets
+            )
+        )
+        with pytest.raises(ValueError):
+            verify_bundle(dist, source_root=root, revision=revision)
+
+
+def test_tagged_bundle_requires_the_explicit_expected_tag(bundle):
+    root, dist, revision = bundle
+    create_bundle_metadata(dist, source_root=root, revision=revision, tag="v0.4.0")
+    with pytest.raises(ValueError, match="identity mismatch"):
+        verify_bundle(dist, source_root=root, revision=revision)
+    assert verify_bundle(dist, source_root=root, revision=revision, tag="v0.4.0")["tag"] == "v0.4.0"

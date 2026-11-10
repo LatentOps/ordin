@@ -8,15 +8,12 @@ import configparser
 import csv
 import hashlib
 import importlib
+import importlib.metadata
 import io
 import json
-import math
 import os
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import re
-import stat
-import tarfile
-import zipfile
 from email.parser import BytesParser
 from typing import Any
 
@@ -34,7 +31,8 @@ def _source_helper():
     if spec is None or spec.loader is None:
         raise ValueError("exact release source helper is unavailable")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    path = Path(__file__).with_name("check_swarm_release.py")
+    exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), module.__dict__)
     return module
 
 
@@ -57,152 +55,47 @@ SCHEMA = "ordin.release.v2"
 MAX_ARCHIVE_BYTES = 128 * 1024 * 1024
 MAX_MEMBER_BYTES = 8 * 1024 * 1024
 MAX_MEMBERS = 8192
+BUILD_SCOPE = "Observed build process only; not bundled runtime dependencies or proof that optional SDK/model extras were installed."
 
 
 def _hash(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def _archive_reader():
+    path = Path(__file__).with_name("_release_archive.py")
+    spec = importlib.util.spec_from_file_location("_ordin_release_archives", path)
+    if spec is None:
+        raise ValueError("exact bounded archive helper is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), module.__dict__)
+    return module
+
+
+_ARCHIVES = _archive_reader()
+
+
 def _file(path: Path, limit: int = MAX_ARCHIVE_BYTES) -> bytes:
-    info = path.lstat()
-    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > limit:
-        raise ValueError("release input must be a bounded singly-linked regular file")
-    # Windows path and descriptor APIs can expose different ctime values. Join
-    # stable object identity across them and retain ctime checks within each API.
-    fields = ("st_dev", "st_ino", "st_mode", "st_nlink", "st_size", "st_mtime_ns")
-    descriptor = os.open(
-        path,
-        os.O_RDONLY
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_NONBLOCK", 0)
-        | getattr(os, "O_BINARY", 0),
-    )
-    with os.fdopen(descriptor, "rb") as stream:
-        opened = os.fstat(stream.fileno())
-        if any(getattr(opened, key) != getattr(info, key) for key in fields):
-            raise ValueError("release input changed before its bounded read")
-        raw = stream.read(limit + 1)
-        after = os.fstat(stream.fileno())
-    selected = path.lstat()
-    if (
-        len(raw) > limit
-        or after.st_ctime_ns != opened.st_ctime_ns
-        or selected.st_ctime_ns != info.st_ctime_ns
-        or any(
-            getattr(after, key) != getattr(info, key)
-            or getattr(selected, key) != getattr(info, key)
-            for key in fields
-        )
-    ):
-        raise ValueError("release input changed or exceeded its bound")
-    return raw
+    return _ARCHIVES.read_file(path, limit)
 
 
-def _json(path: Path) -> Any:
-    def unique(pairs):
-        result = {}
-        for key, value in pairs:
-            if key in result:
-                raise ValueError("duplicate release JSON field")
-            result[key] = value
-        return result
-
-    def invalid_constant(value):
-        raise ValueError("nonfinite release JSON")
-
-    try:
-        result = json.loads(
-            _file(path, MAX_MEMBER_BYTES),
-            object_pairs_hook=unique,
-            parse_constant=invalid_constant,
-        )
-        pending = [(result, 0)]
-        count = 0
-        while pending:
-            value, depth = pending.pop()
-            count += 1
-            if count > 65536 or depth > 16:
-                raise ValueError("release JSON exceeds structural bounds")
-            if type(value) is str:
-                value.encode("utf-8")
-            elif type(value) is float and not math.isfinite(value):
-                raise ValueError("nonfinite release JSON")
-            elif type(value) is dict:
-                pending.extend((part, depth + 1) for pair in value.items() for part in pair)
-            elif type(value) is list:
-                pending.extend((part, depth + 1) for part in value)
-        return result
-    except (RecursionError, UnicodeError) as exc:
-        raise ValueError("invalid release JSON") from exc
+def _json(path: Path):
+    return _ARCHIVES.read_json(path, MAX_MEMBER_BYTES)
 
 
 def _path(name: str) -> str:
-    path = PurePosixPath(name)
-    if (
-        not name
-        or len(name.encode("utf-8")) > 1024
-        or "\\" in name
-        or ":" in name
-        or any(ord(c) < 32 for c in name)
-        or path.is_absolute()
-        or path.as_posix() != name.removesuffix("/")
-        or any(part in {"", ".", ".."} for part in name.rstrip("/").split("/"))
-    ):
-        raise ValueError("unowned release archive path")
-    return path.as_posix()
+    return _ARCHIVES.safe_path(name)
 
 
 def _archive(path: Path, *, wheel: bool, roots: tuple[str, ...] | None = None) -> dict[str, bytes]:
-    raw = _file(path, MAX_ARCHIVE_BYTES)
-    result: dict[str, bytes] = {}
-    seen: set[str] = set()
-    total = 0
-
-    def add(name, size, regular, directory, stream):
-        nonlocal total
-        name = _path(name)
-        if roots is not None and name.split("/", 1)[0] not in roots:
-            raise ValueError("release archive contains an unowned top-level directory")
-        if name in seen or len(seen) >= MAX_MEMBERS:
-            raise ValueError("duplicate or excessive release archive entries")
-        seen.add(name)
-        if directory:
-            return
-        total += size
-        if not regular or size > MAX_MEMBER_BYTES or total > MAX_ARCHIVE_BYTES:
-            raise ValueError("unsupported release archive member type or size")
-        data = stream.read(size + 1)
-        if len(data) != size:
-            raise ValueError("release archive member size mismatch")
-        result[name] = data
-
-    if wheel:
-        with zipfile.ZipFile(io.BytesIO(raw)) as archive:
-            for item in archive.infolist():
-                if item.orig_filename != item.filename:
-                    raise ValueError("wheel archive filename was normalized or NUL-truncated")
-                mode = item.external_attr >> 16
-                kind = stat.S_IFMT(mode)
-                if (
-                    item.flag_bits & 1
-                    or kind not in {0, stat.S_IFREG, stat.S_IFDIR}
-                    or (kind == stat.S_IFDIR and not item.is_dir())
-                    or (kind == stat.S_IFREG and item.is_dir())
-                ):
-                    raise ValueError("unsupported encrypted or linked wheel member")
-                with archive.open(item) as stream:
-                    add(item.filename, item.file_size, not item.is_dir(), item.is_dir(), stream)
-    else:
-        with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as archive:
-            for item in archive:
-                if item.isdir():
-                    add(item.name, 0, False, True, None)
-                elif item.isfile():
-                    with archive.extractfile(item) as stream:
-                        add(item.name, item.size, True, False, stream)
-                else:
-                    raise ValueError("source distribution contains a link or special entry")
-    return result
+    return _ARCHIVES.read_archive(
+        path,
+        wheel=wheel,
+        roots=roots,
+        max_archive_bytes=MAX_ARCHIVE_BYTES,
+        max_member_bytes=MAX_MEMBER_BYTES,
+        max_members=MAX_MEMBERS,
+    )
 
 
 def _requirements(project: dict) -> list[str]:
@@ -286,6 +179,8 @@ def _entrypoints(raw: bytes | None, project: dict) -> dict[str, dict[str, str]]:
     parsed.optionxform = str
     if raw is not None:
         parsed.read_string(raw.decode("utf-8"))
+    if parsed.defaults():
+        raise ValueError("release entrypoints cannot inherit implicit defaults")
     actual = {section: dict(parsed[section]) for section in parsed.sections()}
     if actual != expected:
         raise ValueError("release entrypoints differ from source")
@@ -479,7 +374,9 @@ def _validate_assets(dist: Path, root: Path, revision: str, tree: str | None = N
         wheel_metadata = BytesParser().parsebytes(files.get(prefix + "/WHEEL", b""))
         if (
             wheel_metadata.get_all("Tag") != ["py3-none-any"]
-            or wheel_metadata.get("Root-Is-Purelib") != "true"
+            or wheel_metadata.get_all("Root-Is-Purelib") != ["true"]
+            or wheel_metadata.get_all("Wheel-Version") != ["1.0"]
+            or set(wheel_metadata.keys()) - {"Wheel-Version", "Generator", "Root-Is-Purelib", "Tag"}
         ):
             raise ValueError("bundle requires universal pure-Python wheels")
         _record(files, prefix)
@@ -553,6 +450,60 @@ def _validate_assets(dist: Path, root: Path, revision: str, tree: str | None = N
     return source, records, assets
 
 
+def _build_environment(value: Any = None) -> dict:
+    if value is None:
+        packages = {}
+        for installed in importlib.metadata.distributions():
+            name = installed.metadata.get("Name", "")
+            if name:
+                name = canonicalize_name(name)
+                if name in packages and packages[name] != installed.version:
+                    raise ValueError("observed build environment has ambiguous distributions")
+                packages[name] = installed.version
+        value = {
+            "python": os.sys.version.split()[0],
+            "implementation": os.sys.implementation.name,
+            "platform": os.sys.platform,
+            "packages": packages,
+            "scope": BUILD_SCOPE,
+            "dependency_security_clearance": "not_established",
+        }
+    if type(value) is not dict or set(value) != {
+        "python",
+        "implementation",
+        "platform",
+        "packages",
+        "scope",
+        "dependency_security_clearance",
+    }:
+        raise ValueError("invalid build-only environment record")
+    if any(
+        type(value[key]) is not str
+        or not 1 <= len(value[key]) <= 128
+        or any(ord(char) < 32 for char in value[key])
+        for key in ("python", "implementation", "platform")
+    ):
+        raise ValueError("invalid build-only interpreter identity")
+    if (
+        value["scope"] != BUILD_SCOPE
+        or value["dependency_security_clearance"] != "not_established"
+        or type(value["packages"]) is not dict
+        or len(value["packages"]) > 512
+    ):
+        raise ValueError("invalid build-only inventory scope or bound")
+    for name, version in value["packages"].items():
+        if (
+            type(name) is not str
+            or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,127}", name)
+            or canonicalize_name(name) != name
+            or type(version) is not str
+            or not 1 <= len(version) <= 128
+        ):
+            raise ValueError("invalid observed build package identity")
+        Version(version)
+    return value
+
+
 def _sbom(identity: dict) -> dict:
     components = []
     for name, package in sorted(identity["packages"].items()):
@@ -577,6 +528,19 @@ def _sbom(identity: dict) -> dict:
         "specVersion": "1.6",
         "version": 1,
         "metadata": {
+            "tools": {
+                "components": [
+                    {
+                        "type": "library",
+                        "name": name,
+                        "version": version,
+                        "bom-ref": "build-environment:" + name,
+                        "scope": "excluded",
+                        "properties": [{"name": "ordin:role", "value": BUILD_SCOPE}],
+                    }
+                    for name, version in sorted(identity["build_environment"]["packages"].items())
+                ]
+            },
             "component": {
                 "type": "application",
                 "name": "ordin-release-bundle",
@@ -604,6 +568,12 @@ def _write(path: Path, value: Any) -> None:
         stream.write(json.dumps(value, sort_keys=True, indent=2, allow_nan=False) + "\n")
 
 
+def _same_json(actual, expected) -> bool:
+    return json.dumps(actual, sort_keys=True, separators=(",", ":"), allow_nan=False) == json.dumps(
+        expected, sort_keys=True, separators=(",", ":"), allow_nan=False
+    )
+
+
 def create_bundle_metadata(
     dist: Path, *, source_root: Path, revision: str, tag: str | None = None
 ) -> dict:
@@ -622,6 +592,7 @@ def create_bundle_metadata(
         "tag": tag,
         "packages": records,
         "artifacts": assets,
+        "build_environment": _build_environment(),
         "origin_authenticated_by_json": False,
         "publication_authorized_by_json": False,
     }
@@ -655,12 +626,13 @@ def verify_bundle(
         "tag": tag,
         "packages": records,
         "artifacts": assets,
+        "build_environment": _build_environment(identity.get("build_environment")),
         "origin_authenticated_by_json": False,
         "publication_authorized_by_json": False,
     }
-    if identity != expected:
+    if not _same_json(identity, expected):
         raise ValueError("bundle source/package/tag identity mismatch")
-    if _json(dist / "sbom.cdx.json") != _sbom(identity):
+    if not _same_json(_json(dist / "sbom.cdx.json"), _sbom(identity)):
         raise ValueError("bundle SBOM differs from its verified artifacts")
     indexed = {
         **assets,
