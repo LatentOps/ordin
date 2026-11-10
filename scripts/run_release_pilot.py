@@ -156,12 +156,15 @@ def _loaded(roots):
                 if type(module) is not ModuleType:
                     raise ValueError("pilot requires standard installed namespace modules")
                 filename = vars(module).get("__file__")
-                if filename is None or not Path(filename).resolve().is_relative_to(root):
+                if type(filename) is not str or not Path(filename).resolve().is_relative_to(root):
                     raise ValueError("pilot imported a source namespace overlay")
                 spec = vars(module).get("__spec__")
                 if (
                     type(spec) is not machinery.ModuleSpec
                     or type(spec.loader) is not machinery.SourceFileLoader
+                    or type(spec.origin) is not str
+                    or type(spec.loader.path) is not str
+                    or type(spec.loader.name) is not str
                     or spec.origin != filename
                     or spec.loader.path != filename
                     or spec.loader.name != name

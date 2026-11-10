@@ -451,7 +451,9 @@ def test_actual_source_import_spec_is_refused_without_executing_a_marker(tmp_pat
     assert not marker.exists(), "source overlay executed before refusal"
 
 
-@pytest.mark.parametrize("overlay", ["loaded", "meta", "hook", "cache", "loader"])
+@pytest.mark.parametrize(
+    "overlay", ["loaded", "loaded_path_callback", "meta", "hook", "cache", "loader"]
+)
 def test_import_overlays_are_rejected_without_invoking_their_callbacks(
     tmp_path, monkeypatch, overlay
 ):
@@ -467,9 +469,17 @@ def test_import_overlays_are_rejected_without_invoking_their_callbacks(
         marker.write_text("path hook executed")
         raise ImportError
 
-    if overlay == "loaded":
+    if overlay in {"loaded", "loaded_path_callback"}:
         module = ModuleType("ordin")
         module.__file__ = str(tmp_path / "source/ordin/__init__.py")
+        if overlay == "loaded_path_callback":
+
+            class ForeignPath:
+                def __fspath__(self):
+                    marker.write_text("path callback executed")
+                    return str(site / "ordin/__init__.py")
+
+            module.__file__ = ForeignPath()
         module.__getattr__ = lambda name: marker.write_text("module callback executed")
         monkeypatch.setitem(sys.modules, "ordin", module)
     elif overlay == "meta":
