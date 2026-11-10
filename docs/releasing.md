@@ -101,7 +101,9 @@ Publication requires all 44 maintained main jobs, bound to the latest exact-sour
 execution of their own workflow and GitHub Actions check suite. The release,
 offline Assurance and native runtime workflows require completed manual runs on
 `main`; the tag's own build/attest/publish jobs cannot supply that qualification.
-Only the API-verified current tag attempt's three release jobs may still be in
+The Ubuntu-built artifact must also pass exact-source verification and offline
+installation on Windows before the attestation job can succeed.
+Only the API-verified current tag attempt's four release jobs may still be in
 progress during their own integrity checks. Their completed failures, new failing
 or pending checks and commit statuses still block publication. Prior run attempts
 are superseded only by a verified later execution in the same workflow scope.

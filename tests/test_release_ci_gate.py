@@ -155,6 +155,7 @@ class ReleaseAPI:
             "release.yml",
             {
                 "Build release artifacts",
+                "Verify shared release bundle on Windows",
                 "Attest tested release artifacts",
                 "Publish GitHub Release",
             },
@@ -622,6 +623,42 @@ def test_current_tag_jobs_neither_self_block_nor_supply_prior_main_acceptance(ap
         run for run in api.runs if run is tag_run or not run["path"].endswith("release.yml")
     ]
     with pytest.raises(ValueError, match="main qualification: release.yml"):
+        verify_release_checks(REPOSITORY, REVISION, tag=TAG)
+
+
+@pytest.mark.parametrize("outcome", [("completed", "failure"), ("completed", "skipped")])
+def test_tag_windows_verification_failure_cannot_be_waived(api, monkeypatch, outcome):
+    run = api.tag_run(monkeypatch)
+    job = next(
+        job
+        for job in api.jobs[run["id"]]
+        if job["name"] == "Verify shared release bundle on Windows"
+    )
+    api.outcome(job, *outcome)
+    with pytest.raises(ValueError, match="unsuccessful job"):
+        verify_release_checks(REPOSITORY, REVISION, tag=TAG)
+
+
+def test_pending_windows_job_on_main_is_not_a_tag_self_job(api, monkeypatch):
+    api.tag_run(monkeypatch)
+    main = next(
+        run
+        for run in api.runs
+        if run["path"] == ".github/workflows/release.yml" and run["head_branch"] == "main"
+    )
+    job = api.add_job(main, "Verify shared release bundle on Windows")
+    api.outcome(job, "queued", None)
+    with pytest.raises(ValueError):
+        verify_release_checks(REPOSITORY, REVISION, tag=TAG)
+
+
+def test_pending_windows_job_from_a_foreign_tag_run_is_not_exempt(api, monkeypatch):
+    api.tag_run(monkeypatch)
+    other = api.add_run(
+        "release.yml", {"Verify shared release bundle on Windows"}, branch="v0.0.1", event="push"
+    )
+    api.outcome(api.jobs[other["id"]][0], "queued", None)
+    with pytest.raises(ValueError, match="additional check"):
         verify_release_checks(REPOSITORY, REVISION, tag=TAG)
 
 

@@ -6,6 +6,8 @@ public v0.4.0 release already exists. Use Python 3.10–3.13 in a new environmen
 The installation commands below target a prepared final-version candidate with
 core and Swarm metadata at `0.4.0`; earlier development bundles use their actual
 recorded package versions.
+
+Source verification and build staging use the exact committed Git blob bytes, so checkout line-ending conversion does not change artifact identity.
 The portable fixture needs no model, provider account or credential.
 Replace `/absolute/...` with an actual absolute local directory; on Windows use
 an absolute drive path such as `C:\verified-bundle`.

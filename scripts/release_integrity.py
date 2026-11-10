@@ -135,7 +135,10 @@ RELEASE_WORKFLOW_CHECKS = {
 }
 RELEASE_CHECKS = set().union(*RELEASE_WORKFLOW_CHECKS.values())
 MANUAL_RELEASE_WORKFLOWS = {"release.yml", "assurance.yml", "runtime-extension.yml"}
-TAG_RELEASE_CHECKS = RELEASE_WORKFLOW_CHECKS["release.yml"] | {"Publish GitHub Release"}
+TAG_RELEASE_CHECKS = RELEASE_WORKFLOW_CHECKS["release.yml"] | {
+    "Verify shared release bundle on Windows",
+    "Publish GitHub Release",
+}
 
 
 def _github_pages(repository: str, endpoint: str) -> list[Any]:

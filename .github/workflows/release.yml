@@ -137,9 +137,47 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  verify-windows:
+    name: Verify shared release bundle on Windows
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install pinned release validation tooling
+        run: python -m pip install --require-hashes -r requirements/dev-baseline.txt
+      - name: Materialize a clean CRLF checkout
+        run: git -c core.hooksPath=NUL -c core.fsmonitor=false -c core.autocrlf=true checkout-index --all --force
+      - name: Download the exact Ubuntu-built bundle
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          path: dist
+          merge-multiple: true
+      - name: Verify and install the shared bundle against canonical source
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: pwsh
+        run: |
+          $tagArgs = @()
+          if ($env:GITHUB_EVENT_NAME -eq 'push' -and $env:GITHUB_REF_TYPE -eq 'tag') {
+            $tagArgs = @('--tag', $env:RELEASE_TAG)
+          }
+          python -I -B scripts/release_integrity.py verify --bundle --dist "$env:GITHUB_WORKSPACE/dist" --revision "$env:RELEASE_SHA" @tagArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -I -B scripts/check_release_bundle_install.py --bundle "$env:GITHUB_WORKSPACE/dist" --workspace "$env:RUNNER_TEMP/ordin-shared-bundle-install" --revision "$env:RELEASE_SHA" @tagArgs
+
   attest:
     name: Attest tested release artifacts
-    needs: build
+    needs: [build, verify-windows]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:

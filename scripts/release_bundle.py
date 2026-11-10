@@ -44,6 +44,10 @@ def source_identity(root, revision):
     return _source_helper().source_identity(root, revision)
 
 
+def source_snapshot(root, revision):
+    return _source_helper().source_snapshot(root, revision)
+
+
 PROJECTS = {
     "ordin": (".", "ordin"),
     "ordin-swarm": ("integrations/swarm", "ordin_swarm"),
@@ -230,15 +234,17 @@ def _record(files: dict[str, bytes], prefix: str) -> None:
 
 
 def _source_projects(root: Path, revision: str, tree: str | None):
-    source = source_identity(root, revision)
+    source, committed, _ = source_snapshot(root, revision)
     if tree is not None and source["tree"] != tree:
         raise ValueError("bundle source tree differs from trusted expected tree")
     tomllib = importlib.import_module("tomllib" if os.sys.version_info >= (3, 11) else "tomli")
-    tracked = set(git(root, "ls-files", "-z").decode().split("\0")) - {""}
+    tracked = set(committed)
     projects = {}
     for name, (relative, module) in PROJECTS.items():
         directory = root / relative
-        settings = tomllib.loads(_file(directory / "pyproject.toml").decode("utf-8"))
+        settings = tomllib.loads(
+            committed[(directory / "pyproject.toml").relative_to(root).as_posix()].decode("utf-8")
+        )
         project = settings["project"]
         build_requirements = [Requirement(value) for value in settings["build-system"]["requires"]]
         setuptools = settings.get("tool", {}).get("setuptools", {})
@@ -288,7 +294,9 @@ def _source_projects(root: Path, revision: str, tree: str | None):
                 continue
             if path.relative_to(root).as_posix() not in tracked:
                 raise ValueError("untracked package input cannot enter a bundle")
-            payload[path.relative_to(directory).as_posix()] = _file(path, MAX_MEMBER_BYTES)
+            payload[path.relative_to(directory).as_posix()] = committed[
+                path.relative_to(root).as_posix()
+            ]
         initial = payload.get(module + "/__init__.py")
         if initial is None:
             raise ValueError("bundle package initializer is missing")
@@ -303,13 +311,14 @@ def _source_projects(root: Path, revision: str, tree: str | None):
         ]
         if (name == "ordin" and versions != [version]) or (versions and versions != [version]):
             raise ValueError("source runtime version differs from package metadata")
-        license_bytes = _file(directory / "LICENSE", MAX_MEMBER_BYTES)
-        if (
-            license_bytes != _file(root / "LICENSE", MAX_MEMBER_BYTES)
-            or b"Apache License" not in license_bytes
-        ):
+        license_bytes = committed[(directory / "LICENSE").relative_to(root).as_posix()]
+        if license_bytes != committed["LICENSE"] or b"Apache License" not in license_bytes:
             raise ValueError("bundle package license differs from owned Apache license")
-        if (root / "NOTICE").exists() and _file(directory / "NOTICE") != _file(root / "NOTICE"):
+        if (
+            "NOTICE" in committed
+            and committed[(directory / "NOTICE").relative_to(root).as_posix()]
+            != committed["NOTICE"]
+        ):
             raise ValueError("bundle package notice differs from owned repository attribution")
         projects[name] = (directory, project, payload)
     core_version = projects["ordin"][1]["version"]
@@ -324,14 +333,21 @@ def _source_projects(root: Path, revision: str, tree: str | None):
                 or not requirement.specifier.contains(core_version, prereleases=True)
             ):
                 raise ValueError("bundle dependency does not admit its exact bundled core")
-    return source, projects, tracked
+    return source, projects, committed
 
 
 def _validate_assets(dist: Path, root: Path, revision: str, tree: str | None = None):
-    source, projects, tracked = _source_projects(root, revision, tree)
+    source, projects, committed = _source_projects(root, revision, tree)
     records = {}
     assets = {}
     for name, (directory, project, payload) in projects.items():
+
+        def source_bytes(relative):
+            key = (directory / relative).relative_to(root).as_posix()
+            if key not in committed:
+                raise ValueError("packaging input is not in the trusted committed source")
+            return committed[key]
+
         normalized, version = name.replace("-", "_"), project["version"]
         wheel = f"{normalized}-{version}-py3-none-any.whl"
         sdist = f"{normalized}-{version}.tar.gz"
@@ -342,9 +358,9 @@ def _validate_assets(dist: Path, root: Path, revision: str, tree: str | None = N
         if packaged != payload:
             raise ValueError("bundle wheel payload differs from exact source/resources")
         allowed = {"METADATA", "WHEEL", "RECORD", "entry_points.txt", "top_level.txt"}
-        licenses = {"LICENSE": _file(directory / "LICENSE")}
-        if (directory / "NOTICE").exists():
-            licenses["NOTICE"] = _file(directory / "NOTICE")
+        licenses = {"LICENSE": source_bytes("LICENSE")}
+        if (directory / "NOTICE").relative_to(root).as_posix() in committed:
+            licenses["NOTICE"] = source_bytes("NOTICE")
         allowed |= {"licenses/" + key for key in licenses}
         if any(
             key[len(prefix) + 1 :] not in allowed for key in files if key.startswith(prefix + "/")
@@ -366,7 +382,7 @@ def _validate_assets(dist: Path, root: Path, revision: str, tree: str | None = N
         )
         if (
             description.strip()
-            != _file(directory / project["readme"]).decode("utf-8").replace("\r\n", "\n").strip()
+            != source_bytes(project["readme"]).decode("utf-8").replace("\r\n", "\n").strip()
         ):
             raise ValueError("wheel description differs from tracked README")
         if sorted(parsed_metadata.get_all("License-File", [])) != sorted(licenses):
@@ -400,11 +416,11 @@ def _validate_assets(dist: Path, root: Path, revision: str, tree: str | None = N
             or source_files.get(egg + "dependency_links.txt") != b"\n"
         ):
             raise ValueError("source distribution has unexpected package/link metadata")
-        required = {**payload, **licenses, "pyproject.toml": _file(directory / "pyproject.toml")}
+        required = {**payload, **licenses, "pyproject.toml": source_bytes("pyproject.toml")}
         readme = project.get("readme")
         if not isinstance(readme, str):
             raise ValueError("bundle projects require their tracked README")
-        required[readme] = _file(directory / readme)
+        required[readme] = source_bytes(readme)
         if any(source_files.get(key) != raw for key, raw in required.items()):
             raise ValueError("source distribution omits or changes exact package source/license")
         generated = {
@@ -420,8 +436,7 @@ def _validate_assets(dist: Path, root: Path, revision: str, tree: str | None = N
         for key, raw in source_files.items():
             if key in generated:
                 continue
-            selected = directory / key
-            if selected.relative_to(root).as_posix() not in tracked or _file(selected) != raw:
+            if source_bytes(key) != raw:
                 raise ValueError("source distribution contains foreign or changed source")
         if (
             source_files.get("setup.cfg", b"").replace(b"\r\n", b"\n")
