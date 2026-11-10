@@ -278,6 +278,18 @@ def test_current_release_cannot_use_the_legacy_core_only_format(tmp_path):
             operation(tmp_path, version="0.4.0", revision="a" * 40, tag="v0.4.0")
 
 
+def test_wrong_trusted_version_cannot_create_even_valid_bundle_metadata(tmp_path, monkeypatch):
+    from scripts import release_integrity as module
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("metadata producer ran before the trusted version comparison")
+
+    monkeypatch.setattr(module, "create_bundle_metadata", forbidden)
+    with pytest.raises(ValueError, match="trusted expected version"):
+        module.create_metadata(tmp_path, version="9.9.9", revision="a" * 40, tag="v9.9.9")
+    assert list(tmp_path.iterdir()) == []
+
+
 @pytest.mark.parametrize(
     "raw",
     [
@@ -313,6 +325,33 @@ def test_release_json_and_archives_are_bounded_before_parsing(tmp_path, monkeypa
     monkeypatch.setattr(module, "MAX_ARCHIVE_BYTES", 16)
     with pytest.raises(ValueError):
         module._archive(path, wheel=True)
+
+
+def test_descriptor_and_path_ctime_are_fenced_within_their_own_stat_apis(tmp_path, monkeypatch):
+    from scripts import release_bundle as module
+    from types import SimpleNamespace
+
+    path = tmp_path / "owned.bin"
+    path.write_bytes(b"owned release bytes")
+    fstat = module.os.fstat
+    changed = False
+    calls = []
+
+    def descriptor_stat(descriptor):
+        info = fstat(descriptor)
+        fields = ("st_dev", "st_ino", "st_mode", "st_nlink", "st_size", "st_mtime_ns")
+        values = {key: getattr(info, key) for key in fields}
+        calls.append(descriptor)
+        values["st_ctime_ns"] = (
+            info.st_ctime_ns + 1000 + (1 if changed and len(calls) % 2 == 0 else 0)
+        )
+        return SimpleNamespace(**values)
+
+    monkeypatch.setattr(module.os, "fstat", descriptor_stat)
+    assert module._file(path) == b"owned release bytes"
+    changed = True
+    with pytest.raises(ValueError, match="changed"):
+        module._file(path)
 
 
 def test_verifier_spec_import_does_not_add_checkout_to_installed_python_path(bundle):

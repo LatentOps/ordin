@@ -67,7 +67,9 @@ def _file(path: Path, limit: int = MAX_ARCHIVE_BYTES) -> bytes:
     info = path.lstat()
     if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > limit:
         raise ValueError("release input must be a bounded singly-linked regular file")
-    fields = ("st_dev", "st_ino", "st_mode", "st_nlink", "st_size", "st_mtime_ns", "st_ctime_ns")
+    # Windows path and descriptor APIs can expose different ctime values. Join
+    # stable object identity across them and retain ctime checks within each API.
+    fields = ("st_dev", "st_ino", "st_mode", "st_nlink", "st_size", "st_mtime_ns")
     descriptor = os.open(
         path,
         os.O_RDONLY
@@ -82,9 +84,15 @@ def _file(path: Path, limit: int = MAX_ARCHIVE_BYTES) -> bytes:
         raw = stream.read(limit + 1)
         after = os.fstat(stream.fileno())
     selected = path.lstat()
-    if len(raw) > limit or any(
-        getattr(after, key) != getattr(info, key) or getattr(selected, key) != getattr(info, key)
-        for key in fields
+    if (
+        len(raw) > limit
+        or after.st_ctime_ns != opened.st_ctime_ns
+        or selected.st_ctime_ns != info.st_ctime_ns
+        or any(
+            getattr(after, key) != getattr(info, key)
+            or getattr(selected, key) != getattr(info, key)
+            for key in fields
+        )
     ):
         raise ValueError("release input changed or exceeded its bound")
     return raw

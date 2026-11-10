@@ -486,9 +486,10 @@ def validate_distributions(dist: Path, version: str) -> list[Path]:
 
 def create_metadata(dist: Path, *, version: str, revision: str, tag: str) -> None:
     if not _legacy_version(version):
-        identity = create_bundle_metadata(
-            dist, source_root=Path(__file__).resolve().parents[1], revision=revision, tag=tag
-        )
+        root = Path(__file__).resolve().parents[1]
+        if _runtime_version((root / "ordin/__init__.py").read_bytes()) != version:
+            raise ValueError("bundle version differs from the trusted expected version")
+        identity = create_bundle_metadata(dist, source_root=root, revision=revision, tag=tag)
         if identity["version"] != version:
             raise ValueError("bundle version differs from the trusted expected version")
         return
