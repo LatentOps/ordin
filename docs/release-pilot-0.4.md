@@ -19,9 +19,25 @@ the core, Swarm, Runtime, Security and Decision Models wheel/sdist pairs, releas
 metadata, SBOM and hashes. No public prerelease tag is required for this exact-SHA
 engineering step. Publication remains a separate final-version/tag operation.
 
-Create a NEW private pilot environment, separate from the build environment.
-Install `requirements/pilot-runtime.txt` with pip's `--require-hashes`, then
-install the five verified bundle wheels with `--no-index --no-deps`. The runtime
+Create a NEW private pilot environment with `venv --without-pip`, separate from
+the build/tool environment. Use the separate trusted tool Python's pip with its
+`--python` option to install `requirements/pilot-runtime.txt` with
+`--require-hashes`, then the five verified bundle wheels with
+`--no-index --no-deps`. For example, after verifying the candidate bundle:
+
+```sh
+/ABS/TOOL/bin/python -I -m venv --without-pip /ABS/NEW-PILOT-ENV
+/ABS/TOOL/bin/python -I -m pip --python /ABS/NEW-PILOT-ENV/bin/python \
+  install --require-hashes -r /ABS/SOURCE/requirements/pilot-runtime.txt
+/ABS/TOOL/bin/python -I -m pip --python /ABS/NEW-PILOT-ENV/bin/python \
+  install --no-index --no-deps /ABS/DIST/*.whl
+```
+
+On Windows, select the new environment's `Scripts/python.exe` and pass the five
+verified wheel paths explicitly. The runtime itself requires no pip or
+setuptools. This bootstrap also avoids setuptools import hooks that older
+CPython versions can otherwise seed in an ordinary new virtual environment.
+It changes no existing interpreter installation. The runtime
 lock contains pytest, packaging and their applicable pinned transitive closure;
 it excludes development/build tools, setuptools hooks and editable installs. Keep
 optional model providers and production credentials out of this environment.
