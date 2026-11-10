@@ -8,7 +8,6 @@ import configparser
 import csv
 import hashlib
 import importlib
-import importlib.metadata
 import io
 import json
 import os
@@ -24,7 +23,26 @@ from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 from packaging.version import Version
 
-from scripts.check_swarm_release import git, source_identity
+import importlib.util
+
+
+def _source_helper():
+    spec = importlib.util.spec_from_file_location(
+        "_ordin_release_source", Path(__file__).with_name("check_swarm_release.py")
+    )
+    if spec is None or spec.loader is None:
+        raise ValueError("exact release source helper is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def git(root, *arguments):
+    return _source_helper().git(root, *arguments)
+
+
+def source_identity(root, revision):
+    return _source_helper().source_identity(root, revision)
 
 
 PROJECTS = {
@@ -365,8 +383,14 @@ def _validate_assets(dist: Path, root: Path, revision: str, tree: str | None = N
         if files.get(prefix + "/top_level.txt", b"").decode().splitlines() != [module]:
             raise ValueError("wheel top-level package metadata differs from source")
         parsed_metadata = BytesParser().parsebytes(files[prefix + "/METADATA"])
+        description = (
+            files[prefix + "/METADATA"]
+            .replace(b"\r\n", b"\n")
+            .partition(b"\n\n")[2]
+            .decode("utf-8")
+        )
         if (
-            parsed_metadata.get_payload().replace("\r\n", "\n").strip()
+            description.strip()
             != _file(directory / project["readme"]).decode("utf-8").replace("\r\n", "\n").strip()
         ):
             raise ValueError("wheel description differs from tracked README")
@@ -527,9 +551,13 @@ def verify_bundle(
     dist: Path, *, source_root: Path, revision: str, tag: str | None = None, tree: str | None = None
 ) -> dict:
     identity = _json(dist / "release.json")
-    source, records, assets = _validate_assets(dist, source_root, revision, tree)
     if not isinstance(identity, dict) or identity.get("schema_version") != SCHEMA:
         raise ValueError("current releases require the complete v2 bundle")
+    if not isinstance(identity.get("tag"), str) or not re.fullmatch(
+        r"[A-Za-z0-9_./-]{1,128}", identity["tag"]
+    ):
+        raise ValueError("invalid bundle tag identity")
+    source, records, assets = _validate_assets(dist, source_root, revision, tree)
     expected = {
         "schema_version": SCHEMA,
         "version": records["ordin"]["version"],

@@ -17,24 +17,32 @@ from email.parser import BytesParser
 from pathlib import Path
 from typing import Any, NoReturn
 
-import sys
+import importlib.util
 
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+def _bundle_helper():
+    spec = importlib.util.spec_from_file_location(
+        "_ordin_release_bundle", Path(__file__).with_name("release_bundle.py")
+    )
+    if spec is None or spec.loader is None:
+        raise ValueError("exact release bundle helper is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def create_bundle_metadata(dist: Path, *, source_root: Path, revision: str, tag: str) -> dict:
-    from scripts.release_bundle import create_bundle_metadata as create
-
-    return create(dist, source_root=source_root, revision=revision, tag=tag)
+    return _bundle_helper().create_bundle_metadata(
+        dist, source_root=source_root, revision=revision, tag=tag
+    )
 
 
 def verify_bundle(
     dist: Path, *, source_root: Path, revision: str, tag: str | None = None, tree: str | None = None
 ) -> dict:
-    from scripts.release_bundle import verify_bundle as verify
-
-    return verify(dist, source_root=source_root, revision=revision, tag=tag, tree=tree)
+    return _bundle_helper().verify_bundle(
+        dist, source_root=source_root, revision=revision, tag=tag, tree=tree
+    )
 
 
 def _legacy_version(version: str) -> bool:
