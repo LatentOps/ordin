@@ -52,10 +52,7 @@ def build_bundle(source_root: Path, dist: Path, *, revision: str, tag: str | Non
                 raise ValueError(f"release build failed for {project}: {detail}")
     if source_identity(source_root, revision) != before:
         raise ValueError("release source changed during the build")
-    version = projects["ordin"][1]["version"]
-    return create_bundle_metadata(
-        dist, source_root=source_root, revision=revision, tag=tag or f"v{version}"
-    )
+    return create_bundle_metadata(dist, source_root=source_root, revision=revision, tag=tag)
 
 
 def main() -> None:

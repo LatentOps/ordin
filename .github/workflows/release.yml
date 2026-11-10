@@ -73,7 +73,12 @@ jobs:
         env:
           RELEASE_SHA: ${{ github.sha }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: python scripts/build_release_bundle.py --dist dist --revision "$RELEASE_SHA" --tag "$RELEASE_TAG"
+        run: |
+          tag_args=()
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag ]]; then
+            tag_args+=(--tag "$RELEASE_TAG")
+          fi
+          python scripts/build_release_bundle.py --dist dist --revision "$RELEASE_SHA" "${tag_args[@]}"
       - name: Validate distribution metadata
         run: python -m twine check dist/*.whl dist/*.tar.gz
       - name: Verify the complete offline installed bundle
@@ -114,10 +119,10 @@ jobs:
           RELEASE_SHA: ${{ github.sha }}
         run: |
           publish_args=()
-          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
-            publish_args+=(--publish)
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag ]]; then
+            publish_args+=(--publish --tag "$RELEASE_TAG")
           fi
-          python scripts/release_integrity.py verify --bundle --revision "$RELEASE_SHA" --tag "$RELEASE_TAG" "${publish_args[@]}"
+          python scripts/release_integrity.py verify --bundle --revision "$RELEASE_SHA" "${publish_args[@]}"
       - name: Upload validated artifacts
         id: upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

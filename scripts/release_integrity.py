@@ -31,7 +31,9 @@ def _bundle_helper():
     return module
 
 
-def create_bundle_metadata(dist: Path, *, source_root: Path, revision: str, tag: str) -> dict:
+def create_bundle_metadata(
+    dist: Path, *, source_root: Path, revision: str, tag: str | None = None
+) -> dict:
     return _bundle_helper().create_bundle_metadata(
         dist, source_root=source_root, revision=revision, tag=tag
     )
@@ -602,20 +604,26 @@ def main() -> None:
     parser.add_argument("mode", choices=["create", "verify"])
     parser.add_argument("--dist", type=Path, default=Path("dist"))
     parser.add_argument("--revision", required=True)
-    parser.add_argument("--tag", required=True)
+    parser.add_argument("--tag", help="Exact tag label; omit only for an untagged v2 candidate")
     parser.add_argument("--publish", action="store_true")
     parser.add_argument(
         "--bundle", action="store_true", help="Require the complete five-project v2 bundle"
     )
     args = parser.parse_args()
     version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+    if _legacy_version(version) and not args.tag:
+        raise ValueError("historical releases require an explicit trusted tag identity")
     if _runtime_version(Path("ordin/__init__.py").read_bytes()) != version:
         raise ValueError("source package/runtime version mismatch")
-    actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-    if actual != args.revision:
-        raise ValueError("checked-out source differs from requested release revision")
-    if subprocess.check_output(["git", "status", "--porcelain"], text=True).strip():
-        raise ValueError("release integrity requires a clean source checkout")
+    if args.bundle or not _legacy_version(version):
+        # Reject configured content filters before any diff/status can invoke them.
+        actual = _bundle_helper().source_identity(Path.cwd(), args.revision)["commit"]
+    else:
+        actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        if actual != args.revision:
+            raise ValueError("checked-out source differs from requested release revision")
+        if subprocess.check_output(["git", "status", "--porcelain"], text=True).strip():
+            raise ValueError("release integrity requires a clean source checkout")
     if args.publish:
         if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version) or args.tag != f"v{version}":
             raise ValueError("published tags require exactly vX.Y.Z matching the package")
@@ -647,7 +655,7 @@ def main() -> None:
     print(
         json.dumps(
             verify_bundle(args.dist, source_root=Path.cwd(), revision=actual, tag=args.tag)
-            if args.bundle
+            if args.bundle or not _legacy_version(version)
             else verify_metadata(args.dist, version=version, revision=actual, tag=args.tag),
             sort_keys=True,
         )

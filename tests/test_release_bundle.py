@@ -7,6 +7,7 @@ import io
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tarfile
 import zipfile
 
@@ -69,7 +70,7 @@ def bundle(tmp_path):
         dependencies = [] if name == "ordin" else ["ordin>=0.4.0.dev0,<0.5"]
         metadata = (
             f"Metadata-Version: 2.4\nName: {name}\nVersion: {version}\nRequires-Python: >=3.10\n"
-            "License: Apache-2.0\nLicense-File: LICENSE\n"
+            "License: Apache-2.0\nLicense-File: LICENSE\nDescription-Content-Type: text/markdown\n"
             + "".join(f"Requires-Dist: {value}\n" for value in dependencies)
             + "\nSynthetic package\n"
         ).encode()
@@ -135,10 +136,11 @@ def bundle(tmp_path):
 
 def test_complete_bundle_binds_five_packages_and_both_formats_to_exact_source(bundle):
     root, dist, revision = bundle
-    identity = create_bundle_metadata(dist, source_root=root, revision=revision, tag="candidate")
+    identity = create_bundle_metadata(dist, source_root=root, revision=revision)
     assert set(identity["packages"]) == set(PROJECTS) and len(identity["artifacts"]) == 10
     assert identity["tree"] == git(root, "rev-parse", "HEAD^{tree}")
     assert not identity["origin_authenticated_by_json"]
+    assert identity["tag"] is None
     assert (
         verify_bundle(dist, source_root=root, revision=revision, tree=identity["tree"]) == identity
     )
@@ -229,7 +231,7 @@ def test_bundle_rejects_incomplete_mixed_or_tampered_assets(bundle, change):
     else:
         (dist / "unexpected.txt").write_text("foreign")
     with pytest.raises((ValueError, OSError, tarfile.TarError, zipfile.BadZipFile)):
-        verify_bundle(dist, source_root=root, revision=revision)
+        verify_bundle(dist, source_root=root, revision=revision, tag="candidate")
 
 
 def test_archive_traversal_duplicates_and_links_are_rejected(tmp_path):
@@ -274,3 +276,94 @@ def test_current_release_cannot_use_the_legacy_core_only_format(tmp_path):
     for operation in (create_metadata, verify_metadata):
         with pytest.raises((ValueError, OSError)):
             operation(tmp_path, version="0.4.0", revision="a" * 40, tag="v0.4.0")
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b'{"tag":null,"tag":"foreign"}',
+        b'{"t\\u0061g":null,"tag":"foreign"}',
+        b'{"x":NaN}',
+        b'{"x":Infinity}',
+        b'{"x":1e999}',
+        b'{"x":"\\ud800"}',
+        b"[" * 20 + b"0" + b"]" * 20,
+    ],
+)
+def test_manifest_and_sbom_json_reject_ambiguous_nonfinite_and_deep_data(tmp_path, raw):
+    from scripts.release_bundle import _json
+
+    for name in ("release.json", "sbom.cdx.json"):
+        path = tmp_path / name
+        path.write_bytes(raw)
+        with pytest.raises(ValueError):
+            _json(path)
+
+
+def test_release_json_and_archives_are_bounded_before_parsing(tmp_path, monkeypatch):
+    from scripts import release_bundle as module
+
+    path = tmp_path / "release.json"
+    path.write_bytes(b" " * 17)
+    monkeypatch.setattr(module, "MAX_MEMBER_BYTES", 16)
+    with pytest.raises(ValueError):
+        module._json(path)
+    path = tmp_path / "oversized.whl"
+    path.write_bytes(b"x" * 17)
+    monkeypatch.setattr(module, "MAX_ARCHIVE_BYTES", 16)
+    with pytest.raises(ValueError):
+        module._archive(path, wheel=True)
+
+
+def test_verifier_spec_import_does_not_add_checkout_to_installed_python_path(bundle):
+    root, dist, revision = bundle
+    create_bundle_metadata(dist, source_root=root, revision=revision)
+    script = Path(__file__).resolve().parents[1] / "scripts/release_integrity.py"
+    probe = """import importlib.util,pathlib,sys
+before=list(sys.path)
+spec=importlib.util.spec_from_file_location('owned_release_verifier',sys.argv[1])
+module=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+manifest=module.verify_bundle(pathlib.Path(sys.argv[2]),source_root=pathlib.Path(sys.argv[3]),revision=sys.argv[4])
+assert manifest['tag'] is None
+assert sys.path==before
+assert 'ordin' not in sys.modules
+"""
+    subprocess.run(
+        [sys.executable, "-I", "-B", "-c", probe, str(script), str(dist), str(root), revision],
+        cwd=dist,
+        check=True,
+        timeout=120,
+    )
+
+
+@pytest.mark.parametrize("hook", ["setup.py", "setup.cfg", "backend-path", "dynamic", "cmdclass"])
+def test_static_bundle_builder_rejects_tracked_build_hooks_without_execution(bundle, hook):
+    root, dist, _ = bundle
+    settings = root / "pyproject.toml"
+    if hook in {"setup.py", "setup.cfg"}:
+        (root / hook).write_text("raise AssertionError('must never execute')\n")
+    elif hook == "backend-path":
+        settings.write_text(
+            settings.read_text().replace("[project]", 'backend-path=["."]\n[project]')
+        )
+    elif hook == "dynamic":
+        settings.write_text(
+            settings.read_text().replace("[project]", '[project]\ndynamic=["version"]')
+        )
+    else:
+        settings.write_text(
+            settings.read_text() + '\n[tool.setuptools.cmdclass]\nsdist="foreign:code"\n'
+        )
+    git(root, "add", ".")
+    git(
+        root,
+        "-c",
+        "core.hooksPath=" + str(root.parent / "no-hooks"),
+        "commit",
+        "-qm",
+        "owned unsupported build fixture",
+    )
+    revision = git(root, "rev-parse", "HEAD")
+    with pytest.raises(ValueError, match="static setuptools"):
+        create_bundle_metadata(dist, source_root=root, revision=revision)

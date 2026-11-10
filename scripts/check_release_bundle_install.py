@@ -18,6 +18,7 @@ from scripts.release_bundle import PROJECTS, verify_bundle
 PROBE = """import hashlib,importlib,json,pathlib,sys
 from importlib.metadata import distribution
 manifest=json.loads(pathlib.Path(sys.argv[1]).read_text())
+assert set(manifest['packages'])=={'ordin','ordin-swarm','ordin-runtime','ordin-security','ordin-decision-models'}
 checkout=pathlib.Path(sys.argv[2]).resolve()
 observed={}
 for name,package in manifest['packages'].items():
@@ -28,7 +29,8 @@ for name,package in manifest['packages'].items():
     direct=installed.read_text('direct_url.json')
     assert not direct or not json.loads(direct).get('dir_info',{}).get('editable'), name
     expected=package['payload_sha256']
-    module=next(iter(expected)).split('/')[0]
+    module=name.replace('-','_')
+    assert all(path.startswith(module+'/') for path in expected), name
     origin=root/module
     assert not origin.is_relative_to(checkout), name
     actual={}
@@ -52,6 +54,9 @@ def check_install(
     if workspace.exists() or workspace.is_symlink():
         raise ValueError("bundle install verification requires a new workspace")
     workspace.mkdir(mode=0o700, parents=True)
+    captured = workspace / "verified-bundle.json"
+    with captured.open("x", encoding="utf-8") as stream:
+        json.dump(identity, stream, sort_keys=True)
     subprocess.run([sys.executable, "-m", "venv", str(workspace / "env")], check=True, timeout=120)
     python = workspace / "env" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     subprocess.run(
@@ -75,15 +80,16 @@ def check_install(
     subprocess.run([str(python), "-I", "-m", "pip", "check"], cwd=workspace, check=True, timeout=30)
     observed = json.loads(
         subprocess.check_output(
-            [str(python), "-I", "-B", "-c", PROBE, str(bundle / "release.json"), str(source_root)],
+            [str(python), "-I", "-B", "-c", PROBE, str(captured), str(source_root)],
             cwd=workspace,
             text=True,
             timeout=60,
         )
     )
-    for module in ("ordin", "ordin.swarm.cli", "ordin_swarm.host_cli", "ordin_runtime.cli"):
+    scripts = python.parent
+    for command in ("ordin", "ordin-swarm-adapter", "ordin-swarm-host", "ordin-runtime"):
         subprocess.run(
-            [str(python), "-I", "-B", "-m", module, "--help"],
+            [str(scripts / (command + (".exe" if os.name == "nt" else ""))), "--help"],
             cwd=workspace,
             check=True,
             stdout=subprocess.DEVNULL,

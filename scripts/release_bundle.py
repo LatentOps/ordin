@@ -10,6 +10,7 @@ import hashlib
 import importlib
 import io
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -66,11 +67,25 @@ def _file(path: Path, limit: int = MAX_ARCHIVE_BYTES) -> bytes:
     info = path.lstat()
     if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > limit:
         raise ValueError("release input must be a bounded singly-linked regular file")
-    with path.open("rb") as stream:
-        raw = stream.read(limit + 1)
-    after = path.lstat()
     fields = ("st_dev", "st_ino", "st_mode", "st_nlink", "st_size", "st_mtime_ns", "st_ctime_ns")
-    if len(raw) > limit or any(getattr(after, key) != getattr(info, key) for key in fields):
+    descriptor = os.open(
+        path,
+        os.O_RDONLY
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_NONBLOCK", 0)
+        | getattr(os, "O_BINARY", 0),
+    )
+    with os.fdopen(descriptor, "rb") as stream:
+        opened = os.fstat(stream.fileno())
+        if any(getattr(opened, key) != getattr(info, key) for key in fields):
+            raise ValueError("release input changed before its bounded read")
+        raw = stream.read(limit + 1)
+        after = os.fstat(stream.fileno())
+    selected = path.lstat()
+    if len(raw) > limit or any(
+        getattr(after, key) != getattr(info, key) or getattr(selected, key) != getattr(info, key)
+        for key in fields
+    ):
         raise ValueError("release input changed or exceeded its bound")
     return raw
 
@@ -84,12 +99,31 @@ def _json(path: Path) -> Any:
             result[key] = value
         return result
 
+    def invalid_constant(value):
+        raise ValueError("nonfinite release JSON")
+
     try:
-        return json.loads(
+        result = json.loads(
             _file(path, MAX_MEMBER_BYTES),
             object_pairs_hook=unique,
-            parse_constant=lambda value: (_ for _ in ()).throw(ValueError("nonfinite JSON")),
+            parse_constant=invalid_constant,
         )
+        pending = [(result, 0)]
+        count = 0
+        while pending:
+            value, depth = pending.pop()
+            count += 1
+            if count > 65536 or depth > 16:
+                raise ValueError("release JSON exceeds structural bounds")
+            if type(value) is str:
+                value.encode("utf-8")
+            elif type(value) is float and not math.isfinite(value):
+                raise ValueError("nonfinite release JSON")
+            elif type(value) is dict:
+                pending.extend((part, depth + 1) for pair in value.items() for part in pair)
+            elif type(value) is list:
+                pending.extend((part, depth + 1) for part in value)
+        return result
     except (RecursionError, UnicodeError) as exc:
         raise ValueError("invalid release JSON") from exc
 
@@ -111,7 +145,7 @@ def _path(name: str) -> str:
 
 
 def _archive(path: Path, *, wheel: bool, roots: tuple[str, ...] | None = None) -> dict[str, bytes]:
-    raw = _file(path)
+    raw = _file(path, MAX_ARCHIVE_BYTES)
     result: dict[str, bytes] = {}
     seen: set[str] = set()
     total = 0
@@ -197,6 +231,40 @@ def _metadata(raw: bytes, project: dict) -> list[str]:
             raise ValueError("release distribution extras differ from source")
     if metadata.get("License-Expression", metadata.get("License", "")).strip() != "Apache-2.0":
         raise ValueError("release distribution Apache license metadata is missing")
+    expected_fields = {
+        "Summary": [project["description"]] if project.get("description") else [],
+        "Classifier": project.get("classifiers", []),
+        "Keywords": [",".join(project["keywords"])] if project.get("keywords") else [],
+        "Project-URL": [f"{key}, {value}" for key, value in project.get("urls", {}).items()],
+        "Author": [", ".join(item["name"] for item in project["authors"] if "name" in item)]
+        if project.get("authors")
+        else [],
+        "Description-Content-Type": ["text/markdown"]
+        if project.get("readme", "").endswith(".md")
+        else [],
+    }
+    for key, expected in expected_fields.items():
+        if sorted(metadata.get_all(key, [])) != sorted(expected):
+            raise ValueError("release descriptive metadata differs from source")
+    allowed = {
+        "Metadata-Version",
+        "Name",
+        "Version",
+        "Requires-Python",
+        "Requires-Dist",
+        "Provides-Extra",
+        "License",
+        "License-Expression",
+        "License-File",
+        "Dynamic",
+        *expected_fields,
+    }
+    if any(
+        key.lower() not in {item.lower() for item in allowed} for key in metadata.keys()
+    ) or metadata.get_all("Metadata-Version") != ["2.4"]:
+        raise ValueError("release contains unsupported metadata headers")
+    if metadata.get_all("Dynamic", []) not in ([], ["license-file"]):
+        raise ValueError("release metadata unexpectedly declares dynamic fields")
     return requirements
 
 
@@ -311,6 +379,8 @@ def _source_projects(root: Path, revision: str, tree: str | None):
             raise ValueError("bundle base projects require only the bundled core")
         payload = {}
         for path in (directory / module).rglob("*"):
+            if path.is_symlink():
+                raise ValueError("linked source directories/files cannot enter the bundle")
             if path.is_dir() or path.suffix == ".pyc" or "__pycache__" in path.parts:
                 continue
             if path.relative_to(root).as_posix() not in tracked:
@@ -336,6 +406,8 @@ def _source_projects(root: Path, revision: str, tree: str | None):
             or b"Apache License" not in license_bytes
         ):
             raise ValueError("bundle package license differs from owned Apache license")
+        if (root / "NOTICE").exists() and _file(directory / "NOTICE") != _file(root / "NOTICE"):
+            raise ValueError("bundle package notice differs from owned repository attribution")
         projects[name] = (directory, project, payload)
     core_version = projects["ordin"][1]["version"]
     if projects["ordin-swarm"][1]["version"] != core_version:
@@ -412,6 +484,10 @@ def _validate_assets(dist: Path, root: Path, revision: str, tree: str | None = N
         _metadata(source_files.get("PKG-INFO", b""), project)
         if source_files.get(egg + "PKG-INFO") != source_files.get("PKG-INFO"):
             raise ValueError("source distribution generated metadata disagrees")
+        if source_files["PKG-INFO"].replace(b"\r\n", b"\n") != files[prefix + "/METADATA"].replace(
+            b"\r\n", b"\n"
+        ):
+            raise ValueError("wheel and source distribution metadata differ")
         _entrypoints(source_files.get(egg + "entry_points.txt"), project)
         _sdist_requirements(source_files.get(egg + "requires.txt", b""), project)
         if (
@@ -520,11 +596,15 @@ def _write(path: Path, value: Any) -> None:
         stream.write(json.dumps(value, sort_keys=True, indent=2, allow_nan=False) + "\n")
 
 
-def create_bundle_metadata(dist: Path, *, source_root: Path, revision: str, tag: str) -> dict:
+def create_bundle_metadata(
+    dist: Path, *, source_root: Path, revision: str, tag: str | None = None
+) -> dict:
     source, records, assets = _validate_assets(dist, source_root, revision)
     if set(path.name for path in dist.iterdir()) != set(assets):
         raise ValueError("bundle metadata requires a fresh artifact-only directory")
-    if not isinstance(tag, str) or not re.fullmatch(r"[A-Za-z0-9_./-]{1,128}", tag):
+    if tag is not None and (
+        not isinstance(tag, str) or not re.fullmatch(r"[A-Za-z0-9_./-]{1,128}", tag)
+    ):
         raise ValueError("invalid bundle tag identity")
     identity = {
         "schema_version": SCHEMA,
@@ -553,8 +633,9 @@ def verify_bundle(
     identity = _json(dist / "release.json")
     if not isinstance(identity, dict) or identity.get("schema_version") != SCHEMA:
         raise ValueError("current releases require the complete v2 bundle")
-    if not isinstance(identity.get("tag"), str) or not re.fullmatch(
-        r"[A-Za-z0-9_./-]{1,128}", identity["tag"]
+    if identity.get("tag") is not None and (
+        not isinstance(identity["tag"], str)
+        or not re.fullmatch(r"[A-Za-z0-9_./-]{1,128}", identity["tag"])
     ):
         raise ValueError("invalid bundle tag identity")
     source, records, assets = _validate_assets(dist, source_root, revision, tree)
@@ -563,7 +644,7 @@ def verify_bundle(
         "version": records["ordin"]["version"],
         "revision": revision,
         "tree": source["tree"],
-        "tag": tag if tag is not None else identity.get("tag"),
+        "tag": tag,
         "packages": records,
         "artifacts": assets,
         "origin_authenticated_by_json": False,
