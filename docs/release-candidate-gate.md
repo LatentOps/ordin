@@ -39,7 +39,7 @@ SBOM and provenance are independently generated and verified.
 4. Require successful build, candidate workloads, checksums/SBOM, and attestation
    verification. Dependency review applies to the PR; its skipped main job is
    explicitly inapplicable, not a waived failure.
-5. Require all 42 maintained main jobs, all other current checks/statuses and the
+5. Require all 44 maintained main jobs, all other current checks/statuses and the
    exact processed main CodeQL Python analysis without errors or warnings.
    The PR-only Advanced Security aggregate is not a required main success.
    Record `S`, CI/manual run links and artifact IDs in the issue/PR receipt.
@@ -50,7 +50,11 @@ The workload report does not claim that other concurrent CI jobs passed. Check
 GitHub after all jobs finish. If any gate fails, fix through a focused PR with
 regressions, select a new candidate and rerun the complete sequence.
 
-The final-version issue then changes the version to `0.3.0`, reruns CI and manual
-validation, and tags only the independently green final squash commit.
+The final-version step then prepares core and Swarm version `0.4.0` and reruns
+CI and manual validation on its exact final squash commit. Complete the
+[packaged pilot procedure](release-pilot-0.4.md) and actual elapsed pilot window;
+retain operator acceptance before creating the final tag. Short engineering
+cycles do not count as a completed multi-day pilot. No release-candidate tag
+publication path is implied: the publisher accepts final `X.Y.Z` tags only.
 Candidate acceptance does not publish or permit replacement of a release.
 See [releasing](releasing.md).

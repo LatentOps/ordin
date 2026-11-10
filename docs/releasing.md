@@ -10,19 +10,28 @@ Published package versions are immutable identifiers. Never build new source und
 
 The expected lifecycle is:
 
-1. normal development uses the next PEP 440 development version, such as `0.2.0.dev0`;
-2. a release preparation PR changes both version declarations to the exact final version, such as `0.2.0`;
+1. normal development uses the next PEP 440 development version, such as `0.4.0.dev0`;
+2. a release preparation PR changes the matching core and Swarm declarations to the exact final version, such as `0.4.0`;
 3. the full merge gate passes and the version PR is merged to `main`;
-4. the matching `v0.2.0` tag is created;
+4. the packaged pilot completes its actual elapsed window, operator acceptance is retained, and the matching `v0.4.0` tag is created;
 5. the release workflow validates, builds, smoke-tests, and attaches the exact artifacts to a GitHub Release;
-6. immediately after the release, `main` advances to the next unique development version, such as `0.3.0.dev0`.
+6. immediately after the release, core and Swarm advance to the next unique development version, such as `0.5.0.dev0`.
 
-A published version must never be reused for different source contents.
+A published version must never be reused for different package contents. This
+applies independently to `ordin-runtime`, `ordin-security` and
+`ordin-decision-models`, whose versions are currently `0.1.0`: a future payload
+change requires that package's own new version even if core follows a different
+version line. A bundle must not silently replace a previously published
+optional-package payload under an unchanged version.
 
 Update the version in both:
 
 - `pyproject.toml` -> `project.version`
 - `ordin/__init__.py` -> `__version__`
+
+Also update the Swarm distribution/runtime declarations together and qualify
+its core dependency bound. Optional package versions and their core bounds are
+reviewed explicitly rather than inferred from the repository's tag.
 
 Tests require the installed distribution metadata and runtime version to match.
 
@@ -43,11 +52,30 @@ python -m twine check dist/*
 
 Open a focused release-version PR and merge only after the complete CI matrix passes.
 
-Then create the matching tag. For a final version `0.2.0`:
+For the prepared final version, build the complete five-package candidate into
+a fresh directory outside the clean exact-source checkout:
+
+```console
+python scripts/build_release_bundle.py --dist /absolute/new-candidate-bundle --revision TRUSTED_FULL_COMMIT_SHA --tag v0.4.0
+python scripts/release_integrity.py verify --bundle --dist /absolute/new-candidate-bundle --revision TRUSTED_FULL_COMMIT_SHA --tag v0.4.0
+```
+
+These arguments bind the candidate to its actual source and intended final
+version. They do not publish a tag or complete acceptance. Use the builder's
+actual development-version arguments when validating earlier development
+source; do not relabel it as final-version bytes.
+
+Complete the [packaged pilot procedure](release-pilot-0.4.md), retain its actual
+elapsed duration and operator decision, and keep publication held until that
+acceptance is complete. An exact-SHA candidate bundle can be tested without
+creating a public release. Short engineering checks are a different evidence
+class; they cannot be backdated into the pilot window.
+
+Then create the matching tag. For the qualified final version `0.4.0`:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.4.0
+git push origin v0.4.0
 ```
 
 The release workflow refuses a tag that does not exactly equal `v<project.version>` and refuses a mismatch between distribution and runtime versions. Published tags must use a final `X.Y.Z` version; development versions can be validated through `workflow_dispatch` without publishing.
@@ -117,12 +145,13 @@ recorded in the SBOM; this is not a reproducible-build guarantee.
 
 Starting with the next release, the attached assets include:
 
-- the tested wheel and source distribution;
-- `SHA256SUMS` covering both distributions, `release.json`, and `sbom.cdx.json`;
+- tested wheel/source pairs for core, Swarm, Runtime, Security and decision models;
+- `SHA256SUMS` covering every distribution, `release.json`, and `sbom.cdx.json`;
 - `release.json`, binding package/runtime versions and artifact hashes to the source commit and tag;
-- a CycloneDX 1.6 SBOM describing the core artifact and observed build environment;
+- a CycloneDX 1.6 SBOM describing the bundle artifacts and observed build environment;
 - `provenance.sigstore.json`, the GitHub attestation verification bundle.
 
+The v0.4 bundle records the identity of each independently versioned package.
 The SBOM marks build-environment components as excluded from the core runtime.
 It does not claim that optional semantic extras or arbitrary downstream
 environments were installed or inventoried. Checksums detect changed bytes;
@@ -160,6 +189,11 @@ python -m pip install "git+https://github.com/LatentOps/ordin.git@v0.3.0"
 ```
 
 They can also install the wheel attached to the GitHub Release.
+
+For a v0.4 candidate, or its final release after publication, use the
+[artifact quickstart](quickstart-0.4.md) to install matching core/Swarm wheels
+from the verified complete bundle. The v0.3 command above remains the published
+historical reference and does not imply that a v0.4 tag already exists.
 
 For the current development tree:
 

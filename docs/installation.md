@@ -1,13 +1,18 @@
 # Installation
 
-Ordin is distributed directly from GitHub. Version `0.3.0` installs `ordin`,
-`ordin-claude-hook`, `ordin-codex-hook`, `ordin-mcp-proxy`, and `ordin-mcp-http`.
-The README and [offline quickstart](quickstart.md) target that release.
-Use `main` only when you intentionally want unreleased development changes.
+Ordin is distributed directly from GitHub. For v0.4 release preparation, use
+the [verified artifact quickstart](quickstart-0.4.md): it installs matching core
+and Swarm wheels from one exact-source bundle and runs the offline two-agent
+fixture. The complete bundle also carries independently versioned optional
+Runtime, Security and decision-model wheels. A prepared candidate is not a
+published release; consult its recorded source/version and acceptance evidence.
 
-## Install the current stable release
+The [manual v0.3 quickstart](quickstart.md) remains a historical published-release
+reference. Use `main` only when intentionally testing changing source.
 
-The current stable release is `v0.3.0`. Install it directly from the immutable Git tag:
+## Install the published v0.3 reference
+
+Until v0.4 is actually published and qualified, the immutable v0.3 reference is:
 
 ```bash
 python -m pip install "git+https://github.com/LatentOps/ordin.git@v0.3.0"

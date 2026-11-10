@@ -21,7 +21,9 @@ aliases, non-finite values, and oversized inputs fail validation.
 
 The integration targets the released OpenShell `v0.1.2` source, authored policy
 schema version `1`, standalone prover JSON schema `1`, and OCSF `1.8.0`.
-Integration package version is `0.1.0`; Ordin remains `0.4.0.dev0`.
+The integration package has its own `0.1.0` version. Core and Swarm are preparing
+the `0.4.0` candidate; a final version declaration does not mean a public tag
+already exists. Use the exact bundle and scoped [v0.4 contract](public-compatibility-0.4.md).
 See upstream [architecture](https://github.com/NVIDIA/OpenShell/blob/v0.1.2/docs/about/architecture.mdx),
 [network rules](https://github.com/NVIDIA/OpenShell/blob/v0.1.2/docs/how-it-works/policies/network-rules.mdx),
 and [prover coverage](https://github.com/NVIDIA/OpenShell/blob/v0.1.2/docs/how-it-works/policies/prover.mdx).

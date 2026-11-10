@@ -2,6 +2,10 @@
 
 Ordin exposes a small public library surface for applications and agent runtimes that need command intelligence or pre-execution review without spawning the CLI.
 
+The [v0.4 contract inventory](public-compatibility-0.4.md) separates supported
+core APIs from experimental Runtime, Assurance and Swarm additions and describes
+upgrade/rollback boundaries. Private helper imports are not an extension API.
+
 ## Basic review
 
 ```python

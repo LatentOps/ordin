@@ -10,6 +10,11 @@ entry points. PostgreSQL is an optional dependency for a central multi-host
 authority; SQLite is for a single host or development. Install only the adapter
 extras and exact versions you intend to operate.
 
+These opt-in APIs remain experimental in the [v0.4 public contract](../public-compatibility-0.4.md).
+Use matching verified core/Swarm artifacts from the [bundle quickstart](../quickstart-0.4.md);
+the isolated fixture below is not evidence of Windows kernel protection or a
+completed multi-day/operator pilot.
+
 Start with the [offline quickstart](quickstart.md), then read the
 [architecture](architecture.md), [trust model](threat-model.md),
 [coverage matrix](support-matrix.md) and [operator runbook](operator-runbook.md).

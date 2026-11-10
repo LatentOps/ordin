@@ -8,8 +8,10 @@
 <p align="center"><strong>Review commands and tool calls before running them.</strong></p>
 <p align="center">An open-source project by <a href="https://latentops.space/">LatentOps</a>.</p>
 
-`main` now develops `0.4.0.dev0`. Install the immutable `v0.3.0` tag for the
-current stable release; new development features are labeled separately.
+The v0.4 release is being prepared. Use the [verified core/Swarm artifact
+quickstart](docs/quickstart-0.4.md) for an exact-SHA candidate. The immutable
+`v0.3.0` tag remains the published reference until v0.4 qualification and
+publication complete; these docs do not announce a new public release.
 
 Ordin is a Python library and CLI for developers and AI agents. It examines a
 proposed action, identifies effects such as file deletion or network access,
@@ -78,6 +80,11 @@ Start with the [offline v0.3 quickstart](docs/quickstart.md).
 Its wheel-based acceptance script verifies every maintained integration with
 local fixtures and no model or credential requirement. The [v0.3 release notes](docs/releases/v0.3.0.md)
 record compatibility changes and limitations.
+
+For v0.4, follow the [artifact quickstart](docs/quickstart-0.4.md),
+[public contract and migration policy](docs/public-compatibility-0.4.md) and
+[release preparation notes](docs/releases/v0.4.0.md). Core review stays portable;
+physical owned-worker protection requires the supported Linux kernel setup.
 
 ## Find a command
 
