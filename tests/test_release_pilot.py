@@ -1,14 +1,23 @@
 """Engineering harness tests never constitute elapsed-time pilot evidence."""
 
 import json
+from importlib import machinery
+import os
 from pathlib import Path
 import sys
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 import zipfile
+import zipimport
 
 import pytest
 
 from scripts import run_release_pilot as pilot
+
+
+def cleanup_module(kind):
+    module = ModuleType("ordin_swarm.host_authority")
+    module._HostCleanupIncomplete = kind
+    return module
 
 
 @pytest.mark.parametrize(
@@ -185,6 +194,7 @@ def fake_setup(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(pilot, "_helper", lambda name: helper)
     monkeypatch.setattr(pilot, "_loaded", lambda roots: None)
+    monkeypatch.setattr(pilot, "_preimport_guard", lambda roots: None)
     return bundle, tmp_path / "output"
 
 
@@ -257,7 +267,7 @@ def test_cleanup_owner_survives_report_disk_failure_and_is_not_replayed(tmp_path
     monkeypatch.setitem(
         sys.modules,
         "ordin_swarm.host_authority",
-        SimpleNamespace(_HostCleanupIncomplete=CleanupPending),
+        cleanup_module(CleanupPending),
     )
 
     def cycle(*args):
@@ -285,7 +295,7 @@ def test_entrypoint_retains_cleanup_owner_until_success_and_never_repeats_work(m
     monkeypatch.setitem(
         sys.modules,
         "ordin_swarm.host_authority",
-        SimpleNamespace(_HostCleanupIncomplete=CleanupPending),
+        cleanup_module(CleanupPending),
     )
 
     def main(arguments):
@@ -310,7 +320,7 @@ def test_cycle_cleanup_preserves_pending_original_owner_but_removes_closed_fixtu
     monkeypatch.setitem(
         sys.modules,
         "ordin_swarm.host_authority",
-        SimpleNamespace(_HostCleanupIncomplete=CleanupPending),
+        cleanup_module(CleanupPending),
     )
 
     def portable(*args):
@@ -355,3 +365,247 @@ def test_help_does_not_require_or_import_optional_host(capsys):
         pilot.entrypoint(["--help"])
     assert stopped.value.code == 0
     assert "duration-seconds" in capsys.readouterr().out
+
+
+def standard_imports(monkeypatch):
+    """Emulate only the standard machinery of a fresh private interpreter."""
+    details = (
+        (machinery.ExtensionFileLoader, machinery.EXTENSION_SUFFIXES),
+        (machinery.SourceFileLoader, machinery.SOURCE_SUFFIXES),
+        (machinery.SourcelessFileLoader, machinery.BYTECODE_SUFFIXES),
+    )
+    monkeypatch.setattr(
+        sys,
+        "meta_path",
+        [machinery.BuiltinImporter, machinery.FrozenImporter, machinery.PathFinder],
+    )
+    monkeypatch.setattr(
+        sys, "path_hooks", [zipimport.zipimporter, machinery.FileFinder.path_hook(*details)]
+    )
+    monkeypatch.setattr(sys, "path_importer_cache", {})
+    for name in tuple(sys.modules):
+        if name in {"ordin", "ordin_swarm"} or name.startswith(("ordin.", "ordin_swarm.")):
+            monkeypatch.delitem(sys.modules, name)
+
+
+def two_installed_packages(tmp_path, monkeypatch, *, tag=None):
+    prefix = tmp_path / "fresh-environment"
+    site = prefix / "Lib" / "site-packages"
+    site.mkdir(parents=True)
+    bundle = tmp_path / "bundle"
+    bundle.mkdir()
+    packages, artifacts = {}, {}
+    for namespace, project in (("ordin", "ordin"), ("ordin_swarm", "ordin-swarm")):
+        root = site / namespace
+        root.mkdir()
+        raw = b"# exact installed fixture, no execution side effects\n"
+        (root / "__init__.py").write_bytes(raw)
+        wheel = bundle / (namespace + "-0.4.0-py3-none-any.whl")
+        with zipfile.ZipFile(wheel, "w") as archive:
+            archive.writestr(namespace + "/__init__.py", raw)
+        packages[project] = {"version": "0.4.0", "wheel": wheel.name}
+        artifacts[wheel.name] = pilot._sha(wheel)
+    manifest = {"packages": packages, "artifacts": artifacts, "tag": tag}
+    (bundle / "release.json").write_text(json.dumps(manifest))
+    monkeypatch.setattr(sys, "prefix", str(prefix))
+    monkeypatch.setattr(
+        pilot.metadata,
+        "distribution",
+        lambda project: SimpleNamespace(
+            version="0.4.0",
+            read_text=lambda name: None,
+            locate_file=lambda namespace: site / namespace,
+        ),
+    )
+    monkeypatch.setattr(
+        pilot,
+        "_helper",
+        lambda name: SimpleNamespace(verify_bundle=lambda *args, **kwargs: manifest),
+    )
+    monkeypatch.setattr(pilot, "_require_isolated", lambda: None, raising=False)
+    monkeypatch.setattr(pilot, "_runtime_tooling", lambda: {"unit_fixture": True})
+    standard_imports(monkeypatch)
+    monkeypatch.setattr(sys, "path", [str(site), *sys.path])
+    return bundle, site, manifest
+
+
+def test_actual_source_import_spec_is_refused_without_executing_a_marker(tmp_path, monkeypatch):
+    bundle, _, _ = two_installed_packages(tmp_path, monkeypatch)
+    overlay = tmp_path / "owned-source-overlay"
+    package = overlay / "ordin"
+    package.mkdir(parents=True)
+    marker = tmp_path / "source-code-executed.txt"
+    (package / "__init__.py").write_text(
+        "from pathlib import Path\nPath(" + repr(str(marker)) + ").write_text('executed')\n"
+    )
+    monkeypatch.setattr(sys, "path", [str(overlay), *sys.path])
+    with pytest.raises(ValueError):
+        pilot.run_pilot(
+            bundle,
+            tmp_path / "output",
+            revision="a" * 40,
+            tree="b" * 40,
+            tag=None,
+            config=pilot.PilotConfiguration(portable_only=True),
+        )
+    assert not marker.exists(), "source overlay executed before refusal"
+
+
+@pytest.mark.parametrize("overlay", ["loaded", "meta", "hook", "cache", "loader"])
+def test_import_overlays_are_rejected_without_invoking_their_callbacks(
+    tmp_path, monkeypatch, overlay
+):
+    bundle, site, _ = two_installed_packages(tmp_path, monkeypatch)
+    marker = tmp_path / "import-callback-executed"
+
+    class ForeignFinder:
+        def find_spec(self, *args, **kwargs):
+            marker.write_text("finder executed")
+            return None
+
+    def foreign_hook(*args):
+        marker.write_text("path hook executed")
+        raise ImportError
+
+    if overlay == "loaded":
+        module = ModuleType("ordin")
+        module.__file__ = str(tmp_path / "source/ordin/__init__.py")
+        module.__getattr__ = lambda name: marker.write_text("module callback executed")
+        monkeypatch.setitem(sys.modules, "ordin", module)
+    elif overlay == "meta":
+        monkeypatch.setattr(sys, "meta_path", [ForeignFinder(), *sys.meta_path])
+    elif overlay == "hook":
+        monkeypatch.setattr(sys, "path_hooks", [foreign_hook, *sys.path_hooks])
+    elif overlay == "cache":
+        monkeypatch.setitem(sys.path_importer_cache, str(site), ForeignFinder())
+    else:
+
+        class ForeignLoader(machinery.SourceFileLoader):
+            def __init__(self, *args):
+                marker.write_text("foreign loader constructed")
+                super().__init__(*args)
+
+        finder = machinery.FileFinder(str(site), (ForeignLoader, machinery.SOURCE_SUFFIXES))
+        monkeypatch.setitem(sys.path_importer_cache, str(site), finder)
+    with pytest.raises(ValueError):
+        pilot.run_pilot(
+            bundle,
+            tmp_path / "output",
+            revision="a" * 40,
+            tree="b" * 40,
+            config=pilot.PilotConfiguration(portable_only=True),
+        )
+    assert not marker.exists() and not (tmp_path / "output").exists()
+
+
+@pytest.mark.parametrize("tag", [None, "v0.4.0"])
+def test_trusted_expected_tag_is_forwarded_unchanged_and_recorded(tmp_path, monkeypatch, tag):
+    bundle, _, manifest = two_installed_packages(tmp_path, monkeypatch, tag=tag)
+    calls = []
+
+    def verify(*args, **kwargs):
+        calls.append(kwargs)
+        return manifest
+
+    monkeypatch.setattr(pilot, "_helper", lambda name: SimpleNamespace(verify_bundle=verify))
+    monkeypatch.setattr(
+        pilot, "_run_verified", lambda *args, **kwargs: {"expected_tag": kwargs["expected_tag"]}
+    )
+    result = pilot.run_pilot(
+        bundle,
+        tmp_path / "output",
+        revision="a" * 40,
+        tree="b" * 40,
+        tag=tag,
+        config=pilot.PilotConfiguration(portable_only=True),
+    )
+    assert calls[0]["tag"] == tag == result["expected_tag"]
+
+
+@pytest.mark.parametrize(
+    "actual,expected", [(None, "v0.4.0"), ("v0.4.0", None), ("v0.4.1", "v0.4.0")]
+)
+def test_candidate_and_selected_tag_mismatch_never_reaches_runtime_imports(
+    tmp_path, monkeypatch, actual, expected
+):
+    bundle, _, _ = two_installed_packages(tmp_path, monkeypatch, tag=actual)
+    monkeypatch.setattr(
+        pilot, "import_module", lambda name: pytest.fail("tag mismatch executed a runtime import")
+    )
+    with pytest.raises(ValueError, match="expected tag"):
+        pilot.run_pilot(
+            bundle,
+            tmp_path / "output",
+            revision="a" * 40,
+            tree="b" * 40,
+            tag=expected,
+            config=pilot.PilotConfiguration(portable_only=True),
+        )
+    assert not (tmp_path / "output").exists()
+
+
+@pytest.mark.parametrize("isolated,bytecode", [(0, False), (0, True), (1, False)])
+def test_cli_requires_both_isolation_and_disabled_bytecode_writes(monkeypatch, isolated, bytecode):
+    monkeypatch.setattr(sys, "flags", SimpleNamespace(isolated=isolated))
+    monkeypatch.setattr(sys, "dont_write_bytecode", bytecode)
+    with pytest.raises(ValueError, match="-I -B"):
+        pilot._require_isolated()
+
+
+def test_stale_pyc_cannot_replace_verified_source_on_first_import(tmp_path, monkeypatch):
+    import py_compile
+    from importlib.util import cache_from_source
+
+    bundle, site, manifest = two_installed_packages(tmp_path, monkeypatch)
+    marker = tmp_path / "stale-bytecode-executed"
+    source = site / "ordin/__init__.py"
+    good = b"#" + b" verified fixture" * 256 + b"\n"
+    source.write_bytes(good)
+    evil = tmp_path / "compiled-data-only.py"
+    bad = (
+        "from pathlib import Path\nPath(" + repr(str(marker)) + ").write_text('executed')\n"
+    ).encode()
+    evil.write_bytes(bad + b"#" + b" " * (len(good) - len(bad) - 1))
+    os.utime(evil, ns=(source.stat().st_atime_ns, source.stat().st_mtime_ns))
+    py_compile.compile(str(evil), cfile=cache_from_source(str(source)), doraise=True)
+    wheel = bundle / manifest["packages"]["ordin"]["wheel"]
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr("ordin/__init__.py", good)
+    manifest["artifacts"][wheel.name] = pilot._sha(wheel)
+    (bundle / "release.json").write_text(json.dumps(manifest))
+    monkeypatch.setattr(pilot, "_run_verified", lambda *args, **kwargs: {"expected_tag": None})
+    prior = sys.pycache_prefix, sys.dont_write_bytecode
+    pilot.run_pilot(
+        bundle,
+        tmp_path / "output",
+        revision="a" * 40,
+        tree="b" * 40,
+        config=pilot.PilotConfiguration(portable_only=True),
+    )
+    assert not marker.exists()
+    assert (sys.pycache_prefix, sys.dont_write_bytecode) == prior
+
+
+@pytest.mark.parametrize("wrong", ["pytest", "packaging", "pluggy", None])
+def test_runtime_lock_pins_applicable_tools_before_fixtures_and_records_canonical_hash(
+    tmp_path, monkeypatch, wrong
+):
+    import hashlib
+
+    directory = tmp_path / "requirements"
+    directory.mkdir()
+    text = "pytest==9.2.0 \\\n    --hash=sha256:111\npackaging==26.3 \\\n    --hash=sha256:222\npluggy==1.7.0 \\\n    --hash=sha256:333\n"
+    (directory / "pilot-runtime.txt").write_bytes(text.replace("\n", "\r\n").encode())
+    monkeypatch.setattr(pilot, "ROOT", tmp_path)
+    versions = {"pytest": "9.2.0", "packaging": "26.3", "pluggy": "1.7.0"}
+    monkeypatch.setattr(
+        pilot.metadata, "version", lambda name: "wrong" if name == wrong else versions[name]
+    )
+    if wrong is None:
+        result = pilot._runtime_tooling()
+        assert result["versions"] == versions
+        assert result["sha256"] == hashlib.sha256(text.encode()).hexdigest()
+        assert result["hash_normalization"] == "UTF-8 LF"
+    else:
+        with pytest.raises(ValueError, match="tooling|dependency"):
+            pilot._runtime_tooling()

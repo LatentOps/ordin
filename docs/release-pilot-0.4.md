@@ -19,8 +19,11 @@ the core, Swarm, Runtime, Security and Decision Models wheel/sdist pairs, releas
 metadata, SBOM and hashes. No public prerelease tag is required for this exact-SHA
 engineering step. Publication remains a separate final-version/tag operation.
 
-Create an isolated environment and install the bundle's core and Swarm wheels,
-plus the pinned pytest/support tools from the reviewed development lock. Keep
+Create a NEW private pilot environment, separate from the build environment.
+Install `requirements/pilot-runtime.txt` with pip's `--require-hashes`, then
+install the five verified bundle wheels with `--no-index --no-deps`. The runtime
+lock contains pytest, packaging and their applicable pinned transitive closure;
+it excludes development/build tools, setuptools hooks and editable installs. Keep
 optional model providers and production credentials out of this environment.
 The harness does not download, build or install dependencies and does not accept
 arbitrary test selectors or imported result JSON. Use the supported Linux kernel
@@ -30,10 +33,20 @@ subset; it cannot establish Linux or Windows process confinement.
 
 The release verifier checks all five package pairs against the selected source.
 The pilot additionally compares every installed core/Swarm payload file with its
-verified wheel before runtime imports, rejects source/editable overlays, and
-uses a fresh bytecode-cache location. A fully compromised interpreter or owner
-is outside this evidence boundary. Run the exact-source helper with that
-environment's Python using `-I -B`, from outside the checkout.
+verified wheel before runtime imports. It checks already loaded namespaces and
+the actual standard import specs and source loaders before importing Ordin code.
+Source/editable overlays and unsupported meta/path/cache finders are refused
+without calling their import callbacks. A build or development environment with
+extra import hooks is unsuitable, even if it contains matching wheel files.
+The tool also checks required runtime-tool versions against the source lock
+before fixtures execute and records its LF-normalized SHA256 and actual versions.
+
+The operator-selected fresh interpreter and its standard import machinery are
+trusted. A fully compromised interpreter or owner is outside this evidence
+boundary. Run the exact-source helper with that environment's Python using
+`-I -B`, from outside the checkout; both flags are enforced for actual pilot work.
+`-B` disables writes but does not itself prevent cached bytecode reads, so the
+harness also redirects cache reads to a NEW private prefix for the full run.
 
 ## Short engineering probe
 
@@ -52,6 +65,13 @@ sixteen cycles with an optional interval of zero to sixty seconds. It always
 records `elapsed_pilot_window_satisfied: false`, regardless of imported files or
 clock values. There is no multi-day CI job or short-run substitute for elapsed
 pilot evidence.
+
+Omitting `--tag` strictly selects an untagged candidate (`release.json` has
+`tag: null`). To probe an independently selected tagged final bundle, explicitly
+add its trusted tag, for example `--tag v0.4.0`. The verifier requires an exact
+match and the receipt records `expected_tag`; the tool never chooses its expected
+identity from the supplied manifest. This does not publish the bundle or require
+a public prerelease tag.
 
 Every cycle runs the same ten owned synthetic protocol/accounting checks:
 authenticated two-agent dispatch and shared limits; takeover/epoch fencing;
@@ -113,8 +133,9 @@ failure requiring operator attention; forcibly killing the controller is not
 evidence of successful cleanup.
 
 `pilot.json` records the actual UTC start/end, monotonic and UTC elapsed times,
-selected revision/tree, bundle/wheel hashes, Python/platform, requested scope,
-counts, status and journal digest. `cycles.jsonl` contains bounded aggregate
+selected revision/tree and expected tag, bundle/wheel hashes, Python/platform,
+the LF-normalized runtime-lock hash and actual applicable tool versions,
+requested scope, counts, status and journal digest. `cycles.jsonl` contains bounded aggregate
 cycle outcomes and diagnostic hashes, without tool bodies, private keys or raw
 tracebacks. Portable counts and actual Linux host cases remain distinct.
 

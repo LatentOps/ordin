@@ -1,6 +1,6 @@
 """Run fixed installed-wheel engineering probes or an explicit elapsed-time pilot.
 
-Run this exact-source helper with an isolated installed environment's Python -I.
+Run this exact-source helper with an isolated installed environment's Python -I -B.
 No artifact, elapsed-time result or scripted review authorizes production work.
 """
 
@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import gc
 import hashlib
-from importlib import import_module, metadata, util
+from importlib import import_module, machinery, metadata, util
 import io
 import json
 import math
@@ -24,7 +24,9 @@ import shutil
 import signal
 import sys
 import time
+from types import FunctionType, ModuleType
 import zipfile
+import zipimport
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -151,17 +153,167 @@ def _loaded(roots):
     for name, module in tuple(sys.modules.items()):
         for namespace, root in roots.items():
             if module is not None and (name == namespace or name.startswith(namespace + ".")):
-                filename = getattr(module, "__file__", None)
+                if type(module) is not ModuleType:
+                    raise ValueError("pilot requires standard installed namespace modules")
+                filename = vars(module).get("__file__")
                 if filename is None or not Path(filename).resolve().is_relative_to(root):
                     raise ValueError("pilot imported a source namespace overlay")
+                spec = vars(module).get("__spec__")
+                if (
+                    type(spec) is not machinery.ModuleSpec
+                    or type(spec.loader) is not machinery.SourceFileLoader
+                    or spec.origin != filename
+                    or spec.loader.path != filename
+                    or spec.loader.name != name
+                ):
+                    raise ValueError("pilot loaded namespace has an unsupported source loader")
+
+
+def _require_isolated():
+    if not sys.flags.isolated or not sys.dont_write_bytecode:
+        raise ValueError("pilot requires its fresh private environment's Python -I -B")
+
+
+def _runtime_tooling():
+    lock = ROOT / "requirements/pilot-runtime.txt"
+    if lock.is_symlink() or lock.stat().st_size > 1048576:
+        raise ValueError("pilot requires its bounded source-owned runtime lock")
+    raw = lock.read_bytes()
+    text = raw.decode("utf-8").replace("\r\n", "\n")
+    pinned = {}
+    for name in ("pytest", "packaging"):
+        values = re.findall(r"(?m)^" + name + r"==([A-Za-z0-9_.!+-]+)(?:\s|$)", text)
+        if len(values) != 1 or metadata.version(name) != values[0]:
+            raise ValueError("pilot runtime tooling differs from its exact source lock")
+        pinned[name] = values[0]
+    # Only import this pinned support tool after verifying its installed version.
+    from packaging.requirements import Requirement
+
+    for line in text.splitlines():
+        value = line.strip()
+        if not value or value.startswith(("#", "--hash=")):
+            continue
+        requirement = Requirement(value.removesuffix("\\").strip())
+        if requirement.extras or requirement.url or len(requirement.specifier) != 1:
+            raise ValueError("pilot runtime lock requires exact bounded package pins")
+        specifier = next(iter(requirement.specifier))
+        if specifier.operator != "==" or "*" in specifier.version:
+            raise ValueError("pilot runtime lock contains an unpinned requirement")
+        if requirement.marker is None or requirement.marker.evaluate():
+            actual = metadata.version(requirement.name)
+            if actual != specifier.version:
+                raise ValueError("pilot runtime dependency differs from its exact source lock")
+            pinned[requirement.name] = actual
+    return {
+        "lock": "requirements/pilot-runtime.txt",
+        "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "hash_normalization": "UTF-8 LF",
+        "versions": pinned,
+    }
+
+
+def _loader_details_match(actual, expected):
+    if type(actual) is not tuple or len(actual) != len(expected):
+        return False
+    for pair, (loader, suffixes) in zip(actual, expected):
+        if (
+            type(pair) is not tuple
+            or len(pair) != 2
+            or pair[0] is not loader
+            or type(pair[1]) is not list
+            or len(pair[1]) != len(suffixes)
+            or any(
+                type(value) is not str or value != suffix
+                for value, suffix in zip(pair[1], suffixes)
+            )
+        ):
+            return False
+    return True
+
+
+def _preimport_guard(roots):
+    """Resolve standard specs without executing unsupported import callbacks.
+
+    The fresh operator-selected interpreter and its standard machinery remain
+    trusted. Inspecting an arbitrary finder's returned spec could itself run code.
+    """
+    expected_meta = (machinery.BuiltinImporter, machinery.FrozenImporter, machinery.PathFinder)
+    if (
+        type(sys.meta_path) is not list
+        or len(sys.meta_path) != len(expected_meta)
+        or any(actual is not expected for actual, expected in zip(sys.meta_path, expected_meta))
+    ):
+        raise ValueError("pilot requires standard import finders in a fresh runtime environment")
+    details = (
+        (machinery.ExtensionFileLoader, machinery.EXTENSION_SUFFIXES),
+        (machinery.SourceFileLoader, machinery.SOURCE_SUFFIXES),
+        (machinery.SourcelessFileLoader, machinery.BYTECODE_SUFFIXES),
+    )
+    standard_hook = machinery.FileFinder.path_hook(*details)
+    if type(sys.path_hooks) is not list or len(sys.path_hooks) != 2:
+        raise ValueError("pilot requires standard import path hooks")
+    hook = sys.path_hooks[1]
+    if (
+        sys.path_hooks[0] is not zipimport.zipimporter
+        or type(hook) is not FunctionType
+        or hook.__code__ is not standard_hook.__code__
+        or hook.__globals__ is not standard_hook.__globals__
+        or hook.__closure__ is None
+        or len(hook.__closure__) != 2
+        or hook.__closure__[0].cell_contents is not machinery.FileFinder
+        or not _loader_details_match(hook.__closure__[1].cell_contents, details)
+    ):
+        raise ValueError("pilot refuses custom import path hooks")
+    if type(sys.path_importer_cache) is not dict:
+        raise ValueError("pilot requires a standard import path cache")
+    expected_loaders = [(suffix, loader) for loader, suffixes in details for suffix in suffixes]
+    for name, finder in sys.path_importer_cache.items():
+        if type(name) is not str:
+            raise ValueError("pilot import path cache is not standard")
+        if finder is None:
+            continue
+        if type(finder) not in {machinery.FileFinder, zipimport.zipimporter}:
+            raise ValueError("pilot refuses custom cached import finders")
+        if "find_spec" in vars(finder):
+            raise ValueError("pilot cached import finder was replaced")
+        if type(finder) is machinery.FileFinder:
+            loaders = finder._loaders
+            if (
+                type(finder.path) is not str
+                or type(loaders) is not list
+                or len(loaders) != len(expected_loaders)
+                or any(
+                    type(pair) is not tuple
+                    or len(pair) != 2
+                    or type(pair[0]) is not str
+                    or pair[0] != expected[0]
+                    or pair[1] is not expected[1]
+                    for pair, expected in zip(loaders, expected_loaders)
+                )
+            ):
+                raise ValueError("pilot refuses custom cached source loaders")
+    _loaded(roots)
+    for namespace, root in roots.items():
+        spec = machinery.PathFinder.find_spec(namespace)
+        expected = root / "__init__.py"
+        if (
+            type(spec) is not machinery.ModuleSpec
+            or type(spec.loader) is not machinery.SourceFileLoader
+            or spec.name != namespace
+            or spec.origin != str(expected)
+            or spec.loader.path != str(expected)
+            or spec.loader.name != namespace
+            or spec.submodule_search_locations != [str(root)]
+        ):
+            raise ValueError("pilot namespace import spec differs from verified installed bytes")
 
 
 def _cleanup_error(failure):
     # Error handling must not import an optional runtime or replace an original
     # failure. A real cleanup owner can exist only after its class was loaded.
     module = sys.modules.get("ordin_swarm.host_authority")
-    kind = getattr(module, "_HostCleanupIncomplete", None)
-    return isinstance(kind, type) and isinstance(failure, kind)
+    kind = vars(module).get("_HostCleanupIncomplete") if type(module) is ModuleType else None
+    return type(kind) is type and isinstance(failure, kind)
 
 
 def _write(path, value):
@@ -335,7 +487,9 @@ def _wait_until(deadline):
         time.sleep(min(1, remaining))
 
 
-def run_pilot(bundle, output, *, revision, tree, tag, config):
+def run_pilot(bundle, output, *, revision, tree, tag=None, config):
+    _require_isolated()
+    _preimport_guard({})
     if not isinstance(config, PilotConfiguration) or not all(
         type(value) is str and re.fullmatch(r"[a-f0-9]{40}", value) for value in (revision, tree)
     ):
@@ -357,6 +511,9 @@ def run_pilot(bundle, output, *, revision, tree, tag, config):
     manifest = integrity.verify_bundle(
         bundle, source_root=ROOT, revision=revision, tag=tag, tree=tree
     )
+    if manifest.get("tag") != tag:
+        raise ValueError("pilot bundle differs from the independently selected expected tag")
+    tooling = _runtime_tooling()
     roots, wheels = {}, []
     for namespace, project in (("ordin", "ordin"), ("ordin_swarm", "ordin-swarm")):
         selected = manifest["packages"][project]
@@ -378,6 +535,7 @@ def run_pilot(bundle, output, *, revision, tree, tag, config):
     sys.pycache_prefix, sys.dont_write_bytecode = str(output / "bytecode"), True
     try:
         for namespace in roots:
+            _preimport_guard(roots)
             import_module(namespace)
         return _run_verified(
             bundle,
@@ -388,13 +546,25 @@ def run_pilot(bundle, output, *, revision, tree, tag, config):
             roots,
             wheels,
             expected_artifacts=manifest["artifacts"],
+            expected_tag=tag,
+            runtime_tooling=tooling,
         )
     finally:
         sys.pycache_prefix, sys.dont_write_bytecode = prior_cache, prior_bytecode
 
 
 def _run_verified(
-    bundle, output, revision, tree, config, roots, wheels, *, expected_artifacts=None
+    bundle,
+    output,
+    revision,
+    tree,
+    config,
+    roots,
+    wheels,
+    *,
+    expected_artifacts=None,
+    expected_tag=None,
+    runtime_tooling=None,
 ):
     _loaded(roots)
     output.mkdir(mode=0o700)
@@ -416,6 +586,8 @@ def _run_verified(
         "bundle_manifest_sha256": _sha(bundle / "release.json"),
         "wheels": wheels,
         "bundle_artifacts": expected_artifacts,
+        "expected_tag": expected_tag,
+        "runtime_tooling": runtime_tooling,
         "fixture_archive": fixture_identity,
         "started_utc": started_utc.isoformat(),
         "requested_duration_seconds": config.duration_seconds,
@@ -428,6 +600,9 @@ def _run_verified(
         "python_implementation": sys.implementation.name,
         "controller_euid": os.geteuid() if hasattr(os, "geteuid") else None,
         "package_origin": "verified_installed_core_and_swarm_wheels",
+        "isolated_interpreter": bool(sys.flags.isolated),
+        "bytecode_writes_disabled": bool(sys.dont_write_bytecode),
+        "bytecode_cache_policy": "fresh_private_prefix_for_verified_source",
         "origin_authenticated_by_json": False,
         "physical_host_requested": not config.portable_only,
         "external_production_targets": False,
@@ -444,6 +619,7 @@ def _run_verified(
     }
 
     def unchanged_runtime():
+        _preimport_guard(roots)
         if _sha(bundle / "release.json") != report["bundle_manifest_sha256"]:
             raise ValueError("pilot bundle manifest changed during execution")
         for name, expected in (expected_artifacts or {}).items():
