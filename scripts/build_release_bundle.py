@@ -29,6 +29,7 @@ def _helper(filename):
 
 _SOURCE = _helper("check_swarm_release.py")
 _BUNDLE = _helper("release_bundle.py")
+_TOOLS = _helper("_release_tools.py")
 copy_build_source, source_identity = _SOURCE.copy_build_source, _SOURCE.source_identity
 PROJECTS, _source_projects, create_bundle_metadata = (
     _BUNDLE.PROJECTS,
@@ -47,6 +48,7 @@ def build_bundle(source_root: Path, dist: Path, *, revision: str, tag: str | Non
     dist.mkdir(parents=True, mode=0o700)
     with tempfile.TemporaryDirectory(prefix="ordin-release-build-") as name:
         build_source = copy_build_source(source_root, Path(name) / "source")
+        settings = _TOOLS.child_environment(Path(name))
         for project, (relative, _) in PROJECTS.items():
             with (Path(name) / (project + ".log")).open("wb") as log:
                 completed = subprocess.run(
@@ -65,11 +67,7 @@ def build_bundle(source_root: Path, dist: Path, *, revision: str, tag: str | Non
                     stdout=log,
                     stderr=subprocess.STDOUT,
                     timeout=900,
-                    env={
-                        key: value
-                        for key, value in os.environ.items()
-                        if not key.upper().startswith(("PYTHON", "_PYPROJECT_HOOKS_", "PEP517_"))
-                    },
+                    env=settings,
                 )
             if completed.returncode:
                 # Bounded diagnostics, while retaining the fresh failed directory for inspection.

@@ -73,6 +73,9 @@ class ReleaseAPI:
             )
             self.add_run(filename, names | extra)
         monkeypatch.setattr("scripts.release_integrity.subprocess.check_output", self.query)
+        monkeypatch.setattr(
+            "scripts.release_integrity._trusted_tool", lambda name: "/trusted/" + name
+        )
 
     def add_run(self, filename, names, *, branch="main", event=None):
         run_id = 1 + max((run["id"] for run in self.runs), default=0)
@@ -174,8 +177,8 @@ class ReleaseAPI:
             monkeypatch.setenv(key, value)
         return run
 
-    def query(self, command, *, text):
-        assert command[:4] == ["gh", "api", "--paginate", "--slurp"]
+    def query(self, command, *, text, env):
+        assert command[:4] == ["/trusted/gh", "api", "--paginate", "--slurp"]
         assert text is True
         endpoint = command[4].removeprefix(f"repos/{REPOSITORY}/")
         self.calls.append(endpoint)

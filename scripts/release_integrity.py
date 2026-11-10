@@ -49,6 +49,20 @@ def _bounded_inputs():
     return module
 
 
+def _tools_helper():
+    path = Path(__file__).with_name("_release_tools.py")
+    spec = importlib.util.spec_from_file_location("_ordin_release_tools", path)
+    if spec is None:
+        raise ValueError("exact release tool resolver is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), module.__dict__)
+    return module
+
+
+def _trusted_tool(name):
+    return _tools_helper().trusted_executable(name, Path.cwd())
+
+
 def create_bundle_metadata(
     dist: Path, *, source_root: Path, revision: str, tag: str | None = None
 ) -> dict:
@@ -127,7 +141,9 @@ TAG_RELEASE_CHECKS = RELEASE_WORKFLOW_CHECKS["release.yml"] | {"Publish GitHub R
 def _github_pages(repository: str, endpoint: str) -> list[Any]:
     return json.loads(
         subprocess.check_output(
-            ["gh", "api", "--paginate", "--slurp", f"repos/{repository}/{endpoint}"], text=True
+            [_trusted_tool("gh"), "api", "--paginate", "--slurp", f"repos/{repository}/{endpoint}"],
+            text=True,
+            env=_tools_helper().qualification_environment(),
         )
     )
 
@@ -635,18 +651,22 @@ def main() -> None:
         # Reject configured content filters before any diff/status can invoke them.
         actual = _bundle_helper().source_identity(Path.cwd(), args.revision)["commit"]
     else:
-        actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        executable = _trusted_tool("git")
+        actual = subprocess.check_output([executable, "rev-parse", "HEAD"], text=True).strip()
         if actual != args.revision:
             raise ValueError("checked-out source differs from requested release revision")
-        if subprocess.check_output(["git", "status", "--porcelain"], text=True).strip():
+        if subprocess.check_output([executable, "status", "--porcelain"], text=True).strip():
             raise ValueError("release integrity requires a clean source checkout")
     if args.publish:
         if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version) or args.tag != f"v{version}":
             raise ValueError("published tags require exactly vX.Y.Z matching the package")
-        subprocess.run(["git", "merge-base", "--is-ancestor", actual, "origin/main"], check=True)
+        executable = _trusted_tool("git")
+        subprocess.run(
+            [executable, "merge-base", "--is-ancestor", actual, "origin/main"], check=True
+        )
         refs = subprocess.check_output(
             [
-                "git",
+                executable,
                 "ls-remote",
                 "--exit-code",
                 "origin",

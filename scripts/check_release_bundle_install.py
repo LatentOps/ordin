@@ -17,8 +17,8 @@ from pathlib import Path
 import subprocess
 
 
-def _bundle_helper():
-    path = Path(__file__).with_name("release_bundle.py")
+def _bundle_helper(filename="release_bundle.py"):
+    path = Path(__file__).with_name(filename)
     spec = importlib.util.spec_from_file_location("_ordin_release_bundle", path)
     if spec is None:
         raise ValueError("exact release bundle helper is unavailable")
@@ -28,6 +28,7 @@ def _bundle_helper():
 
 
 verify_bundle = _bundle_helper().verify_bundle
+_TOOLS = _bundle_helper("_release_tools.py")
 
 
 PROBE = """import hashlib,importlib,json,pathlib,sys
@@ -68,11 +69,20 @@ def check_install(
     workspace = workspace.absolute()
     if workspace.exists() or workspace.is_symlink():
         raise ValueError("bundle install verification requires a new workspace")
+    if workspace.resolve().is_relative_to(source_root.resolve()):
+        raise ValueError("bundle install workspace must be outside the source checkout")
     workspace.mkdir(mode=0o700, parents=True)
+    settings = _TOOLS.child_environment(workspace)
     captured = workspace / "verified-bundle.json"
     with captured.open("x", encoding="utf-8") as stream:
         json.dump(identity, stream, sort_keys=True)
-    subprocess.run([sys.executable, "-m", "venv", str(workspace / "env")], check=True, timeout=120)
+    subprocess.run(
+        [sys.executable, "-I", "-B", "-m", "venv", str(workspace / "env")],
+        cwd=workspace,
+        env=settings,
+        check=True,
+        timeout=120,
+    )
     python = workspace / "env" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     subprocess.run(
         [
@@ -91,14 +101,22 @@ def check_install(
         cwd=workspace,
         check=True,
         timeout=120,
+        env=settings,
     )
-    subprocess.run([str(python), "-I", "-m", "pip", "check"], cwd=workspace, check=True, timeout=30)
+    subprocess.run(
+        [str(python), "-I", "-m", "pip", "check"],
+        cwd=workspace,
+        env=settings,
+        check=True,
+        timeout=30,
+    )
     observed = json.loads(
         subprocess.check_output(
             [str(python), "-I", "-B", "-c", PROBE, str(captured), str(source_root)],
             cwd=workspace,
             text=True,
             timeout=60,
+            env=settings,
         )
     )
     scripts = python.parent
@@ -109,6 +127,7 @@ def check_install(
             check=True,
             stdout=subprocess.DEVNULL,
             timeout=30,
+            env=settings,
         )
     # Revalidate original bytes after the installer and command probes complete.
     if verify_bundle(bundle, source_root=source_root, revision=revision, tag=tag) != identity:

@@ -7,6 +7,7 @@ import email
 import hashlib
 from importlib import import_module
 import io
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -63,11 +64,21 @@ def git_environment():
     }
 
 
-def git(root, *arguments):
+def trusted_git(root):
+    path = Path(__file__).with_name("_release_tools.py")
+    spec = importlib.util.spec_from_file_location("_ordin_release_tools", path)
+    if spec is None:
+        raise ValueError("exact release tool resolver is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), module.__dict__)
+    return module.trusted_executable("git", root)
+
+
+def git(root, *arguments, executable=None):
     settings = git_environment()
     completed = subprocess.run(
         [
-            "git",
+            executable or trusted_git(root),
             "--no-pager",
             "--no-optional-locks",
             "-c",
@@ -94,12 +105,17 @@ def git(root, *arguments):
 def source_identity(root: Path, revision: str):
     if not re.fullmatch(r"[a-f0-9]{40}", revision):
         raise ValueError("release source must use an exact Git commit")
-    current = git(root, "rev-parse", "--verify", "HEAD^{commit}").decode().strip()
+    executable = trusted_git(root)
+
+    def checked_git(*arguments):
+        return git(root, *arguments, executable=executable)
+
+    current = checked_git("rev-parse", "--verify", "HEAD^{commit}").decode().strip()
     if current != revision:
         raise ValueError("release revision differs from the checkout")
     filters = subprocess.run(
         [
-            "git",
+            executable,
             "--no-pager",
             "-C",
             str(root),
@@ -115,8 +131,7 @@ def source_identity(root: Path, revision: str):
     if filters.returncode not in {0, 1} or filters.stdout:
         raise ValueError("repository content filters are unsupported by the release collector")
     # Inspect filters before diff: clean/smudge drivers are executable callbacks.
-    git(
-        root,
+    checked_git(
         "diff",
         "--no-ext-diff",
         "--no-textconv",
@@ -125,10 +140,10 @@ def source_identity(root: Path, revision: str):
         "HEAD",
         "--",
     )
-    if git(root, "ls-files", "--others", "--exclude-standard", "-z"):
+    if checked_git("ls-files", "--others", "--exclude-standard", "-z"):
         raise ValueError("release source includes uncommitted files")
     material = {}
-    tracked = set(git(root, "ls-files", "-z").decode().split("\0"))
+    tracked = set(checked_git("ls-files", "-z").decode().split("\0"))
     for package in (root / "ordin", root / "integrations/swarm/ordin_swarm"):
         for path in package.rglob("*"):
             if path.is_file() and path.suffix != ".pyc" and "__pycache__" not in path.parts:
@@ -142,7 +157,7 @@ def source_identity(root: Path, revision: str):
         material[name] = sha((root / name).read_bytes())
     return {
         "commit": current,
-        "tree": git(root, "rev-parse", "HEAD^{tree}").decode().strip(),
+        "tree": checked_git("rev-parse", "HEAD^{tree}").decode().strip(),
         "clean": True,
         "source_bytes_verified": True,
         "git_hooks_executed": False,

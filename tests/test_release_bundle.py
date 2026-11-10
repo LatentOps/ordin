@@ -475,7 +475,13 @@ def test_release_cli_never_imports_repository_shadow_modules_before_validation(
     root = tmp_path / "owned"
     scripts = root / "scripts"
     scripts.mkdir(parents=True)
-    for helper in (name, "release_bundle.py", "_release_archive.py", "check_swarm_release.py"):
+    for helper in (
+        name,
+        "release_bundle.py",
+        "_release_archive.py",
+        "_release_tools.py",
+        "check_swarm_release.py",
+    ):
         shutil.copyfile(source / helper, scripts / helper)
     marker = tmp_path / "must-not-exist"
     body = f"raise AssertionError('untrusted shadow import')\n"
@@ -600,3 +606,101 @@ def test_tagged_bundle_requires_the_explicit_expected_tag(bundle):
     with pytest.raises(ValueError, match="identity mismatch"):
         verify_bundle(dist, source_root=root, revision=revision)
     assert verify_bundle(dist, source_root=root, revision=revision, tag="v0.4.0")["tag"] == "v0.4.0"
+
+
+def test_child_environment_excludes_auth_preloads_and_install_overrides(tmp_path, monkeypatch):
+    from scripts._release_tools import child_environment, qualification_environment
+
+    secrets = {
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "AWS_SECRET_ACCESS_KEY",
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "LD_PRELOAD",
+        "DYLD_INSERT_LIBRARIES",
+        "PIP_TARGET",
+        "PIP_PREFIX",
+        "PIP_USER",
+        "PIP_INDEX_URL",
+        "_PYPROJECT_HOOKS_BACKEND_PATH",
+    }
+    for key in secrets:
+        monkeypatch.setenv(key, "owned-synthetic-value")
+    monkeypatch.setenv("HTTP_PROXY", "http://owned-proxy.invalid:8080")
+    result = child_environment(tmp_path)
+    assert not (set(result) & secrets)
+    assert result["HOME"] == result["USERPROFILE"] == str(tmp_path / "home")
+    assert result["TMPDIR"] == str(tmp_path / "tmp")
+    assert result["PIP_CONFIG_FILE"] == __import__("os").devnull
+    assert (
+        result["PIP_NO_INDEX"] == "1" and result["HTTP_PROXY"] == "http://owned-proxy.invalid:8080"
+    )
+    qualification = qualification_environment()
+    assert qualification["GH_TOKEN"] == "owned-synthetic-value"
+    assert not (set(qualification) & (secrets - {"GH_TOKEN", "GITHUB_TOKEN"}))
+
+
+@pytest.mark.parametrize("name", ["git", "gh"])
+def test_release_tool_resolution_never_executes_local_workspace_shadows(
+    tmp_path, monkeypatch, name
+):
+    from scripts import _release_tools as tools
+    import os
+
+    root = tmp_path / "source"
+    root.mkdir()
+    (root / (name + (".exe" if os.name == "nt" else ""))).write_bytes(b"")
+    monkeypatch.setenv("PATH", str(root))
+    monkeypatch.chdir(root)
+    with pytest.raises(ValueError, match="trusted absolute"):
+        tools.trusted_executable(name, root)
+    if name == "git":
+        from scripts import check_swarm_release as collector
+
+        monkeypatch.setattr(
+            collector.subprocess,
+            "run",
+            lambda *args, **kwargs: pytest.fail("project Git shadow was invoked"),
+        )
+        with pytest.raises(ValueError, match="trusted absolute"):
+            collector.source_identity(root, "a" * 40)
+    else:
+        from scripts import release_integrity as integrity
+
+        monkeypatch.setattr(
+            integrity.subprocess,
+            "check_output",
+            lambda *args, **kwargs: pytest.fail("project GH shadow received qualification auth"),
+        )
+        with pytest.raises(ValueError, match="trusted absolute"):
+            integrity._github_pages("LatentOps/ordin", "actions/runs")
+
+
+def test_installer_venv_child_is_isolated_and_never_receives_ambient_credentials(
+    tmp_path, monkeypatch
+):
+    from scripts import check_release_bundle_install as installer
+
+    source = tmp_path / "source"
+    source.mkdir()
+    workspace = tmp_path / "work"
+    monkeypatch.setenv("GH_TOKEN", "owned-gh-token")
+    monkeypatch.setenv("PYTHONPATH", str(source))
+    monkeypatch.setattr(installer, "verify_bundle", lambda *args, **kwargs: {"packages": {}})
+
+    class Observed(Exception):
+        pass
+
+    def launch(command, **kwargs):
+        assert command[1:5] == ["-I", "-B", "-m", "venv"]
+        assert kwargs["cwd"] == workspace
+        assert "GH_TOKEN" not in kwargs["env"] and "PYTHONPATH" not in kwargs["env"]
+        assert kwargs["env"]["HOME"] == str(workspace / "home")
+        raise Observed()
+
+    monkeypatch.setattr(installer.subprocess, "run", launch)
+    with pytest.raises(Observed):
+        installer.check_install(tmp_path, workspace, source_root=source, revision="a" * 40)
