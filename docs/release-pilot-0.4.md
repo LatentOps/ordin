@@ -54,6 +54,8 @@ the actual standard import specs and source loaders before importing Ordin code.
 Source/editable overlays and unsupported meta/path/cache finders are refused
 without calling their import callbacks. A build or development environment with
 extra import hooks is unsuitable, even if it contains matching wheel files.
+Some virtual environment tools also install startup finders. Use the standard
+library `venv --without-pip` command above to create this dedicated runtime.
 The tool also checks required runtime-tool versions against the source lock
 before fixtures execute and records its LF-normalized SHA256 and actual versions.
 
