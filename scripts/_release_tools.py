@@ -27,11 +27,8 @@ BASE_KEYS = {
 def trusted_executable(name: str, *boundaries: Path) -> str:
     if name not in {"git", "gh"}:
         raise ValueError("unsupported release qualification tool")
-    excluded = (
-        Path(__file__).resolve().parents[1],
-        Path.cwd().resolve(),
-        *(Path(root).resolve() for root in boundaries),
-    )
+    current = Path.cwd().resolve()
+    excluded = (Path(__file__).resolve().parents[1], *(Path(root).resolve() for root in boundaries))
     filename = name + (".exe" if os.name == "nt" else "")
     for entry in os.environ.get("PATH", "").split(os.pathsep):
         directory = Path(entry)
@@ -42,8 +39,13 @@ def trusted_executable(name: str, *boundaries: Path) -> str:
             candidate = (directory / filename).resolve(strict=True)
         except (OSError, RuntimeError):
             continue
-        if any(
-            directory.is_relative_to(root) or candidate.is_relative_to(root) for root in excluded
+        if (
+            directory == current
+            or candidate.parent == current
+            or any(
+                directory.is_relative_to(root) or candidate.is_relative_to(root)
+                for root in excluded
+            )
         ):
             continue
         if candidate.is_file() and os.access(candidate, os.X_OK):
@@ -100,3 +102,33 @@ def qualification_environment() -> dict[str, str]:
         "GH_CONFIG_DIR",
     }
     return {key: value for key, value in os.environ.items() if key.upper() in keys}
+
+
+def git_environment() -> dict[str, str]:
+    keys = BASE_KEYS | {
+        "HOME",
+        "USERPROFILE",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+    }
+    result = {key: value for key, value in os.environ.items() if key.upper() in keys}
+    result.update(
+        {
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_SYSTEM": os.devnull,
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_COUNT": "3",
+            "GIT_CONFIG_KEY_0": "core.hooksPath",
+            "GIT_CONFIG_VALUE_0": os.devnull,
+            "GIT_CONFIG_KEY_1": "core.fsmonitor",
+            "GIT_CONFIG_VALUE_1": "false",
+            "GIT_CONFIG_KEY_2": "diff.external",
+            "GIT_CONFIG_VALUE_2": "",
+        }
+    )
+    return result

@@ -704,3 +704,81 @@ def test_installer_venv_child_is_isolated_and_never_receives_ambient_credentials
     monkeypatch.setattr(installer.subprocess, "run", launch)
     with pytest.raises(Observed):
         installer.check_install(tmp_path, workspace, source_root=source, revision="a" * 40)
+
+
+@pytest.mark.parametrize("published", [False, True])
+def test_integrity_git_children_receive_only_the_sanitized_git_envelope(
+    tmp_path, monkeypatch, published
+):
+    from scripts import release_integrity as module
+    from types import SimpleNamespace
+
+    version = "0.4.0" if published else "0.3.0"
+    revision = "a" * 40
+    (tmp_path / "pyproject.toml").write_text(f'[project]\nversion="{version}"\n')
+    (tmp_path / "ordin").mkdir()
+    (tmp_path / "ordin/__init__.py").write_text(f'__version__="{version}"\n')
+    monkeypatch.chdir(tmp_path)
+    for key in ("GH_TOKEN", "OPENAI_API_KEY", "LD_PRELOAD", "GIT_SSH_COMMAND", "GIT_CONFIG_GLOBAL"):
+        monkeypatch.setenv(key, "owned-synthetic-value")
+    arguments = ["release_integrity.py", "verify", "--revision", revision, "--tag", "v" + version]
+    if published:
+        arguments.append("--publish")
+        monkeypatch.setenv("GITHUB_EVENT_NAME", "push")
+        monkeypatch.setenv("GITHUB_REF_TYPE", "tag")
+        monkeypatch.setenv("GITHUB_REPOSITORY", "LatentOps/ordin")
+    monkeypatch.setattr(module.sys, "argv", arguments)
+    monkeypatch.setattr(module, "_trusted_tool", lambda name, *boundaries: "/trusted/" + name)
+    monkeypatch.setattr(
+        module,
+        "_bundle_helper",
+        lambda: SimpleNamespace(source_identity=lambda root, expected: {"commit": revision}),
+    )
+    monkeypatch.setattr(module, "verify_release_checks", lambda *args, **kwargs: None)
+    monkeypatch.setattr(module, "verify_metadata", lambda *args, **kwargs: {})
+    monkeypatch.setattr(module, "verify_bundle", lambda *args, **kwargs: {})
+    calls = []
+
+    def check(command, env):
+        assert command[0] == "/trusted/git"
+        assert not (set(env) & {"GH_TOKEN", "OPENAI_API_KEY", "LD_PRELOAD", "GIT_SSH_COMMAND"})
+        assert env["GIT_CONFIG_GLOBAL"] == __import__("os").devnull
+        assert env["GIT_CONFIG_VALUE_1"] == "false"
+        calls.append(command[1])
+
+    def output(command, *, text, env):
+        check(command, env)
+        if command[1] == "rev-parse":
+            return revision + "\n"
+        if command[1] == "ls-remote":
+            return revision + "\trefs/tags/v0.4.0\n"
+        return ""
+
+    def run(command, *, env, **kwargs):
+        check(command, env)
+        return SimpleNamespace(returncode=1 if command[1] == "config" else 0, stdout=b"")
+
+    monkeypatch.setattr(module.subprocess, "check_output", output)
+    monkeypatch.setattr(module.subprocess, "run", run)
+    module.main()
+    assert calls == (
+        ["merge-base", "ls-remote"] if published else ["config", "rev-parse", "status"]
+    )
+
+
+@pytest.mark.parametrize("name", ["git", "gh"])
+def test_trusted_tool_may_be_under_cwd_when_outside_the_source_workspace(
+    tmp_path, monkeypatch, name
+):
+    from scripts import _release_tools as tools
+    import os
+
+    source, binaries = tmp_path / "source", tmp_path / "tools"
+    source.mkdir()
+    binaries.mkdir()
+    executable = binaries / (name + (".exe" if os.name == "nt" else ""))
+    executable.write_bytes(b"Owned static fixture; never executed")
+    executable.chmod(0o700)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PATH", str(binaries))
+    assert tools.trusted_executable(name, source) == str(executable.resolve())

@@ -59,8 +59,8 @@ def _tools_helper():
     return module
 
 
-def _trusted_tool(name):
-    return _tools_helper().trusted_executable(name, Path.cwd())
+def _trusted_tool(name, *boundaries):
+    return _tools_helper().trusted_executable(name, *boundaries)
 
 
 def create_bundle_metadata(
@@ -651,18 +651,40 @@ def main() -> None:
         # Reject configured content filters before any diff/status can invoke them.
         actual = _bundle_helper().source_identity(Path.cwd(), args.revision)["commit"]
     else:
-        executable = _trusted_tool("git")
-        actual = subprocess.check_output([executable, "rev-parse", "HEAD"], text=True).strip()
+        executable = _trusted_tool("git", Path.cwd())
+        settings = _tools_helper().git_environment()
+        filters = subprocess.run(
+            [
+                executable,
+                "config",
+                "--includes",
+                "--get-regexp",
+                r"^filter\..*\.(clean|smudge|process)$",
+            ],
+            env=settings,
+            capture_output=True,
+            check=False,
+        )
+        if filters.returncode not in {0, 1} or filters.stdout:
+            raise ValueError("repository content filters are unsupported by release verification")
+        actual = subprocess.check_output(
+            [executable, "rev-parse", "HEAD"], env=settings, text=True
+        ).strip()
         if actual != args.revision:
             raise ValueError("checked-out source differs from requested release revision")
-        if subprocess.check_output([executable, "status", "--porcelain"], text=True).strip():
+        if subprocess.check_output(
+            [executable, "status", "--porcelain"], env=settings, text=True
+        ).strip():
             raise ValueError("release integrity requires a clean source checkout")
     if args.publish:
         if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version) or args.tag != f"v{version}":
             raise ValueError("published tags require exactly vX.Y.Z matching the package")
-        executable = _trusted_tool("git")
+        executable = _trusted_tool("git", Path.cwd())
+        settings = _tools_helper().git_environment()
         subprocess.run(
-            [executable, "merge-base", "--is-ancestor", actual, "origin/main"], check=True
+            [executable, "merge-base", "--is-ancestor", actual, "origin/main"],
+            env=settings,
+            check=True,
         )
         refs = subprocess.check_output(
             [
@@ -674,6 +696,7 @@ def main() -> None:
                 f"refs/tags/{args.tag}^{{}}",
             ],
             text=True,
+            env=settings,
         ).splitlines()
         if not refs or refs[-1].split()[0] != actual:
             raise ValueError("remote release tag no longer identifies the tested commit")
