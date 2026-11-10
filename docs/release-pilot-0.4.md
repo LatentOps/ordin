@@ -105,6 +105,11 @@ client handle, and retention of existing durable consumption. Original objects
 remain owned until cleanup succeeds. Ordinary client-process confinement is
 not claimed by these host-side tool checks.
 
+The native transition test is also a required installed-wheel positive in the
+maintained protected Python 3.10 and 3.13 lanes. Missing, skipped, failed or
+errored execution blocks those checks. These finite CI checks do not establish
+that the elapsed multi-day pilot or independent operator acceptance completed.
+
 ## Explicit three-to-seven-day pilot
 
 Only after the engineering probe succeeds, a human operator can start a full

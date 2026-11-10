@@ -589,7 +589,10 @@ def test_foreign_source_owner_is_refused_before_git_probe_or_collector(tmp_path,
 
 
 def test_production_collector_contract_is_not_relaxed():
-    assert len(collector.REQUIRED_POSITIVES) == 14
+    assert len(collector.REQUIRED_POSITIVES) == 15
+    assert "test_native_denial_cancel_revocation_restart_and_durable_consumption" in (
+        collector.REQUIRED_POSITIVES
+    )
     assert set(driver.EXPORTS.values()) == {
         "preflight.json",
         "driver-provenance.json",

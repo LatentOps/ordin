@@ -118,10 +118,12 @@ The two `Protected execution Python 3.10` and `3.13` jobs run required actual
 kernel fixtures under controlled root privileges on Ubuntu. They build fresh
 core/Swarm wheels, compare the installed runtime modules and schemas with the
 exact checkout, and execute the agent/private-channel and fixed-pytest positives
-outside that checkout. Fourteen named positives also require actual catalogue
+outside that checkout. Fifteen named positives also require actual catalogue
 build/load, pinned framework selection, private scratch logging, aggregate
 custody, shared human-approved writes, and both ordinary and protected workflow
-variants. The fresh installed console script and module must both run; the
+variants, plus original pilot denial/cancellation/revocation and durable epoch
+restart transitions. The fresh installed console script and module must both
+run; the
 console metadata must point to the original cleanup entrypoint. Tracked helper
 and fixture trees are copied without source packages. Missing or skipped
 required positives, failed cases, and unhandled thread errors fail qualification.

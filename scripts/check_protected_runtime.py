@@ -47,6 +47,7 @@ TEST_FILES = (
     "integrations/swarm/tests/test_tool_host_commands.py",
     "integrations/swarm/tests/test_tool_host_deployment.py",
     "integrations/swarm/tests/test_tool_host_evaluation.py",
+    "integrations/swarm/tests/test_pilot_workflow.py",
 )
 REQUIRED_POSITIVES = frozenset(
     {
@@ -64,6 +65,7 @@ REQUIRED_POSITIVES = frozenset(
         "test_live_shared_host_init_handoff_exact_human_write_stop_and_epoch_restart",
         "test_actual_offline_two_agent_workflow_and_attack_suite[False]",
         "test_actual_offline_two_agent_workflow_and_attack_suite[True]",
+        "test_native_denial_cancel_revocation_restart_and_durable_consumption",
     }
 )
 
