@@ -56,8 +56,8 @@ For the prepared final version, build the complete five-package candidate into
 a fresh directory outside the clean exact-source checkout:
 
 ```console
-python scripts/build_release_bundle.py --dist /absolute/new-candidate-bundle --revision TRUSTED_FULL_COMMIT_SHA
-python scripts/release_integrity.py verify --bundle --dist /absolute/new-candidate-bundle --revision TRUSTED_FULL_COMMIT_SHA
+python -I -B scripts/build_release_bundle.py --dist /absolute/new-candidate-bundle --revision TRUSTED_FULL_COMMIT_SHA
+python -I -B scripts/release_integrity.py verify --bundle --dist /absolute/new-candidate-bundle --revision TRUSTED_FULL_COMMIT_SHA
 ```
 
 These commands produce and verify an untagged candidate (`tag: null`) for its

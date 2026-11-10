@@ -17,7 +17,7 @@ An exact-source local candidate has no hosted attestation until that workflow
 has actually run. From its clean matching checkout, validate the whole bundle:
 
 ```console
-python scripts/release_integrity.py verify --bundle --dist /absolute/verified-bundle --revision TRUSTED_FULL_COMMIT_SHA
+python -I -B scripts/release_integrity.py verify --bundle --dist /absolute/verified-bundle --revision TRUSTED_FULL_COMMIT_SHA
 ```
 
 The command above verifies an untagged candidate whose manifest has `tag: null`.
