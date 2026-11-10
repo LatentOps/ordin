@@ -69,15 +69,34 @@ jobs:
 
           print(f"validated release version {project_version}")
           PY
-      - name: Build wheel and source distribution
-        run: python -m build --no-isolation
+      - name: Build all five source-bound wheel and source distributions
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          tag_args=()
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag ]]; then
+            tag_args+=(--tag "$RELEASE_TAG")
+          fi
+          python -I -B scripts/build_release_bundle.py --dist dist --revision "$RELEASE_SHA" "${tag_args[@]}"
       - name: Validate distribution metadata
-        run: python -m twine check dist/*
+        run: python -m twine check dist/*.whl dist/*.tar.gz
+      - name: Verify the complete offline installed bundle
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          tag_args=()
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag ]]; then
+            tag_args+=(--tag "$RELEASE_TAG")
+          fi
+          python -I -B scripts/check_release_bundle_install.py --bundle "$GITHUB_WORKSPACE/dist" --workspace "$RUNNER_TEMP/ordin-bundle-install" --revision "$RELEASE_SHA" "${tag_args[@]}"
       - name: Smoke-test built wheel
         run: |
           python -m venv /tmp/ordin-release
           /tmp/ordin-release/bin/python -m pip install --upgrade pip
-          /tmp/ordin-release/bin/python -m pip install dist/*.whl
+          /tmp/ordin-release/bin/python -m pip install --no-index --find-links dist dist/*.whl
+          /tmp/ordin-release/bin/python -m pip check
           /tmp/ordin-release/bin/ordin doctor
           /tmp/ordin-release/bin/ordin make file runnable --limit 1 --json
           /tmp/ordin-release/bin/python -I -c "from importlib.metadata import version; from ordin import Ordin, __version__; assert __version__ == version('ordin'); assert Ordin().review('git status --short').allowed"
@@ -85,6 +104,9 @@ jobs:
           printf '%s\n' '{"session_id":"release-smoke","cwd":"/tmp","permission_mode":"default","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{"file_path":"/tmp/example"},"tool_use_id":"release-read"}' | /tmp/ordin-release/bin/ordin-claude-hook pre > /tmp/ordin-release-hook.json
           /tmp/ordin-release/bin/python -I -c "import json; from pathlib import Path; result = json.loads(Path('/tmp/ordin-release-hook.json').read_text()); assert result['hookSpecificOutput']['permissionDecision'] == 'allow'"
           /tmp/ordin-release/bin/ordin-mcp-proxy --help > /tmp/ordin-release-proxy-help.txt
+          /tmp/ordin-release/bin/ordin-swarm-host --help > /tmp/ordin-release-host-help.txt
+          /tmp/ordin-release/bin/ordin-runtime --help > /tmp/ordin-release-runtime-help.txt
+          /tmp/ordin-release/bin/python -I -c "import ordin_swarm, ordin_runtime, ordin_security, ordin_decision_models"
       - name: Run exact candidate acceptance against the installed wheel
         env:
           CANDIDATE_REVISION: ${{ github.sha }}
@@ -103,10 +125,10 @@ jobs:
           RELEASE_SHA: ${{ github.sha }}
         run: |
           publish_args=()
-          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
-            publish_args+=(--publish)
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF_TYPE" == tag ]]; then
+            publish_args+=(--publish --tag "$RELEASE_TAG")
           fi
-          python scripts/release_integrity.py create --revision "$RELEASE_SHA" --tag "$RELEASE_TAG" "${publish_args[@]}"
+          python -I -B scripts/release_integrity.py verify --bundle --revision "$RELEASE_SHA" "${publish_args[@]}"
       - name: Upload validated artifacts
         id: upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -144,7 +166,10 @@ jobs:
       - name: Verify the generated provenance
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh attestation verify dist/SHA256SUMS --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-digest "$GITHUB_SHA" --bundle dist/provenance.sigstore.json
+        run: |
+          for subject in dist/*.whl dist/*.tar.gz dist/release.json dist/sbom.cdx.json dist/SHA256SUMS; do
+            gh attestation verify "$subject" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-digest "$GITHUB_SHA" --bundle dist/provenance.sigstore.json
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         id: upload
         with:
@@ -168,6 +193,11 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Install pinned release validation tooling
+        run: python -m pip install --require-hashes -r requirements/dev-baseline.txt
       - name: Download the exact attested artifact
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -178,8 +208,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python3 scripts/release_integrity.py verify --revision "$GITHUB_SHA" --tag "$GITHUB_REF_NAME" --publish
-          gh attestation verify dist/SHA256SUMS --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-digest "$GITHUB_SHA"
+          python3 -I -B scripts/release_integrity.py verify --bundle --revision "$GITHUB_SHA" --tag "$GITHUB_REF_NAME" --publish
+          for subject in dist/*.whl dist/*.tar.gz dist/release.json dist/sbom.cdx.json dist/SHA256SUMS; do
+            gh attestation verify "$subject" --repo "$GITHUB_REPOSITORY" --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" --source-digest "$GITHUB_SHA" --bundle dist/provenance.sigstore.json
+          done
       - name: Create immutable GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

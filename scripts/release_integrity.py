@@ -1,6 +1,13 @@
 """Validate release identities and produce bounded, inspectable integrity metadata."""
 
-from __future__ import annotations
+import sys
+
+if __name__ == "__main__" and not sys.flags.isolated:
+    raise SystemExit(
+        "Release tooling requires isolated Python: use python -I -B scripts/"
+        + __file__.replace("\\", "/").rsplit("/", 1)[-1]
+    )
+
 
 import argparse
 import ast
@@ -16,6 +23,65 @@ from datetime import datetime
 from email.parser import BytesParser
 from pathlib import Path
 from typing import Any, NoReturn
+
+import importlib.util
+
+
+def _bundle_helper():
+    spec = importlib.util.spec_from_file_location(
+        "_ordin_release_bundle", Path(__file__).with_name("release_bundle.py")
+    )
+    if spec is None or spec.loader is None:
+        raise ValueError("exact release bundle helper is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    path = Path(__file__).with_name("release_bundle.py")
+    exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), module.__dict__)
+    return module
+
+
+def _bounded_inputs():
+    path = Path(__file__).with_name("_release_archive.py")
+    spec = importlib.util.spec_from_file_location("_ordin_release_archives", path)
+    if spec is None:
+        raise ValueError("exact bounded archive helper is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), module.__dict__)
+    return module
+
+
+def _tools_helper():
+    path = Path(__file__).with_name("_release_tools.py")
+    spec = importlib.util.spec_from_file_location("_ordin_release_tools", path)
+    if spec is None:
+        raise ValueError("exact release tool resolver is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    exec(compile(path.read_bytes(), str(path), "exec", dont_inherit=True), module.__dict__)
+    return module
+
+
+def _trusted_tool(name, *boundaries):
+    return _tools_helper().trusted_executable(name, *boundaries)
+
+
+def create_bundle_metadata(
+    dist: Path, *, source_root: Path, revision: str, tag: str | None = None
+) -> dict:
+    return _bundle_helper().create_bundle_metadata(
+        dist, source_root=source_root, revision=revision, tag=tag
+    )
+
+
+def verify_bundle(
+    dist: Path, *, source_root: Path, revision: str, tag: str | None = None, tree: str | None = None
+) -> dict:
+    return _bundle_helper().verify_bundle(
+        dist, source_root=source_root, revision=revision, tag=tag, tree=tree
+    )
+
+
+def _legacy_version(version: str) -> bool:
+    # The historical core-only format is not an escape hatch for current releases.
+    return re.fullmatch(r"0\.[0-3]\.[0-9]+", version) is not None
 
 
 RELEASE_WORKFLOW_CHECKS = {
@@ -75,7 +141,9 @@ TAG_RELEASE_CHECKS = RELEASE_WORKFLOW_CHECKS["release.yml"] | {"Publish GitHub R
 def _github_pages(repository: str, endpoint: str) -> list[Any]:
     return json.loads(
         subprocess.check_output(
-            ["gh", "api", "--paginate", "--slurp", f"repos/{repository}/{endpoint}"], text=True
+            [_trusted_tool("gh"), "api", "--paginate", "--slurp", f"repos/{repository}/{endpoint}"],
+            text=True,
+            env=_tools_helper().qualification_environment(),
         )
     )
 
@@ -395,11 +463,7 @@ def verify_release_checks(repository: str, revision: str, *, tag: str | None = N
 
 
 def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    return hashlib.sha256(_bounded_inputs().read_file(path)).hexdigest()
 
 
 def _runtime_version(source: bytes) -> str:
@@ -418,39 +482,44 @@ def validate_distributions(dist: Path, version: str) -> list[Path]:
     sdist = dist / f"ordin-{version}.tar.gz"
     if set(dist.glob("*.whl")) != {wheel} or set(dist.glob("*.tar.gz")) != {sdist}:
         raise ValueError("release must contain exactly the expected wheel and source distribution")
-    with zipfile.ZipFile(wheel) as archive:
-        metadata = archive.read(f"ordin-{version}.dist-info/METADATA")
-        runtime = archive.read("ordin/__init__.py")
-        parsed = BytesParser().parsebytes(metadata)
-        if (
-            parsed["Name"] != "ordin"
-            or parsed["Version"] != version
-            or _runtime_version(runtime) != version
-        ):
-            raise ValueError("wheel metadata/runtime version mismatch")
-    with tarfile.open(sdist, "r:gz") as archive:
+    inputs = _bounded_inputs()
+    archive = inputs.read_archive(wheel, wheel=True)
+    metadata = archive[f"ordin-{version}.dist-info/METADATA"]
+    runtime = archive["ordin/__init__.py"]
+    parsed = BytesParser().parsebytes(metadata)
+    if (
+        parsed["Name"] != "ordin"
+        or parsed["Version"] != version
+        or _runtime_version(runtime) != version
+    ):
+        raise ValueError("wheel metadata/runtime version mismatch")
+    archive = inputs.read_archive(sdist, wheel=False)
 
-        def member(name: str) -> bytes:
-            info = archive.getmember(f"ordin-{version}/{name}")
-            if not info.isfile() or info.size > 1024 * 1024:
-                raise ValueError("invalid source distribution metadata")
-            handle = archive.extractfile(info)
-            if handle is None:
-                raise ValueError("missing source distribution metadata")
-            with handle:
-                return handle.read(1024 * 1024 + 1)
+    def member(name: str) -> bytes:
+        raw = archive.get(f"ordin-{version}/{name}")
+        if raw is None or len(raw) > 1024 * 1024:
+            raise ValueError("invalid source distribution metadata")
+        return raw
 
-        parsed = BytesParser().parsebytes(member("PKG-INFO"))
-        if (
-            parsed["Name"] != "ordin"
-            or parsed["Version"] != version
-            or _runtime_version(member("ordin/__init__.py")) != version
-        ):
-            raise ValueError("source distribution metadata/runtime version mismatch")
+    parsed = BytesParser().parsebytes(member("PKG-INFO"))
+    if (
+        parsed["Name"] != "ordin"
+        or parsed["Version"] != version
+        or _runtime_version(member("ordin/__init__.py")) != version
+    ):
+        raise ValueError("source distribution metadata/runtime version mismatch")
     return [wheel, sdist]
 
 
 def create_metadata(dist: Path, *, version: str, revision: str, tag: str) -> None:
+    if not _legacy_version(version):
+        root = Path(__file__).resolve().parents[1]
+        if _runtime_version((root / "ordin/__init__.py").read_bytes()) != version:
+            raise ValueError("bundle version differs from the trusted expected version")
+        identity = create_bundle_metadata(dist, source_root=root, revision=revision, tag=tag)
+        if identity["version"] != version:
+            raise ValueError("bundle version differs from the trusted expected version")
+        return
     if re.fullmatch(r"[a-f0-9]{40}", revision) is None:
         raise ValueError("release revision must be a full commit SHA")
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:\.dev[0-9]+)?", version):
@@ -513,13 +582,23 @@ def create_metadata(dist: Path, *, version: str, revision: str, tag: str) -> Non
 
 
 def verify_metadata(dist: Path, *, version: str, revision: str, tag: str) -> dict[str, Any]:
+    if not _legacy_version(version):
+        identity = verify_bundle(
+            dist, source_root=Path(__file__).resolve().parents[1], revision=revision, tag=tag
+        )
+        if identity["version"] != version:
+            raise ValueError("bundle version differs from the trusted expected version")
+        return identity
     expected = {
         f"ordin-{version}-py3-none-any.whl",
         f"ordin-{version}.tar.gz",
         "sbom.cdx.json",
         "release.json",
     }
-    lines = (dist / "SHA256SUMS").read_text(encoding="ascii").splitlines()
+    inputs = _bounded_inputs()
+    lines = (
+        inputs.read_file(dist / "SHA256SUMS", inputs.MAX_MEMBER_BYTES).decode("ascii").splitlines()
+    )
     seen = set()
     for line in lines:
         match = re.fullmatch(r"([a-f0-9]{64})  ([A-Za-z0-9_.-]+)", line)
@@ -537,7 +616,8 @@ def verify_metadata(dist: Path, *, version: str, revision: str, tag: str) -> dic
         - {"SHA256SUMS", "provenance.sigstore.json"}
     ):
         raise ValueError("unexpected release assets")
-    identity = json.loads((dist / "release.json").read_text())
+    identity = inputs.read_json(dist / "release.json")
+    inputs.read_json(dist / "sbom.cdx.json")
     if identity.get("schema_version") != "ordin.release.v1" or any(
         identity.get(key) != value
         for key, value in [("version", version), ("revision", revision), ("tag", tag)]
@@ -550,30 +630,64 @@ def verify_metadata(dist: Path, *, version: str, revision: str, tag: str) -> dic
 
 
 def main() -> None:
-    import tomllib
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=["create", "verify"])
     parser.add_argument("--dist", type=Path, default=Path("dist"))
     parser.add_argument("--revision", required=True)
-    parser.add_argument("--tag", required=True)
+    parser.add_argument("--tag", help="Exact tag label; omit only for an untagged v2 candidate")
     parser.add_argument("--publish", action="store_true")
+    parser.add_argument(
+        "--bundle", action="store_true", help="Require the complete five-project v2 bundle"
+    )
     args = parser.parse_args()
+    tomllib = importlib.import_module("tomllib" if sys.version_info >= (3, 11) else "tomli")
     version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+    if _legacy_version(version) and not args.tag:
+        raise ValueError("historical releases require an explicit trusted tag identity")
     if _runtime_version(Path("ordin/__init__.py").read_bytes()) != version:
         raise ValueError("source package/runtime version mismatch")
-    actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-    if actual != args.revision:
-        raise ValueError("checked-out source differs from requested release revision")
-    if subprocess.check_output(["git", "status", "--porcelain"], text=True).strip():
-        raise ValueError("release integrity requires a clean source checkout")
+    if args.bundle or not _legacy_version(version):
+        # Reject configured content filters before any diff/status can invoke them.
+        actual = _bundle_helper().source_identity(Path.cwd(), args.revision)["commit"]
+    else:
+        executable = _trusted_tool("git", Path.cwd())
+        settings = _tools_helper().git_environment()
+        filters = subprocess.run(
+            [
+                executable,
+                "config",
+                "--includes",
+                "--get-regexp",
+                r"^filter\..*\.(clean|smudge|process)$",
+            ],
+            env=settings,
+            capture_output=True,
+            check=False,
+        )
+        if filters.returncode not in {0, 1} or filters.stdout:
+            raise ValueError("repository content filters are unsupported by release verification")
+        actual = subprocess.check_output(
+            [executable, "rev-parse", "HEAD"], env=settings, text=True
+        ).strip()
+        if actual != args.revision:
+            raise ValueError("checked-out source differs from requested release revision")
+        if subprocess.check_output(
+            [executable, "status", "--porcelain"], env=settings, text=True
+        ).strip():
+            raise ValueError("release integrity requires a clean source checkout")
     if args.publish:
         if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version) or args.tag != f"v{version}":
             raise ValueError("published tags require exactly vX.Y.Z matching the package")
-        subprocess.run(["git", "merge-base", "--is-ancestor", actual, "origin/main"], check=True)
+        executable = _trusted_tool("git", Path.cwd())
+        settings = _tools_helper().git_environment()
+        subprocess.run(
+            [executable, "merge-base", "--is-ancestor", actual, "origin/main"],
+            env=settings,
+            check=True,
+        )
         refs = subprocess.check_output(
             [
-                "git",
+                executable,
                 "ls-remote",
                 "--exit-code",
                 "origin",
@@ -581,6 +695,7 @@ def main() -> None:
                 f"refs/tags/{args.tag}^{{}}",
             ],
             text=True,
+            env=settings,
         ).splitlines()
         if not refs or refs[-1].split()[0] != actual:
             raise ValueError("remote release tag no longer identifies the tested commit")
@@ -591,10 +706,15 @@ def main() -> None:
             raise ValueError("publishing requires a tag push event")
         verify_release_checks(os.environ["GITHUB_REPOSITORY"], actual, tag=args.tag)
     if args.mode == "create":
-        create_metadata(args.dist, version=version, revision=actual, tag=args.tag)
+        if args.bundle or not _legacy_version(version):
+            create_bundle_metadata(args.dist, source_root=Path.cwd(), revision=actual, tag=args.tag)
+        else:
+            create_metadata(args.dist, version=version, revision=actual, tag=args.tag)
     print(
         json.dumps(
-            verify_metadata(args.dist, version=version, revision=actual, tag=args.tag),
+            verify_bundle(args.dist, source_root=Path.cwd(), revision=actual, tag=args.tag)
+            if args.bundle or not _legacy_version(version)
+            else verify_metadata(args.dist, version=version, revision=actual, tag=args.tag),
             sort_keys=True,
         )
     )
