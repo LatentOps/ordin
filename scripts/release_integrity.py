@@ -17,6 +17,30 @@ from email.parser import BytesParser
 from pathlib import Path
 from typing import Any, NoReturn
 
+import sys
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+
+def create_bundle_metadata(dist: Path, *, source_root: Path, revision: str, tag: str) -> dict:
+    from scripts.release_bundle import create_bundle_metadata as create
+
+    return create(dist, source_root=source_root, revision=revision, tag=tag)
+
+
+def verify_bundle(
+    dist: Path, *, source_root: Path, revision: str, tag: str | None = None, tree: str | None = None
+) -> dict:
+    from scripts.release_bundle import verify_bundle as verify
+
+    return verify(dist, source_root=source_root, revision=revision, tag=tag, tree=tree)
+
+
+def _legacy_version(version: str) -> bool:
+    # The historical core-only format is not an escape hatch for current releases.
+    return re.fullmatch(r"0\.[0-3]\.[0-9]+", version) is not None
+
 
 RELEASE_WORKFLOW_CHECKS = {
     "tests.yml": {
@@ -451,6 +475,13 @@ def validate_distributions(dist: Path, version: str) -> list[Path]:
 
 
 def create_metadata(dist: Path, *, version: str, revision: str, tag: str) -> None:
+    if not _legacy_version(version):
+        identity = create_bundle_metadata(
+            dist, source_root=Path(__file__).resolve().parents[1], revision=revision, tag=tag
+        )
+        if identity["version"] != version:
+            raise ValueError("bundle version differs from the trusted expected version")
+        return
     if re.fullmatch(r"[a-f0-9]{40}", revision) is None:
         raise ValueError("release revision must be a full commit SHA")
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:\.dev[0-9]+)?", version):
@@ -513,6 +544,13 @@ def create_metadata(dist: Path, *, version: str, revision: str, tag: str) -> Non
 
 
 def verify_metadata(dist: Path, *, version: str, revision: str, tag: str) -> dict[str, Any]:
+    if not _legacy_version(version):
+        identity = verify_bundle(
+            dist, source_root=Path(__file__).resolve().parents[1], revision=revision, tag=tag
+        )
+        if identity["version"] != version:
+            raise ValueError("bundle version differs from the trusted expected version")
+        return identity
     expected = {
         f"ordin-{version}-py3-none-any.whl",
         f"ordin-{version}.tar.gz",
@@ -558,6 +596,9 @@ def main() -> None:
     parser.add_argument("--revision", required=True)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--publish", action="store_true")
+    parser.add_argument(
+        "--bundle", action="store_true", help="Require the complete five-project v2 bundle"
+    )
     args = parser.parse_args()
     version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
     if _runtime_version(Path("ordin/__init__.py").read_bytes()) != version:
@@ -591,10 +632,15 @@ def main() -> None:
             raise ValueError("publishing requires a tag push event")
         verify_release_checks(os.environ["GITHUB_REPOSITORY"], actual, tag=args.tag)
     if args.mode == "create":
-        create_metadata(args.dist, version=version, revision=actual, tag=args.tag)
+        if args.bundle or not _legacy_version(version):
+            create_bundle_metadata(args.dist, source_root=Path.cwd(), revision=actual, tag=args.tag)
+        else:
+            create_metadata(args.dist, version=version, revision=actual, tag=args.tag)
     print(
         json.dumps(
-            verify_metadata(args.dist, version=version, revision=actual, tag=args.tag),
+            verify_bundle(args.dist, source_root=Path.cwd(), revision=actual, tag=args.tag)
+            if args.bundle
+            else verify_metadata(args.dist, version=version, revision=actual, tag=args.tag),
             sort_keys=True,
         )
     )

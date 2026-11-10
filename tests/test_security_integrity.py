@@ -17,15 +17,15 @@ from scripts.release_integrity import (
 )
 
 
-def distributions(path, *, runtime="1.2.3"):
-    metadata = b"Metadata-Version: 2.1\nName: ordin\nVersion: 1.2.3\n"
+def distributions(path, *, runtime="0.3.0"):
+    metadata = b"Metadata-Version: 2.1\nName: ordin\nVersion: 0.3.0\n"
     source = f'__version__ = "{runtime}"\n'.encode()
-    with zipfile.ZipFile(path / "ordin-1.2.3-py3-none-any.whl", "w") as archive:
-        archive.writestr("ordin-1.2.3.dist-info/METADATA", metadata)
+    with zipfile.ZipFile(path / "ordin-0.3.0-py3-none-any.whl", "w") as archive:
+        archive.writestr("ordin-0.3.0.dist-info/METADATA", metadata)
         archive.writestr("ordin/__init__.py", source)
-    with tarfile.open(path / "ordin-1.2.3.tar.gz", "w:gz") as archive:
+    with tarfile.open(path / "ordin-0.3.0.tar.gz", "w:gz") as archive:
         for name, content in [("PKG-INFO", metadata), ("ordin/__init__.py", source)]:
-            info = tarfile.TarInfo("ordin-1.2.3/" + name)
+            info = tarfile.TarInfo("ordin-0.3.0/" + name)
             info.size = len(content)
             archive.addfile(info, io.BytesIO(content))
 
@@ -33,14 +33,14 @@ def distributions(path, *, runtime="1.2.3"):
 def test_release_integrity_binds_both_formats_and_build_inventory(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.release_integrity.importlib.metadata.distributions", lambda: [])
     distributions(tmp_path)
-    kwargs = dict(version="1.2.3", revision="a" * 40, tag="v1.2.3")
+    kwargs = dict(version="0.3.0", revision="a" * 40, tag="v0.3.0")
     create_metadata(tmp_path, **kwargs)
     assert verify_metadata(tmp_path, **kwargs)["revision"] == "a" * 40
     sbom = json.loads((tmp_path / "sbom.cdx.json").read_text())
-    assert sbom["bomFormat"] == "CycloneDX" and sbom["metadata"]["component"]["version"] == "1.2.3"
+    assert sbom["bomFormat"] == "CycloneDX" and sbom["metadata"]["component"]["version"] == "0.3.0"
     with pytest.raises(ValueError, match="identity mismatch"):
         verify_metadata(tmp_path, **{**kwargs, "revision": "b" * 40})
-    wheel = tmp_path / "ordin-1.2.3-py3-none-any.whl"
+    wheel = tmp_path / "ordin-0.3.0-py3-none-any.whl"
     wheel.write_bytes(wheel.read_bytes() + b"tampered")
     with pytest.raises(ValueError, match="checksum"):
         verify_metadata(tmp_path, **kwargs)
@@ -49,7 +49,7 @@ def test_release_integrity_binds_both_formats_and_build_inventory(tmp_path, monk
 def test_release_rejects_runtime_version_mismatch(tmp_path):
     distributions(tmp_path, runtime="9.9.9")
     with pytest.raises(ValueError, match="version mismatch"):
-        create_metadata(tmp_path, version="1.2.3", revision="a" * 40, tag="v1.2.3")
+        create_metadata(tmp_path, version="0.3.0", revision="a" * 40, tag="v0.3.0")
     assert not (tmp_path / "SHA256SUMS").exists()
 
 
