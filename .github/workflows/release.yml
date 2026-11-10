@@ -75,7 +75,11 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: python scripts/build_release_bundle.py --dist dist --revision "$RELEASE_SHA" --tag "$RELEASE_TAG"
       - name: Validate distribution metadata
-        run: python -m twine check dist/*
+        run: python -m twine check dist/*.whl dist/*.tar.gz
+      - name: Verify the complete offline installed bundle
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: python scripts/check_release_bundle_install.py --bundle "$GITHUB_WORKSPACE/dist" --workspace "$RUNNER_TEMP/ordin-bundle-install" --revision "$RELEASE_SHA"
       - name: Smoke-test built wheel
         run: |
           python -m venv /tmp/ordin-release

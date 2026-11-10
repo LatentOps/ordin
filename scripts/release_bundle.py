@@ -85,13 +85,14 @@ def _path(name: str) -> str:
         or ":" in name
         or any(ord(c) < 32 for c in name)
         or path.is_absolute()
+        or path.as_posix() != name.removesuffix("/")
         or any(part in {"", ".", ".."} for part in name.rstrip("/").split("/"))
     ):
         raise ValueError("unowned release archive path")
     return path.as_posix()
 
 
-def _archive(path: Path, *, wheel: bool) -> dict[str, bytes]:
+def _archive(path: Path, *, wheel: bool, roots: tuple[str, ...] | None = None) -> dict[str, bytes]:
     raw = _file(path)
     result: dict[str, bytes] = {}
     seen: set[str] = set()
@@ -100,6 +101,8 @@ def _archive(path: Path, *, wheel: bool) -> dict[str, bytes]:
     def add(name, size, regular, directory, stream):
         nonlocal total
         name = _path(name)
+        if roots is not None and name.split("/", 1)[0] not in roots:
+            raise ValueError("release archive contains an unowned top-level directory")
         if name in seen or len(seen) >= MAX_MEMBERS:
             raise ValueError("duplicate or excessive release archive entries")
         seen.add(name)
@@ -116,9 +119,16 @@ def _archive(path: Path, *, wheel: bool) -> dict[str, bytes]:
     if wheel:
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
             for item in archive.infolist():
+                if item.orig_filename != item.filename:
+                    raise ValueError("wheel archive filename was normalized or NUL-truncated")
                 mode = item.external_attr >> 16
                 kind = stat.S_IFMT(mode)
-                if item.flag_bits & 1 or kind not in {0, stat.S_IFREG, stat.S_IFDIR}:
+                if (
+                    item.flag_bits & 1
+                    or kind not in {0, stat.S_IFREG, stat.S_IFDIR}
+                    or (kind == stat.S_IFDIR and not item.is_dir())
+                    or (kind == stat.S_IFREG and item.is_dir())
+                ):
                     raise ValueError("unsupported encrypted or linked wheel member")
                 with archive.open(item) as stream:
                     add(item.filename, item.file_size, not item.is_dir(), item.is_dir(), stream)
@@ -241,14 +251,34 @@ def _source_projects(root: Path, revision: str, tree: str | None):
         directory = root / relative
         settings = tomllib.loads(_file(directory / "pyproject.toml").decode("utf-8"))
         project = settings["project"]
+        build_requirements = [Requirement(value) for value in settings["build-system"]["requires"]]
+        setuptools = settings.get("tool", {}).get("setuptools", {})
         if (
             settings["build-system"]["build-backend"] != "setuptools.build_meta"
-            or settings["build-system"].get("backend-path")
+            or set(settings["build-system"]) != {"requires", "build-backend"}
+            or len(build_requirements) != 1
+            or canonicalize_name(build_requirements[0].name) != "setuptools"
+            or build_requirements[0].url
+            or build_requirements[0].marker
+            or set(setuptools) - {"packages", "package-data"}
             or project.get("dynamic")
             or project["name"] != name
             or any((directory / item).exists() for item in ("setup.py", "setup.cfg"))
         ):
             raise ValueError("bundle requires the closed static setuptools projects")
+        packages = setuptools.get("packages")
+        if isinstance(packages, list):
+            if not packages or any(
+                value != module and not value.startswith(module + ".") for value in packages
+            ):
+                raise ValueError("bundle package declaration escapes its owned module")
+        elif packages != {"find": {"include": [module + "*"], "namespaces": False}}:
+            raise ValueError("unsupported bundle package discovery")
+        if any(key != module for key in setuptools.get("package-data", {})):
+            raise ValueError("bundle package data escapes its owned module")
+        for shadow in ("setuptools.py", "build.py", "setuptools/__init__.py", "build/__init__.py"):
+            if (directory / shadow).relative_to(root).as_posix() in tracked:
+                raise ValueError("tracked release backend shadowing is unsupported")
         version = project["version"]
         if (
             str(Version(version)) != version
@@ -312,8 +342,9 @@ def _validate_assets(dist: Path, root: Path, revision: str, tree: str | None = N
         normalized, version = name.replace("-", "_"), project["version"]
         wheel = f"{normalized}-{version}-py3-none-any.whl"
         sdist = f"{normalized}-{version}.tar.gz"
-        files = _archive(dist / wheel, wheel=True)
         prefix = f"{normalized}-{version}.dist-info"
+        module = PROJECTS[name][1]
+        files = _archive(dist / wheel, wheel=True, roots=(module, prefix))
         packaged = {key: raw for key, raw in files.items() if not key.startswith(prefix + "/")}
         if packaged != payload:
             raise ValueError("bundle wheel payload differs from exact source/resources")
@@ -331,7 +362,6 @@ def _validate_assets(dist: Path, root: Path, revision: str, tree: str | None = N
                 raise ValueError("bundle wheel license/notice payload differs from source")
         requirements = _metadata(files.get(prefix + "/METADATA", b""), project)
         entrypoints = _entrypoints(files.get(prefix + "/entry_points.txt"), project)
-        module = PROJECTS[name][1]
         if files.get(prefix + "/top_level.txt", b"").decode().splitlines() != [module]:
             raise ValueError("wheel top-level package metadata differs from source")
         parsed_metadata = BytesParser().parsebytes(files[prefix + "/METADATA"])
@@ -349,8 +379,8 @@ def _validate_assets(dist: Path, root: Path, revision: str, tree: str | None = N
         ):
             raise ValueError("bundle requires universal pure-Python wheels")
         _record(files, prefix)
-        source_files = _archive(dist / sdist, wheel=False)
         stem = f"{normalized}-{version}/"
+        source_files = _archive(dist / sdist, wheel=False, roots=(stem.rstrip("/"),))
         if any(not key.startswith(stem) for key in source_files):
             raise ValueError("source distribution has a foreign root")
         source_files = {key[len(stem) :]: raw for key, raw in source_files.items()}
