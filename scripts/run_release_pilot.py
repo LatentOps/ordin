@@ -46,6 +46,35 @@ FIXED_CASES = (
     "tests/test_swarm_budgets.py::test_policy_epoch_recovery_preserves_consumed_spend",
     "tests/test_swarm_budgets.py::test_physical_budget_requirement_cannot_be_satisfied_by_cost_estimate_or_json_flag",
 )
+_HOST_CASE_IDS = frozenset(
+    {
+        "authorized_private_read",
+        "original_private_handoff",
+        "exact_public_fetch",
+        "exact_reviewed_managed_report",
+        "operator_stop_closes_admission",
+        "write_waits_for_operator",
+        "write_only_has_no_read_hash_oracle",
+        "traversal_read_refused",
+        "caller_url_refused",
+        "forged_resource_refused",
+        "caller_labels_refused",
+        "actor_substitution_refused",
+        "stale_cas_cannot_replace_report",
+        "embedded_instruction_cannot_self_approve",
+        "post_shutdown_original_session_refused",
+    }
+)
+_TRANSITION_CASE_IDS = frozenset(
+    {
+        "exact_operator_denial",
+        "original_connection_cancels_pending_write",
+        "original_native_revocation",
+        "shutdown_fences_original_client",
+        "epoch_restart_fences_original_handle",
+        "durable_consumption_survives_epoch_restart",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -423,6 +452,72 @@ def _portable(fixtures, cycle):
     }
 
 
+def _native_case_diagnostics(rows, expected, *, key, prefix):
+    """Emit finite fixture identifiers, never tool bodies or exception strings."""
+    seen, failed, passed, valid = set(), set(), 0, True
+    if type(rows) is not list or len(rows) > len(expected):
+        return (
+            0,
+            0,
+            False,
+            [prefix + ".invalid_case_inventory"],
+            sorted(prefix + "." + value for value in expected),
+        )
+    for row in rows:
+        if type(row) is not dict or type(row.get(key)) is not str or row[key] not in expected:
+            failed.add(prefix + ".unrecognized_case")
+            valid = False
+            continue
+        name = row[key]
+        if name in seen:
+            failed.add(prefix + ".duplicate_case")
+            valid = False
+        seen.add(name)
+        if row.get("passed") is True:
+            passed += 1
+        else:
+            failed.add(prefix + "." + name)
+            if row.get("passed") is not False:
+                valid = False
+    missing = sorted(prefix + "." + value for value in expected - seen)
+    complete = valid and len(rows) == len(expected) and not missing
+    return len(rows), passed, complete, sorted(failed), missing
+
+
+def _host_cycle_summary(host, transitions):
+    managed = _native_case_diagnostics(
+        host.get("cases"), _HOST_CASE_IDS, key="case_id", prefix="managed_host"
+    )
+    extra = _native_case_diagnostics(
+        transitions.get("cases"), _TRANSITION_CASE_IDS, key="id", prefix="transitions"
+    )
+    complete = (
+        host.get("passed") is True
+        and host.get("complete") is True
+        and transitions.get("passed") is True
+        and managed[2]
+        and extra[2]
+        and not managed[3]
+        and not extra[3]
+    )
+    reason = host.get("failure_reason")
+    if reason not in (None, "host.evaluation_incomplete", "host.fixture_case_failed"):
+        reason = "pilot.owned_diagnostic_unavailable"
+    return {
+        "status": "completed" if complete else "failed",
+        "cases": managed[0] + extra[0],
+        "passed": managed[1] + extra[1],
+        "managed_host_complete": managed[2] and host.get("complete") is True,
+        "transitions_complete": extra[2],
+        "managed_host_failure_reason": reason,
+        "failed_case_ids": managed[3] + extra[3],
+        "unexecuted_case_ids": managed[4] + extra[4],
+        "boundary": "owned_linux_read_write_workers",
+        "client_process_confinement": "not_established",
+        "operator_mode": "scripted_fixture_exact_authenticated_review",
+    }
+
+
 def _cycle(fixtures, output, config, roots):
     cycle = output / "cycle"
     cycle.mkdir(mode=0o700)
@@ -438,15 +533,7 @@ def _cycle(fixtures, output, config, roots):
 
             host = run_evaluation(cycle / "managed-host")
             transitions = run_owned_transitions(cycle / "transitions")
-            result["host"] = {
-                "status": "completed" if host["passed"] and transitions["passed"] else "failed",
-                "cases": len(host["cases"]) + len(transitions["cases"]),
-                "passed": sum(case["passed"] for case in host["cases"])
-                + sum(case["passed"] for case in transitions["cases"]),
-                "boundary": "owned_linux_read_write_workers",
-                "client_process_confinement": "not_established",
-                "operator_mode": "scripted_fixture_exact_authenticated_review",
-            }
+            result["host"] = _host_cycle_summary(host, transitions)
         _loaded(roots)
         result["passed"] = result["portable"]["passed"] and (
             config.portable_only or result["host"]["status"] == "completed"

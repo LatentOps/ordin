@@ -20,6 +20,76 @@ def cleanup_module(kind):
     return module
 
 
+def native_diagnostic_samples():
+    host = {
+        "passed": True,
+        "complete": True,
+        "failure_reason": None,
+        "cases": [{"case_id": name, "passed": True} for name in sorted(pilot._HOST_CASE_IDS)],
+    }
+    transitions = {
+        "passed": True,
+        "cases": [{"id": name, "passed": True} for name in sorted(pilot._TRANSITION_CASE_IDS)],
+    }
+    return host, transitions
+
+
+def test_native_summary_preserves_partial_failed_write_without_counting_unexecuted_cases():
+    host, transitions = native_diagnostic_samples()
+    ids = (
+        "authorized_private_read",
+        "original_private_handoff",
+        "exact_public_fetch",
+        "write_waits_for_operator",
+        "exact_reviewed_managed_report",
+    )
+    host.update(
+        passed=False,
+        complete=False,
+        failure_reason="host.evaluation_incomplete",
+        cases=[{"case_id": name, "passed": index < 4} for index, name in enumerate(ids)],
+    )
+    result = pilot._host_cycle_summary(host, transitions)
+    assert result["status"] == "failed" and result["cases"] == 11 and result["passed"] == 10
+    assert result["failed_case_ids"] == ["managed_host.exact_reviewed_managed_report"]
+    assert len(result["unexecuted_case_ids"]) == 10
+    assert not result["managed_host_complete"] and result["transitions_complete"]
+
+
+@pytest.mark.parametrize("change", ["unknown", "duplicate", "numeric_pass", "reported_incomplete"])
+def test_native_diagnostics_do_not_promote_unrecognized_or_incomplete_results(change):
+    host, transitions = native_diagnostic_samples()
+    secret = "PRIVATE_TOOL_BODY_OR_EXCEPTION_MUST_NOT_BE_LOGGED"
+    host["payload"] = secret
+    if change == "unknown":
+        host["cases"][0]["case_id"] = secret
+        host["failure_reason"] = secret
+    elif change == "duplicate":
+        host["cases"][1] = host["cases"][0].copy()
+    elif change == "numeric_pass":
+        host["cases"][0]["passed"] = 1
+    else:
+        host["complete"] = False
+    result = pilot._host_cycle_summary(host, transitions)
+    assert result["status"] == "failed"
+    assert secret not in json.dumps(result)
+
+
+def test_complete_native_diagnostic_inventory_has_no_failed_or_missing_cases():
+    result = pilot._host_cycle_summary(*native_diagnostic_samples())
+    assert result["status"] == "completed" and result["cases"] == result["passed"] == 21
+    assert result["failed_case_ids"] == result["unexecuted_case_ids"] == []
+
+
+def test_completed_native_coverage_with_failed_case_remains_failed_not_unexecuted():
+    host, transitions = native_diagnostic_samples()
+    host["cases"][0]["passed"] = False
+    result = pilot._host_cycle_summary(host, transitions)
+    assert result["status"] == "failed" and result["cases"] == 21 and result["passed"] == 20
+    assert result["managed_host_complete"] and result["transitions_complete"]
+    assert result["unexecuted_case_ids"] == [] and len(result["failed_case_ids"]) == 1
+
+
 @pytest.mark.parametrize(
     "changes",
     [
