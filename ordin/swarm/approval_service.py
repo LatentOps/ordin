@@ -1640,16 +1640,24 @@ class SwarmApprovalService:
             self._close_request(request_id)
         return result
 
+    def _request_view(self, row, now):
+        status = (
+            "expired"
+            if row["status"] in {"pending", "approved", "held"} and now >= row["expires_at"]
+            else row["status"]
+        )
+        return {
+            "request": row["request"],
+            "status": status,
+            "vote_count": self._current_votes(row),
+        }
+
     def snapshot(self, operator_channel, *, task_id: str):
         self.directory.require(operator_channel, task_id=task_id, roles=("observe",))
         with self._barrier, self._lock, self._transaction() as transaction:
             _, state, namespace = self._namespace(transaction, contained=True)
             requests = [
-                {
-                    "request": row["request"],
-                    "status": row["status"],
-                    "vote_count": self._current_votes(row),
-                }
+                self._request_view(row, transaction.now)
                 for row in namespace["requests"].values()
                 if row["task_id"] == task_id
             ]
@@ -1660,11 +1668,7 @@ class SwarmApprovalService:
                 "owner_fence": state["owner"]["fence"],
                 "requests": requests,
                 "recoveries": [
-                    {
-                        "request": row["request"],
-                        "status": row["status"],
-                        "vote_count": self._current_votes(row),
-                    }
+                    self._request_view(row, transaction.now)
                     for row in namespace["recoveries"].values()
                     if row["task_id"] == task_id
                 ],
@@ -1679,19 +1683,7 @@ class SwarmApprovalService:
             if row is None:
                 raise CoordinatorRejected("governance request unavailable")
             self.directory.require(operator_channel, task_id=row["task_id"], roles=("observe",))
-            status = (
-                "expired"
-                if (
-                    row["status"] in {"pending", "approved", "held"}
-                    and transaction.now >= row["expires_at"]
-                )
-                else row["status"]
-            )
-            return {
-                "request": row["request"],
-                "status": status,
-                "vote_count": self._current_votes(row),
-            }
+            return self._request_view(row, transaction.now)
 
     def describe_receipt(self, receipt):
         """A receipt report has no restoration or execution authority."""
