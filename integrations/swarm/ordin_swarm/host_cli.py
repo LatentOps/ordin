@@ -281,6 +281,10 @@ def _operator_success(action, result):
     if action == "fulfill":
         fulfilled = result.get("data", {}).get("fulfillment")
         return type(fulfilled) is dict and fulfilled.get("status") == "completed"
+    if action in {"approve", "deny"}:
+        request = result.get("data", {}).get("request")
+        accepted = ("pending", "approved") if action == "approve" else ("denied",)
+        return type(request) is dict and request.get("status") in accepted
     return True
 
 

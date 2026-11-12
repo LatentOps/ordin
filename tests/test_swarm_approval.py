@@ -1,8 +1,10 @@
 """Actual authenticated humans, durable quorum and original owned broker effects."""
 
 from contextlib import contextmanager, ExitStack
-from copy import copy
+from copy import copy, deepcopy
 from dataclasses import replace
+from threading import RLock
+from types import SimpleNamespace
 
 import pytest
 
@@ -13,6 +15,92 @@ from ordin.swarm.coordinator_store import CoordinatorClock, SQLiteCoordinatorSto
 from ordin.swarm.operator_auth import SwarmOperatorDirectory
 from tests.test_swarm_broker import fixture, require_kernel
 from tests.test_swarm_delegation import fingerprint, tls_pair
+
+
+@pytest.mark.parametrize(
+    "status",
+    [
+        "pending",
+        "approved",
+        "held",
+        "denied",
+        "canceled",
+        "expired",
+        "consumed",
+        "uncertain",
+        "completed",
+    ],
+)
+def test_portable_queue_and_request_views_agree_without_mutating_authority(tmp_path, status):
+    """Exercise the actual reporting methods over a real portable SQLite store."""
+    from ordin._runtime_json import digest
+    from tests.test_swarm_coordinator_store import initial
+
+    scope_key = digest(["tenant", "swarm"])
+    store = SQLiteCoordinatorStore(tmp_path / "view.db", create=True, clock=lambda: 100.0)
+    row = {
+        "request": {"request_id": "original-request", "expires_at": 99.0},
+        "status": status,
+        "expires_at": 99.0,
+        "task_id": "task",
+        "votes": {},
+    }
+    state = initial() | {
+        "policy_epoch": 3,
+        "owner": {"fence": 7},
+        "governance": {
+            "requests": {"original-request": deepcopy(row)},
+            "recoveries": {"original-recovery": deepcopy(row)},
+        },
+        "reservations": {
+            "held": {"status": "held", "amount": 2},
+            "unknown": {"status": "uncertain", "amount": 3},
+        },
+    }
+    with store.transaction() as transaction:
+        transaction.create_scope(scope_key, state)
+    service = object.__new__(SwarmApprovalService)
+    service._barrier, service._lock = RLock(), RLock()
+    service.coordinator = SimpleNamespace(store=store)
+    service.scope = SimpleNamespace(scope_key=scope_key)
+    human = object()
+
+    def require(channel, *, task_id, roles):
+        assert channel is human and task_id == "task" and roles == ("observe",)
+
+    service.directory = SimpleNamespace(require=require)
+
+    def namespace(transaction, *, contained=False):
+        assert contained
+        current = transaction.scope(scope_key)
+        return None, current, current["governance"]
+
+    service._namespace = namespace
+    with store.transaction() as transaction:
+        before = deepcopy(transaction.scope(scope_key))
+    expected = "expired" if status in {"pending", "approved", "held"} else status
+    queue = service.snapshot(human, task_id="task")
+    shown = service.get_request(human, "original-request")
+    recovered = service.get_request(human, "original-recovery")
+    assert queue["requests"][0] == shown
+    assert queue["recoveries"][0] == recovered
+    assert shown["status"] == expected and shown["vote_count"] == 0
+    with store.transaction() as transaction:
+        assert transaction.scope(scope_key) == before
+
+
+@pytest.mark.parametrize("now,expected", [(98.999, "pending"), (99.0, "expired")])
+def test_request_view_keeps_the_original_expiry_boundary(now, expected):
+    service = object.__new__(SwarmApprovalService)
+    row = {
+        "request": {"request_id": "original"},
+        "status": "pending",
+        "expires_at": 99.0,
+        "votes": {},
+    }
+    original = deepcopy(row)
+    assert service._request_view(row, now)["status"] == expected
+    assert row == original
 
 
 @contextmanager

@@ -98,18 +98,48 @@ def test_cli_help_is_available_without_starting_or_importing_native_backend(caps
 
 
 @pytest.mark.parametrize(
-    "action,status,fulfillment,expected",
+    "action,status,resolution,fulfillment,expected",
     [
-        ("approve", "denied", None, 2),
-        ("approve", "completed", None, 0),
-        ("deny", "completed", None, 0),
-        ("fulfill", "completed", "unknown", 2),
-        ("fulfill", "completed", "denied", 2),
-        ("fulfill", "completed", "completed", 0),
+        ("approve", "denied", "approved", None, 2),
+        ("approve", "completed", "pending", None, 0),
+        ("approve", "completed", "approved", None, 0),
+        *(
+            ("approve", "completed", state, None, 2)
+            for state in (
+                "expired",
+                "denied",
+                "canceled",
+                "completed",
+                "uncertain",
+                "held",
+                "consumed",
+                None,
+                [],
+            )
+        ),
+        ("deny", "completed", "denied", None, 0),
+        *(
+            ("deny", "completed", state, None, 2)
+            for state in (
+                "pending",
+                "approved",
+                "expired",
+                "canceled",
+                "completed",
+                "uncertain",
+                "held",
+                "consumed",
+                None,
+                [],
+            )
+        ),
+        ("fulfill", "completed", None, "unknown", 2),
+        ("fulfill", "completed", None, "denied", 2),
+        ("fulfill", "completed", None, "completed", 0),
     ],
 )
 def test_operator_cli_exit_status_tracks_actual_resolution_and_fulfillment(
-    tmp_path, monkeypatch, capsys, action, status, fulfillment, expected
+    tmp_path, monkeypatch, capsys, action, status, resolution, fulfillment, expected
 ):
     from ordin_swarm import host_cli, host_service
     from ordin_swarm.host_runtime import _result
@@ -126,7 +156,13 @@ def test_operator_cli_exit_status_tracks_actual_resolution_and_fulfillment(
             )
         }
         if fulfillment
-        else {}
+        else {
+            "request": {
+                "request": {"request_id": "original"},
+                "status": resolution,
+                "vote_count": 1,
+            }
+        }
     )
     monkeypatch.setattr(host_cli, "_rpc", lambda *args: _result(status, data=data))
     arguments = [
