@@ -264,19 +264,39 @@ def test_unconfirmed_process_cleanup_never_yields_scanner_evidence(
     assert cleanup_attempts == ["close", "wait"]
 
 
-@pytest.mark.parametrize(
-    "body,status",
-    [
-        ("time.sleep(60)", "timeout"),
-        ("sys.stdout.write('x' * 200000); sys.stdout.flush(); time.sleep(60)", "output_limit"),
-    ],
-)
-def test_process_timeout_output_budget_and_no_raw_diagnostics(installation, body, status):
+def test_process_timeout_and_no_raw_diagnostics(installation):
     selection = replace(
-        fake(installation[0], body=body), timeout_seconds=0.5, max_output_bytes=1024
+        fake(installation[0], body="time.sleep(60)"), timeout_seconds=0.5, max_output_bytes=1024
     )
     result = inspect_scanner(selection)
-    assert result.status == status and result.stdout_bytes <= 1024 and result.elapsed_ms < 4000
+    assert result.status == "timeout" and result.stdout_bytes <= 1024 and result.elapsed_ms < 4000
+
+
+def test_process_output_budget_and_no_raw_diagnostics(installation):
+    # Use the normal inspection budget to allow a cold interpreter to start.
+    selection = replace(
+        fake(
+            installation[0],
+            body="sys.stdout.write('x' * 200000); sys.stdout.flush(); time.sleep(60)",
+        ),
+        max_output_bytes=1024,
+    )
+    result = inspect_scanner(selection)
+    assert (
+        result.status == "output_limit" and result.stdout_bytes <= 1024 and result.elapsed_ms < 4000
+    )
+
+
+@pytest.mark.parametrize("size,status", [(1024, "completed"), (1025, "output_limit")])
+def test_output_limit_preserves_the_exact_byte_boundary(installation, size, status):
+    selection = replace(
+        fake(
+            installation[0], body=f"sys.stdout.write('x' * {size}); sys.stdout.flush(); sys.exit(0)"
+        ),
+        max_output_bytes=1024,
+    )
+    observed, _, stdout, stderr, _ = _run(selection, ("--version",))
+    assert observed == status and stdout == b"x" * 1024 and stderr == b""
 
 
 def test_timeout_kills_inherited_pipe_child(installation):
